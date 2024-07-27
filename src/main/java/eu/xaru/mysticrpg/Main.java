@@ -24,9 +24,10 @@ public class Main extends JavaPlugin {
 
         this.config = new Config(this);
         this.localStorage = new LocalStorage(this);
-        this.managers = new Managers(this);
-
         new DefaultConfigCreator(this).createDefaultFiles();
+
+        // Initialize Managers
+        this.managers = new Managers(this);
 
         managers.loadModules();
         managers.registerCommands();

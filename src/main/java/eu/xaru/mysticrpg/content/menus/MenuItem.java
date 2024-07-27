@@ -1,13 +1,18 @@
 package eu.xaru.mysticrpg.content.menus;
 
+import org.bukkit.entity.Player;
+
+import java.util.Map;
+
 public class MenuItem {
     private String material;
     private String name;
-    private String enchant;
     private boolean hideEnchants;
     private String description;
     private int row;
     private int column;
+    private String command;
+    private Map<String, Integer> enchants;
 
     // Getters and setters
     public String getMaterial() {
@@ -24,14 +29,6 @@ public class MenuItem {
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public String getEnchant() {
-        return enchant;
-    }
-
-    public void setEnchant(String enchant) {
-        this.enchant = enchant;
     }
 
     public boolean isHideEnchants() {
@@ -64,5 +61,27 @@ public class MenuItem {
 
     public void setColumn(int column) {
         this.column = column;
+    }
+
+    public String getCommand() {
+        return command;
+    }
+
+    public void setCommand(String command) {
+        this.command = command;
+    }
+
+    public Map<String, Integer> getEnchantments() {
+        return enchants;
+    }
+
+    public void setEnchantments(Map<String, Integer> enchants) {
+        this.enchants = enchants;
+    }
+
+    public void runCommand(Player player) {
+        if (command != null && !command.isEmpty()) {
+            player.performCommand(command);
+        }
     }
 }

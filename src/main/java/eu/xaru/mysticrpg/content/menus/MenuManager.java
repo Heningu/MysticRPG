@@ -8,15 +8,11 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,14 +20,15 @@ import java.util.Set;
 
 public class MenuManager {
     private final Main plugin;
+    private final JsonReader jsonReader;
     private final Map<String, Inventory> menus = new HashMap<>();
-    private final Map<String, JSONObject> hotbarItems = new HashMap<>();
     private final InventoryManager inventoryManager;
 
     public MenuManager(Main plugin) {
         this.plugin = plugin;
+        this.jsonReader = new JsonReader();
         loadMenus();
-        this.inventoryManager = new InventoryManager(menus);
+        this.inventoryManager = new InventoryManager(menus, jsonReader.getHotbarItems());
     }
 
     public InventoryManager getInventoryManager() {
@@ -40,46 +37,35 @@ public class MenuManager {
 
     public void loadMenus() {
         File menusFolder = new File(plugin.getDataFolder(), "menus");
-        if (!menusFolder.exists()) {
-            menusFolder.mkdirs();
-        }
+        jsonReader.loadMenus(menusFolder);
 
-        File[] menuFiles = menusFolder.listFiles((dir, name) -> name.endsWith(".json"));
-        if (menuFiles != null) {
-            for (File menuFile : menuFiles) {
-                try (FileReader reader = new FileReader(menuFile)) {
-                    JSONObject menuData = (JSONObject) new JSONParser().parse(reader);
-                    String menuName = menuFile.getName().replace(".json", "");
-                    menus.put(menuName, createMenu(menuData));
-                    if ((boolean) menuData.getOrDefault("use_hotbar_item", false)) {
-                        hotbarItems.put(menuName, (JSONObject) menuData.get("hotbar_item"));
-                    }
-                } catch (IOException | ParseException e) {
-                    Logger.error("Failed to load menu " + menuFile.getName() + ": " + e.getMessage());
-                }
-            }
+        for (Map.Entry<String, MenuData> entry : jsonReader.getMenus().entrySet()) {
+            menus.put(entry.getKey(), createMenu(entry.getValue()));
         }
     }
 
-    private Inventory createMenu(JSONObject menuData) {
-        int rows = ((Long) menuData.get("Rows")).intValue();
-        int columns = ((Long) menuData.get("Columns")).intValue();
+    private Inventory createMenu(MenuData menuData) {
+        int rows = menuData.getRows();
+        int columns = menuData.getColumns();
         int size = rows * columns;
-        String title = ChatColor.translateAlternateColorCodes('&', (String) menuData.get("Menu_name"));
+        String title = ChatColor.translateAlternateColorCodes('&', menuData.getMenuName());
         Inventory menu = Bukkit.createInventory(null, size, title);
 
-        for (Object itemObj : (Iterable<?>) menuData.get("items")) {
-            JSONObject itemData = (JSONObject) itemObj;
-            ItemStack itemStack = createMenuItem(itemData);
-            int row = ((Long) itemData.get("Row")).intValue() - 1;
-            int column = ((Long) itemData.get("Column")).intValue() - 1;
+        for (MenuItem menuItem : menuData.getItems()) {
+            ItemStack itemStack = createMenuItem(menuItem);
+            int row = menuItem.getRow() - 1;
+            int column = menuItem.getColumn() - 1;
             int slot = row * columns + column;
             menu.setItem(slot, itemStack);
         }
 
-        if ((boolean) menuData.getOrDefault("fill_rest_with_white_glass", false)) {
-            ItemStack filler = createMenuItem(new JSONObject());
-            filler.setType(Material.WHITE_STAINED_GLASS_PANE);
+        if (menuData.isFillRestWithWhiteGlass()) {
+            ItemStack filler = new ItemStack(Material.WHITE_STAINED_GLASS_PANE);
+            ItemMeta meta = filler.getItemMeta();
+            if (meta != null) {
+                meta.setDisplayName(ChatColor.RESET + "");
+                filler.setItemMeta(meta);
+            }
             for (int i = 0; i < size; i++) {
                 if (menu.getItem(i) == null) {
                     menu.setItem(i, filler);
@@ -90,13 +76,16 @@ public class MenuManager {
         return menu;
     }
 
-    private ItemStack createMenuItem(JSONObject itemData) {
-        Material material = Material.valueOf((String) itemData.get("material"));
+    private ItemStack createMenuItem(MenuItem menuItem) {
+        Material material = Material.valueOf(menuItem.getMaterial());
         ItemStack itemStack = new ItemStack(material);
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', (String) itemData.get("name")));
-            meta.setLore(Arrays.asList(ChatColor.translateAlternateColorCodes('&', Arrays.toString(((String) itemData.get("description")).split("\n")))));
+            meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', menuItem.getName()));
+            meta.setLore(Arrays.asList(ChatColor.translateAlternateColorCodes('&', Arrays.toString(menuItem.getDescription().split("\n")))));
+            if (menuItem.isHideEnchants()) {
+                meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            }
             itemStack.setItemMeta(meta);
         }
         return itemStack;
@@ -116,25 +105,30 @@ public class MenuManager {
     }
 
     public void giveHotbarItemsToPlayer(Player player) {
-        for (Map.Entry<String, JSONObject> entry : hotbarItems.entrySet()) {
-            JSONObject hotbarItemData = entry.getValue();
-            if ((boolean) hotbarItemData.get("use")) {
+        for (Map.Entry<String, HotbarItem> entry : jsonReader.getHotbarItems().entrySet()) {
+            HotbarItem hotbarItemData = entry.getValue();
+            if (hotbarItemData.isUse()) {
                 ItemStack hotbarItem = createHotbarItem(hotbarItemData);
-                int slot = ((Long) hotbarItemData.get("hotbar_slot")).intValue() - 1;
+                int slot = hotbarItemData.getHotbarSlot() - 1;
                 player.getInventory().setItem(slot, hotbarItem);
             }
         }
     }
 
-    private ItemStack createHotbarItem(JSONObject itemData) {
-        Material material = Material.valueOf((String) itemData.get("material"));
+    private ItemStack createHotbarItem(HotbarItem itemData) {
+        Material material = Material.valueOf(itemData.getMaterial());
         ItemStack itemStack = new ItemStack(material);
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', (String) itemData.get("name")));
-            meta.setLore(Arrays.asList(ChatColor.translateAlternateColorCodes('&', Arrays.toString(((String) itemData.get("item_description")).split("\n")))));
-            if ((boolean) itemData.get("hideEnchants")) {
-                meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
+            meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', itemData.getName()));
+            meta.setLore(Arrays.asList(ChatColor.translateAlternateColorCodes('&', Arrays.toString(itemData.getItemDescription().split("\n")))));
+            if (itemData.isHideEnchants()) {
+                meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            }
+            if (itemData.getEnchantments() != null) {
+                itemData.getEnchantments().forEach((enchantment, level) -> {
+                    meta.addEnchant(org.bukkit.enchantments.Enchantment.getByName(enchantment), level, true);
+                });
             }
             itemStack.setItemMeta(meta);
         }
@@ -143,7 +137,7 @@ public class MenuManager {
 
     public void onItemDrop(PlayerDropItemEvent event) {
         ItemStack item = event.getItemDrop().getItemStack();
-        if (inventoryManager.isMenuItem(item)) {
+        if (inventoryManager.isMenuItem(item) || inventoryManager.isHotbarItem(item)) {
             event.setCancelled(true);
         }
     }

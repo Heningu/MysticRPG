@@ -2,6 +2,8 @@ package eu.xaru.mysticrpg.content.listeners;
 
 import eu.xaru.mysticrpg.Main;
 import eu.xaru.mysticrpg.content.menus.InventoryManager;
+import eu.xaru.mysticrpg.content.menus.MenuItem;
+import eu.xaru.mysticrpg.content.menus.HotbarItem;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -40,7 +42,13 @@ public class PlayerListener implements Listener {
     public void onInventoryClick(@NotNull InventoryClickEvent event) {
         if (event.getCurrentItem() != null && event.getCurrentItem().hasItemMeta()) {
             String displayName = event.getCurrentItem().getItemMeta().getDisplayName();
-            if (displayName.equals(ChatColor.GOLD + "[QUESTS]") || displayName.equals(ChatColor.LIGHT_PURPLE + "[MENU]")) {
+            if (inventoryManager.isMenuItem(event.getCurrentItem())) {
+                MenuItem menuItem = inventoryManager.getMenuItem(displayName);
+                if (menuItem != null) {
+                    menuItem.runCommand((Player) event.getWhoClicked());
+                }
+                event.setCancelled(true);
+            } else if (inventoryManager.isHotbarItem(event.getCurrentItem())) {
                 event.setCancelled(true);
             }
         }
@@ -49,8 +57,7 @@ public class PlayerListener implements Listener {
     @EventHandler
     public void onInventoryDrag(InventoryDragEvent event) {
         if (event.getOldCursor() != null && event.getOldCursor().hasItemMeta()) {
-            String displayName = event.getOldCursor().getItemMeta().getDisplayName();
-            if (displayName.equals(ChatColor.GOLD + "[QUESTS]") || displayName.equals(ChatColor.LIGHT_PURPLE + "[MENU]")) {
+            if (inventoryManager.isMenuItem(event.getOldCursor()) || inventoryManager.isHotbarItem(event.getOldCursor())) {
                 event.setCancelled(true);
             }
         }
@@ -58,7 +65,9 @@ public class PlayerListener implements Listener {
 
     @EventHandler
     public void onPlayerDropItem(PlayerDropItemEvent event) {
-        plugin.getManagers().getMenuManager().onItemDrop(event);
+        if (inventoryManager.isHotbarItem(event.getItemDrop().getItemStack())) {
+            event.setCancelled(true);
+        }
     }
 
     @EventHandler
@@ -69,11 +78,17 @@ public class PlayerListener implements Listener {
         if (item != null && item.hasItemMeta() && item.getItemMeta().hasDisplayName()) {
             String displayName = item.getItemMeta().getDisplayName();
 
-            if (displayName.equals(ChatColor.GOLD + "[QUESTS]")) {
-                player.performCommand("menu quests");
+            if (inventoryManager.isMenuItem(item)) {
+                MenuItem menuItem = inventoryManager.getMenuItem(displayName);
+                if (menuItem != null) {
+                    menuItem.runCommand(player);
+                }
                 event.setCancelled(true);
-            } else if (displayName.equals(ChatColor.LIGHT_PURPLE + "[MENU]")) {
-                player.performCommand("menu mainmenu");
+            } else if (inventoryManager.isHotbarItem(item)) {
+                HotbarItem hotbarItem = inventoryManager.getHotbarItem(displayName);
+                if (hotbarItem != null) {
+                    player.performCommand(hotbarItem.getCommand());
+                }
                 event.setCancelled(true);
             }
         }

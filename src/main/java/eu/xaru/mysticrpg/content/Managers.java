@@ -2,13 +2,16 @@ package eu.xaru.mysticrpg.content;
 
 import eu.xaru.mysticrpg.Main;
 import eu.xaru.mysticrpg.content.commands.CommandManager;
+import eu.xaru.mysticrpg.content.listeners.HotbarItemDropListener;
 import eu.xaru.mysticrpg.content.listeners.ListenerManager;
+import eu.xaru.mysticrpg.content.listeners.PlayerListener;
 import eu.xaru.mysticrpg.content.menus.MenuManager;
 import eu.xaru.mysticrpg.content.modules.ModuleManager;
 import eu.xaru.mysticrpg.content.classes.ClassManager;
 import eu.xaru.mysticrpg.content.player.PlayerManager;
 import eu.xaru.mysticrpg.content.utils.UtilManager;
 import eu.xaru.mysticrpg.content.modules.EconomyModule;
+import org.bukkit.Bukkit;
 
 public class Managers {
     private final Main plugin;
@@ -43,6 +46,8 @@ public class Managers {
 
     public void registerListeners() {
         listenerManager.registerListeners();
+        Bukkit.getPluginManager().registerEvents(new PlayerListener(plugin), plugin);
+        Bukkit.getPluginManager().registerEvents(new HotbarItemDropListener(plugin), plugin);
     }
 
     public CommandManager getCommandManager() {
