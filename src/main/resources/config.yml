@@ -1,0 +1,21 @@
+language: en
+data-storage: local
+
+database:
+  type: local # options: mysql, mongodb, local
+  mysql:
+    host: localhost
+    port: 3306
+    database: mysticrpg
+    username: root
+    password: password
+  mongodb:
+    uri: mongodb://localhost:27017
+    database: mysticrpg
+
+local:
+  path: plugins/MysticRPG/data/
+
+# Added cooldown configuration
+class-change:
+  cooldown: 60 # in seconds

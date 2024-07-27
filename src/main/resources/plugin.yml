@@ -1,0 +1,59 @@
+name: MysticRPG
+version: 1.0.0
+main: eu.xaru.mysticrpg.Main
+author: Heningu
+description: An RPG plugin to bring a mystical adventure to Minecraft.
+api-version: 1.20
+
+commands:
+  money:
+    description: Manages the economy.
+    usage: /money <balance|send|check|setvalue>
+    aliases: [economy]
+  amoney:
+    description: Admin commands for managing the economy.
+    usage: /amoney <check|setvalue>
+  menu:
+    description: Opens a specified menu.
+    usage: /menu <menuName>
+  class:
+    description: Class management commands.
+    usage: /class <list|select>
+  reloadcfg:
+    description: Reloads the MysticRPG configuration.
+    usage: /reloadcfg
+
+permissions:
+  mysticrpg.selectclass:
+    description: Allows the player to select a class
+    default: true
+  mysticrpg.reload:
+    description: Allows the player to reload the MysticRPG configuration
+    default: op
+  mysticrpg.money:
+    description: Parent permission for all money commands
+    default: true
+    children:
+      mysticrpg.money.balance: true
+      mysticrpg.money.send: true
+  mysticrpg.money.balance:
+    description: Allows the player to check their balance
+    default: true
+  mysticrpg.money.send:
+    description: Allows the player to send money to another player
+    default: true
+  mysticrpg.amoney:
+    description: Parent permission for all admin money commands
+    default: op
+    children:
+      mysticrpg.amoney.setvalue: true
+      mysticrpg.amoney.check: true
+  mysticrpg.amoney.setvalue:
+    description: Allows the admin to set a player's balance
+    default: op
+  mysticrpg.amoney.check:
+    description: Allows the admin to check a player's balance
+    default: op
+  mysticrpg.menu:
+    description: Allows the player to open specific menus
+    default: true
