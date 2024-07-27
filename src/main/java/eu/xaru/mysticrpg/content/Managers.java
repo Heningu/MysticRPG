@@ -2,16 +2,14 @@ package eu.xaru.mysticrpg.content;
 
 import eu.xaru.mysticrpg.Main;
 import eu.xaru.mysticrpg.content.commands.CommandManager;
-import eu.xaru.mysticrpg.content.listeners.HotbarItemDropListener;
 import eu.xaru.mysticrpg.content.listeners.ListenerManager;
-import eu.xaru.mysticrpg.content.listeners.PlayerListener;
 import eu.xaru.mysticrpg.content.menus.MenuManager;
 import eu.xaru.mysticrpg.content.modules.ModuleManager;
 import eu.xaru.mysticrpg.content.classes.ClassManager;
 import eu.xaru.mysticrpg.content.player.PlayerManager;
 import eu.xaru.mysticrpg.content.utils.UtilManager;
 import eu.xaru.mysticrpg.content.modules.EconomyModule;
-import org.bukkit.Bukkit;
+import eu.xaru.mysticrpg.content.levelingsystem.LevelingSystem;
 
 public class Managers {
     private final Main plugin;
@@ -23,6 +21,7 @@ public class Managers {
     private final ClassManager classManager;
     private final UtilManager utilManager;
     private final PlayerManager playerManager;
+    private final LevelingSystem levelingSystem;
 
     public Managers(Main plugin) {
         this.plugin = plugin;
@@ -34,10 +33,12 @@ public class Managers {
         this.classManager = new ClassManager(plugin);
         this.utilManager = new UtilManager();
         this.playerManager = new PlayerManager(plugin);
+        this.levelingSystem = new LevelingSystem(plugin);
     }
 
     public void loadModules() {
         moduleManager.loadModules();
+        levelingSystem.load(); // Load leveling system as a module
     }
 
     public void registerCommands() {
@@ -46,8 +47,6 @@ public class Managers {
 
     public void registerListeners() {
         listenerManager.registerListeners();
-        Bukkit.getPluginManager().registerEvents(new PlayerListener(plugin), plugin);
-        Bukkit.getPluginManager().registerEvents(new HotbarItemDropListener(plugin), plugin);
     }
 
     public CommandManager getCommandManager() {
@@ -80,5 +79,9 @@ public class Managers {
 
     public EconomyModule getEconomyModule() {
         return moduleManager.getEconomyModule();
+    }
+
+    public LevelingSystem getLevelingSystem() {
+        return levelingSystem;
     }
 }

@@ -1,4 +1,4 @@
-package eu.xaru.mysticrpg.content.modules;
+package eu.xaru.mysticrpg.content.levelingsystem;
 
 public class Level {
     private int xp;

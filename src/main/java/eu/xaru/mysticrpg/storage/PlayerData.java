@@ -11,9 +11,13 @@ public class PlayerData {
     private int mana;
     private int maxMana;
     private int skillPoints;
+    private int level;
+    private int xp;
 
     public PlayerData(UUID uuid) {
         this.uuid = uuid;
+        this.level = 1; // Default level
+        this.xp = 0; // Default XP
     }
 
     public UUID getUUID() {
@@ -66,5 +70,21 @@ public class PlayerData {
 
     public void setSkillPoints(int skillPoints) {
         this.skillPoints = skillPoints;
+    }
+
+    public int getLevel() {
+        return level;
+    }
+
+    public void setLevel(int level) {
+        this.level = level;
+    }
+
+    public int getXp() {
+        return xp;
+    }
+
+    public void setXp(int xp) {
+        this.xp = xp;
     }
 }

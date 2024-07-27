@@ -42,6 +42,8 @@ public class LocalStorage {
         playerData.setMaxMana(config.getInt("maxMana", 10));
         playerData.setCoins(config.getInt("coins", 0));
         playerData.setSkillPoints(config.getInt("skillPoints", 0));
+        playerData.setLevel(config.getInt("level", 1));
+        playerData.setXp(config.getInt("xp", 0));
 
         playerDataMap.put(playerUUID, playerData);
         return playerData;
@@ -57,6 +59,8 @@ public class LocalStorage {
         config.set("maxMana", playerData.getMaxMana());
         config.set("coins", playerData.getCoins());
         config.set("skillPoints", playerData.getSkillPoints());
+        config.set("level", playerData.getLevel());
+        config.set("xp", playerData.getXp());
 
         try {
             config.save(playerFile);

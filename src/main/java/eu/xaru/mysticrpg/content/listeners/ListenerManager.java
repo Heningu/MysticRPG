@@ -14,6 +14,7 @@ public class ListenerManager {
     public void registerListeners() {
         PluginManager pm = plugin.getServer().getPluginManager();
         pm.registerEvents(new PlayerListener(plugin), plugin);
+        pm.registerEvents(new LocalStorageListener(plugin), plugin);
         // Register other listeners if needed
     }
 }
