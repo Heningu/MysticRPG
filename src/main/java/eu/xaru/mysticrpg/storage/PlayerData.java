@@ -1,75 +1,80 @@
 package eu.xaru.mysticrpg.storage;
 
-import java.util.UUID;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class PlayerData {
-
-    private final UUID uuid;
-    private int coins;
-    private int hp;
-    private int maxHp;
-    private int mana;
-    private int maxMana;
-    private int skillPoints;
-    private int level;
+    private final File dataFile;
+    private final FileConfiguration dataConfig;
+    private final Map<String, Integer> attributes = new HashMap<>();
+    private double balance;
     private int xp;
+    private int level;
+    private int nextLevelXP;
 
-    public PlayerData(UUID uuid) {
-        this.uuid = uuid;
-        this.level = 1; // Default level
-        this.xp = 0; // Default XP
+    public PlayerData(File dataFile) {
+        this.dataFile = dataFile;
+        this.dataConfig = YamlConfiguration.loadConfiguration(dataFile);
+        load();
     }
 
-    public UUID getUUID() {
-        return uuid;
+    public void load() {
+        balance = dataConfig.getDouble("balance", 0);
+        xp = dataConfig.getInt("xp", 0);
+        level = dataConfig.getInt("level", 1);
+        nextLevelXP = dataConfig.getInt("nextLevelXP", 100);
+
+        // Load attributes
+        if (dataConfig.contains("attributes")) {
+            for (String key : dataConfig.getConfigurationSection("attributes").getKeys(false)) {
+                attributes.put(key, dataConfig.getInt("attributes." + key, 1));
+            }
+        }
     }
 
-    public int getCoins() {
-        return coins;
+    public void save() {
+        save(this.dataFile);
     }
 
-    public void setCoins(int coins) {
-        this.coins = coins;
+    public void save(File file) {
+        dataConfig.set("balance", balance);
+        dataConfig.set("xp", xp);
+        dataConfig.set("level", level);
+        dataConfig.set("nextLevelXP", nextLevelXP);
+
+        // Save attributes
+        for (Map.Entry<String, Integer> entry : attributes.entrySet()) {
+            dataConfig.set("attributes." + entry.getKey(), entry.getValue());
+        }
+
+        try {
+            dataConfig.save(file);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
-    public int getHp() {
-        return hp;
+    // Getter and Setter methods for balance, xp, level, nextLevelXP, and attributes
+
+    public double getBalance() {
+        return balance;
     }
 
-    public void setHp(int hp) {
-        this.hp = hp;
+    public void setBalance(double balance) {
+        this.balance = balance;
     }
 
-    public int getMaxHp() {
-        return maxHp;
+    public int getXp() {
+        return xp;
     }
 
-    public void setMaxHp(int maxHp) {
-        this.maxHp = maxHp;
-    }
-
-    public int getMana() {
-        return mana;
-    }
-
-    public void setMana(int mana) {
-        this.mana = mana;
-    }
-
-    public int getMaxMana() {
-        return maxMana;
-    }
-
-    public void setMaxMana(int maxMana) {
-        this.maxMana = maxMana;
-    }
-
-    public int getSkillPoints() {
-        return skillPoints;
-    }
-
-    public void setSkillPoints(int skillPoints) {
-        this.skillPoints = skillPoints;
+    public void setXp(int xp) {
+        this.xp = xp;
     }
 
     public int getLevel() {
@@ -80,11 +85,118 @@ public class PlayerData {
         this.level = level;
     }
 
-    public int getXp() {
-        return xp;
+    public int getNextLevelXP() {
+        return nextLevelXP;
     }
 
-    public void setXp(int xp) {
-        this.xp = xp;
+    public void setNextLevelXP(int nextLevelXP) {
+        this.nextLevelXP = nextLevelXP;
+    }
+
+    public int getAttribute(String key) {
+        return attributes.getOrDefault(key, 1);
+    }
+
+    public void setAttribute(String key, int value) {
+        attributes.put(key, value);
+    }
+
+    // Specific attribute getters and setters
+
+    public int getHp() {
+        return getAttribute("HP");
+    }
+
+    public void setHp(int hp) {
+        setAttribute("HP", hp);
+    }
+
+    public int getMana() {
+        return getAttribute("MANA");
+    }
+
+    public void setMana(int mana) {
+        setAttribute("MANA", mana);
+    }
+
+    public int getLuck() {
+        return getAttribute("LUCK");
+    }
+
+    public void setLuck(int luck) {
+        setAttribute("LUCK", luck);
+    }
+
+    public int getAttackDamage() {
+        return getAttribute("ATTACK_DAMAGE");
+    }
+
+    public void setAttackDamage(int attackDamage) {
+        setAttribute("ATTACK_DAMAGE", attackDamage);
+    }
+
+    public int getToughness() {
+        return getAttribute("TOUGHNESS");
+    }
+
+    public void setToughness(int toughness) {
+        setAttribute("TOUGHNESS", toughness);
+    }
+
+    public int getAttackDamageDex() {
+        return getAttribute("ATTACK_DAMAGE_DEX");
+    }
+
+    public void setAttackDamageDex(int attackDamageDex) {
+        setAttribute("ATTACK_DAMAGE_DEX", attackDamageDex);
+    }
+
+    public int getAttackDamageMana() {
+        return getAttribute("ATTACK_DAMAGE_MANA");
+    }
+
+    public void setAttackDamageMana(int attackDamageMana) {
+        setAttribute("ATTACK_DAMAGE_MANA", attackDamageMana);
+    }
+
+    // Stat attributes
+
+    public int getVitality() {
+        return getAttribute("Vitality");
+    }
+
+    public void setVitality(int vitality) {
+        setAttribute("Vitality", vitality);
+    }
+
+    public int getIntelligence() {
+        return getAttribute("Intelligence");
+    }
+
+    public void setIntelligence(int intelligence) {
+        setAttribute("Intelligence", intelligence);
+    }
+
+    public int getDexterity() {
+        return getAttribute("Dexterity");
+    }
+
+    public void setDexterity(int dexterity) {
+        setAttribute("Dexterity", dexterity);
+    }
+
+    public int getStrength() {
+        return getAttribute("Strength");
+    }
+
+    public void setStrength(int strength) {
+        setAttribute("Strength", strength);
+    }
+    public int getAttributePoints() {
+        return getAttribute("ATTRIBUTE_POINTS");
+    }
+
+    public void setAttributePoints(int points) {
+        setAttribute("ATTRIBUTE_POINTS", points);
     }
 }
