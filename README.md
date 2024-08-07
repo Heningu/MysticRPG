@@ -2,7 +2,7 @@
 
 Welcome to **MysticRPG**! This project is created and maintained by Heningu to create a new possibility for Minecraft RPG. Whether you're a Developer and want to use the API or just a simple Serveradmin, this project will help you extend your needs.
 
-![MysticRPG](-)
+![MysticRPG]([-](https://cdn.discordapp.com/attachments/1266165433392697394/1270822014453682297/mysticrpg.png?ex=66b518ba&is=66b3c73a&hm=42f56bd020fc9d5bd70a72a2ee90a02f2fdc1d6468ad230baae4c67397bdc87c&))
 
 ### Built With
 
