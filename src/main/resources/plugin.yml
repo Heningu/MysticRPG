@@ -16,8 +16,10 @@ commands:
     description: Player XP management commands.
     usage: /playerxp <subcommand>
   stats:
-    description: Opens the player stats menu.
-    usage: /stats
+    description: Opens the player stats menu or manages stats for players.
+    usage: /stats <reset|increase> <PLAYER> [ATTRIBUTE]
+    permission: mysticrpg.admin
+    permission-message: You do not have permission to use this command.
   money:
     description: Economy management commands.
     usage: /money <subcommand>

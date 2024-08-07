@@ -80,10 +80,11 @@ public class StatMenu {
         item.setItemMeta(meta);
         inventory.setItem(slot, item);
 
-        ItemStack button = new ItemStack(Material.FIREWORK_ROCKET);
+        Material buttonMaterial = attributePoints > 0 ? Material.SUNFLOWER : Material.BEDROCK;
+        ItemStack button = new ItemStack(buttonMaterial);
         ItemMeta buttonMeta = button.getItemMeta();
-        buttonMeta.setDisplayName(ChatColor.AQUA + "Increase " + name);
-        buttonMeta.setLore(Collections.emptyList()); // Explicitly set lore to hide flight duration text
+        buttonMeta.setDisplayName(attributePoints > 0 ? ChatColor.AQUA + "Increase " + name : ChatColor.RED + "[NO POINTS]");
+        buttonMeta.setLore(Collections.emptyList()); // Clear lore
         button.setItemMeta(buttonMeta);
         inventory.setItem(slot + 9, button); // Assuming the button is placed in the row below the stat item
     }

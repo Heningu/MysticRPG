@@ -68,7 +68,7 @@ public class Main extends JavaPlugin {
             getCommand("playerxp").setTabCompleter(new PlayerXPCommandTabCompleter());
         }
         if (getCommand("stats") != null) {
-            getCommand("stats").setExecutor(new StatsCommand(this, statMenu));
+            getCommand("stats").setExecutor(new StatsCommand(this, playerDataManager, statMenu));
             getCommand("stats").setTabCompleter(new StatsCommandTabCompleter());
         }
     }
@@ -112,4 +112,5 @@ public class Main extends JavaPlugin {
     public StatMenu getStatMenu() {
         return statMenu;
     }
+
 }
