@@ -20,6 +20,10 @@ import eu.xaru.mysticrpg.ui.ActionBarManager;
 import eu.xaru.mysticrpg.ui.CustomScoreboardManager;
 import eu.xaru.mysticrpg.modules.CustomDamageHandler;
 import eu.xaru.mysticrpg.listeners.MainListener;
+import eu.xaru.mysticrpg.friends.FriendsCommand;
+import eu.xaru.mysticrpg.friends.FriendsCommandTabCompleter;
+import eu.xaru.mysticrpg.friends.FriendsManager;
+import eu.xaru.mysticrpg.friends.FriendsMenu;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class Main extends JavaPlugin {
@@ -33,6 +37,8 @@ public class Main extends JavaPlugin {
     public LevelingManager levelingManager;
     public StatManager statManager;
     public StatMenu statMenu;
+    public FriendsManager friendsManager;
+    public FriendsMenu friendsMenu;
 
     @Override
     public void onEnable() {
@@ -46,10 +52,12 @@ public class Main extends JavaPlugin {
         this.customDamageHandler = new CustomDamageHandler(this, playerDataManager, actionBarManager);
         this.statManager = new StatManager(this, playerDataManager);
         this.statMenu = new StatMenu(this, playerDataManager);
+        this.friendsManager = new FriendsManager(this, playerDataManager);
+        this.friendsMenu = new FriendsMenu(this);
 
         // Register combined listener
         getServer().getPluginManager().registerEvents(new MainListener(this, adminMenuMain, playerDataManager,
-                levelingManager, customDamageHandler, partyManager, economyManager, statManager, statMenu), this);
+                levelingManager, customDamageHandler, partyManager, economyManager, statManager, statMenu, friendsMenu), this);
 
         // Register commands
         if (getCommand("money") != null) {
@@ -71,6 +79,15 @@ public class Main extends JavaPlugin {
             getCommand("stats").setExecutor(new StatsCommand(this, playerDataManager, statMenu));
             getCommand("stats").setTabCompleter(new StatsCommandTabCompleter());
         }
+        if (getCommand("friends") != null) {
+            getCommand("friends").setExecutor(new FriendsCommand(this, friendsManager, friendsMenu));
+            getCommand("friends").setTabCompleter(new FriendsCommandTabCompleter());
+        }
+    }
+
+    @Override
+    public void onDisable() {
+        playerDataManager.saveAll();
     }
 
     public PlayerDataManager getPlayerDataManager() {
@@ -113,4 +130,11 @@ public class Main extends JavaPlugin {
         return statMenu;
     }
 
+    public FriendsManager getFriendsManager() {
+        return friendsManager;
+    }
+
+    public FriendsMenu getFriendsMenu() {
+        return friendsMenu;
+    }
 }

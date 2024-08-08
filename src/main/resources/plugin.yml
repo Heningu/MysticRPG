@@ -23,3 +23,9 @@ commands:
   money:
     description: Economy management commands.
     usage: /money <subcommand>
+  friends:
+    description: Manages your friends list.
+    usage: /friends <add|accept|decline|block|unblock|requests>
+    aliases: [friend]
+    permission: mysticrpg.friends
+    permission-message: You do not have permission to use this command.

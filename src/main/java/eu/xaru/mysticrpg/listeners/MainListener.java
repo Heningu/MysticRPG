@@ -3,6 +3,7 @@ package eu.xaru.mysticrpg.listeners;
 import eu.xaru.mysticrpg.Main;
 import eu.xaru.mysticrpg.admin.AdminMenuMain;
 import eu.xaru.mysticrpg.economy.EconomyManager;
+import eu.xaru.mysticrpg.friends.FriendsMenu;
 import eu.xaru.mysticrpg.leveling.LevelingManager;
 import eu.xaru.mysticrpg.modules.CustomDamageHandler;
 import eu.xaru.mysticrpg.party.PartyManager;
@@ -11,6 +12,7 @@ import eu.xaru.mysticrpg.stats.StatMenu;
 import eu.xaru.mysticrpg.storage.PlayerDataManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -25,8 +27,6 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
 
 public class MainListener implements Listener {
     private final Main plugin;
@@ -38,11 +38,12 @@ public class MainListener implements Listener {
     private final EconomyManager economyManager;
     private final StatManager statManager;
     private final StatMenu statMenu;
+    private final FriendsMenu friendsMenu;
 
     public MainListener(Main plugin, AdminMenuMain adminMenuMain, PlayerDataManager playerDataManager,
                         LevelingManager levelingManager, CustomDamageHandler customDamageHandler,
                         PartyManager partyManager, EconomyManager economyManager,
-                        StatManager statManager, StatMenu statMenu) {
+                        StatManager statManager, StatMenu statMenu, FriendsMenu friendsMenu) {
         this.plugin = plugin;
         this.adminMenuMain = adminMenuMain;
         this.playerDataManager = playerDataManager;
@@ -52,6 +53,7 @@ public class MainListener implements Listener {
         this.economyManager = economyManager;
         this.statManager = statManager;
         this.statMenu = statMenu;
+        this.friendsMenu = friendsMenu;
     }
 
     @EventHandler
@@ -60,40 +62,78 @@ public class MainListener implements Listener {
         if (clickedInventory == null) return;
 
         String inventoryTitle = event.getView().getTitle();
-        if (!"Player Stats".equals(inventoryTitle)) return;
-
         Player player = (Player) event.getWhoClicked();
-        plugin.getLogger().info("Player " + player.getName() + " clicked in the Player Stats menu.");
-
         ItemStack clickedItem = event.getCurrentItem();
+
         if (clickedItem == null || !clickedItem.hasItemMeta()) {
-            plugin.getLogger().info("Clicked item is null or does not have metadata.");
             return;
         }
 
         String displayName = ChatColor.stripColor(clickedItem.getItemMeta().getDisplayName());
-        plugin.getLogger().info("Clicked item display name: " + displayName);
 
-        if (displayName.startsWith("Increase ")) {
-            plugin.getLogger().info("Passing attribute name to StatManager: " + displayName);
-            statManager.increaseAttribute(player, displayName);
-            statMenu.openStatMenu(player); // Refresh the inventory to show updated stats
+        // Handle clicks in the Player Stats menu
+        if ("Player Stats".equals(inventoryTitle)) {
+            plugin.getLogger().info("Player " + player.getName() + " clicked in the Player Stats menu.");
+            if (displayName.startsWith("Increase ")) {
+                plugin.getLogger().info("Passing attribute name to StatManager: " + displayName);
+                statManager.increaseAttribute(player, displayName);
+                statMenu.openStatMenu(player); // Refresh the inventory to show updated stats
+            }
+            event.setCancelled(true); // Prevent item movement
         }
 
-        // Cancel the event to prevent item movement
-        event.setCancelled(true);
+        // Handle clicks in the Friends menu
+        if ("Friends".equals(inventoryTitle)) {
+            event.setCancelled(true);
+            if ("Friend Requests".equals(displayName)) {
+                friendsMenu.openFriendRequestsMenu(player);
+            } else if ("Blocked Players".equals(displayName)) {
+                friendsMenu.openBlockedPlayersMenu(player);
+            } else if ("Block All Incoming Friend Requests".equals(displayName)) {
+                friendsMenu.toggleBlockingRequests(player);
+                friendsMenu.openFriendsMenu(player);
+            } else if ("Next Page".equals(displayName)) {
+                // Handle navigation only if it's not a skull with "No Next Page"
+                if (!(clickedItem.getType() == Material.WITHER_SKELETON_SKULL && "No Next Page".equals(displayName))) {
+                    friendsMenu.openFriendsMenu(player, 1);
+                }
+            } else if ("Previous Page".equals(displayName)) {
+                // Handle navigation only if it's not a skull with "No Previous Page"
+                if (!(clickedItem.getType() == Material.WITHER_SKELETON_SKULL && "No Previous Page".equals(displayName))) {
+                    friendsMenu.openFriendsMenu(player, 0);
+                }
+            }
+        }
+
+        // Handle clicks in the Friend Requests menu
+        if ("Friend Requests".equals(inventoryTitle)) {
+            event.setCancelled(true);
+            if (displayName.startsWith("Back to Friends Menu")) {
+                friendsMenu.openFriendsMenu(player);
+            } else if (clickedItem.getType() == Material.PLAYER_HEAD) {
+                friendsMenu.handleFriendRequestClick(player, clickedItem, event.getClick());
+            }
+        }
+
+        // Handle clicks in the Blocked Players menu
+        if ("Blocked Players".equals(inventoryTitle)) {
+            event.setCancelled(true);
+            if (displayName.startsWith("Back to Friends Menu")) {
+                friendsMenu.openFriendsMenu(player);
+            } else if (clickedItem.getType() == Material.PLAYER_HEAD) {
+                friendsMenu.handleBlockedPlayerClick(player, clickedItem);
+            }
+        }
     }
 
     @EventHandler
     public void onInventoryDrag(InventoryDragEvent event) {
         String inventoryTitle = event.getView().getTitle();
-        if ("Player Stats".equals(inventoryTitle)) {
-            plugin.getLogger().info("Player is dragging items in the Player Stats menu.");
+        if ("Player Stats".equals(inventoryTitle) || "Friends".equals(inventoryTitle) || "Friend Requests".equals(inventoryTitle) || "Blocked Players".equals(inventoryTitle)) {
+            plugin.getLogger().info("Player is dragging items in a protected menu.");
             event.setCancelled(true); // Prevent item movement
         }
     }
-
-
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
@@ -111,7 +151,7 @@ public class MainListener implements Listener {
     @EventHandler
     public void onEntityDeathLeveling(EntityDeathEvent event) {
         if (event.getEntity().getKiller() instanceof Player) {
-            Player player = event.getEntity().getKiller();
+            Player player = (Player) event.getEntity().getKiller();
             int xp = event.getDroppedExp();
             levelingManager.addXp(player, xp);
             player.sendMessage("You have gained " + xp + " XP!");
@@ -121,7 +161,7 @@ public class MainListener implements Listener {
     @EventHandler
     public void onEntityDeathParty(EntityDeathEvent event) {
         if (event.getEntity().getKiller() != null) {
-            Player killer = event.getEntity().getKiller();
+            Player killer = (Player) event.getEntity().getKiller();
             int xp = levelingManager.getXpForEntity(event.getEntityType().name());
             if (partyManager != null && partyManager.isInParty(killer)) {
                 partyManager.shareXp(killer, xp);
