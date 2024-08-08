@@ -29,3 +29,6 @@ commands:
     aliases: [friend]
     permission: mysticrpg.friends
     permission-message: You do not have permission to use this command.
+  level:
+    description: Opens the leveling menu.
+    usage: /level

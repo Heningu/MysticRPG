@@ -8,9 +8,11 @@ import org.bukkit.entity.Player;
 
 public class LevelingCommand implements CommandExecutor {
     private final LevelingManager levelingManager;
+    private final LevelingMenu levelingMenu;
 
-    public LevelingCommand(LevelingManager levelingManager) {
+    public LevelingCommand(LevelingManager levelingManager, LevelingMenu levelingMenu) {
         this.levelingManager = levelingManager;
+        this.levelingMenu = levelingMenu;
     }
 
     @Override
@@ -19,8 +21,7 @@ public class LevelingCommand implements CommandExecutor {
             Player player = (Player) sender;
 
             if (args.length == 0) {
-                int xp = levelingManager.getXp(player);
-                player.sendMessage("Your XP: " + xp);
+                levelingMenu.openLevelingMenu(player, 1); // Open the first page (0-based index)
                 return true;
             }
         } else if (sender.hasPermission("mysticrpg.admin")) {

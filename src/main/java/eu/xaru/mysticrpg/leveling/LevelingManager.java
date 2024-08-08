@@ -4,47 +4,48 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataManager;
+import eu.xaru.mysticrpg.stats.StatManager;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
+import java.util.Collections;
 import java.util.Map;
+import java.util.logging.Logger;
 
 public class LevelingManager {
     private final PlayerDataManager playerDataManager;
+    private final StatManager statManager;
     private final Map<String, Integer> xpValues;
-    private final Map<Integer, Integer> levelThresholds;
-    private final Map<Integer, String> levelUpCommands;
+    private final Map<Integer, LevelData> levelDataMap;
     private final int maxLevel;
+    private final Logger logger;
 
-    public LevelingManager(PlayerDataManager playerDataManager) {
+    public LevelingManager(PlayerDataManager playerDataManager, StatManager statManager) {
         this.playerDataManager = playerDataManager;
+        this.statManager = statManager;
+        this.logger = Bukkit.getLogger();
 
         Gson gson = new Gson();
-        Type xpValuesType = new TypeToken<Map<String, Integer>>(){}.getType();
-        Type levelThresholdsType = new TypeToken<Map<Integer, Integer>>(){}.getType();
-        Type levelUpCommandsType = new TypeToken<Map<Integer, String>>(){}.getType();
+        Type xpValuesType = new TypeToken<Map<String, Integer>>() {}.getType();
+        Type levelDataType = new TypeToken<Map<Integer, LevelData>>() {}.getType();
 
         try (InputStreamReader reader = new InputStreamReader(getClass().getResourceAsStream("/leveling/XPValues.json"))) {
             this.xpValues = gson.fromJson(reader, xpValuesType);
+            logger.info("XPValues.json loaded: " + this.xpValues);
         } catch (Exception e) {
             throw new RuntimeException("Failed to load XPValues.json", e);
         }
 
         try (InputStreamReader reader = new InputStreamReader(getClass().getResourceAsStream("/leveling/Levels.json"))) {
-            this.levelThresholds = gson.fromJson(reader, levelThresholdsType);
+            this.levelDataMap = gson.fromJson(reader, levelDataType);
+            logger.info("Levels.json loaded: " + this.levelDataMap);
         } catch (Exception e) {
             throw new RuntimeException("Failed to load Levels.json", e);
         }
 
-        try (InputStreamReader reader = new InputStreamReader(getClass().getResourceAsStream("/leveling/LevelUpCommands.json"))) {
-            this.levelUpCommands = gson.fromJson(reader, levelUpCommandsType);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to load LevelUpCommands.json", e);
-        }
-
-        this.maxLevel = levelThresholds.keySet().stream().max(Integer::compare).orElse(100);
+        this.maxLevel = levelDataMap.keySet().stream().max(Integer::compare).orElse(100);
     }
 
     public void addXp(Player player, int amount) {
@@ -53,18 +54,47 @@ public class LevelingManager {
             int newXp = playerData.getXp() + amount;
             playerData.setXp(newXp);
 
-            while (playerData.getLevel() < maxLevel && newXp >= levelThresholds.get(playerData.getLevel() + 1)) {
+            while (playerData.getLevel() < maxLevel && newXp >= getLevelThreshold(playerData.getLevel() + 1)) {
+                newXp -= getLevelThreshold(playerData.getLevel() + 1);
                 playerData.setLevel(playerData.getLevel() + 1);
-                newXp -= levelThresholds.get(playerData.getLevel());
+                playerData.setXp(newXp);
+
+                // Apply level up rewards
+                LevelData levelData = levelDataMap.get(playerData.getLevel());
+                levelData.getRewards().forEach((stat, value) -> applyReward(playerData, stat, value));
 
                 // Execute level up commands
-                String command = levelUpCommands.get(playerData.getLevel());
+                String command = levelData.getCommand();
                 if (command != null) {
                     Bukkit.getServer().dispatchCommand(Bukkit.getServer().getConsoleSender(), command.replace("{player}", player.getName()));
                 }
             }
 
             playerDataManager.save(player);
+        }
+    }
+
+    private void applyReward(PlayerData playerData, String stat, int value) {
+        switch (stat) {
+            case "HP":
+                playerData.setHp(playerData.getHp() + value);
+                break;
+            case "Strength":
+                playerData.setStrength(playerData.getStrength() + value);
+                break;
+            case "Mana":
+                playerData.setMana(playerData.getMana() + value);
+                break;
+            case "Wisdom":
+                playerData.setAttribute("Wisdom", playerData.getAttribute("Wisdom") + value);
+                break;
+            case "AttributePoints":
+                playerData.setAttributePoints(playerData.getAttributePoints() + value);
+                break;
+            // Add other attributes and stats dynamically
+            default:
+                playerData.setAttribute(stat, playerData.getAttribute(stat) + value);
+                break;
         }
     }
 
@@ -81,5 +111,51 @@ public class LevelingManager {
 
     public int getXpForEntity(String entityType) {
         return xpValues.getOrDefault(entityType, 0);
+    }
+
+    public int getMaxLevel() {
+        return maxLevel;
+    }
+
+    public int getLevelThreshold(int level) {
+        LevelData levelData = levelDataMap.get(level);
+        if (levelData != null) {
+            return levelData.getXpRequired();
+        } else {
+            return 0;
+        }
+    }
+
+    public boolean isSpecialLevel(int level) {
+        LevelData levelData = levelDataMap.get(level);
+        return levelData != null && levelData.isSpecial();
+    }
+
+    public Map<String, Integer> getLevelRewards(int level) {
+        LevelData levelData = levelDataMap.get(level);
+        return levelData != null ? levelData.getRewards() : Collections.emptyMap();
+    }
+
+    private static class LevelData {
+        private int xp_required;
+        private String command;
+        private Map<String, Integer> rewards;
+        private boolean special;
+
+        public int getXpRequired() {
+            return xp_required;
+        }
+
+        public String getCommand() {
+            return command;
+        }
+
+        public Map<String, Integer> getRewards() {
+            return rewards;
+        }
+
+        public boolean isSpecial() {
+            return special;
+        }
     }
 }

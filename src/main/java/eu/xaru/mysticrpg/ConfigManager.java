@@ -9,9 +9,4 @@ public class ConfigManager {
         this.plugin = plugin;
         plugin.saveDefaultConfig();
     }
-
-    public boolean isModuleEnabled(String moduleName) {
-        FileConfiguration config = plugin.getConfig();
-        return config.getBoolean("modules." + moduleName, true);
-    }
 }

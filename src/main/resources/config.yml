@@ -5,12 +5,3 @@ storage:
     uri: "mongodb://localhost:27017"
     database: "mysticrpg"
     collection: "playerdata"
-
-modules:
-  Indicators: false
-  XPManager: true
-  EconomyManager: true
-  MenuManager: true
-  ActionBarManager: true
-  ScoreboardManager: true
-  PartyManager: true

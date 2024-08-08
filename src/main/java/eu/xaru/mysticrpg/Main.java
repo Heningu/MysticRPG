@@ -8,6 +8,7 @@ import eu.xaru.mysticrpg.economy.EconomyManager;
 import eu.xaru.mysticrpg.leveling.LevelingCommand;
 import eu.xaru.mysticrpg.leveling.LevelingManager;
 import eu.xaru.mysticrpg.leveling.PlayerXPCommandTabCompleter;
+import eu.xaru.mysticrpg.leveling.LevelingMenu;
 import eu.xaru.mysticrpg.party.PartyCommand;
 import eu.xaru.mysticrpg.party.PartyCommandTabCompleter;
 import eu.xaru.mysticrpg.party.PartyManager;
@@ -26,6 +27,8 @@ import eu.xaru.mysticrpg.friends.FriendsManager;
 import eu.xaru.mysticrpg.friends.FriendsMenu;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.File;
+
 public class Main extends JavaPlugin {
     public PlayerDataManager playerDataManager;
     public EconomyManager economyManager;
@@ -35,6 +38,7 @@ public class Main extends JavaPlugin {
     public AdminMenuMain adminMenuMain;
     public CustomDamageHandler customDamageHandler;
     public LevelingManager levelingManager;
+    public LevelingMenu levelingMenu;
     public StatManager statManager;
     public StatMenu statMenu;
     public FriendsManager friendsManager;
@@ -42,11 +46,15 @@ public class Main extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        this.playerDataManager = new PlayerDataManager(this, getDataFolder());
+        // Create config files and directories
+        new ConfigCreator(this).createFiles();
+
+        this.playerDataManager = new PlayerDataManager(this, new File(getDataFolder(), "playerdata"));
         this.economyManager = new EconomyManager(playerDataManager);
         this.actionBarManager = new ActionBarManager(this, playerDataManager);
         this.scoreboardManager = new CustomScoreboardManager(this);
-        this.levelingManager = new LevelingManager(playerDataManager);
+        this.levelingManager = new LevelingManager(playerDataManager, statManager);
+        this.levelingMenu = new LevelingMenu(this, levelingManager, playerDataManager);
         this.partyManager = new PartyManager(levelingManager);
         this.adminMenuMain = new AdminMenuMain(this);
         this.customDamageHandler = new CustomDamageHandler(this, playerDataManager, actionBarManager);
@@ -57,7 +65,7 @@ public class Main extends JavaPlugin {
 
         // Register combined listener
         getServer().getPluginManager().registerEvents(new MainListener(this, adminMenuMain, playerDataManager,
-                levelingManager, customDamageHandler, partyManager, economyManager, statManager, statMenu, friendsMenu), this);
+                levelingManager, levelingMenu, customDamageHandler, partyManager, economyManager, statManager, statMenu, friendsMenu), this);
 
         // Register commands
         if (getCommand("money") != null) {
@@ -72,7 +80,7 @@ public class Main extends JavaPlugin {
             getCommand("admin").setTabCompleter(new AdminCommandTabCompleter());
         }
         if (getCommand("playerxp") != null) {
-            getCommand("playerxp").setExecutor(new LevelingCommand(levelingManager));
+            getCommand("playerxp").setExecutor(new LevelingCommand(levelingManager, levelingMenu));
             getCommand("playerxp").setTabCompleter(new PlayerXPCommandTabCompleter());
         }
         if (getCommand("stats") != null) {
@@ -82,6 +90,9 @@ public class Main extends JavaPlugin {
         if (getCommand("friends") != null) {
             getCommand("friends").setExecutor(new FriendsCommand(this, friendsManager, friendsMenu));
             getCommand("friends").setTabCompleter(new FriendsCommandTabCompleter());
+        }
+        if (getCommand("level") != null) {
+            getCommand("level").setExecutor(new LevelingCommand(levelingManager, levelingMenu));
         }
     }
 
@@ -120,6 +131,10 @@ public class Main extends JavaPlugin {
 
     public LevelingManager getLevelingManager() {
         return levelingManager;
+    }
+
+    public LevelingMenu getLevelingMenu() {
+        return levelingMenu;
     }
 
     public StatManager getStatManager() {

@@ -5,6 +5,7 @@ import eu.xaru.mysticrpg.admin.AdminMenuMain;
 import eu.xaru.mysticrpg.economy.EconomyManager;
 import eu.xaru.mysticrpg.friends.FriendsMenu;
 import eu.xaru.mysticrpg.leveling.LevelingManager;
+import eu.xaru.mysticrpg.leveling.LevelingMenu;
 import eu.xaru.mysticrpg.modules.CustomDamageHandler;
 import eu.xaru.mysticrpg.party.PartyManager;
 import eu.xaru.mysticrpg.stats.StatManager;
@@ -25,14 +26,15 @@ import org.bukkit.event.player.PlayerExpChangeEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.SkullMeta;
 
 public class MainListener implements Listener {
     private final Main plugin;
     private final AdminMenuMain adminMenuMain;
     private final PlayerDataManager playerDataManager;
     private final LevelingManager levelingManager;
+    private final LevelingMenu levelingMenu;
     private final CustomDamageHandler customDamageHandler;
     private final PartyManager partyManager;
     private final EconomyManager economyManager;
@@ -41,13 +43,14 @@ public class MainListener implements Listener {
     private final FriendsMenu friendsMenu;
 
     public MainListener(Main plugin, AdminMenuMain adminMenuMain, PlayerDataManager playerDataManager,
-                        LevelingManager levelingManager, CustomDamageHandler customDamageHandler,
+                        LevelingManager levelingManager, LevelingMenu levelingMenu, CustomDamageHandler customDamageHandler,
                         PartyManager partyManager, EconomyManager economyManager,
                         StatManager statManager, StatMenu statMenu, FriendsMenu friendsMenu) {
         this.plugin = plugin;
         this.adminMenuMain = adminMenuMain;
         this.playerDataManager = playerDataManager;
         this.levelingManager = levelingManager;
+        this.levelingMenu = levelingMenu;
         this.customDamageHandler = customDamageHandler;
         this.partyManager = partyManager;
         this.economyManager = economyManager;
@@ -124,12 +127,35 @@ public class MainListener implements Listener {
                 friendsMenu.handleBlockedPlayerClick(player, clickedItem);
             }
         }
+
+        // Handle clicks in the Leveling Menu
+        if ("Leveling Menu".equals(inventoryTitle)) {
+            event.setCancelled(true);
+            int currentPage = getCurrentPageFromLevelingMenu(clickedInventory);
+            if ("Next Page".equals(displayName)) {
+                levelingMenu.openLevelingMenu(player, currentPage + 1);
+            } else if ("Previous Page".equals(displayName)) {
+                levelingMenu.openLevelingMenu(player, Math.max(1, currentPage - 1));
+            }
+        }
+    }
+
+    private int getCurrentPageFromLevelingMenu(Inventory inventory) {
+        ItemStack headItem = inventory.getItem(0);
+        if (headItem != null && headItem.hasItemMeta() && headItem.getItemMeta() instanceof SkullMeta) {
+            String displayName = headItem.getItemMeta().getDisplayName();
+            if (displayName.contains("Level: ")) {
+                int level = Integer.parseInt(displayName.split("Level: ")[1].split(" ")[0]);
+                return (level - 1) / 26 + 1;
+            }
+        }
+        return 1; // Default to the first page if unable to determine
     }
 
     @EventHandler
     public void onInventoryDrag(InventoryDragEvent event) {
         String inventoryTitle = event.getView().getTitle();
-        if ("Player Stats".equals(inventoryTitle) || "Friends".equals(inventoryTitle) || "Friend Requests".equals(inventoryTitle) || "Blocked Players".equals(inventoryTitle)) {
+        if ("Player Stats".equals(inventoryTitle) || "Friends".equals(inventoryTitle) || "Friend Requests".equals(inventoryTitle) || "Blocked Players".equals(inventoryTitle) || "Leveling Menu".equals(inventoryTitle)) {
             plugin.getLogger().info("Player is dragging items in a protected menu.");
             event.setCancelled(true); // Prevent item movement
         }
@@ -152,9 +178,10 @@ public class MainListener implements Listener {
     public void onEntityDeathLeveling(EntityDeathEvent event) {
         if (event.getEntity().getKiller() instanceof Player) {
             Player player = (Player) event.getEntity().getKiller();
-            int xp = event.getDroppedExp();
+            int xp = levelingManager.getXpForEntity(event.getEntityType().name());
             levelingManager.addXp(player, xp);
             player.sendMessage("You have gained " + xp + " XP!");
+            event.setDroppedExp(0); // Prevent double XP gain
         }
     }
 
@@ -168,7 +195,7 @@ public class MainListener implements Listener {
             } else {
                 levelingManager.addXp(killer, xp);
             }
-            event.setDroppedExp(0);
+            event.setDroppedExp(0); // Prevent double XP gain
         }
     }
 
