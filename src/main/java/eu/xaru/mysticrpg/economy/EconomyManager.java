@@ -2,6 +2,7 @@ package eu.xaru.mysticrpg.economy;
 
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataManager;
+import eu.xaru.mysticrpg.ui.CustomScoreboardManager;
 import org.bukkit.entity.Player;
 
 import java.util.*;
@@ -9,9 +10,11 @@ import java.util.stream.Collectors;
 
 public class EconomyManager {
     private final PlayerDataManager playerDataManager;
+    private final CustomScoreboardManager scoreboardManager;
 
-    public EconomyManager(PlayerDataManager playerDataManager) {
+    public EconomyManager(PlayerDataManager playerDataManager, CustomScoreboardManager scoreboardManager) {
         this.playerDataManager = playerDataManager;
+        this.scoreboardManager = scoreboardManager;
     }
 
     public double getBalance(Player player) {
@@ -23,12 +26,14 @@ public class EconomyManager {
         PlayerData playerData = playerDataManager.getPlayerData(player);
         playerData.setBalance(amount);
         playerDataManager.save(player);
+        scoreboardManager.updateScoreboard(player, playerData); // Update scoreboard after balance change
     }
 
     public void addBalance(Player player, double amount) {
         PlayerData playerData = playerDataManager.getPlayerData(player);
         playerData.setBalance(playerData.getBalance() + amount);
         playerDataManager.save(player);
+        scoreboardManager.updateScoreboard(player, playerData); // Update scoreboard after balance addition
     }
 
     public void sendMoney(Player sender, Player receiver, double amount) {
@@ -41,6 +46,8 @@ public class EconomyManager {
 
             playerDataManager.save(sender);
             playerDataManager.save(receiver);
+            scoreboardManager.updateScoreboard(sender, senderData);  // Update sender's scoreboard
+            scoreboardManager.updateScoreboard(receiver, receiverData); // Update receiver's scoreboard
         } else {
             sender.sendMessage("Insufficient funds.");
         }
@@ -58,7 +65,6 @@ public class EconomyManager {
                 .collect(Collectors.toList());
     }
 
-    // Future-proof method for displaying player's money on a scoreboard
     public String getMoneyDisplay(Player player) {
         return "Balance: $" + getBalance(player);
     }

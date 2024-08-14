@@ -7,6 +7,8 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.util.List;
+
 public class PartyCommand implements CommandExecutor {
     private final PartyManager partyManager;
     private final Plugin plugin;
@@ -66,6 +68,20 @@ public class PartyCommand implements CommandExecutor {
             if (args[0].equalsIgnoreCase("leave")) {
                 partyManager.leaveParty(player);
                 player.sendMessage("You have left the party.");
+                return true;
+            }
+
+            if (args[0].equalsIgnoreCase("list")) {
+                Party party = partyManager.getParty(player);
+                if (party != null) {
+                    List<String> memberList = party.getMemberListWithRoles();
+                    player.sendMessage("[MysticRPG] Party of \"" + player.getName() + "\":");
+                    for (String member : memberList) {
+                        player.sendMessage(member);
+                    }
+                } else {
+                    player.sendMessage("You are not in a party.");
+                }
                 return true;
             }
         }

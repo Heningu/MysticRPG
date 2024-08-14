@@ -15,6 +15,7 @@ public class PlayerDataManager {
     public PlayerDataManager(Main plugin, File dataFolder) {
         this.plugin = plugin;
         this.dataFolder = dataFolder;
+
         if (!dataFolder.exists()) {
             dataFolder.mkdirs();
         }
@@ -22,7 +23,8 @@ public class PlayerDataManager {
 
     public PlayerData getPlayerData(Player player) {
         UUID uuid = player.getUniqueId();
-        return playerDataMap.computeIfAbsent(uuid, k -> loadPlayerData(player));
+        PlayerData playerData = playerDataMap.computeIfAbsent(uuid, k -> loadPlayerData(player));
+        return playerData;
     }
 
     private PlayerData loadPlayerData(Player player) {

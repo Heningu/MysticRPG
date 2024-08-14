@@ -15,32 +15,40 @@ public class EconomyCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (sender instanceof Player) {
-            Player player = (Player) sender;
-
-            if (args.length == 1 && args[0].equalsIgnoreCase("balance")) {
+        if (args.length == 1 && args[0].equalsIgnoreCase("balance")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
                 double balance = economyManager.getBalance(player);
                 player.sendMessage("Your balance: $" + balance);
-                return true;
+            } else {
+                sender.sendMessage("This command can only be run by a player.");
             }
+            return true;
+        }
 
-            if (args.length == 3 && args[0].equalsIgnoreCase("send")) {
+        if (args.length == 3 && args[0].equalsIgnoreCase("send")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
                 Player target = Bukkit.getPlayer(args[1]);
                 if (target != null) {
                     try {
                         double amount = Double.parseDouble(args[2]);
                         economyManager.sendMoney(player, target, amount);
                         player.sendMessage("You sent $" + amount + " to " + target.getName());
-                        target.sendMessage("You received $" + amount + " from " + player.getName());
+                        target.sendMessage("You received $" + amount + "from " + player.getName());
                     } catch (NumberFormatException e) {
                         player.sendMessage("Invalid amount.");
                     }
                 } else {
                     player.sendMessage("Player not found.");
                 }
-                return true;
+            } else {
+                sender.sendMessage("This command can only be run by a player.");
             }
-        } else if (sender.hasPermission("mysticrpg.admin")) {
+            return true;
+        }
+
+        if (sender.hasPermission("mysticrpg.admin")) {
             if (args.length == 2 && args[0].equalsIgnoreCase("check")) {
                 Player target = Bukkit.getPlayer(args[1]);
                 if (target != null) {

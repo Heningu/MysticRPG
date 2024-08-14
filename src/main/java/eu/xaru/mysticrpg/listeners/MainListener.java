@@ -164,7 +164,8 @@ public class MainListener implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        plugin.getPlayerDataManager().getPlayerData(player); // This will load or initialize player data
+        plugin.getPlayerDataManager().getPlayerData(player); // Load or initialize player data
+        plugin.getScoreboardManager().updateScoreboard(player, plugin.getPlayerDataManager().getPlayerData(player)); // Update scoreboard
     }
 
     @EventHandler
@@ -175,26 +176,17 @@ public class MainListener implements Listener {
     }
 
     @EventHandler
-    public void onEntityDeathLeveling(EntityDeathEvent event) {
-        if (event.getEntity().getKiller() instanceof Player) {
-            Player player = (Player) event.getEntity().getKiller();
-            int xp = levelingManager.getXpForEntity(event.getEntityType().name());
-            levelingManager.addXp(player, xp);
-            player.sendMessage("You have gained " + xp + " XP!");
-            event.setDroppedExp(0); // Prevent double XP gain
-        }
-    }
-
-    @EventHandler
-    public void onEntityDeathParty(EntityDeathEvent event) {
+    public void onEntityDeath(EntityDeathEvent event) {
         if (event.getEntity().getKiller() != null) {
             Player killer = (Player) event.getEntity().getKiller();
             int xp = levelingManager.getXpForEntity(event.getEntityType().name());
+
             if (partyManager != null && partyManager.isInParty(killer)) {
                 partyManager.shareXp(killer, xp);
             } else {
                 levelingManager.addXp(killer, xp);
             }
+            killer.sendMessage("You have gained " + xp + " XP!");
             event.setDroppedExp(0); // Prevent double XP gain
         }
     }
@@ -228,7 +220,8 @@ public class MainListener implements Listener {
 
     @EventHandler
     public void onInventoryMoveItem(InventoryMoveItemEvent event) {
-        if (event.getDestination().getHolder() instanceof StatMenu || event.getSource().getHolder() instanceof StatMenu) {
+        if ((event.getDestination() != null && event.getDestination().getHolder() instanceof StatMenu) ||
+                (event.getSource() != null && event.getSource().getHolder() instanceof StatMenu)) {
             event.setCancelled(true); // Prevent item movement
         }
     }
@@ -236,7 +229,7 @@ public class MainListener implements Listener {
     @EventHandler
     public void onPlayerDropItem(PlayerDropItemEvent event) {
         Player player = event.getPlayer();
-        if (player.getOpenInventory().getTopInventory().getHolder() instanceof StatMenu) {
+        if (player.getOpenInventory() != null && player.getOpenInventory().getTopInventory().getHolder() instanceof StatMenu) {
             event.setCancelled(true); // Prevent item dropping
         }
     }

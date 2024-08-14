@@ -11,7 +11,7 @@ commands:
     usage: /admin
   party:
     description: Party management commands.
-    usage: /party <subcommand>
+    usage: /party <create|invite|accept|decline|leave|list>
   playerxp:
     description: Player XP management commands.
     usage: /playerxp <subcommand>
@@ -21,8 +21,10 @@ commands:
     permission: mysticrpg.admin
     permission-message: You do not have permission to use this command.
   money:
-    description: Economy management commands.
-    usage: /money <subcommand>
+    description: Manage player economy
+    usage: /money <balance|send|check|set>
+    permission: mysticrpg.economy
+    permission-message: You don't have permission to use this command.
   friends:
     description: Manages your friends list.
     usage: /friends <add|accept|decline|block|unblock|requests>

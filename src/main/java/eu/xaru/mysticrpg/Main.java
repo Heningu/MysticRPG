@@ -4,6 +4,7 @@ import eu.xaru.mysticrpg.admin.AdminMenuMain;
 import eu.xaru.mysticrpg.admin.commands.AdminCommand;
 import eu.xaru.mysticrpg.admin.commands.AdminCommandTabCompleter;
 import eu.xaru.mysticrpg.economy.EconomyCommand;
+import eu.xaru.mysticrpg.economy.EconomyCommandTabCompleter;
 import eu.xaru.mysticrpg.economy.EconomyManager;
 import eu.xaru.mysticrpg.leveling.LevelingCommand;
 import eu.xaru.mysticrpg.leveling.LevelingManager;
@@ -49,16 +50,16 @@ public class Main extends JavaPlugin {
         // Create config files and directories
         new ConfigCreator(this).createFiles();
 
+        // Initialize components in the correct order
+        this.partyManager = new PartyManager(levelingManager); // Initialize partyManager first
+        this.scoreboardManager = new CustomScoreboardManager(this);  // Initialize scoreboard manager
         this.playerDataManager = new PlayerDataManager(this, new File(getDataFolder(), "playerdata"));
-        this.economyManager = new EconomyManager(playerDataManager);
-        this.actionBarManager = new ActionBarManager(this, playerDataManager);
-        this.scoreboardManager = new CustomScoreboardManager(this);
+        this.statManager = new StatManager(this, playerDataManager);  // Initialize statManager before levelingManager
         this.levelingManager = new LevelingManager(playerDataManager, statManager);
         this.levelingMenu = new LevelingMenu(this, levelingManager, playerDataManager);
-        this.partyManager = new PartyManager(levelingManager);
-        this.adminMenuMain = new AdminMenuMain(this);
+        this.economyManager = new EconomyManager(playerDataManager, scoreboardManager);
+        this.actionBarManager = new ActionBarManager(this, playerDataManager);
         this.customDamageHandler = new CustomDamageHandler(this, playerDataManager, actionBarManager);
-        this.statManager = new StatManager(this, playerDataManager);
         this.statMenu = new StatMenu(this, playerDataManager);
         this.friendsManager = new FriendsManager(this, playerDataManager);
         this.friendsMenu = new FriendsMenu(this);
@@ -70,6 +71,7 @@ public class Main extends JavaPlugin {
         // Register commands
         if (getCommand("money") != null) {
             getCommand("money").setExecutor(new EconomyCommand(economyManager));
+            getCommand("money").setTabCompleter(new EconomyCommandTabCompleter());
         }
         if (getCommand("party") != null) {
             getCommand("party").setExecutor(new PartyCommand(partyManager, this));
