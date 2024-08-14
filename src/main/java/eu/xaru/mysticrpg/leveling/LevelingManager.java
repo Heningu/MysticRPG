@@ -40,7 +40,7 @@ public class LevelingManager {
 
         try (InputStreamReader reader = new InputStreamReader(getClass().getResourceAsStream("/leveling/Levels.json"))) {
             this.levelDataMap = gson.fromJson(reader, levelDataType);
-            logger.info("Levels.json loaded: " + this.levelDataMap);
+            logger.info("Levels.json loaded properly");
         } catch (Exception e) {
             throw new RuntimeException("Failed to load Levels.json", e);
         }

@@ -51,12 +51,12 @@ public class Main extends JavaPlugin {
         new ConfigCreator(this).createFiles();
 
         // Initialize components in the correct order
-        this.partyManager = new PartyManager(levelingManager); // Initialize partyManager first
-        this.scoreboardManager = new CustomScoreboardManager(this);  // Initialize scoreboard manager
         this.playerDataManager = new PlayerDataManager(this, new File(getDataFolder(), "playerdata"));
-        this.statManager = new StatManager(this, playerDataManager);  // Initialize statManager before levelingManager
+        this.statManager = new StatManager(this, playerDataManager);
         this.levelingManager = new LevelingManager(playerDataManager, statManager);
         this.levelingMenu = new LevelingMenu(this, levelingManager, playerDataManager);
+        this.partyManager = new PartyManager(levelingManager);
+        this.scoreboardManager = new CustomScoreboardManager(this);
         this.economyManager = new EconomyManager(playerDataManager, scoreboardManager);
         this.actionBarManager = new ActionBarManager(this, playerDataManager);
         this.customDamageHandler = new CustomDamageHandler(this, playerDataManager, actionBarManager);

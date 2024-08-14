@@ -15,6 +15,7 @@ public class PlayerData {
     private int xp;
     private int level;
     private int nextLevelXP;
+    private int currentHp;
     private Set<UUID> friendRequests = new HashSet<>();
     private Set<UUID> friends = new HashSet<>();
     private Set<UUID> blockedPlayers = new HashSet<>();
@@ -38,6 +39,17 @@ public class PlayerData {
                 attributes.put(key, dataConfig.getInt("attributes." + key, 1));
             }
         }
+
+        // Initialize default values if not set
+        attributes.putIfAbsent("HP", 20); // 20 HP is the starting default
+        attributes.putIfAbsent("MANA", 10); // 10 Mana is the starting default
+        attributes.putIfAbsent("Vitality", 1);
+        attributes.putIfAbsent("Intelligence", 1);
+        attributes.putIfAbsent("Dexterity", 1);
+        attributes.putIfAbsent("Strength", 1);
+
+        // Load currentHp, default to max HP if not set
+        currentHp = dataConfig.getInt("currentHp", getHp());
 
         // Load friends data
         if (dataConfig.contains("friendRequests")) {
@@ -75,6 +87,7 @@ public class PlayerData {
         dataConfig.set("xp", xp);
         dataConfig.set("level", level);
         dataConfig.set("nextLevelXP", nextLevelXP);
+        dataConfig.set("currentHp", currentHp); // Save the current HP
 
         // Save attributes
         for (Map.Entry<String, Integer> entry : attributes.entrySet()) {
@@ -144,12 +157,36 @@ public class PlayerData {
     }
 
     // Specific attribute getters and setters
-    public int getHp() {
+    public int getHp() { // This represents the max HP
         return getAttribute("HP");
     }
 
     public void setHp(int hp) {
         setAttribute("HP", hp);
+    }
+
+    // Method to get current HP
+    public int getCurrentHp() {
+        // Ensure currentHp is always within valid range [0, maxHp]
+        int maxHp = getHp();
+        if (currentHp > maxHp) {
+            currentHp = maxHp;
+        } else if (currentHp < 0) {
+            currentHp = 0;
+        }
+        return currentHp;
+    }
+
+    // Method to set current HP
+    public void setCurrentHp(int currentHp) {
+        int maxHp = getHp();
+        if (currentHp > maxHp) {
+            this.currentHp = maxHp;
+        } else if (currentHp < 0) {
+            this.currentHp = 0;
+        } else {
+            this.currentHp = currentHp;
+        }
     }
 
     public int getMana() {

@@ -50,34 +50,42 @@ public class CustomScoreboardManager {
             playerDataCache.put(playerUUID, newData); // Cache the new data
 
             ScoreboardManager manager = plugin.getServer().getScoreboardManager();
+            if (manager == null) {
+                plugin.getLogger().severe("ScoreboardManager is not available!");
+                return;
+            }
+
+            // Clear any existing scoreboard to prevent conflicts
+            player.setScoreboard(manager.getNewScoreboard());
+
             Scoreboard board = manager.getNewScoreboard();
 
             // Set the custom title with special characters
-            String title = ChatColor.DARK_PURPLE + "ᴍʏꜱᴛɪᴄ" + ChatColor.RED + "ʀᴘɢ";
+            String title = ChatColor.BLACK + "[" + ChatColor.DARK_PURPLE + "Mystic" + ChatColor.RED + "RPG" + ChatColor.BLACK + "]";
             Objective objective = board.registerNewObjective("MysticRPG", "dummy", title);
-            objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+            objective.setDisplaySlot(DisplaySlot.SIDEBAR); // Force the sidebar display
 
             int line = 14;
 
             // Setting the lines according to the provided layout
-            objective.getScore(ChatColor.DARK_GRAY + "◆" + ChatColor.STRIKETHROUGH + "                                  " + ChatColor.RESET + ChatColor.DARK_GRAY + "◆").setScore(line--);
-           // objective.getScore(ChatColor.of("#E5FBFD") + ChatColor.BOLD.toString() + "ᴘʟᴀʏᴇʀ").setScore(line--);
-            objective.getScore(ChatColor.DARK_GRAY + " ▪ " + ChatColor.GRAY + "ʟᴇᴠᴇʟ: " + ChatColor.GREEN + currentLevel).setScore(line--);
-            objective.getScore(ChatColor.DARK_GRAY + " ▪ " + ChatColor.GRAY + "ᴍᴏɴᴇʏ: " + ChatColor.GREEN + "$" + currentBalance).setScore(line--);
+            objective.getScore("§8+§m                                  §r§8+" + ChatColor.RESET).setScore(line--); // Adding ChatColor.RESET for uniqueness
+            objective.getScore("§x§E§5§F§B§F§D" + "§lPLAYER").setScore(line--);
+            objective.getScore("§8 ▪ §7LEVEL: §a" + currentLevel).setScore(line--);
+            objective.getScore("§8 ▪ §7MONEY: §a$" + currentBalance).setScore(line--);
             objective.getScore(" ").setScore(line--);
-         //   objective.getScore(ChatColor.of("#E5FBFD") + "Qᴜᴇꜱᴛꜱ").setScore(line--);
-            objective.getScore(ChatColor.DARK_GRAY + " ▪ " + ChatColor.GRAY + "ᴄᴜʀʀᴇɴᴛ: " + ChatColor.WHITE + currentQuest).setScore(line--);
+            objective.getScore("§x§E§5§F§B§F§D" + "QUESTS").setScore(line--);
+            objective.getScore("§8 ▪ §7CURRENT: §f" + currentQuest).setScore(line--);
             objective.getScore("  ").setScore(line--);
-            objective.getScore(ChatColor.GRAY + "ᴘᴀʀᴛʏ").setScore(line--);
-            objective.getScore(ChatColor.DARK_GRAY + " ▪ " + ChatColor.WHITE + partyLeader).setScore(line--);
+            objective.getScore("§7PARTY").setScore(line--);
+            objective.getScore("§8 ▪ §f" + partyLeader).setScore(line--);
             for (String member : currentPartyMembers) {
-                objective.getScore(ChatColor.DARK_GRAY + " ▪ " + member).setScore(line--);
+                objective.getScore("§8 ▪ " + member).setScore(line--);
             }
             // Ensure to fill in empty lines if there are fewer than 3 party members
             while (line > 2) {
-                objective.getScore(ChatColor.DARK_GRAY + " ▪ EMPTY").setScore(line--);
+                objective.getScore("§8 ▪ EMPTY").setScore(line--);
             }
-            objective.getScore(ChatColor.DARK_GRAY + "◆" + ChatColor.STRIKETHROUGH + "                                  " + ChatColor.RESET + ChatColor.DARK_GRAY + "◆").setScore(line--);
+            objective.getScore("§8+§m                                  §r§8+" + ChatColor.GRAY).setScore(line--); // Adding ChatColor.GRAY for uniqueness
 
             // Setting scoreboard to player
             player.setScoreboard(board);

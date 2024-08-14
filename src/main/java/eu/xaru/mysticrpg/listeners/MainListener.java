@@ -166,6 +166,7 @@ public class MainListener implements Listener {
         Player player = event.getPlayer();
         plugin.getPlayerDataManager().getPlayerData(player); // Load or initialize player data
         plugin.getScoreboardManager().updateScoreboard(player, plugin.getPlayerDataManager().getPlayerData(player)); // Update scoreboard
+        plugin.getActionBarManager().updateActionBar(player); // Update action bar
     }
 
     @EventHandler
@@ -197,7 +198,7 @@ public class MainListener implements Listener {
             Player damaged = (Player) event.getEntity();
             double damage = event.getDamage();
             customDamageHandler.handleDamage(damaged, damage);
-            plugin.getActionBarManager().updateActionBar(damaged);
+            plugin.getActionBarManager().updateActionBar(damaged); // Update action bar after taking damage
             damaged.sendMessage("You took " + damage + " damage!");
         }
     }

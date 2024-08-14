@@ -5,7 +5,9 @@ import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataManager;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 
 public class ActionBarManager {
     private final Main plugin;
@@ -14,18 +16,30 @@ public class ActionBarManager {
     public ActionBarManager(Main plugin, PlayerDataManager playerDataManager) {
         this.plugin = plugin;
         this.playerDataManager = playerDataManager;
+        startActionBarTask();
     }
 
     public void updateActionBar(Player player) {
         PlayerData data = playerDataManager.getPlayerData(player);
-        int hp = data.getHp();
+        int currentHp = data.getCurrentHp();
+        int maxHp = data.getHp();
         int mana = data.getMana();
 
-        String actionBarText = "HP: " + hp + " | Mana: " + mana;
+        String actionBarText = "§c❤ " + currentHp + "/" + maxHp + " §b💧 " + mana;
         player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(actionBarText));
+
+        // Logging for debugging
+        Bukkit.getLogger().info("ActionBar updated for player " + player.getName() + ". Displayed HP: " + currentHp + "/" + maxHp);
     }
 
-    public void updateActionBarOnDamage(Player player) {
-        updateActionBar(player);
+    private void startActionBarTask() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    updateActionBar(player);
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 40L); // Refresh every 2 seconds (40 ticks)
     }
 }
