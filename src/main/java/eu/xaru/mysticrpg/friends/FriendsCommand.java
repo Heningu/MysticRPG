@@ -1,6 +1,6 @@
 package eu.xaru.mysticrpg.friends;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -8,11 +8,11 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 public class FriendsCommand implements CommandExecutor {
-    private final Main plugin;
+    private final MysticCore plugin;
     private final FriendsManager friendsManager;
     private final FriendsMenu friendsMenu;
 
-    public FriendsCommand(Main plugin, FriendsManager friendsManager, FriendsMenu friendsMenu) {
+    public FriendsCommand(MysticCore plugin, FriendsManager friendsManager, FriendsMenu friendsMenu) {
         this.plugin = plugin;
         this.friendsManager = friendsManager;
         this.friendsMenu = friendsMenu;

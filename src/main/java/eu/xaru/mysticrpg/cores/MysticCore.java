@@ -1,5 +1,7 @@
-package eu.xaru.mysticrpg;
+package eu.xaru.mysticrpg.cores;
 
+import eu.xaru.mysticrpg.ConfigCreator;
+import eu.xaru.mysticrpg.CustomDamageHandler;
 import eu.xaru.mysticrpg.admin.AdminMenuMain;
 import eu.xaru.mysticrpg.admin.commands.AdminCommand;
 import eu.xaru.mysticrpg.admin.commands.AdminCommandTabCompleter;
@@ -10,6 +12,8 @@ import eu.xaru.mysticrpg.leveling.LevelingCommand;
 import eu.xaru.mysticrpg.leveling.LevelingManager;
 import eu.xaru.mysticrpg.leveling.PlayerXPCommandTabCompleter;
 import eu.xaru.mysticrpg.leveling.LevelingMenu;
+import eu.xaru.mysticrpg.managers.ModuleManager;
+import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import eu.xaru.mysticrpg.party.PartyCommand;
 import eu.xaru.mysticrpg.party.PartyCommandTabCompleter;
 import eu.xaru.mysticrpg.party.PartyManager;
@@ -20,17 +24,18 @@ import eu.xaru.mysticrpg.stats.StatsCommandTabCompleter;
 import eu.xaru.mysticrpg.storage.PlayerDataManager;
 import eu.xaru.mysticrpg.ui.ActionBarManager;
 import eu.xaru.mysticrpg.ui.CustomScoreboardManager;
-import eu.xaru.mysticrpg.modules.CustomDamageHandler;
 import eu.xaru.mysticrpg.listeners.MainListener;
 import eu.xaru.mysticrpg.friends.FriendsCommand;
 import eu.xaru.mysticrpg.friends.FriendsCommandTabCompleter;
 import eu.xaru.mysticrpg.friends.FriendsManager;
 import eu.xaru.mysticrpg.friends.FriendsMenu;
+import eu.xaru.mysticrpg.utils.DeadlockDetector;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.util.concurrent.TimeUnit;
 
-public class Main extends JavaPlugin {
+public class MysticCore extends JavaPlugin {
     public PlayerDataManager playerDataManager;
     public EconomyManager economyManager;
     public ActionBarManager actionBarManager;
@@ -45,8 +50,22 @@ public class Main extends JavaPlugin {
     public FriendsManager friendsManager;
     public FriendsMenu friendsMenu;
 
+    private ModuleManager moduleManager;
+    private DeadlockDetector deadlockDetector;
+    private DebugLoggerModule logger;
     @Override
     public void onEnable() {
+        try {
+            moduleManager.loadAllModules();
+            if (logger != null) {
+                logger.log("Core plugin enabled successfully.", 0);
+            }
+        } catch (Exception e) {
+            if (logger != null) {
+                logger.error("Error during plugin enable. Exception: " + e.getMessage(), e, null);
+            }
+            getServer().getPluginManager().disablePlugin(this);
+        }
         // Create config files and directories
         new ConfigCreator(this).createFiles();
 
@@ -96,10 +115,39 @@ public class Main extends JavaPlugin {
         if (getCommand("level") != null) {
             getCommand("level").setExecutor(new LevelingCommand(levelingManager, levelingMenu));
         }
+
+    }
+
+    @Override
+    public void onLoad() {
+        // Initialize the module manager and logger
+        moduleManager = ModuleManager.getInstance();
+        logger = moduleManager.getModuleInstance(DebugLoggerModule.class);
+
+        // Initialize DeadlockDetector
+        deadlockDetector = new DeadlockDetector(10, TimeUnit.SECONDS, moduleManager, logger);
+        deadlockDetector.start();
+
+        if (logger != null) {
+            logger.log("Core plugin loading...", 0);
+        }
     }
 
     @Override
     public void onDisable() {
+
+        // Shutdown the plugin, unload modules, and clean up resources
+        try {
+            moduleManager.shutdown();
+            if (logger != null) {
+                logger.log("Core plugin disabled.", 0);
+            }
+        } catch (Exception e) {
+            if (logger != null) {
+                logger.error("Error during plugin disable. Exception: " + e.getMessage(), e, null);
+            }
+        }
+
         playerDataManager.saveAll();
     }
 

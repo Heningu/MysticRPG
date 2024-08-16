@@ -6,10 +6,11 @@
     <groupId>eu.xaru.mysticRPG</groupId>
     <artifactId>MysticRPG</artifactId>
     <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
 
     <properties>
-        <maven.compiler.source>22</maven.compiler.source>
-        <maven.compiler.target>22</maven.compiler.target>
+        <java.version>1.8</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -40,6 +41,18 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>com.github.cryptomorin</groupId>
+            <artifactId>XSeries</artifactId>
+            <version>11.2.1</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.classgraph</groupId>
+            <artifactId>classgraph</artifactId>
+            <version>4.8.174</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
             <groupId>me.clip</groupId>
             <artifactId>placeholderapi</artifactId>
             <version>2.11.6</version>
@@ -59,12 +72,17 @@
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
-            <version>20210307</version>
+            <version>20231013</version>
         </dependency>
         <dependency>
             <groupId>com.googlecode.json-simple</groupId>
             <artifactId>json-simple</artifactId>
             <version>1.1.1</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.jorel</groupId>
+            <artifactId>commandapi-bukkit-shade-mojang-mapped</artifactId>
+            <version>9.5.2</version>
         </dependency>
     </dependencies>
 
@@ -75,8 +93,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.10.1</version>
                 <configuration>
-                    <source>22</source>
-                    <target>22</target>
+                    <source>16</source>
+                    <target>16</target>
                 </configuration>
             </plugin>
             <plugin>
@@ -96,6 +114,21 @@
                         <relocation>
                             <pattern>net.kyori.adventure</pattern>
                             <shadedPattern>eu.xaru.mysticrpg.shaded.net.kyori.adventure</shadedPattern>
+                        </relocation>
+
+                        <relocation>
+                            <pattern>io.github.classgraph</pattern>
+                            <shadedPattern>eu.xaru.mysticrpg.shaded.classgraph</shadedPattern>
+                        </relocation>
+
+                        <relocation>
+                            <pattern>com.cryptomorin.xseries</pattern>
+                            <shadedPattern>eu.xaru.mysticrpg.shaded.xseries</shadedPattern>
+                        </relocation>
+
+                        <relocation>
+                            <pattern>dev.jorel.commandapi</pattern>
+                            <shadedPattern>eu.xaru.mysticrpg.shaded.commandapi</shadedPattern>
                         </relocation>
                     </relocations>
                 </configuration>

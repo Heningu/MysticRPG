@@ -1,6 +1,6 @@
 package eu.xaru.mysticrpg.storage;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -8,11 +8,11 @@ import java.io.File;
 import java.util.*;
 
 public class PlayerDataManager {
-    private final Main plugin;
+    private final MysticCore plugin;
     private final File dataFolder;
     private final Map<UUID, PlayerData> playerDataMap = new HashMap<>();
 
-    public PlayerDataManager(Main plugin, File dataFolder) {
+    public PlayerDataManager(MysticCore plugin, File dataFolder) {
         this.plugin = plugin;
         this.dataFolder = dataFolder;
 

@@ -1,6 +1,6 @@
 package eu.xaru.mysticrpg.admin.players;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.admin.features.PlayerFeature;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import org.bukkit.Bukkit;
@@ -16,7 +16,7 @@ import java.util.List;
 
 public class PlayerStatsFeature extends PlayerFeature {
 
-    public PlayerStatsFeature(Main plugin) {
+    public PlayerStatsFeature(MysticCore plugin) {
         super(plugin);
     }
 

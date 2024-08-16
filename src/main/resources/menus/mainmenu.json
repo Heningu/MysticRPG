@@ -1,7 +1,8 @@
 {
+  "Columns": 9,
   "Menu_name": "Mainmenu",
   "Rows": 6,
-  "Columns": 9,
+  "buttons": {},
   "fill_rest_with_white_glass": true,
   "hotbar_item": {
     "use": true,
@@ -18,6 +19,7 @@
     "keep_item_on_death": true,
     "command": "menu Mainmenu"
   },
+  "images": {},
   "items": [
     {
       "material": "NETHERITE_CHESTPLATE",
@@ -154,5 +156,7 @@
       "column": 3,
       "command": "cosmetics"
     }
-  ]
+  ],
+  "labels": {},
+  "other": {}
 }

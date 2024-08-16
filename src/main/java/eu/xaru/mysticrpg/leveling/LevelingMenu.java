@@ -1,6 +1,6 @@
 package eu.xaru.mysticrpg.leveling;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataManager;
 import org.bukkit.Bukkit;
@@ -13,15 +13,14 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class LevelingMenu {
-    private final Main plugin;
+    private final MysticCore plugin;
     private final LevelingManager levelingManager;
     private final PlayerDataManager playerDataManager;
 
-    public LevelingMenu(Main plugin, LevelingManager levelingManager, PlayerDataManager playerDataManager) {
+    public LevelingMenu(MysticCore plugin, LevelingManager levelingManager, PlayerDataManager playerDataManager) {
         this.plugin = plugin;
         this.levelingManager = levelingManager;
         this.playerDataManager = playerDataManager;

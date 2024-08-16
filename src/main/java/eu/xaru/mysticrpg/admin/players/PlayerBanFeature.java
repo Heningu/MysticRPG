@@ -1,6 +1,6 @@
 package eu.xaru.mysticrpg.admin.players;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.admin.features.PlayerFeature;
 import org.bukkit.BanList;
 import org.bukkit.Bukkit;
@@ -12,7 +12,7 @@ import java.util.Date;
 
 public class PlayerBanFeature extends PlayerFeature {
 
-    public PlayerBanFeature(Main plugin) {
+    public PlayerBanFeature(MysticCore plugin) {
         super(plugin);
     }
 

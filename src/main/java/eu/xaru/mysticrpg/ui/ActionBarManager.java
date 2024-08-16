@@ -1,6 +1,6 @@
 package eu.xaru.mysticrpg.ui;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataManager;
 import net.md_5.bungee.api.ChatMessageType;
@@ -10,10 +10,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 public class ActionBarManager {
-    private final Main plugin;
+    private final MysticCore plugin;
     private final PlayerDataManager playerDataManager;
 
-    public ActionBarManager(Main plugin, PlayerDataManager playerDataManager) {
+    public ActionBarManager(MysticCore plugin, PlayerDataManager playerDataManager) {
         this.plugin = plugin;
         this.playerDataManager = playerDataManager;
         startActionBarTask();

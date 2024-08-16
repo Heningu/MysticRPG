@@ -1,6 +1,6 @@
 package eu.xaru.mysticrpg.admin;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.admin.players.PlayerStatsFeature;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -14,10 +14,10 @@ import java.util.Map;
 import java.util.UUID;
 
 public class AdminMenuMain {
-    private final Main plugin;
+    private final MysticCore plugin;
     private final Map<UUID, Player> playerEditMap = new HashMap<>();
 
-    public AdminMenuMain(Main plugin) {
+    public AdminMenuMain(MysticCore plugin) {
         this.plugin = plugin;
         loadFeatures();
     }

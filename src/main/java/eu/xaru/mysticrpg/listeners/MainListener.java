@@ -1,17 +1,16 @@
 package eu.xaru.mysticrpg.listeners;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.admin.AdminMenuMain;
 import eu.xaru.mysticrpg.economy.EconomyManager;
 import eu.xaru.mysticrpg.friends.FriendsMenu;
 import eu.xaru.mysticrpg.leveling.LevelingManager;
 import eu.xaru.mysticrpg.leveling.LevelingMenu;
-import eu.xaru.mysticrpg.modules.CustomDamageHandler;
+import eu.xaru.mysticrpg.CustomDamageHandler;
 import eu.xaru.mysticrpg.party.PartyManager;
 import eu.xaru.mysticrpg.stats.StatManager;
 import eu.xaru.mysticrpg.stats.StatMenu;
 import eu.xaru.mysticrpg.storage.PlayerDataManager;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -30,7 +29,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
 
 public class MainListener implements Listener {
-    private final Main plugin;
+    private final MysticCore plugin;
     private final AdminMenuMain adminMenuMain;
     private final PlayerDataManager playerDataManager;
     private final LevelingManager levelingManager;
@@ -42,7 +41,7 @@ public class MainListener implements Listener {
     private final StatMenu statMenu;
     private final FriendsMenu friendsMenu;
 
-    public MainListener(Main plugin, AdminMenuMain adminMenuMain, PlayerDataManager playerDataManager,
+    public MainListener(MysticCore plugin, AdminMenuMain adminMenuMain, PlayerDataManager playerDataManager,
                         LevelingManager levelingManager, LevelingMenu levelingMenu, CustomDamageHandler customDamageHandler,
                         PartyManager partyManager, EconomyManager economyManager,
                         StatManager statManager, StatMenu statMenu, FriendsMenu friendsMenu) {

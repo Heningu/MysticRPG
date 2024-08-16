@@ -1,15 +1,15 @@
 package eu.xaru.mysticrpg.stats;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataManager;
 import org.bukkit.entity.Player;
 
 public class StatManager {
-    private final Main plugin;
+    private final MysticCore plugin;
     private final PlayerDataManager playerDataManager;
 
-    public StatManager(Main plugin, PlayerDataManager playerDataManager) {
+    public StatManager(MysticCore plugin, PlayerDataManager playerDataManager) {
         this.plugin = plugin;
         this.playerDataManager = playerDataManager;
     }

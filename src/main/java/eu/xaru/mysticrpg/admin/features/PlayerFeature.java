@@ -1,12 +1,12 @@
 package eu.xaru.mysticrpg.admin.features;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import org.bukkit.entity.Player;
 
 public abstract class PlayerFeature {
-    protected final Main plugin;
+    protected final MysticCore plugin;
 
-    public PlayerFeature(Main plugin) {
+    public PlayerFeature(MysticCore plugin) {
         this.plugin = plugin;
     }
 

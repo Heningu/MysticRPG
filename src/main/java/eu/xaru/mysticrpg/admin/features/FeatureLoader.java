@@ -1,6 +1,6 @@
 package eu.xaru.mysticrpg.admin.features;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.admin.players.PlayerBanFeature;
 import eu.xaru.mysticrpg.admin.players.PlayerStatsFeature;
 import org.bukkit.entity.Player;
@@ -11,10 +11,10 @@ import java.util.Map;
 import java.util.UUID;
 
 public class FeatureLoader {
-    private final Main plugin;
+    private final MysticCore plugin;
     private final List<PlayerFeature> playerFeatures;
 
-    public FeatureLoader(Main plugin) {
+    public FeatureLoader(MysticCore plugin) {
         this.plugin = plugin;
         this.playerFeatures = new ArrayList<>();
         loadPlayerFeatures();

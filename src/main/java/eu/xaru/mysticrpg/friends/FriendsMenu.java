@@ -1,6 +1,6 @@
 package eu.xaru.mysticrpg.friends;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataManager;
 import org.bukkit.Bukkit;
@@ -20,10 +20,10 @@ import java.util.List;
 import java.util.UUID;
 
 public class FriendsMenu {
-    private final Main plugin;
+    private final MysticCore plugin;
     private final PlayerDataManager playerDataManager;
 
-    public FriendsMenu(Main plugin) {
+    public FriendsMenu(MysticCore plugin) {
         this.plugin = plugin;
         this.playerDataManager = plugin.getPlayerDataManager();
     }

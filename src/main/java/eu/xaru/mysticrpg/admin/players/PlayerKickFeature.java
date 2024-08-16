@@ -1,12 +1,12 @@
 package eu.xaru.mysticrpg.admin.players;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.admin.features.PlayerFeature;
 import org.bukkit.entity.Player;
 
 public class PlayerKickFeature extends PlayerFeature {
 
-    public PlayerKickFeature(Main plugin) {
+    public PlayerKickFeature(MysticCore plugin) {
         super(plugin);
     }
 

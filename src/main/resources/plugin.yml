@@ -1,6 +1,6 @@
 name: MysticRPG
 version: 1.0.0
-main: eu.xaru.mysticrpg.Main
+main: eu.xaru.mysticrpg.cores.MysticCore
 author: Heningu
 description: An RPG plugin to bring a mystical adventure to Minecraft.
 api-version: 1.20

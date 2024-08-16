@@ -1,6 +1,6 @@
-package eu.xaru.mysticrpg.modules;
+package eu.xaru.mysticrpg;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataManager;
 import eu.xaru.mysticrpg.ui.ActionBarManager;
@@ -14,11 +14,11 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 
 public class CustomDamageHandler implements Listener {
-    private final Main plugin;
+    private final MysticCore plugin;
     private final PlayerDataManager playerDataManager;
     private final ActionBarManager actionBarManager;
 
-    public CustomDamageHandler(Main plugin, PlayerDataManager playerDataManager, ActionBarManager actionBarManager) {
+    public CustomDamageHandler(MysticCore plugin, PlayerDataManager playerDataManager, ActionBarManager actionBarManager) {
         this.plugin = plugin;
         this.playerDataManager = playerDataManager;
         this.actionBarManager = actionBarManager;

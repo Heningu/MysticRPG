@@ -1,11 +1,11 @@
 package eu.xaru.mysticrpg;
 
-import org.bukkit.configuration.file.FileConfiguration;
+import eu.xaru.mysticrpg.cores.MysticCore;
 
 public class ConfigManager {
-    private final Main plugin;
+    private final MysticCore plugin;
 
-    public ConfigManager(Main plugin) {
+    public ConfigManager(MysticCore plugin) {
         this.plugin = plugin;
         plugin.saveDefaultConfig();
     }

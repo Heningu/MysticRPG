@@ -1,6 +1,6 @@
 package eu.xaru.mysticrpg.ui;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.party.Party;
 import eu.xaru.mysticrpg.party.PartyManager;
 import eu.xaru.mysticrpg.storage.PlayerData;
@@ -14,11 +14,11 @@ import java.util.Map;
 import java.util.UUID;
 
 public class CustomScoreboardManager {
-    private final Main plugin;
+    private final MysticCore plugin;
     private final PartyManager partyManager;
     private final Map<UUID, CachedPlayerData> playerDataCache = new HashMap<>();
 
-    public CustomScoreboardManager(Main plugin) {
+    public CustomScoreboardManager(MysticCore plugin) {
         this.plugin = plugin;
         this.partyManager = plugin.getPartyManager();
     }

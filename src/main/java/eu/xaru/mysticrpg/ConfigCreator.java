@@ -1,14 +1,16 @@
 package eu.xaru.mysticrpg;
 
+import eu.xaru.mysticrpg.cores.MysticCore;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 
 public class ConfigCreator {
-    private final Main plugin;
+    private final MysticCore plugin;
 
-    public ConfigCreator(Main plugin) {
+    public ConfigCreator(MysticCore plugin) {
         this.plugin = plugin;
     }
 

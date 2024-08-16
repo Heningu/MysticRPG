@@ -1,6 +1,6 @@
 package eu.xaru.mysticrpg.stats;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataManager;
 import org.bukkit.Bukkit;
@@ -16,10 +16,10 @@ import java.util.Arrays;
 import java.util.Collections;
 
 public class StatMenu {
-    private final Main plugin;
+    private final MysticCore plugin;
     private final PlayerDataManager playerDataManager;
 
-    public StatMenu(Main plugin, PlayerDataManager playerDataManager) {
+    public StatMenu(MysticCore plugin, PlayerDataManager playerDataManager) {
         this.plugin = plugin;
         this.playerDataManager = playerDataManager;
     }

@@ -1,6 +1,6 @@
 package eu.xaru.mysticrpg.friends;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataManager;
 import org.bukkit.entity.Player;
@@ -8,10 +8,10 @@ import org.bukkit.entity.Player;
 import java.util.*;
 
 public class FriendsManager {
-    private final Main plugin;
+    private final MysticCore plugin;
     private final PlayerDataManager playerDataManager;
 
-    public FriendsManager(Main plugin, PlayerDataManager playerDataManager) {
+    public FriendsManager(MysticCore plugin, PlayerDataManager playerDataManager) {
         this.plugin = plugin;
         this.playerDataManager = playerDataManager;
     }

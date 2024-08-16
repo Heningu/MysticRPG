@@ -1,6 +1,6 @@
 /*package eu.xaru.mysticrpg.modules;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.Main;
 import eu.decentsoftware.holograms.api.DHAPI;
 import eu.decentsoftware.holograms.api.holograms.Hologram;
 import org.bukkit.Bukkit;

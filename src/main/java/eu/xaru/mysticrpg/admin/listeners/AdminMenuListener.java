@@ -1,6 +1,6 @@
 /*package eu.xaru.mysticrpg.admin.listeners;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.Main;
 import eu.xaru.mysticrpg.admin.AdminMenuMain;
 import eu.xaru.mysticrpg.admin.players.PlayerBanFeature;
 import eu.xaru.mysticrpg.admin.players.PlayerStatsFeature;

@@ -1,6 +1,6 @@
 package eu.xaru.mysticrpg.stats;
 
-import eu.xaru.mysticrpg.Main;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataManager;
 import org.bukkit.Bukkit;
@@ -10,11 +10,11 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 public class StatsCommand implements CommandExecutor {
-    private final Main plugin;
+    private final MysticCore plugin;
     private final PlayerDataManager playerDataManager;
     private final StatMenu statMenu;
 
-    public StatsCommand(Main plugin, PlayerDataManager playerDataManager, StatMenu statMenu) {
+    public StatsCommand(MysticCore plugin, PlayerDataManager playerDataManager, StatMenu statMenu) {
         this.plugin = plugin;
         this.playerDataManager = playerDataManager;
         this.statMenu = statMenu;
