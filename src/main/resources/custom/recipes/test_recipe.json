@@ -1,0 +1,16 @@
+{
+  "recipeID": "TEST_RECIPE",
+  "recipeCheck": "recipe_test.unlocked",
+  "recipeLayout": {
+    "1": "",
+    "2": "STONE",
+    "3": "",
+    "4": "",
+    "5": "DIAMOND",
+    "6": "",
+    "7": "",
+    "8": "IRON_INGOT",
+    "9": ""
+  },
+  "result": "CUSTOM_ITEM_ID"
+}

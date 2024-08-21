@@ -1,34 +1,35 @@
 package eu.xaru.mysticrpg.cores;
 
-import eu.xaru.mysticrpg.ConfigCreator;
-import eu.xaru.mysticrpg.CustomDamageHandler;
+import eu.xaru.mysticrpg.config.ConfigCreator;
+//import eu.xaru.mysticrpg.commands.CustomRecipeCommand;
+import eu.xaru.mysticrpg.player.CustomDamageHandler;
 import eu.xaru.mysticrpg.admin.AdminMenuMain;
 import eu.xaru.mysticrpg.admin.commands.AdminCommand;
 import eu.xaru.mysticrpg.admin.commands.AdminCommandTabCompleter;
 import eu.xaru.mysticrpg.economy.EconomyCommand;
 import eu.xaru.mysticrpg.economy.EconomyCommandTabCompleter;
 import eu.xaru.mysticrpg.economy.EconomyManager;
-import eu.xaru.mysticrpg.leveling.LevelingCommand;
-import eu.xaru.mysticrpg.leveling.LevelingManager;
-import eu.xaru.mysticrpg.leveling.PlayerXPCommandTabCompleter;
-import eu.xaru.mysticrpg.leveling.LevelingMenu;
+import eu.xaru.mysticrpg.player.leveling.LevelingCommand;
+import eu.xaru.mysticrpg.player.leveling.LevelingManager;
+import eu.xaru.mysticrpg.player.leveling.PlayerXPCommandTabCompleter;
+import eu.xaru.mysticrpg.player.leveling.LevelingMenu;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
-import eu.xaru.mysticrpg.party.PartyCommand;
-import eu.xaru.mysticrpg.party.PartyCommandTabCompleter;
-import eu.xaru.mysticrpg.party.PartyManager;
-import eu.xaru.mysticrpg.stats.StatManager;
-import eu.xaru.mysticrpg.stats.StatMenu;
-import eu.xaru.mysticrpg.stats.StatsCommand;
-import eu.xaru.mysticrpg.stats.StatsCommandTabCompleter;
+import eu.xaru.mysticrpg.social.party.PartyCommand;
+import eu.xaru.mysticrpg.social.party.PartyCommandTabCompleter;
+import eu.xaru.mysticrpg.social.party.PartyManager;
+import eu.xaru.mysticrpg.player.stats.StatManager;
+import eu.xaru.mysticrpg.player.stats.StatMenu;
+import eu.xaru.mysticrpg.player.stats.StatsCommand;
+import eu.xaru.mysticrpg.player.stats.StatsCommandTabCompleter;
 import eu.xaru.mysticrpg.storage.PlayerDataManager;
 import eu.xaru.mysticrpg.ui.ActionBarManager;
 import eu.xaru.mysticrpg.ui.CustomScoreboardManager;
 import eu.xaru.mysticrpg.listeners.MainListener;
-import eu.xaru.mysticrpg.friends.FriendsCommand;
-import eu.xaru.mysticrpg.friends.FriendsCommandTabCompleter;
-import eu.xaru.mysticrpg.friends.FriendsManager;
-import eu.xaru.mysticrpg.friends.FriendsMenu;
+import eu.xaru.mysticrpg.social.friends.FriendsCommand;
+import eu.xaru.mysticrpg.social.friends.FriendsCommandTabCompleter;
+import eu.xaru.mysticrpg.social.friends.FriendsManager;
+import eu.xaru.mysticrpg.social.friends.FriendsMenu;
 import eu.xaru.mysticrpg.utils.DeadlockDetector;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -53,10 +54,12 @@ public class MysticCore extends JavaPlugin {
     private ModuleManager moduleManager;
     private DeadlockDetector deadlockDetector;
     private DebugLoggerModule logger;
+
     @Override
     public void onEnable() {
         try {
             moduleManager.loadAllModules();
+
             if (logger != null) {
                 logger.log("Core plugin enabled successfully.", 0);
             }
@@ -66,6 +69,7 @@ public class MysticCore extends JavaPlugin {
             }
             getServer().getPluginManager().disablePlugin(this);
         }
+
         // Create config files and directories
         new ConfigCreator(this).createFiles();
 
@@ -83,6 +87,7 @@ public class MysticCore extends JavaPlugin {
         this.friendsManager = new FriendsManager(this, playerDataManager);
         this.friendsMenu = new FriendsMenu(this);
 
+        // CustomMobCreatorModule initialization is already handled by ModuleManager
         // Register combined listener
         getServer().getPluginManager().registerEvents(new MainListener(this, adminMenuMain, playerDataManager,
                 levelingManager, levelingMenu, customDamageHandler, partyManager, economyManager, statManager, statMenu, friendsMenu), this);
@@ -115,7 +120,9 @@ public class MysticCore extends JavaPlugin {
         if (getCommand("level") != null) {
             getCommand("level").setExecutor(new LevelingCommand(levelingManager, levelingMenu));
         }
-
+      //  if (getCommand("customrecipe") != null) {
+       //     getCommand("customrecipe").setExecutor(new CustomRecipeCommand(recipeManager, playerDataManager));
+       // }
     }
 
     @Override
@@ -135,7 +142,6 @@ public class MysticCore extends JavaPlugin {
 
     @Override
     public void onDisable() {
-
         // Shutdown the plugin, unload modules, and clean up resources
         try {
             moduleManager.shutdown();
@@ -148,7 +154,10 @@ public class MysticCore extends JavaPlugin {
             }
         }
 
-        playerDataManager.saveAll();
+        // Check if playerDataManager is not null before calling saveAll()
+        if (playerDataManager != null) {
+            playerDataManager.saveAll();
+        }
     }
 
     public PlayerDataManager getPlayerDataManager() {
