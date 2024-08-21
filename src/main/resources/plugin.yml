@@ -6,6 +6,8 @@ description: An RPG plugin to bring a mystical adventure to Minecraft.
 api-version: 1.20
 
 commands:
+  mobgui:
+    usage: /mobgui
   admin:
     description: Opens the admin menu.
     usage: /admin

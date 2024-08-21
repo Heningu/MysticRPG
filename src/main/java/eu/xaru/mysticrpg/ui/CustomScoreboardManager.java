@@ -1,8 +1,8 @@
 package eu.xaru.mysticrpg.ui;
 
 import eu.xaru.mysticrpg.cores.MysticCore;
-import eu.xaru.mysticrpg.party.Party;
-import eu.xaru.mysticrpg.party.PartyManager;
+import eu.xaru.mysticrpg.social.party.Party;
+import eu.xaru.mysticrpg.social.party.PartyManager;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;

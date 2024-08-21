@@ -1,5 +1,6 @@
 package eu.xaru.mysticrpg.storage;
 
+import eu.xaru.mysticrpg.customs.crafting.Recipe;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -11,6 +12,7 @@ public class PlayerData {
     private final File dataFile;
     private final FileConfiguration dataConfig;
     private final Map<String, Integer> attributes = new HashMap<>();
+    private final Map<String, Boolean> unlockedRecipes = new HashMap<>();
     private double balance;
     private int xp;
     private int level;
@@ -50,6 +52,13 @@ public class PlayerData {
 
         // Load currentHp, default to max HP if not set
         currentHp = dataConfig.getInt("currentHp", getHp());
+
+        // Load recipe unlocks
+        if (dataConfig.contains("recipes")) {
+            for (String key : dataConfig.getConfigurationSection("recipes").getKeys(false)) {
+                unlockedRecipes.put(key, dataConfig.getBoolean("recipes." + key, false));
+            }
+        }
 
         // Load friends data
         if (dataConfig.contains("friendRequests")) {
@@ -92,6 +101,11 @@ public class PlayerData {
         // Save attributes
         for (Map.Entry<String, Integer> entry : attributes.entrySet()) {
             dataConfig.set("attributes." + entry.getKey(), entry.getValue());
+        }
+
+        // Save recipe unlocks
+        for (Map.Entry<String, Boolean> entry : unlockedRecipes.entrySet()) {
+            dataConfig.set("recipes." + entry.getKey(), entry.getValue());
         }
 
         // Save friends data
@@ -276,6 +290,21 @@ public class PlayerData {
 
     public void setAttributePoints(int points) {
         setAttribute("ATTRIBUTE_POINTS", points);
+    }
+
+    // Recipe methods
+    public boolean isRecipeUnlocked(String recipeCheck) {
+        return unlockedRecipes.getOrDefault(recipeCheck, false);
+    }
+
+    public void setRecipeUnlocked(String recipeCheck, boolean unlocked) {
+        unlockedRecipes.put(recipeCheck, unlocked);
+    }
+
+    public void scanAndInitializeRecipes(Map<String, Recipe> recipes) {
+        for (Recipe recipe : recipes.values()) {
+            unlockedRecipes.putIfAbsent(recipe.getRecipeCheck(), false);
+        }
     }
 
     // Friends methods
