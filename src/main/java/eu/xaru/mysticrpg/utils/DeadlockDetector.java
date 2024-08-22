@@ -39,16 +39,16 @@ public class DeadlockDetector {
     }
 
     private void handleDeadlock(ThreadInfo[] deadlockedThreads) {
-        logger.error("Deadlock detected! Analyzing threads involved...");
+        logError("Deadlock detected! Analyzing threads involved...");
 
         for (ThreadInfo threadInfo : deadlockedThreads) {
             if (threadInfo != null) {
-                logger.error("Thread: " + threadInfo.getThreadName() + " (ID: " + threadInfo.getThreadId() + ") is involved in a deadlock.");
-                logger.error("Thread state: " + threadInfo.getThreadState());
-                logger.error("Locked resource: " + threadInfo.getLockName());
+                logError("Thread: " + threadInfo.getThreadName() + " (ID: " + threadInfo.getThreadId() + ") is involved in a deadlock.");
+                logError("Thread state: " + threadInfo.getThreadState());
+                logError("Locked resource: " + threadInfo.getLockName());
 
                 for (StackTraceElement ste : threadInfo.getStackTrace()) {
-                    logger.error("\t at " + ste.toString().trim());
+                    logError("\t at " + ste.toString().trim());
                 }
 
                 // Check if any module is involved
@@ -62,15 +62,15 @@ public class DeadlockDetector {
             IBaseModule module = moduleManager.getModuleInstance(moduleClass);
 
             if (module != null && threadInfo.getThreadName().contains(moduleClass.getSimpleName())) {
-                logger.error("Module " + moduleClass.getSimpleName() + " seems to be involved in the deadlock.");
-                logger.log(Level.INFO, "Attempting to reload module " + moduleClass.getSimpleName() + " to resolve the deadlock...", 0);
+                logError("Module " + moduleClass.getSimpleName() + " seems to be involved in the deadlock.");
+                logInfo("Attempting to reload module " + moduleClass.getSimpleName() + " to resolve the deadlock...");
 
                 // Attempt to reload the module
                 moduleManager.stopAndUnloadModule(moduleClass);
                 try {
                     moduleManager.loadModule(moduleClass);
                 } catch (Exception e) {
-                    logger.error("Failed to reload module " + moduleClass.getSimpleName(), e, null);
+                    logError("Failed to reload module " + moduleClass.getSimpleName(), e);
                 }
             }
         }
@@ -85,6 +85,25 @@ public class DeadlockDetector {
         } catch (InterruptedException e) {
             scheduler.shutdownNow();
             Thread.currentThread().interrupt();
+        }
+    }
+
+    private void logError(String message, Exception e) {
+        if (logger != null) {
+            logger
+                    .error(message + " Exception: " + e.getMessage(), e, null);
+        }
+    }
+
+    private void logError(String message) {
+        if (logger != null) {
+            logger.error(message);
+        }
+    }
+
+    private void logInfo(String message) {
+        if (logger != null) {
+            logger.log(Level.INFO, message, 0);
         }
     }
 }

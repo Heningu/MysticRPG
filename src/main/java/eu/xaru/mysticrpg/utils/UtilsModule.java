@@ -2,6 +2,7 @@ package eu.xaru.mysticrpg.utils;
 
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
+import eu.xaru.mysticrpg.managers.ModuleManager;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -28,35 +29,31 @@ public class UtilsModule implements IBaseModule {
     private static final Pattern CONFIG_PATTERN = Pattern.compile("config:([A-Za-z0-9._-]+)");
     private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("&#([a-fA-F0-9]{6})");
 
+    private DebugLoggerModule logger;
+
     private UtilsModule() {
         // Private constructor to enforce singleton pattern
     }
 
-    public static synchronized UtilsModule getInstance() {
-        if (instance == null) {
-            instance = new UtilsModule();
-        }
-        return instance;
-    }
-
     @Override
     public void initialize() {
-        log(Level.INFO, "UtilsModule initialized", 0);
+        logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
+        logger.log(Level.INFO, "UtilsModule initialized", 0);
     }
 
     @Override
     public void start() {
-        log(Level.INFO, "UtilsModule started", 0);
+        logger.log(Level.INFO, "UtilsModule started", 0);
     }
 
     @Override
     public void stop() {
-        log(Level.INFO, "UtilsModule stopped", 0);
+        logger.log(Level.INFO, "UtilsModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        log(Level.INFO, "UtilsModule unloaded", 0);
+        logger.log(Level.INFO, "UtilsModule unloaded", 0);
     }
 
     @Override
@@ -69,26 +66,6 @@ public class UtilsModule implements IBaseModule {
         return EModulePriority.CRITICAL;
     }
 
-    // Logging utilities
-    public void log(Level level, String message, int depth) {
-        if (DEBUGGING_ENABLED) {
-            String className = getCallerClassName(depth);
-            String formattedMessage = formatLogMessage(level, className, message);
-            Bukkit.getConsoleSender().sendMessage(ChatColor.translateAlternateColorCodes('&', formattedMessage));
-        }
-    }
-
-    public void log(String message) {
-        log(Level.INFO, message, 2);
-    }
-
-    public void warn(String message) {
-        log(Level.WARNING, message, 2);
-    }
-
-    public void error(String message) {
-        log(Level.SEVERE, message, 2);
-    }
 
     // Message utilities
     public String translateMessage(String message) {
@@ -209,28 +186,4 @@ public class UtilsModule implements IBaseModule {
         return new StringBuilder(message).reverse().toString();
     }
 
-    // Helper methods
-    private String formatLogMessage(Level level, String className, String message) {
-        String prefix;
-        ChatColor levelColor;
-
-        if (Objects.equals(level, Level.WARNING)) {
-            levelColor = ChatColor.YELLOW;
-            prefix = "&8[&eWarning &8| " + levelColor + level.getName() + "&8] &r";
-        } else if (Objects.equals(level, Level.SEVERE)) {
-            levelColor = ChatColor.RED;
-            prefix = "&8[&cError &8| " + levelColor + level.getName() + "&8] &r";
-        } else {
-            levelColor = ChatColor.WHITE;
-            prefix = "&8[&bDebug &8| " + levelColor + level.getName() + "&8] &r";
-        }
-
-        String formattedPrefix = String.format("%s%s%s: ", ChatColor.DARK_GRAY, ChatColor.BOLD, prefix);
-        return String.format("%s%s%s%s", formattedPrefix, className, ": ", message);
-    }
-
-    private String getCallerClassName(int stackTraceDepth) {
-        String fullClassName = Thread.currentThread().getStackTrace()[3 + stackTraceDepth].getClassName();
-        return fullClassName.substring(fullClassName.lastIndexOf(".") + 1);
-    }
 }
