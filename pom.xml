@@ -8,12 +8,13 @@
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-
+    <!-- Specify the Java version and encoding used by the project -->
     <properties>
         <java.version>1.8</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+    <!-- Repositories where Maven should look for dependencies -->
     <repositories>
         <repository>
             <id>jitpack.io</id>
@@ -34,60 +35,85 @@
     </repositories>
 
     <dependencies>
+        <!-- Spigot API for Minecraft plugin development -->
         <dependency>
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot-api</artifactId>
             <version>1.20.2-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
+
+        <!-- XSeries for modern Minecraft API compatibility -->
         <dependency>
             <groupId>com.github.cryptomorin</groupId>
             <artifactId>XSeries</artifactId>
             <version>11.2.1</version>
             <scope>compile</scope>
         </dependency>
+
+        <!-- ClassGraph for classpath scanning -->
         <dependency>
             <groupId>io.github.classgraph</groupId>
             <artifactId>classgraph</artifactId>
             <version>4.8.174</version>
             <scope>compile</scope>
         </dependency>
+
+        <!-- PlaceholderAPI for placeholder management in Minecraft -->
         <dependency>
             <groupId>me.clip</groupId>
             <artifactId>placeholderapi</artifactId>
             <version>2.11.6</version>
             <scope>provided</scope>
         </dependency>
+
+        <!-- Reflections library for runtime classpath scanning -->
         <dependency>
             <groupId>org.reflections</groupId>
             <artifactId>reflections</artifactId>
             <version>0.10.2</version>
         </dependency>
+
+        <!-- LuckPerms API for permissions management -->
         <dependency>
             <groupId>net.luckperms</groupId>
             <artifactId>api</artifactId>
             <version>5.4</version>
             <scope>provided</scope>
         </dependency>
+
+        <!-- org.json library for JSON parsing -->
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
             <version>20231013</version>
         </dependency>
+
+        <!-- json-simple for simple JSON operations -->
         <dependency>
             <groupId>com.googlecode.json-simple</groupId>
             <artifactId>json-simple</artifactId>
             <version>1.1.1</version>
         </dependency>
+
+        <!-- CommandAPI for creating Minecraft commands -->
         <dependency>
             <groupId>dev.jorel</groupId>
             <artifactId>commandapi-bukkit-shade-mojang-mapped</artifactId>
             <version>9.5.2</version>
         </dependency>
+
+        <!-- MongoDB Java Driver for connecting to MongoDB -->
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongodb-driver-sync</artifactId>
+            <version>4.10.1</version>
+        </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <!-- Maven Compiler Plugin for specifying Java source and target versions -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -97,6 +123,8 @@
                     <target>16</target>
                 </configuration>
             </plugin>
+
+            <!-- Maven Shade Plugin for shading dependencies to avoid conflicts -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
