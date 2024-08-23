@@ -9,7 +9,7 @@ import io.github.classgraph.ScanResult;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
-import java.lang.management.ThreadMXBean;
+import java.lang.management.MemoryUsage;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Constructor;
@@ -19,23 +19,17 @@ import java.util.logging.Level;
 
 public class ModuleManager {
     private final ConcurrentHashMap<Class<? extends IBaseModule>, WeakReference<IBaseModule>> loadedModules = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Class<? extends IBaseModule>, LinkedList<Long>> executionTimes = new ConcurrentHashMap<>();
     private final CopyOnWriteArrayList<Class<? extends IBaseModule>> loadingOrder = new CopyOnWriteArrayList<>();
     private final Set<Class<? extends IBaseModule>> currentlyLoadingModules = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
-    private final ScheduledExecutorService monitorExecutor = Executors.newSingleThreadScheduledExecutor();
-    private DebugLoggerModule logger;
-    private final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
     private final ReferenceQueue<IBaseModule> referenceQueue = new ReferenceQueue<>();
+    private final ThreadPoolExecutor threadPool = (ThreadPoolExecutor) Executors.newCachedThreadPool();
+    private final DebugLoggerModule logger;
 
     private static volatile ModuleManager instance;
 
-    private static final int SAMPLE_SIZE = 3;  // Adjusted to require fewer data points
-    private static final long STALL_THRESHOLD = 4000_000_000L;  // Threshold for detecting a stall
-    private final int MONITOR_INTERVAL = 5; // Interval in seconds for monitoring
-
     private ModuleManager() {
-        startMonitoring();
+        logger = getModuleInstance(DebugLoggerModule.class);
     }
 
     public static ModuleManager getInstance() {
@@ -49,86 +43,27 @@ public class ModuleManager {
         return instance;
     }
 
-    private void startMonitoring() {
-        // Start periodic sampling to collect execution times continuously
-        monitorExecutor.scheduleAtFixedRate(this::monitorModules, 0, MONITOR_INTERVAL, TimeUnit.SECONDS);
-    }
-
-    private void monitorModules() {
-        for (Class<? extends IBaseModule> moduleClass : loadedModules.keySet()) {
-            checkModuleExecutionTime(moduleClass);
-        }
-    }
-
-    private void checkModuleExecutionTime(Class<? extends IBaseModule> moduleClass) {
-        LinkedList<Long> times = executionTimes.get(moduleClass);
-        if (times != null && times.size() >= SAMPLE_SIZE) {
-            long averageTime = times.stream().mapToLong(Long::longValue).sum() / times.size();
-            if (logger != null) {
-                logger.log("Average execution time for " + moduleClass.getSimpleName() + ": " + (averageTime / 1_000_000) + " ms.", Level.INFO);
-            }
-
-            if (averageTime > STALL_THRESHOLD) {
-                logWarn("Module " + moduleClass.getSimpleName() + " is stalling with an average execution time of " + (averageTime / 1_000_000) + " ms.");
-                restartModule(moduleClass);
-            } else {
-                logInfo("Module " + moduleClass.getSimpleName() + " is operating within normal limits.");
-            }
-        } else {
-            logInfo("Not enough data points yet for " + moduleClass.getSimpleName() + ". Currently recorded: " + (times != null ? times.size() : 0));
-        }
-    }
-
-    private void restartModule(Class<? extends IBaseModule> moduleClass) {
-        try {
-            logWarn("Restarting module " + moduleClass.getSimpleName() + " due to stalling.");
-            stopAndUnloadModule(moduleClass);
-            loadModule(moduleClass);
-            startModule(moduleClass);
-        } catch (Exception e) {
-            logError("Failed to restart module " + moduleClass.getSimpleName(), e);
-        }
-    }
-
     public synchronized void loadAllModules() {
         unloadAllModules(); // Ensure previous modules are unloaded
-
-        // Initialize and start the logger first
-        loadAndStartLogger();
-
-        // Then load and start all other modules based on priority
         try (ScanResult scanResult = new ClassGraph()
                 .enableClassInfo()
-                .acceptPackages("eu.xaru.mysticrpg")
+                .acceptPackages("eu.xaru.mysticrpg")  // Specify the package to scan
                 .scan()) {
 
             for (ClassInfo classInfo : scanResult.getClassesImplementing(IBaseModule.class.getName())) {
                 @SuppressWarnings("unchecked")
                 Class<? extends IBaseModule> moduleClass = (Class<? extends IBaseModule>) classInfo.loadClass();
-                if (moduleClass != DebugLoggerModule.class) {
-                    loadModule(moduleClass);
-                }
+                loadModule(moduleClass);
             }
         } catch (Exception e) {
-            logError("Failed to load modules.", e);
+            if (logger != null) {
+                logger.error("Failed to load modules. Exception: " + e.getMessage(), e, null);
+            } else {
+                e.printStackTrace();
+            }
         }
 
         startModules();
-    }
-
-    private void loadAndStartLogger() {
-        try {
-            loadModule(DebugLoggerModule.class);
-            logger = getModuleInstance(DebugLoggerModule.class);
-            if (logger != null) {
-                logger.start();
-                logger.log(Level.INFO, "Logger initialized as the first module.", 0);
-            } else {
-                System.out.println("Failed to initialize the logger!");
-            }
-        } catch (Exception e) {
-            logError("Failed to load or start logger", e);
-        }
     }
 
     public synchronized void loadModule(Class<? extends IBaseModule> moduleClass) throws Exception {
@@ -136,7 +71,7 @@ public class ModuleManager {
 
         currentlyLoadingModules.add(moduleClass);
         Constructor<? extends IBaseModule> constructor = moduleClass.getDeclaredConstructor();
-        constructor.setAccessible(true);
+        constructor.setAccessible(true);  // Force access to the private constructor
         IBaseModule module = constructor.newInstance();
 
         for (Class<? extends IBaseModule> dependency : module.getDependencies()) {
@@ -144,28 +79,15 @@ public class ModuleManager {
         }
 
         insertModuleInOrder(moduleClass, module.getPriority());
-
-        long startTime = System.nanoTime();
         module.initialize();
-        long duration = System.nanoTime() - startTime;
-        recordExecutionTime(moduleClass, duration);
-
         loadedModules.put(moduleClass, new WeakReference<>(module, referenceQueue));
 
+        if (logger != null) {
+            logger.log(Level.INFO, "Module " + moduleClass.getSimpleName() + " initialized successfully.", 0);
+        }
         currentlyLoadingModules.remove(moduleClass);
     }
 
-    private void recordExecutionTime(Class<? extends IBaseModule> moduleClass, long duration) {
-        executionTimes.computeIfAbsent(moduleClass, k -> new LinkedList<>());
-        LinkedList<Long> times = executionTimes.get(moduleClass);
-        if (times.size() >= SAMPLE_SIZE) {
-            times.poll(); // Remove the oldest sample if we have enough samples
-        }
-        times.add(duration);
-        if (logger != null) {
-            logger.log("Recorded execution time for " + moduleClass.getSimpleName() + ": " + (duration / 1_000_000) + " ms.", Level.INFO);
-        }
-    }
 
     private void insertModuleInOrder(Class<? extends IBaseModule> moduleClass, EModulePriority priority) {
         synchronized (loadingOrder) {
@@ -182,23 +104,21 @@ public class ModuleManager {
         }
     }
 
-    private void startModule(Class<? extends IBaseModule> moduleClass) {
-        IBaseModule module = getModuleInstance(moduleClass);
-        if (module != null) {
-            long startTime = System.nanoTime();
-            try {
-                module.start();
-                long duration = System.nanoTime() - startTime;
-                recordExecutionTime(moduleClass, duration);
-            } catch (Exception e) {
-                logError("Failed to start module " + moduleClass.getSimpleName(), e);
-            }
-        }
-    }
-
     public synchronized void startModules() {
         for (Class<? extends IBaseModule> moduleClass : loadingOrder) {
-            startModule(moduleClass);
+            try {
+                IBaseModule module = getModuleInstance(moduleClass);
+                if (module != null) {
+                    module.start();
+                    if (logger != null) {
+                        logger.log(Level.INFO, "Module " + moduleClass.getSimpleName() + " started.", 0);
+                    }
+                }
+            } catch (Exception e) {
+                if (logger != null) {
+                    logger.error("Failed to start module " + moduleClass.getSimpleName() + ". Exception: " + e.getMessage(), e, null);
+                }
+            }
         }
     }
 
@@ -211,9 +131,13 @@ public class ModuleManager {
                 module.stop();
                 module.unload();
                 loadingOrder.remove(moduleClass);
-                logInfo("Module " + moduleClass.getSimpleName() + " stopped and unloaded.");
+                if (logger != null) {
+                    logger.log(Level.INFO, "Module " + moduleClass.getSimpleName() + " stopped and unloaded.", 0);
+                }
             } catch (Exception e) {
-                logError("Failed to stop or unload module " + moduleClass.getSimpleName(), e);
+                if (logger != null) {
+                    logger.error("Failed to stop or unload module " + moduleClass.getSimpleName() + ". Exception: " + e.getMessage(), e, null);
+                }
             }
         }
 
@@ -239,7 +163,52 @@ public class ModuleManager {
         return moduleClass.cast(moduleRef != null ? moduleRef.get() : null);
     }
 
+    public synchronized void monitorAndRepairModules() {
+        MemoryUsage heapMemoryUsage = memoryBean.getHeapMemoryUsage();
+        long usedMemory = heapMemoryUsage.getUsed();
+        long maxMemory = heapMemoryUsage.getMax();
+
+        if ((double) usedMemory / maxMemory > 0.8) {
+            if (logger != null) {
+                logger.warn("High memory usage detected. Attempting to identify and repair modules.");
+            }
+
+            reloadModules();
+        }
+
+        cleanupReferences();
+    }
+
+    private void reloadModules() {
+        for (Class<? extends IBaseModule> moduleClass : loadedModules.keySet()) {
+            try {
+                stopAndUnloadModule(moduleClass);
+                loadModule(moduleClass);
+                if (logger != null) {
+                    logger.log(Level.INFO, "Module " + moduleClass.getSimpleName() + " reloaded successfully.", 0);
+                }
+            } catch (Exception e) {
+                if (logger != null) {
+                    logger.error("Failed to reload module " + moduleClass.getSimpleName(), e, null);
+                }
+            }
+        }
+    }
+
     private void cleanupResources() {
+        threadPool.shutdown();
+        try {
+            if (!threadPool.awaitTermination(60, TimeUnit.SECONDS)) {
+                threadPool.shutdownNow();
+                if (!threadPool.awaitTermination(60, TimeUnit.SECONDS)) {
+                    if (logger != null) logger.error("Thread pool did not terminate.", null, null);
+                }
+            }
+        } catch (InterruptedException ex) {
+            threadPool.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+
         cleanupReferences();
     }
 
@@ -254,36 +223,11 @@ public class ModuleManager {
     }
 
     public void shutdown() {
-        monitorExecutor.shutdownNow();
         unloadAllModules();
         cleanupResources();
     }
 
     public Set<Class<? extends IBaseModule>> getLoadedModules() {
         return loadedModules.keySet();
-    }
-
-    private void logError(String message, Exception e) {
-        if (logger != null) {
-            logger.error(message + " Exception: " + e.getMessage(), e, null);
-        }
-    }
-
-    private void logError(String message) {
-        if (logger != null) {
-            logger.error(message);
-        }
-    }
-
-    private void logWarn(String message) {
-        if (logger != null) {
-            logger.warn(message);
-        }
-    }
-
-    private void logInfo(String message) {
-        if (logger != null) {
-            logger.log(Level.INFO, message, 0);
-        }
     }
 }
