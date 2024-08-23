@@ -2,34 +2,10 @@ package eu.xaru.mysticrpg.cores;
 
 import eu.xaru.mysticrpg.config.ConfigCreator;
 //import eu.xaru.mysticrpg.commands.CustomRecipeCommand;
-import eu.xaru.mysticrpg.player.CustomDamageHandler;
-import eu.xaru.mysticrpg.admin.AdminMenuMain;
-import eu.xaru.mysticrpg.admin.commands.AdminCommand;
-import eu.xaru.mysticrpg.admin.commands.AdminCommandTabCompleter;
-import eu.xaru.mysticrpg.economy.EconomyCommand;
-import eu.xaru.mysticrpg.economy.EconomyCommandTabCompleter;
-import eu.xaru.mysticrpg.economy.EconomyManager;
-import eu.xaru.mysticrpg.player.leveling.LevelingCommand;
-import eu.xaru.mysticrpg.player.leveling.LevelingManager;
-import eu.xaru.mysticrpg.player.leveling.PlayerXPCommandTabCompleter;
-import eu.xaru.mysticrpg.player.leveling.LevelingMenu;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
-import eu.xaru.mysticrpg.social.party.PartyCommand;
-import eu.xaru.mysticrpg.social.party.PartyCommandTabCompleter;
-import eu.xaru.mysticrpg.social.party.PartyManager;
-import eu.xaru.mysticrpg.player.stats.StatManager;
-import eu.xaru.mysticrpg.player.stats.StatMenu;
-import eu.xaru.mysticrpg.player.stats.StatsCommand;
-import eu.xaru.mysticrpg.player.stats.StatsCommandTabCompleter;
-import eu.xaru.mysticrpg.storage.PlayerDataManager;
-import eu.xaru.mysticrpg.ui.ActionBarManager;
-import eu.xaru.mysticrpg.ui.CustomScoreboardManager;
-import eu.xaru.mysticrpg.listeners.MainListener;
-import eu.xaru.mysticrpg.social.friends.FriendsCommand;
-import eu.xaru.mysticrpg.social.friends.FriendsCommandTabCompleter;
-import eu.xaru.mysticrpg.social.friends.FriendsManager;
-import eu.xaru.mysticrpg.social.friends.FriendsMenu;
+import eu.xaru.mysticrpg.social.friends.FriendsHelper;
+import eu.xaru.mysticrpg.social.friends.FriendsInventory;
 import eu.xaru.mysticrpg.utils.DeadlockDetector;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -37,19 +13,6 @@ import java.io.File;
 import java.util.concurrent.TimeUnit;
 
 public class MysticCore extends JavaPlugin {
-    public PlayerDataManager playerDataManager;
-    public EconomyManager economyManager;
-    public ActionBarManager actionBarManager;
-    public CustomScoreboardManager scoreboardManager;
-    public PartyManager partyManager;
-    public AdminMenuMain adminMenuMain;
-    public CustomDamageHandler customDamageHandler;
-    public LevelingManager levelingManager;
-    public LevelingMenu levelingMenu;
-    public StatManager statManager;
-    public StatMenu statMenu;
-    public FriendsManager friendsManager;
-    public FriendsMenu friendsMenu;
 
     private ModuleManager moduleManager;
     private DeadlockDetector deadlockDetector;
@@ -72,28 +35,14 @@ public class MysticCore extends JavaPlugin {
 
         // Create config files and directories
         new ConfigCreator(this).createFiles();
-
-        // Initialize components in the correct order
-        this.playerDataManager = new PlayerDataManager(this, new File(getDataFolder(), "playerdata"));
-        this.statManager = new StatManager(this, playerDataManager);
-        this.levelingManager = new LevelingManager(playerDataManager, statManager);
-        this.levelingMenu = new LevelingMenu(this, levelingManager, playerDataManager);
-        this.partyManager = new PartyManager(levelingManager);
-        this.scoreboardManager = new CustomScoreboardManager(this);
-        this.economyManager = new EconomyManager(playerDataManager, scoreboardManager);
-        this.actionBarManager = new ActionBarManager(this, playerDataManager);
-        this.customDamageHandler = new CustomDamageHandler(this, playerDataManager, actionBarManager);
-        this.statMenu = new StatMenu(this, playerDataManager);
-        this.friendsManager = new FriendsManager(this, playerDataManager);
-        this.friendsMenu = new FriendsMenu(this);
-
-        // CustomMobCreatorModule initialization is already handled by ModuleManager
-        // Register combined listener
-        getServer().getPluginManager().registerEvents(new MainListener(this, adminMenuMain, playerDataManager,
-                levelingManager, levelingMenu, customDamageHandler, partyManager, economyManager, statManager, statMenu, friendsMenu), this);
+//
+//        // CustomMobCreatorModule initialization is already handled by ModuleManager
+//        // Register combined listener
+//        getServer().getPluginManager().registerEvents(new MainListener(this, adminMenuMain, playerDataManager,
+//                levelingManager, levelingMenu, customDamageHandler, partyManager, economyManager, statManager, statMenu, friendsMenu), this);
 
         // Register commands
-        if (getCommand("money") != null) {
+       /* if (getCommand("money") != null) {
             getCommand("money").setExecutor(new EconomyCommand(economyManager));
             getCommand("money").setTabCompleter(new EconomyCommandTabCompleter());
         }
@@ -120,9 +69,9 @@ public class MysticCore extends JavaPlugin {
         if (getCommand("level") != null) {
             getCommand("level").setExecutor(new LevelingCommand(levelingManager, levelingMenu));
         }
-      //  if (getCommand("customrecipe") != null) {
-       //     getCommand("customrecipe").setExecutor(new CustomRecipeCommand(recipeManager, playerDataManager));
-       // }
+       if (getCommand("customrecipe") != null) {
+           getCommand("customrecipe").setExecutor(new CustomRecipeCommand(recipeManager, playerDataManager));
+        }*/
     }
 
     @Override
@@ -155,60 +104,7 @@ public class MysticCore extends JavaPlugin {
         }
 
         // Check if playerDataManager is not null before calling saveAll()
-        if (playerDataManager != null) {
-            playerDataManager.saveAll();
+//        if (playerDataManager != null) {
+//            playerDataManager.saveAll();
         }
     }
-
-    public PlayerDataManager getPlayerDataManager() {
-        return playerDataManager;
-    }
-
-    public EconomyManager getEconomyManager() {
-        return economyManager;
-    }
-
-    public ActionBarManager getActionBarManager() {
-        return actionBarManager;
-    }
-
-    public CustomScoreboardManager getScoreboardManager() {
-        return scoreboardManager;
-    }
-
-    public PartyManager getPartyManager() {
-        return partyManager;
-    }
-
-    public AdminMenuMain getAdminMenuMain() {
-        return adminMenuMain;
-    }
-
-    public CustomDamageHandler getCustomDamageHandler() {
-        return customDamageHandler;
-    }
-
-    public LevelingManager getLevelingManager() {
-        return levelingManager;
-    }
-
-    public LevelingMenu getLevelingMenu() {
-        return levelingMenu;
-    }
-
-    public StatManager getStatManager() {
-        return statManager;
-    }
-
-    public StatMenu getStatMenu() {
-        return statMenu;
-    }
-
-    public FriendsManager getFriendsManager() {
-        return friendsManager;
-    }
-
-    public FriendsMenu getFriendsMenu() {
-        return friendsMenu;
-    }
-}

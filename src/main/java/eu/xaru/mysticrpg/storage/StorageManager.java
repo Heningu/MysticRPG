@@ -1,4 +1,4 @@
-package eu.xaru.mysticrpg.storage;
+/*package eu.xaru.mysticrpg.storage;
 
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -38,3 +38,4 @@ public class StorageManager {
         }
     }
 }
+*/

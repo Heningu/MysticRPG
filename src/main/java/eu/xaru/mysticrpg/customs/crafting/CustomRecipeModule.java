@@ -1,11 +1,8 @@
 package eu.xaru.mysticrpg.customs.crafting;
 
-import eu.xaru.mysticrpg.cores.MysticCore;
-import eu.xaru.mysticrpg.customs.crafting.RecipeManager;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 
 import java.util.List;
