@@ -4,18 +4,11 @@ import eu.xaru.mysticrpg.config.ConfigCreator;
 //import eu.xaru.mysticrpg.commands.CustomRecipeCommand;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
-import eu.xaru.mysticrpg.social.friends.FriendsHelper;
-import eu.xaru.mysticrpg.social.friends.FriendsInventory;
-import eu.xaru.mysticrpg.utils.DeadlockDetector;
 import org.bukkit.plugin.java.JavaPlugin;
-
-import java.io.File;
-import java.util.concurrent.TimeUnit;
 
 public class MysticCore extends JavaPlugin {
 
     private ModuleManager moduleManager;
-    private DeadlockDetector deadlockDetector;
     private DebugLoggerModule logger;
 
     @Override
@@ -79,10 +72,6 @@ public class MysticCore extends JavaPlugin {
         // Initialize the module manager and logger
         moduleManager = ModuleManager.getInstance();
         logger = moduleManager.getModuleInstance(DebugLoggerModule.class);
-
-        // Initialize DeadlockDetector
-        deadlockDetector = new DeadlockDetector(10, TimeUnit.SECONDS, moduleManager, logger);
-        deadlockDetector.start();
 
         if (logger != null) {
             logger.log("Core plugin loading...", 0);

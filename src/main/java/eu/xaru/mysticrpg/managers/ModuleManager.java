@@ -3,7 +3,6 @@ package eu.xaru.mysticrpg.managers;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
-import eu.xaru.mysticrpg.utils.DeadlockDetector;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ScanResult;
@@ -26,14 +25,11 @@ public class ModuleManager {
     private final ReferenceQueue<IBaseModule> referenceQueue = new ReferenceQueue<>();
     private final ThreadPoolExecutor threadPool = (ThreadPoolExecutor) Executors.newCachedThreadPool();
     private final DebugLoggerModule logger;
-    private final DeadlockDetector deadlockDetector;
 
     private static volatile ModuleManager instance;
 
     private ModuleManager() {
         logger = getModuleInstance(DebugLoggerModule.class);
-        deadlockDetector = new DeadlockDetector(10, TimeUnit.SECONDS, this, logger);
-        deadlockDetector.start();
     }
 
     public static ModuleManager getInstance() {
@@ -227,7 +223,6 @@ public class ModuleManager {
     }
 
     public void shutdown() {
-        deadlockDetector.shutdown();
         unloadAllModules();
         cleanupResources();
     }
