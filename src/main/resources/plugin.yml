@@ -1,38 +1,8 @@
 name: MysticRPG
 version: 1.0.0
 main: eu.xaru.mysticrpg.cores.MysticCore
-author: Heningu
+author: Xaru
 description: An RPG plugin to bring a mystical adventure to Minecraft.
-api-version: 1.20
+api-version: 1.13
 
 commands:
-  mobgui:
-    usage: /mobgui
-  admin:
-    description: Opens the admin menu.
-    usage: /admin
-  party:
-    description: Party management commands.
-    usage: /party <create|invite|accept|decline|leave|list>
-  playerxp:
-    description: Player XP management commands.
-    usage: /playerxp <subcommand>
-  stats:
-    description: Opens the player stats menu or manages stats for players.
-    usage: /stats <reset|increase> <PLAYER> [ATTRIBUTE]
-    permission: mysticrpg.admin
-    permission-message: You do not have permission to use this command.
-  money:
-    description: Manage player economy
-    usage: /money <balance|send|check|set>
-    permission: mysticrpg.economy
-    permission-message: You don't have permission to use this command.
-  friends:
-    description: Manages your friends list.
-    usage: /friends <add|accept|decline|block|unblock|requests>
-    aliases: [friend]
-    permission: mysticrpg.friends
-    permission-message: You do not have permission to use this command.
-  level:
-    description: Opens the leveling menu.
-    usage: /level

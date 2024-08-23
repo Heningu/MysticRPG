@@ -1,5 +1,8 @@
 package eu.xaru.mysticrpg.cores;
 
+import dev.jorel.commandapi.CommandAPI;
+import dev.jorel.commandapi.CommandAPIBukkitConfig;
+import dev.jorel.commandapi.CommandAPIConfig;
 import eu.xaru.mysticrpg.config.ConfigCreator;
 //import eu.xaru.mysticrpg.commands.CustomRecipeCommand;
 import eu.xaru.mysticrpg.managers.ModuleManager;
@@ -15,6 +18,7 @@ public class MysticCore extends JavaPlugin {
     public void onEnable() {
         try {
             moduleManager.loadAllModules();
+            CommandAPI.onEnable();
 
             if (logger != null) {
                 logger.log("Core plugin enabled successfully.", 0);
@@ -69,6 +73,9 @@ public class MysticCore extends JavaPlugin {
 
     @Override
     public void onLoad() {
+
+        CommandAPI.onLoad(new CommandAPIBukkitConfig(this).silentLogs(true));
+
         // Initialize the module manager and logger
         moduleManager = ModuleManager.getInstance();
         logger = moduleManager.getModuleInstance(DebugLoggerModule.class);
@@ -81,6 +88,9 @@ public class MysticCore extends JavaPlugin {
     @Override
     public void onDisable() {
         // Shutdown the plugin, unload modules, and clean up resources
+
+        CommandAPI.onDisable();
+
         try {
             moduleManager.shutdown();
             if (logger != null) {

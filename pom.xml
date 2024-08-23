@@ -99,7 +99,7 @@
         <!-- CommandAPI for creating Minecraft commands -->
         <dependency>
             <groupId>dev.jorel</groupId>
-            <artifactId>commandapi-bukkit-shade-mojang-mapped</artifactId>
+            <artifactId>commandapi-bukkit-shade</artifactId>
             <version>9.5.2</version>
         </dependency>
 
