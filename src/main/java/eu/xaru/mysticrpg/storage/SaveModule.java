@@ -18,7 +18,7 @@ public class SaveModule implements IBaseModule {
     @Override
     public void initialize() {
         logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
-        String connectionString = "mongodb://xarumystic:password@85.202.163.30:29095/xarumystic?tls=true&tlsAllowInvalidCertificates=true";
+        String connectionString = "mongodb://localhost:27017";
         try {
             saveHelper = new SaveHelper(connectionString, "xarumystic", "playerData", logger);
             logger.log(Level.INFO, "SaveModule initialized", 0);
@@ -52,17 +52,39 @@ public class SaveModule implements IBaseModule {
         return EModulePriority.HIGH;  // Ensure it loads early
     }
 
-    public PlayerData getPlayerData(Player player) {
+    public void getPlayerData(Player player, Callback<PlayerData> callback) {
         UUID playerUUID = player.getUniqueId();
         logger.log(Level.INFO, "Loading data for player: " + player.getName(), 0);
-        PlayerData playerData = saveHelper.loadPlayer(playerUUID);
-        logger.logObject(playerData);
-        return playerData;
+        saveHelper.loadPlayer(playerUUID, new Callback<PlayerData>() {
+            @Override
+            public void onSuccess(PlayerData playerData) {
+                logger.log(Level.INFO, "Player data loaded for player: " + player.getName(), 0);
+                logger.logObject(playerData);  // Log the loaded player data
+                callback.onSuccess(playerData);
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                logger.error("Failed to load data for player: " + player.getName() + ". " + throwable.getMessage());
+                callback.onFailure(throwable);
+            }
+        });
     }
 
-    public void savePlayerData(PlayerData playerData) {
-        logger.log(Level.INFO, "Saving data for player: " + playerData.uuid(), 0);
-        saveHelper.savePlayer(playerData);
-        logger.log(Level.INFO, "Data saved for player: " + playerData.uuid(), 0);
+    public void savePlayerData(PlayerData playerData, Callback<Void> callback) {
+        logger.log(Level.INFO, "Saving data for player: " + playerData.uuid, 0);
+        saveHelper.savePlayer(playerData, new Callback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                logger.log(Level.INFO, "Data saved for player: " + playerData.uuid, 0);
+                callback.onSuccess(result);
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                logger.error("Failed to save data for player: " + playerData.uuid + ". " + throwable.getMessage());
+                callback.onFailure(throwable);
+            }
+        });
     }
 }

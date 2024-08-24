@@ -106,8 +106,8 @@
         <!-- MongoDB Java Driver for connecting to MongoDB -->
         <dependency>
             <groupId>org.mongodb</groupId>
-            <artifactId>mongodb-driver-sync</artifactId>
-            <version>4.10.1</version>
+            <artifactId>mongodb-driver-async</artifactId>
+            <version>3.12.14</version>
         </dependency>
     </dependencies>
 
