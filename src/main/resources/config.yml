@@ -1,7 +1,4 @@
 # MysticRPG Configuration
 storage:
   type: local # Options: local, mongodb
-  mongodb:
-    uri: "mongodb://localhost:27017"
-    database: "mysticrpg"
-    collection: "playerdata"
+mongoURL: ""
