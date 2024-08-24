@@ -2,7 +2,6 @@ package eu.xaru.mysticrpg.cores;
 
 import dev.jorel.commandapi.CommandAPI;
 import dev.jorel.commandapi.CommandAPIBukkitConfig;
-import dev.jorel.commandapi.CommandAPIConfig;
 import eu.xaru.mysticrpg.config.ConfigCreator;
 //import eu.xaru.mysticrpg.commands.CustomRecipeCommand;
 import eu.xaru.mysticrpg.managers.ModuleManager;
