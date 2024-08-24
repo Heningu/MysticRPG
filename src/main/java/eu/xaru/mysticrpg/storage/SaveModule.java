@@ -1,11 +1,16 @@
 package eu.xaru.mysticrpg.storage;
 
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
+import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import jdk.jfr.Event;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
 import java.util.UUID;
@@ -16,6 +21,9 @@ public class SaveModule implements IBaseModule {
     public SaveHelper saveHelper;
     private PlayerDataCache playerDataCache;
     private DebugLoggerModule logger;
+
+    private EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
+
 
     @Override
     public void initialize() {
@@ -33,6 +41,22 @@ public class SaveModule implements IBaseModule {
     @Override
     public void start() {
         logger.log(Level.INFO, "SaveModule started", 0);
+        eventManager.registerEvent(PlayerJoinEvent.class,(event) -> {
+            loadPlayerData(event.getPlayer(), new Callback<PlayerData>() {
+                @Override
+                public void onSuccess(PlayerData result) {
+                    logger.log(Level.INFO, "SaveModule player loaded" + event.getPlayer().getName(), 0);
+                }
+
+                @Override
+                public void onFailure(Throwable throwable) {
+                    logger.error("Failed to load" + event.getPlayer().getName());
+                }
+            });
+
+        });
+
+
     }
 
     @Override
@@ -54,6 +78,10 @@ public class SaveModule implements IBaseModule {
     public EModulePriority getPriority() {
         return EModulePriority.HIGH;  // Ensure it loads early
     }
+
+
+
+
 
     // Load player data into cache on player join
     public void loadPlayerData(Player player, Callback<PlayerData> callback) {
