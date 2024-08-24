@@ -29,7 +29,6 @@ public class SaveHelper {
 
     public SaveHelper(String connectionString, String databaseName, String collectionName, DebugLoggerModule logger) {
         this.logger = logger;
-        registerSaveDataCommand();
 
         try {
             // Create a custom CodecRegistry to handle POJOs
@@ -81,17 +80,18 @@ public class SaveHelper {
     }
 
     public void loadPlayer(UUID uuid, Callback<PlayerData> callback) {
-        logger.log(Level.INFO, "Attempting to load player data for UUID: " + uuid, 0);
-        playerCollection.find(eq("uuid", uuid.toString())).first((playerData, loadError) -> {
+        String uuidString = uuid.toString();
+        logger.log(Level.INFO, "Attempting to load player data for UUID: " + uuidString, 0);
+        playerCollection.find(eq("_id", uuidString)).first((playerData, loadError) -> {
             if (loadError != null) {
-                logger.error("Error loading player data for UUID: " + uuid + ". " + loadError.getMessage());
+                logger.error("Error loading player data for UUID: " + uuidString + ". " + loadError.getMessage());
                 callback.onFailure(loadError);
                 return;
             }
 
             if (playerData == null) {
-                logger.log(Level.INFO, "No existing data found for UUID: " + uuid + ". Creating default data.", 0);
-                PlayerData newPlayerData = PlayerData.defaultData(uuid);
+                logger.log(Level.INFO, "No existing data found for UUID: " + uuidString + ". Creating default data.", 0);
+                PlayerData newPlayerData = PlayerData.defaultData(uuidString);
                 logger.logObject(newPlayerData); // Log the default data being created
                 savePlayer(newPlayerData, new Callback<Void>() {
                     @Override
@@ -107,7 +107,7 @@ public class SaveHelper {
                     }
                 });
             } else {
-                logger.log(Level.INFO, "Successfully loaded data for UUID: " + uuid, 0);
+                logger.log(Level.INFO, "Successfully loaded data for UUID: " + uuidString, 0);
                 callback.onSuccess(playerData);
             }
         });
@@ -115,7 +115,7 @@ public class SaveHelper {
 
     public void savePlayer(PlayerData playerData, Callback<Void> callback) {
         logger.log(Level.INFO, "Attempting to save player data for UUID: " + playerData.uuid, 0);
-        playerCollection.replaceOne(eq("uuid", playerData.uuid.toString()), playerData, new ReplaceOptions().upsert(true), (result, replaceError) -> {
+        playerCollection.replaceOne(eq("_id", playerData.uuid), playerData, new ReplaceOptions().upsert(true), (result, replaceError) -> {
             if (replaceError != null) {
                 logger.error("Error saving player data for UUID: " + playerData.uuid + ". " + replaceError.getMessage());
                 callback.onFailure(replaceError);
@@ -132,7 +132,7 @@ public class SaveHelper {
 
     private void registerSaveDataCommand() {
         new CommandAPICommand("saveData")
-                .withAliases("save")
+                .withAliases("saveDB")
                 .withPermission("mysticrpg.saveData")
                 .executesPlayer((player, args) -> {
                     UUID playerUUID = player.getUniqueId();

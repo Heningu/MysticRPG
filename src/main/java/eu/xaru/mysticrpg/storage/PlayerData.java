@@ -2,10 +2,9 @@ package eu.xaru.mysticrpg.storage;
 
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
 public class PlayerData {
-    public UUID uuid;
+    public String uuid;
     public double balance;
     public int xp;
     public int level;
@@ -13,18 +12,18 @@ public class PlayerData {
     public int currentHp;
     public Map<String, Integer> attributes;
     public Map<String, Boolean> unlockedRecipes;
-    public Set<UUID> friendRequests;
-    public Set<UUID> friends;
-    public Set<UUID> blockedPlayers;
+    public Set<String> friendRequests;
+    public Set<String> friends;
+    public Set<String> blockedPlayers;
     public boolean blockingRequests;
 
     public PlayerData() {
-        // Default constructor required for POJO codec
+        // Default constructor for MongoDB POJO codec
     }
 
-    public PlayerData(UUID uuid, double balance, int xp, int level, int nextLevelXP, int currentHp,
+    public PlayerData(String uuid, double balance, int xp, int level, int nextLevelXP, int currentHp,
                       Map<String, Integer> attributes, Map<String, Boolean> unlockedRecipes,
-                      Set<UUID> friendRequests, Set<UUID> friends, Set<UUID> blockedPlayers,
+                      Set<String> friendRequests, Set<String> friends, Set<String> blockedPlayers,
                       boolean blockingRequests) {
         this.uuid = uuid;
         this.balance = balance;
@@ -40,7 +39,7 @@ public class PlayerData {
         this.blockingRequests = blockingRequests;
     }
 
-    public static PlayerData defaultData(UUID uuid) {
+    public static PlayerData defaultData(String uuid) {
         return new PlayerData(
                 uuid,
                 0.0,
@@ -48,14 +47,7 @@ public class PlayerData {
                 1,
                 100,
                 20,
-                Map.of(
-                        "HP", 20,
-                        "MANA", 10,
-                        "Vitality", 1,
-                        "Intelligence", 1,
-                        "Dexterity", 1,
-                        "Strength", 1
-                ),
+                Map.of("HP", 20, "MANA", 10, "Vitality", 1, "Intelligence", 1, "Dexterity", 1, "Strength", 1),
                 Map.of(),
                 Set.of(),
                 Set.of(),
