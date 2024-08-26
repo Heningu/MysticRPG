@@ -159,6 +159,7 @@ public class PlayerDataCache {
                         player.sendMessage("Next Level XP: " + playerData.getNextLevelXP());
                         player.sendMessage("Current HP: " + playerData.getCurrentHp());
                         player.sendMessage("Attributes: " + playerData.getAttributes().toString());
+                        player.sendMessage("attributePoints" + playerData.getAttributePoints());
                         player.sendMessage("Unlocked Recipes: " + playerData.getUnlockedRecipes().toString());
                         player.sendMessage("Friend Requests: " + playerData.getFriendRequests().toString());
                         player.sendMessage("Friends: " + playerData.getFriends().toString());

@@ -16,6 +16,7 @@ public class PlayerData {
     private Set<String> friends;
     private Set<String> blockedPlayers;
     private boolean blockingRequests;
+    private int attributePoints;  // New attribute added
 
     public PlayerData() {
         // Default constructor for MongoDB POJO codec
@@ -24,7 +25,7 @@ public class PlayerData {
     public PlayerData(String uuid, double balance, int xp, int level, int nextLevelXP, int currentHp,
                       Map<String, Integer> attributes, Map<String, Boolean> unlockedRecipes,
                       Set<String> friendRequests, Set<String> friends, Set<String> blockedPlayers,
-                      boolean blockingRequests) {
+                      boolean blockingRequests, int attributePoints) {  // Updated constructor
         this.uuid = uuid;
         this.balance = balance;
         this.xp = xp;
@@ -37,6 +38,7 @@ public class PlayerData {
         this.friends = friends;
         this.blockedPlayers = blockedPlayers;
         this.blockingRequests = blockingRequests;
+        this.attributePoints = attributePoints;  // Initialize new attribute
     }
 
     public static PlayerData defaultData(String uuid) {
@@ -52,7 +54,8 @@ public class PlayerData {
                 Set.of(),
                 Set.of(),
                 Set.of(),
-                false
+                false,
+                1
         );
     }
 
@@ -151,5 +154,13 @@ public class PlayerData {
 
     public void setBlockingRequests(boolean blockingRequests) {
         this.blockingRequests = blockingRequests;
+    }
+
+    public int getAttributePoints() {  // Getter for attributePoints
+        return attributePoints;
+    }
+
+    public void setAttributePoints(int attributePoints) {  // Setter for attributePoints
+        this.attributePoints = attributePoints;
     }
 }
