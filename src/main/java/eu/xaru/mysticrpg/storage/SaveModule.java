@@ -30,7 +30,7 @@ public class SaveModule implements IBaseModule {
         String connectionString = Bukkit.getPluginManager().getPlugin("MysticRPG").getConfig().getString("mongoURL");
         try {
             saveHelper = new SaveHelper(connectionString, "xarumystic", "playerData", logger);
-            playerDataCache = new PlayerDataCache(saveHelper, logger);
+            playerDataCache = PlayerDataCache.getInstance(saveHelper, logger); // Use Singleton
             logger.log(Level.INFO, "SaveModule initialized", 0);
         } catch (Exception e) {
             logger.error("Failed to initialize SaveModule: " + e.getMessage());

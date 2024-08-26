@@ -21,7 +21,7 @@ public class FriendsModule implements IBaseModule {
     public void initialize() {
         // Get the logger instance
         logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
-        this.playerDataCache = new PlayerDataCache(ModuleManager.getInstance().getModuleInstance(SaveModule.class).saveHelper,ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class));
+      //  this.playerDataCache = new PlayerDataCache(ModuleManager.getInstance().getModuleInstance(SaveModule.class).saveHelper,ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class));
 
         // Initialize FriendsHelper with PlayerDataCache and logger
         friendsHelper = new FriendsHelper(playerDataCache, logger);

@@ -5,7 +5,6 @@ import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -13,15 +12,22 @@ import java.util.logging.Level;
 
 public class PlayerDataCache {
 
+    private static PlayerDataCache instance;
     private final Map<UUID, PlayerData> cache = new HashMap<>();
-    private final Set<UUID> activePlayers = new HashSet<>();
     private final SaveHelper saveHelper;
     private final DebugLoggerModule logger;
 
-    public PlayerDataCache(SaveHelper saveHelper, DebugLoggerModule logger) {
+    private PlayerDataCache(SaveHelper saveHelper, DebugLoggerModule logger) {
         this.saveHelper = saveHelper;
         this.logger = logger;
-        registerCheckCachedDataCommand(); // Register the command
+        registerCheckCachedDataCommand();
+    }
+
+    public static PlayerDataCache getInstance(SaveHelper saveHelper, DebugLoggerModule logger) {
+        if (instance == null) {
+            instance = new PlayerDataCache(saveHelper, logger);
+        }
+        return instance;
     }
 
     // Load data into cache when player joins
@@ -30,15 +36,9 @@ public class PlayerDataCache {
         saveHelper.loadPlayer(playerUUID, new Callback<PlayerData>() {
             @Override
             public void onSuccess(PlayerData playerData) {
-                if (playerData != null) {
-                    cache.put(playerUUID, playerData);
-                    activePlayers.add(playerUUID);
-                    logger.log(Level.INFO, "Player data loaded and cached for UUID: " + playerUUID, 0);
-                    callback.onSuccess(playerData);
-                } else {
-                    logger.error("Loaded player data was null for UUID: " + playerUUID);
-                    callback.onFailure(new NullPointerException("Loaded player data is null"));
-                }
+                cache.put(playerUUID, playerData);
+                logger.log(Level.INFO, "Player data loaded and cached for UUID: " + playerUUID, 0);
+                callback.onSuccess(playerData);
             }
 
             @Override
@@ -68,6 +68,7 @@ public class PlayerDataCache {
             });
         } else {
             logger.error("No cached data found for player: " + playerUUID);
+            logger.log(Level.INFO, "Current cache contents: " + cache.toString(), 0);
             callback.onFailure(new IllegalStateException("No cached data found for player: " + playerUUID));
         }
     }
@@ -76,7 +77,6 @@ public class PlayerDataCache {
     public void clearPlayerData(UUID playerUUID) {
         if (cache.containsKey(playerUUID)) {
             cache.remove(playerUUID);
-            activePlayers.remove(playerUUID);
             logger.log(Level.INFO, "Cleared cache for player UUID: " + playerUUID, 0);
         }
     }
@@ -88,7 +88,7 @@ public class PlayerDataCache {
             logger.log(Level.INFO, "Retrieved cached data for player UUID: " + playerUUID, 0);
         } else {
             logger.error("No cached data found when accessing for player UUID: " + playerUUID);
-            logger.log("Current cache contents: " + cache.toString());
+            logger.log(Level.INFO, "Current cache contents: " + cache.toString(), 0);
         }
         return data;
     }
