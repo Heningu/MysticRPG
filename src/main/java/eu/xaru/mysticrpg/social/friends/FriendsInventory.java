@@ -59,7 +59,7 @@ public class FriendsInventory {
         ItemMeta fireChargeMeta = fireCharge.getItemMeta();
         fireChargeMeta.setDisplayName(ChatColor.RED + "Block All Incoming Friend Requests");
 
-        if (playerData.blockingRequests) {
+        if (playerData.isBlockingRequests()) {
             fireChargeMeta.addEnchant(org.bukkit.enchantments.Enchantment.DURABILITY, 1, true);
             fireChargeMeta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
         }
@@ -67,7 +67,7 @@ public class FriendsInventory {
         inventory.setItem(2, fireCharge);
 
         // Navigation logic for friends
-        List<UUID> friends = playerData.friends.stream()
+        List<UUID> friends = playerData.getFriends().stream()
                 .map(UUID::fromString)  // Convert each String to a UUID
                 .collect(Collectors.toList());
 

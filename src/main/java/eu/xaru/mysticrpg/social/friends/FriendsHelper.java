@@ -35,12 +35,17 @@ public class FriendsHelper {
 
         PlayerData receiverData = playerDataCache.getCachedPlayerData(receiverUUID);
         if (receiverData != null) {
-            if (receiverData.blockedPlayers.contains(senderUUID.toString())) {
+            if (receiverData.getBlockedPlayers().contains(senderUUID.toString())) {
                 sender.sendMessage("You cannot send a friend request to " + receiver.getName() + " as you are blocked.");
                 return;
             }
 
-            if (receiverData.friendRequests.contains(senderUUID.toString())) {
+            if (receiverData.getFriends().contains(senderUUID.toString())) {
+                sender.sendMessage("You are already friends with " + receiver.getName());
+                return;
+            }
+
+            if (receiverData.getFriendRequests().contains(senderUUID.toString())) {
                 sender.sendMessage("Friend request already sent to " + receiver.getName());
                 return;
             }
@@ -62,7 +67,7 @@ public class FriendsHelper {
 
         PlayerData receiverData = playerDataCache.getCachedPlayerData(receiverUUID);
         if (receiverData != null) {
-            if (!receiverData.friendRequests.contains(senderUUID.toString())) {
+            if (!receiverData.getFriendRequests().contains(senderUUID.toString())) {
                 receiver.sendMessage("No friend request from " + sender.getName());
                 return;
             }
@@ -87,7 +92,7 @@ public class FriendsHelper {
 
         PlayerData receiverData = playerDataCache.getCachedPlayerData(receiverUUID);
         if (receiverData != null) {
-            if (!receiverData.friendRequests.contains(senderUUID.toString())) {
+            if (!receiverData.getFriendRequests().contains(senderUUID.toString())) {
                 receiver.sendMessage("No friend request from " + sender.getName());
                 return;
             }
@@ -143,7 +148,7 @@ public class FriendsHelper {
         UUID playerUUID = player.getUniqueId();
         PlayerData playerData = playerDataCache.getCachedPlayerData(playerUUID);
         if (playerData != null) {
-            return playerData.friendRequests.stream()
+            return playerData.getFriendRequests().stream()
                     .map(uuid -> {
                         Player friend = Bukkit.getPlayer(UUID.fromString(uuid));
                         return friend != null ? friend.getName() : null;
@@ -151,6 +156,7 @@ public class FriendsHelper {
                     .filter(name -> name != null)
                     .collect(Collectors.toList());
         } else {
+            logger.error("Failed to load player data for " + player.getName());
             return List.of();
         }
     }
@@ -159,7 +165,7 @@ public class FriendsHelper {
         UUID playerUUID = player.getUniqueId();
         PlayerData playerData = playerDataCache.getCachedPlayerData(playerUUID);
         if (playerData != null) {
-            return playerData.blockedPlayers.stream()
+            return playerData.getBlockedPlayers().stream()
                     .map(uuid -> {
                         Player blocked = Bukkit.getPlayer(UUID.fromString(uuid));
                         return blocked != null ? blocked.getName() : null;
@@ -167,6 +173,7 @@ public class FriendsHelper {
                     .filter(name -> name != null)
                     .collect(Collectors.toList());
         } else {
+            logger.error("Failed to load player data for " + player.getName());
             return List.of();
         }
     }

@@ -103,11 +103,11 @@
             <version>9.5.2</version>
         </dependency>
 
-        <!-- MongoDB Java Driver for connecting to MongoDB -->
+        <!-- MongoDB Reactive Streams Driver for non-blocking operations -->
         <dependency>
             <groupId>org.mongodb</groupId>
-            <artifactId>mongodb-driver-async</artifactId>
-            <version>3.12.14</version>
+            <artifactId>mongodb-driver-reactivestreams</artifactId>
+            <version>4.9.1</version>
         </dependency>
     </dependencies>
 

@@ -6,10 +6,10 @@ import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
-import jdk.jfr.Event;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
@@ -22,8 +22,7 @@ public class SaveModule implements IBaseModule {
     private PlayerDataCache playerDataCache;
     private DebugLoggerModule logger;
 
-    private EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
-
+    private final EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
 
     @Override
     public void initialize() {
@@ -41,22 +40,41 @@ public class SaveModule implements IBaseModule {
     @Override
     public void start() {
         logger.log(Level.INFO, "SaveModule started", 0);
-        eventManager.registerEvent(PlayerJoinEvent.class,(event) -> {
-            loadPlayerData(event.getPlayer(), new Callback<PlayerData>() {
+
+        // Register PlayerJoinEvent to load player data
+        eventManager.registerEvent(PlayerJoinEvent.class, (event) -> {
+            Player player = event.getPlayer();
+            loadPlayerData(player, new Callback<PlayerData>() {
                 @Override
                 public void onSuccess(PlayerData result) {
-                    logger.log(Level.INFO, "SaveModule player loaded" + event.getPlayer().getName(), 0);
+                    logger.log(Level.INFO, "Player data loaded and cached for " + player.getName(), 0);
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
-                    logger.error("Failed to load" + event.getPlayer().getName());
+                    logger.error("Failed to load player data for " + player.getName() + ": " + throwable.getMessage());
                 }
             });
-
         });
 
+        // Register PlayerQuitEvent to save player data and clear cache
+        eventManager.registerEvent(PlayerQuitEvent.class, (event) -> {
+            Player player = event.getPlayer();
+            UUID playerUUID = player.getUniqueId();
+            savePlayerData(player, new Callback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    logger.log(Level.INFO, "Player data saved for " + player.getName(), 0);
+                    playerDataCache.clearPlayerData(playerUUID);  // Clear player data from cache
+                    logger.log(Level.INFO, "Player data cache cleared for " + player.getName(), 0);
+                }
 
+                @Override
+                public void onFailure(Throwable throwable) {
+                    logger.error("Failed to save player data for " + player.getName() + ": " + throwable.getMessage());
+                }
+            });
+        });
     }
 
     @Override
@@ -79,10 +97,6 @@ public class SaveModule implements IBaseModule {
         return EModulePriority.HIGH;  // Ensure it loads early
     }
 
-
-
-
-
     // Load player data into cache on player join
     public void loadPlayerData(Player player, Callback<PlayerData> callback) {
         UUID playerUUID = player.getUniqueId();
@@ -97,10 +111,7 @@ public class SaveModule implements IBaseModule {
         playerDataCache.savePlayerData(playerUUID, callback);
     }
 
-    // -------------------------------------------------------
     // Friends-related methods (cached)
-    // -------------------------------------------------------
-
     public void addFriend(UUID playerUUID, UUID friendUUID) {
         playerDataCache.addFriend(playerUUID, friendUUID);
     }
@@ -124,6 +135,7 @@ public class SaveModule implements IBaseModule {
     public void unblockPlayer(UUID blockerUUID, UUID toUnblockUUID) {
         playerDataCache.unblockPlayer(blockerUUID, toUnblockUUID);
     }
+
     public PlayerDataCache getPlayerDataCache() {
         return playerDataCache;
     }

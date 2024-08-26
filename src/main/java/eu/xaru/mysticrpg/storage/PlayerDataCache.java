@@ -5,13 +5,16 @@ import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.logging.Level;
 
 public class PlayerDataCache {
 
     private final Map<UUID, PlayerData> cache = new HashMap<>();
+    private final Set<UUID> activePlayers = new HashSet<>();
     private final SaveHelper saveHelper;
     private final DebugLoggerModule logger;
 
@@ -23,15 +26,24 @@ public class PlayerDataCache {
 
     // Load data into cache when player joins
     public void loadPlayerData(UUID playerUUID, Callback<PlayerData> callback) {
+        logger.log(Level.INFO, "Attempting to load player data for UUID: " + playerUUID, 0);
         saveHelper.loadPlayer(playerUUID, new Callback<PlayerData>() {
             @Override
             public void onSuccess(PlayerData playerData) {
-                cache.put(playerUUID, playerData);
-                callback.onSuccess(playerData);
+                if (playerData != null) {
+                    cache.put(playerUUID, playerData);
+                    activePlayers.add(playerUUID);
+                    logger.log(Level.INFO, "Player data loaded and cached for UUID: " + playerUUID, 0);
+                    callback.onSuccess(playerData);
+                } else {
+                    logger.error("Loaded player data was null for UUID: " + playerUUID);
+                    callback.onFailure(new NullPointerException("Loaded player data is null"));
+                }
             }
 
             @Override
             public void onFailure(Throwable throwable) {
+                logger.error("Failed to load player data for UUID: " + playerUUID + ". " + throwable.getMessage());
                 callback.onFailure(throwable);
             }
         });
@@ -44,193 +56,93 @@ public class PlayerDataCache {
             saveHelper.savePlayer(playerData, new Callback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
+                    logger.log(Level.INFO, "Player data saved to database for UUID: " + playerUUID, 0);
                     callback.onSuccess(result);
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
+                    logger.error("Failed to save player data for UUID: " + playerUUID + ". " + throwable.getMessage());
                     callback.onFailure(throwable);
                 }
             });
         } else {
+            logger.error("No cached data found for player: " + playerUUID);
             callback.onFailure(new IllegalStateException("No cached data found for player: " + playerUUID));
+        }
+    }
+
+    // Clear player data from cache
+    public void clearPlayerData(UUID playerUUID) {
+        if (cache.containsKey(playerUUID)) {
+            cache.remove(playerUUID);
+            activePlayers.remove(playerUUID);
+            logger.log(Level.INFO, "Cleared cache for player UUID: " + playerUUID, 0);
         }
     }
 
     // Access cached data
     public PlayerData getCachedPlayerData(UUID playerUUID) {
-        return cache.get(playerUUID);
+        PlayerData data = cache.get(playerUUID);
+        if (data != null) {
+            logger.log(Level.INFO, "Retrieved cached data for player UUID: " + playerUUID, 0);
+        } else {
+            logger.error("No cached data found when accessing for player UUID: " + playerUUID);
+            logger.log("Current cache contents: " + cache.toString());
+        }
+        return data;
     }
 
-    // Remove player data from cache
-    public void removePlayerData(UUID playerUUID) {
-        cache.remove(playerUUID);
-    }
-
-    // -------------------------------------------------------
     // Methods to modify cached player data (friends-related)
-    // -------------------------------------------------------
-
     public void addFriend(UUID playerUUID, UUID friendUUID) {
         PlayerData playerData = cache.get(playerUUID);
         if (playerData != null) {
-            playerData.friends.add(friendUUID.toString());
+            playerData.getFriends().add(friendUUID.toString());
+            logger.log(Level.INFO, "Added friend " + friendUUID + " for player UUID: " + playerUUID, 0);
         }
     }
 
     public void removeFriend(UUID playerUUID, UUID friendUUID) {
         PlayerData playerData = cache.get(playerUUID);
         if (playerData != null) {
-            playerData.friends.remove(friendUUID.toString());
+            playerData.getFriends().remove(friendUUID.toString());
+            logger.log(Level.INFO, "Removed friend " + friendUUID + " for player UUID: " + playerUUID, 0);
         }
     }
 
     public void addFriendRequest(UUID playerUUID, UUID requesterUUID) {
         PlayerData playerData = cache.get(playerUUID);
         if (playerData != null) {
-            playerData.friendRequests.add(requesterUUID.toString());
+            playerData.getFriendRequests().add(requesterUUID.toString());
+            logger.log(Level.INFO, "Added friend request from " + requesterUUID + " for player UUID: " + playerUUID, 0);
         }
     }
 
     public void removeFriendRequest(UUID playerUUID, UUID requesterUUID) {
         PlayerData playerData = cache.get(playerUUID);
         if (playerData != null) {
-            playerData.friendRequests.remove(requesterUUID.toString());
+            playerData.getFriendRequests().remove(requesterUUID.toString());
+            logger.log(Level.INFO, "Removed friend request from " + requesterUUID + " for player UUID: " + playerUUID, 0);
         }
     }
 
     public void blockPlayer(UUID blockerUUID, UUID toBlockUUID) {
         PlayerData playerData = cache.get(blockerUUID);
         if (playerData != null) {
-            playerData.blockedPlayers.add(toBlockUUID.toString());
+            playerData.getBlockedPlayers().add(toBlockUUID.toString());
+            logger.log(Level.INFO, "Blocked player " + toBlockUUID + " for player UUID: " + blockerUUID, 0);
         }
     }
 
     public void unblockPlayer(UUID blockerUUID, UUID toUnblockUUID) {
         PlayerData playerData = cache.get(blockerUUID);
         if (playerData != null) {
-            playerData.blockedPlayers.remove(toUnblockUUID.toString());
+            playerData.getBlockedPlayers().remove(toUnblockUUID.toString());
+            logger.log(Level.INFO, "Unblocked player " + toUnblockUUID + " for player UUID: " + blockerUUID, 0);
         }
     }
 
-    // -------------------------------------------------------
-    // Methods to modify general cached player data
-    // -------------------------------------------------------
-
-    public double getBalance(UUID playerUUID) {
-        PlayerData playerData = cache.get(playerUUID);
-        return playerData != null ? playerData.balance : 0.0;
-    }
-
-    public void setBalance(UUID playerUUID, double balance) {
-        PlayerData playerData = cache.get(playerUUID);
-        if (playerData != null) {
-            playerData.balance = balance;
-        }
-    }
-
-    public int getXp(UUID playerUUID) {
-        PlayerData playerData = cache.get(playerUUID);
-        return playerData != null ? playerData.xp : 0;
-    }
-
-    public void setXp(UUID playerUUID, int xp) {
-        PlayerData playerData = cache.get(playerUUID);
-        if (playerData != null) {
-            playerData.xp = xp;
-        }
-    }
-
-    public int getLevel(UUID playerUUID) {
-        PlayerData playerData = cache.get(playerUUID);
-        return playerData != null ? playerData.level : 0;
-    }
-
-    public void setLevel(UUID playerUUID, int level) {
-        PlayerData playerData = cache.get(playerUUID);
-        if (playerData != null) {
-            playerData.level = level;
-        }
-    }
-
-    public int getNextLevelXP(UUID playerUUID) {
-        PlayerData playerData = cache.get(playerUUID);
-        return playerData != null ? playerData.nextLevelXP : 0;
-    }
-
-    public void setNextLevelXP(UUID playerUUID, int nextLevelXP) {
-        PlayerData playerData = cache.get(playerUUID);
-        if (playerData != null) {
-            playerData.nextLevelXP = nextLevelXP;
-        }
-    }
-
-    public int getCurrentHp(UUID playerUUID) {
-        PlayerData playerData = cache.get(playerUUID);
-        return playerData != null ? playerData.currentHp : 0;
-    }
-
-    public void setCurrentHp(UUID playerUUID, int currentHp) {
-        PlayerData playerData = cache.get(playerUUID);
-        if (playerData != null) {
-            playerData.currentHp = currentHp;
-        }
-    }
-
-    public Map<String, Integer> getAttributes(UUID playerUUID) {
-        PlayerData playerData = cache.get(playerUUID);
-        return playerData != null ? playerData.attributes : null;
-    }
-
-    public void setAttributes(UUID playerUUID, Map<String, Integer> attributes) {
-        PlayerData playerData = cache.get(playerUUID);
-        if (playerData != null) {
-            playerData.attributes = attributes;
-        }
-    }
-
-    public Map<String, Boolean> getUnlockedRecipes(UUID playerUUID) {
-        PlayerData playerData = cache.get(playerUUID);
-        return playerData != null ? playerData.unlockedRecipes : null;
-    }
-
-    public void setUnlockedRecipes(UUID playerUUID, Map<String, Boolean> unlockedRecipes) {
-        PlayerData playerData = cache.get(playerUUID);
-        if (playerData != null) {
-            playerData.unlockedRecipes = unlockedRecipes;
-        }
-    }
-
-    public boolean isBlockingRequests(UUID playerUUID) {
-        PlayerData playerData = cache.get(playerUUID);
-        return playerData != null && playerData.blockingRequests;
-    }
-
-    public void setBlockingRequests(UUID playerUUID, boolean blockingRequests) {
-        PlayerData playerData = cache.get(playerUUID);
-        if (playerData != null) {
-            playerData.blockingRequests = blockingRequests;
-        }
-    }
-
-    // -------------------------------------------------------
-    // New Methods for accessing friend requests and blocked players
-    // -------------------------------------------------------
-
-    public Set<String> getFriendRequests(UUID playerUUID) {
-        PlayerData playerData = cache.get(playerUUID);
-        return playerData != null ? playerData.friendRequests : Set.of();
-    }
-
-    public Set<String> getBlockedPlayers(UUID playerUUID) {
-        PlayerData playerData = cache.get(playerUUID);
-        return playerData != null ? playerData.blockedPlayers : Set.of();
-    }
-
-    // -------------------------------------------------------
     // Registering the checkCachedData Command
-    // -------------------------------------------------------
-
     private void registerCheckCachedDataCommand() {
         new CommandAPICommand("checkCachedData")
                 .withAliases("checkCache")
@@ -241,19 +153,21 @@ public class PlayerDataCache {
 
                     if (playerData != null) {
                         player.sendMessage("Your cached data:");
-                        player.sendMessage("Balance: " + playerData.balance);
-                        player.sendMessage("XP: " + playerData.xp);
-                        player.sendMessage("Level: " + playerData.level);
-                        player.sendMessage("Next Level XP: " + playerData.nextLevelXP);
-                        player.sendMessage("Current HP: " + playerData.currentHp);
-                        player.sendMessage("Attributes: " + playerData.attributes.toString());
-                        player.sendMessage("Unlocked Recipes: " + playerData.unlockedRecipes.toString());
-                        player.sendMessage("Friend Requests: " + playerData.friendRequests.toString());
-                        player.sendMessage("Friends: " + playerData.friends.toString());
-                        player.sendMessage("Blocked Players: " + playerData.blockedPlayers.toString());
-                        player.sendMessage("Blocking Requests: " + playerData.blockingRequests);
+                        player.sendMessage("Balance: " + playerData.getBalance());
+                        player.sendMessage("XP: " + playerData.getXp());
+                        player.sendMessage("Level: " + playerData.getLevel());
+                        player.sendMessage("Next Level XP: " + playerData.getNextLevelXP());
+                        player.sendMessage("Current HP: " + playerData.getCurrentHp());
+                        player.sendMessage("Attributes: " + playerData.getAttributes().toString());
+                        player.sendMessage("Unlocked Recipes: " + playerData.getUnlockedRecipes().toString());
+                        player.sendMessage("Friend Requests: " + playerData.getFriendRequests().toString());
+                        player.sendMessage("Friends: " + playerData.getFriends().toString());
+                        player.sendMessage("Blocked Players: " + playerData.getBlockedPlayers().toString());
+                        player.sendMessage("Blocking Requests: " + playerData.isBlockingRequests());
+                        logger.log(Level.INFO, "Displayed cached data for player UUID: " + playerUUID, 0);
                     } else {
                         player.sendMessage("No cached data found for you.");
+                        logger.error("No cached data found for player: " + playerUUID);
                     }
                 })
                 .register();
