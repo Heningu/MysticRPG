@@ -7,13 +7,19 @@ import dev.jorel.commandapi.arguments.StringArgument;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
+import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.HashMap;
@@ -27,6 +33,7 @@ public class PlayerStatModule implements IBaseModule {
     private PlayerDataCache playerDataCache;
     private DebugLoggerModule logger;
     private StatMenu statMenu;
+    private final EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
 
     @Override
     public void initialize() {
@@ -48,15 +55,50 @@ public class PlayerStatModule implements IBaseModule {
             return;
         }
 
-        logger.log(Level.INFO, "PlayerStatModule initialized", 0);
-
         statMenu = new StatMenu(plugin);
 
+        logger.log(Level.INFO, "PlayerStatModule initialized", 0);
     }
 
     @Override
     public void start() {
         logger.log(Level.INFO, "PlayerStatModule started", 0);
+
+        // Register InventoryClickEvent for StatMenu
+        eventManager.registerEvent(InventoryClickEvent.class, event -> {
+            Inventory clickedInventory = event.getClickedInventory();
+            if (clickedInventory == null) return;
+
+            String inventoryTitle = event.getView().getTitle();
+            Player player = (Player) event.getWhoClicked();
+            ItemStack clickedItem = event.getCurrentItem();
+
+            if (clickedItem == null || !clickedItem.hasItemMeta()) {
+                return;
+            }
+
+            String displayName = ChatColor.stripColor(clickedItem.getItemMeta().getDisplayName());
+
+            // Handle clicks in the Player Stats menu
+            if ("Player Stats".equals(inventoryTitle)) {
+                logger.log("Player " + player.getName() + " clicked in the Player Stats menu.");
+                if (displayName.startsWith("Increase ")) {
+                    logger.log("Passing attribute name to StatManager: " + displayName);
+                    increaseAttribute(player, displayName);
+                    statMenu.openStatMenu(player); // Refresh the inventory to show updated stats
+                }
+                event.setCancelled(true); // Prevent item movement
+            }
+        });
+
+        // Register InventoryDragEvent for StatMenu
+        eventManager.registerEvent(InventoryDragEvent.class, event -> {
+            String inventoryTitle = event.getView().getTitle();
+            if ("Player Stats".equals(inventoryTitle)) {
+                logger.log("Player is dragging items in the Player Stats menu.");
+                event.setCancelled(true); // Prevent item movement
+            }
+        });
     }
 
     @Override
@@ -128,6 +170,7 @@ public class PlayerStatModule implements IBaseModule {
         data.setAttributePoints(data.getAttributePoints() - 1);
         logger.log(Level.INFO, "Player " + player.getName() + " now has " + data.getAttributePoints() + " attribute points left.", 0);
     }
+
     private void registerStatsCommand() {
         new CommandAPICommand("stats")
                 .withAliases("statmenu")
