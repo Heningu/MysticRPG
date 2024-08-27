@@ -14,6 +14,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -61,13 +62,40 @@ public class CustomDamageHandler implements IBaseModule {
     public void start() {
         logger.log(Level.INFO, "CustomDamageHandler started", 0);
 
-        // Handle all types of damage
-        eventManager.registerEvent(EntityDamageEvent.class, event -> {
+
+// Register EntityDamageByEntityEvent first to handle damage from mobs and players specifically
+        eventManager.registerEvent(EntityDamageByEntityEvent.class, event -> {
             if (event.getEntity() instanceof Player) {
                 Player player = (Player) event.getEntity();
+                // Check if this is already handled by EntityDamageEvent to avoid double counting
+                if (event.isCancelled()) return;
+
+                // Directly handle the damage
                 handleDamage(player, event, event.getFinalDamage());
+                event.setCancelled(true); // Cancel further processing to avoid duplication
             }
         });
+
+// Register EntityDamageEvent for handling environmental damage and other non-entity damage types
+        eventManager.registerEvent(EntityDamageEvent.class, event -> {
+            // Skip processing if it's already handled by EntityDamageByEntityEvent
+            if (event instanceof EntityDamageByEntityEvent) return;
+
+            if (event.getEntity() instanceof Player) {
+                Player player = (Player) event.getEntity();
+                EntityDamageEvent.DamageCause cause = event.getCause();
+
+                switch (cause) {
+                    case FALL, FIRE_TICK, LAVA, DROWNING:
+                        handleDamage(player, event, event.getFinalDamage());
+                        break;
+                    default:
+                        event.setCancelled(true); // Cancel all other damage causes
+                        break;
+                }
+            }
+        });
+
 
         // Health regeneration task
         new BukkitRunnable() {
