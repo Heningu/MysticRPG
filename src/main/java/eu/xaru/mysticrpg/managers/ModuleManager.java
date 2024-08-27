@@ -75,7 +75,7 @@ public class ModuleManager {
                 logInfo("Module " + moduleClass.getSimpleName() + " is operating within normal limits.");
             }
         } else {
-            logInfo("Not enough data points yet for " + moduleClass.getSimpleName() + ". Currently recorded: " + (times != null ? times.size() : 0));
+           // logInfo("Not enough data points yet for " + moduleClass.getSimpleName() + ". Currently recorded: " + (times != null ? times.size() : 0));
         }
     }
 

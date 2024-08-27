@@ -84,9 +84,7 @@ public class PlayerDataCache {
     // Access cached data
     public PlayerData getCachedPlayerData(UUID playerUUID) {
         PlayerData data = cache.get(playerUUID);
-        if (data != null) {
-            logger.log(Level.INFO, "Retrieved cached data for player UUID: " + playerUUID, 0);
-        } else {
+        if (data == null) {
             logger.error("No cached data found when accessing for player UUID: " + playerUUID);
             logger.log(Level.INFO, "Current cache contents: " + cache.toString(), 0);
         }
@@ -140,6 +138,10 @@ public class PlayerDataCache {
             playerData.getBlockedPlayers().remove(toUnblockUUID.toString());
             logger.log(Level.INFO, "Unblocked player " + toUnblockUUID + " for player UUID: " + blockerUUID, 0);
         }
+    }
+
+    public Set<UUID> getAllCachedPlayerUUIDs() {
+        return cache.keySet();
     }
 
     // Registering the checkCachedData Command

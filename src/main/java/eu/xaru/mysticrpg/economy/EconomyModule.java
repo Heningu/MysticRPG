@@ -3,55 +3,62 @@ package eu.xaru.mysticrpg.economy;
 import dev.jorel.commandapi.CommandAPICommand;
 import dev.jorel.commandapi.arguments.DoubleArgument;
 import dev.jorel.commandapi.arguments.PlayerArgument;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
+import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
+import java.util.logging.Level;
 
 public class EconomyModule implements IBaseModule {
 
     private EconomyHelper economyHelper;
     private final JavaPlugin plugin;
+    private DebugLoggerModule logger;
 
-    public EconomyModule(JavaPlugin plugin) {
-        this.plugin = plugin;
+    public EconomyModule() {
+        // Initialize the plugin instance if required or leave empty
+        this.plugin = JavaPlugin.getPlugin(MysticCore.class); // Assuming MysticCore is the main class
     }
 
     @Override
     public void initialize() {
+        logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
+
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         if (saveModule != null) {
             PlayerDataCache playerDataCache = saveModule.getPlayerDataCache();
             this.economyHelper = new EconomyHelper(playerDataCache);
+            logger.log(Level.INFO, "EconomyModule initialized successfully.", 0);
         } else {
-            Bukkit.getLogger().severe("SaveModule is not initialized. EconomyModule cannot function without it.");
+            logger.error("SaveModule is not initialized. EconomyModule cannot function without it.");
             return;
         }
 
-        registerCommands();
-        Bukkit.getLogger().info(ChatColor.GREEN + "EconomyModule initialized");
+        registerEconomyCommand();
     }
 
     @Override
     public void start() {
-        Bukkit.getLogger().info(ChatColor.GREEN + "EconomyModule started");
+        logger.log(Level.INFO, "EconomyModule started", 0);
     }
 
     @Override
     public void stop() {
-        Bukkit.getLogger().info(ChatColor.GREEN + "EconomyModule stopped");
+        logger.log(Level.INFO, "EconomyModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        Bukkit.getLogger().info(ChatColor.GREEN + "EconomyModule unloaded");
+        logger.log(Level.INFO, "EconomyModule unloaded", 0);
     }
 
     @Override
@@ -64,23 +71,27 @@ public class EconomyModule implements IBaseModule {
         return EModulePriority.NORMAL;
     }
 
-    private void registerCommands() {
+    private void registerEconomyCommand() {
         new CommandAPICommand("economy")
                 .withSubcommand(new CommandAPICommand("balance")
                         .executesPlayer((player, args) -> {
                             double balance = economyHelper.getBalance(player);
                             player.sendMessage("Your balance: $" + economyHelper.formatBalance(balance));
+                            logger.log("Displayed balance for player: " + player.getName());
                         }))
                 .withSubcommand(new CommandAPICommand("send")
                         .withArguments(new PlayerArgument("target"), new DoubleArgument("amount"))
                         .executesPlayer((player, args) -> {
-                            // Use the `get` method to retrieve the arguments
-                            Player target = (Player) args.get(0);
-                            double amount = (double) args.get(1);
+                            Player target = (Player) args.get("target");
+                            double amount = (double) args.get("amount");
 
-                            economyHelper.sendMoney(player, target, amount);
-                            player.sendMessage("You sent $" + economyHelper.formatBalance(amount) + " to " + target.getName());
-                            target.sendMessage("You received $" + economyHelper.formatBalance(amount) + " from " + player.getName());
+                            if (target != null) {
+                                economyHelper.sendMoney(player, target, amount);
+                                logger.log("Player " + player.getName() + " attempted to send $" + amount + " to " + target.getName());
+                            } else {
+                                logger.warn("Target player not found for sending money command.");
+                                player.sendMessage(ChatColor.RED + "Target player not found.");
+                            }
                         }))
                 .register();
     }

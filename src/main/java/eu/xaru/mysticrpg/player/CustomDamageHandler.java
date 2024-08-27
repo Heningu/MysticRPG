@@ -1,106 +1,176 @@
-//package eu.xaru.mysticrpg.player;
-//
-//import eu.xaru.mysticrpg.cores.MysticCore;
-//import eu.xaru.mysticrpg.storage.old_playerdata;
-//import eu.xaru.mysticrpg.storage.PlayerDataManager;
-//import eu.xaru.mysticrpg.ui.ActionBarManager;
-//import org.bukkit.Bukkit;
-//import org.bukkit.entity.Player;
-//import org.bukkit.event.EventHandler;
-//import org.bukkit.event.Listener;
-//import org.bukkit.event.entity.EntityDamageEvent;
-//import org.bukkit.event.entity.PlayerDeathEvent;
-//import org.bukkit.event.player.PlayerJoinEvent;
-//import org.bukkit.event.player.PlayerRespawnEvent;
-//
-//public class CustomDamageHandler implements Listener {
-//    private final MysticCore plugin;
-//    private final PlayerDataManager playerDataManager;
-//    private final ActionBarManager actionBarManager;
-//
-//    public CustomDamageHandler(MysticCore plugin, PlayerDataManager playerDataManager, ActionBarManager actionBarManager) {
-//        this.plugin = plugin;
-//        this.playerDataManager = playerDataManager;
-//        this.actionBarManager = actionBarManager;
-//    }
-//
-//    @EventHandler
-//    public void onPlayerJoin(PlayerJoinEvent event) {
-//        Player player = event.getPlayer();
-//        old_playerdata data = playerDataManager.getPlayerData(player);
-//
-//        int maxHp = data.getHp();
-//        int currentHp = data.getCurrentHp();
-//
-//        // Ensure currentHp is set correctly when the player joins
-//        if (currentHp > maxHp || currentHp <= 0) {
-//            data.setCurrentHp(maxHp);
-//            playerDataManager.save(player);
-//            Bukkit.getLogger().info("Player " + player.getName() + " joined. Resetting current HP to max: " + maxHp);
-//        }
-//
-//        actionBarManager.updateActionBar(player);
-//    }
-//
-//    @EventHandler
-//    public void onPlayerRespawn(PlayerRespawnEvent event) {
-//        Player player = event.getPlayer();
-//        old_playerdata data = playerDataManager.getPlayerData(player);
-//
-//        // Reset current HP to max HP after respawn
-//        int maxHp = data.getHp();
-//        data.setCurrentHp(maxHp);
-//        playerDataManager.save(player);
-//
-//        // Update action bar to reflect the reset HP
-//        actionBarManager.updateActionBar(player);
-//
-//        // Log for debugging
-//        Bukkit.getLogger().info("Player " + player.getName() + " respawned. Resetting current HP to max: " + maxHp);
-//    }
-//
-//    @EventHandler
-//    public void onEntityDamage(EntityDamageEvent event) {
-//        if (event.getEntity() instanceof Player) {
-//            Player player = (Player) event.getEntity();
-//            double damageInHearts = event.getFinalDamage();
-//            handleDamage(player, damageInHearts);
-//            event.setCancelled(true); // Prevent default damage handling
-//        }
-//    }
-//
-//    @EventHandler
-//    public void onPlayerDeath(PlayerDeathEvent event) {
-//        Player player = event.getEntity();
-//        old_playerdata data = playerDataManager.getPlayerData(player);
-//
-//        // Set current HP to 0 upon death
-//        data.setCurrentHp(0);
-//        playerDataManager.save(player);
-//
-//        // Log for debugging purposes
-//        Bukkit.getLogger().info("Player " + player.getName() + " died. Setting current HP to 0.");
-//    }
-//
-//    public void handleDamage(Player player, double damageInHearts) {
-//        old_playerdata data = playerDataManager.getPlayerData(player);
-//        int currentHp = data.getCurrentHp();
-//        int damageInHp = (int) Math.round(damageInHearts * 2); // 1 heart = 2 HP
-//        int newHp = currentHp - damageInHp;
-//
-//        Bukkit.getLogger().info("Handling damage for player " + player.getName() + ". Damage: " + damageInHp + " HP. Current HP before damage: " + currentHp + "/" + data.getHp());
-//
-//        if (newHp <= 0) {
-//            player.setHealth(0.0); // Trigger Minecraft's native death process
-//            data.setCurrentHp(0);
-//            Bukkit.getLogger().info("Player " + player.getName() + " will be killed. Setting current HP to 0.");
-//        } else {
-//            data.setCurrentHp(newHp);
-//            player.setHealth(20.0); // Keep hearts visually full
-//            Bukkit.getLogger().info("Player " + player.getName() + " now has " + newHp + "/" + data.getHp() + " HP after taking damage.");
-//        }
-//
-//        playerDataManager.save(player);
-//        actionBarManager.updateActionBar(player);
-//    }
-//}
+package eu.xaru.mysticrpg.player;
+
+import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.enums.EModulePriority;
+import eu.xaru.mysticrpg.interfaces.IBaseModule;
+import eu.xaru.mysticrpg.managers.EventManager;
+import eu.xaru.mysticrpg.managers.ModuleManager;
+import eu.xaru.mysticrpg.storage.PlayerData;
+import eu.xaru.mysticrpg.storage.PlayerDataCache;
+import eu.xaru.mysticrpg.storage.SaveModule;
+import eu.xaru.mysticrpg.ui.ActionBarManager;
+import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Location;
+import org.bukkit.entity.Player;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.logging.Level;
+
+public class CustomDamageHandler implements IBaseModule {
+
+    private PlayerDataCache playerDataCache;
+    private DebugLoggerModule logger;
+    private final EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
+    private final Map<UUID, Long> lastDamageTime = new HashMap<>();
+    private JavaPlugin plugin;
+    private ActionBarManager actionBarManager;
+
+    @Override
+    public void initialize() {
+        logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
+        SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
+        plugin = JavaPlugin.getPlugin(MysticCore.class);
+
+        if (saveModule != null) {
+            playerDataCache = saveModule.getPlayerDataCache();
+        } else {
+            logger.error("SaveModule not initialized. CustomDamageHandler cannot function without it.");
+            return;
+        }
+
+        if (playerDataCache == null) {
+            logger.error("PlayerDataCache not initialized. CustomDamageHandler cannot function without it.");
+            return;
+        }
+
+        actionBarManager = new ActionBarManager((MysticCore) plugin, playerDataCache);
+
+        logger.log(Level.INFO, "CustomDamageHandler initialized", 0);
+    }
+
+    @Override
+    public void start() {
+        logger.log(Level.INFO, "CustomDamageHandler started", 0);
+
+        // Handle all types of damage
+        eventManager.registerEvent(EntityDamageEvent.class, event -> {
+            if (event.getEntity() instanceof Player) {
+                Player player = (Player) event.getEntity();
+                handleDamage(player, event, event.getFinalDamage());
+            }
+        });
+
+        // Health regeneration task
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                regenerateHealth();
+            }
+        }.runTaskTimer(plugin, 20, 20); // Schedule task to run every second (20 ticks)
+    }
+
+    private void handleDamage(Player player, EntityDamageEvent event, double damage) {
+        UUID playerUUID = player.getUniqueId();
+        PlayerData playerData = playerDataCache.getCachedPlayerData(playerUUID);
+
+        if (playerData == null) {
+            logger.error("No cached data found for player: " + player.getName());
+            return;
+        }
+
+        // Ensure damage is capped to 1 heart (2 health points)
+        double appliedDamage = Math.min(damage, 2.0);
+        event.setDamage(appliedDamage);
+
+        // Deduct custom HP based on the actual damage
+        int currentHp = playerData.getCurrentHp();
+        int maxHp = playerData.getAttributes().getOrDefault("HP", 20);
+        int customDamage = (int) Math.round(damage);
+
+        // Adjust custom HP
+        currentHp -= customDamage;
+        if (currentHp < 0) currentHp = 0;
+        playerData.setCurrentHp(currentHp);
+
+        // Update the action bar after taking damage
+        actionBarManager.updateActionBar(player);
+
+        // Log damage event
+        logger.log("Player " + player.getName() + " took " + damage + " damage. Current HP: " + currentHp);
+
+        if (currentHp <= 0) {
+            // Handle player death
+            Location spawnLocation = player.getWorld().getSpawnLocation();
+            player.teleport(spawnLocation);
+            player.sendMessage(ChatColor.RED + "You Died");
+            logger.log("Player " + player.getName() + " died and was teleported to spawn.");
+
+            // Reset player's health to max for respawn
+            playerData.setCurrentHp(maxHp);
+        } else {
+            // Instantly regenerate the lost default health to simulate only custom HP loss
+            player.setHealth(Math.min(player.getHealth() + appliedDamage, 20.0));
+        }
+
+        // Record last damage time for regeneration purposes
+        lastDamageTime.put(playerUUID, System.currentTimeMillis());
+    }
+
+    private void regenerateHealth() {
+        Set<UUID> playerUUIDs = playerDataCache.getAllCachedPlayerUUIDs();
+        for (UUID playerUUID : playerUUIDs) {
+            PlayerData playerData = playerDataCache.getCachedPlayerData(playerUUID);
+            if (playerData == null) continue;
+
+            Player player = Bukkit.getPlayer(playerUUID);
+            if (player == null || !player.isOnline()) continue;
+
+            int currentHp = playerData.getCurrentHp();
+            int maxHp = playerData.getAttributes().getOrDefault("HP", 20);
+
+            // Check if we need to regenerate
+            if (currentHp < maxHp) {
+                long lastDamage = lastDamageTime.getOrDefault(playerUUID, 0L);
+                if (System.currentTimeMillis() - lastDamage >= 5000) {
+                    // Start regenerating HP
+                    currentHp += 1; // Regenerate 1 HP per second
+                    if (currentHp > maxHp) currentHp = maxHp;
+                    playerData.setCurrentHp(currentHp);
+                    logger.log("Regenerated 1 HP for player " + player.getName() + ". Current HP: " + currentHp);
+
+                    // Update the action bar after regeneration
+                    actionBarManager.updateActionBar(player);
+                }
+            }
+        }
+    }
+
+    @Override
+    public void stop() {
+        logger.log(Level.INFO, "CustomDamageHandler stopped", 0);
+    }
+
+    @Override
+    public void unload() {
+        logger.log(Level.INFO, "CustomDamageHandler unloaded", 0);
+    }
+
+    @Override
+    public List<Class<? extends IBaseModule>> getDependencies() {
+        return List.of(DebugLoggerModule.class, SaveModule.class);
+    }
+
+    @Override
+    public EModulePriority getPriority() {
+        return EModulePriority.NORMAL;
+    }
+}
