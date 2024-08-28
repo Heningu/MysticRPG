@@ -68,7 +68,7 @@
 //            int line = 14;
 //
 //            // Setting the lines according to the provided layout
-//            objective.getScore("§8+§m                                  §r§8+" + ChatColor.RESET).setScore(line--); // Adding ChatColor.RESET for uniqueness
+//            objective.getScore("§8+§m------------------------------§r§8+" + ChatColor.RESET).setScore(line--); // Adding ChatColor.RESET for uniqueness
 //            objective.getScore("§x§E§5§F§B§F§D" + "§lPLAYER").setScore(line--);
 //            objective.getScore("§8 ▪ §7LEVEL: §a" + currentLevel).setScore(line--);
 //            objective.getScore("§8 ▪ §7MONEY: §a$" + currentBalance).setScore(line--);
@@ -85,7 +85,7 @@
 //            while (line > 2) {
 //                objective.getScore("§8 ▪ EMPTY").setScore(line--);
 //            }
-//            objective.getScore("§8+§m                                  §r§8+" + ChatColor.GRAY).setScore(line--); // Adding ChatColor.GRAY for uniqueness
+//            objective.getScore("§8+§m------------------------------§r§8+" + ChatColor.GRAY).setScore(line--); // Adding ChatColor.GRAY for uniqueness
 //
 //            // Setting scoreboard to player
 //            player.setScoreboard(board);

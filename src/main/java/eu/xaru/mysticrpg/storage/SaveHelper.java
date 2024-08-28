@@ -2,22 +2,29 @@ package eu.xaru.mysticrpg.storage;
 
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
-import com.mongodb.client.result.UpdateResult;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoClients;
 import com.mongodb.reactivestreams.client.MongoCollection;
 import com.mongodb.reactivestreams.client.MongoDatabase;
-import com.mongodb.client.model.ReplaceOptions;
+import com.mongodb.client.result.UpdateResult;
 import dev.jorel.commandapi.CommandAPICommand;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -28,9 +35,10 @@ import static com.mongodb.client.model.Filters.eq;
 public class SaveHelper {
 
     private final MongoCollection<PlayerData> playerCollection;
+    private final MongoCollection<Document> serverConfigsCollection;
     private final DebugLoggerModule logger;
 
-    public SaveHelper(String connectionString, String databaseName, String collectionName, DebugLoggerModule logger) {
+    public SaveHelper(String connectionString, String databaseName, String playerCollectionName, DebugLoggerModule logger) {
         this.logger = logger;
 
         try {
@@ -50,7 +58,7 @@ public class SaveHelper {
             MongoClient mongoClient = MongoClients.create(settings);
             MongoDatabase database = mongoClient.getDatabase(databaseName);
 
-            // Check if the collection exists, if not, create it
+            // Check if the collections exist, if not, create them
             List<String> collectionNames = new ArrayList<>();
             database.listCollectionNames().subscribe(new Subscriber<String>() {
                 @Override
@@ -70,8 +78,8 @@ public class SaveHelper {
 
                 @Override
                 public void onComplete() {
-                    if (!collectionNames.contains(collectionName)) {
-                        database.createCollection(collectionName).subscribe(new Subscriber<Void>() {
+                    if (!collectionNames.contains(playerCollectionName)) {
+                        database.createCollection(playerCollectionName).subscribe(new Subscriber<Void>() {
                             @Override
                             public void onSubscribe(Subscription s) {
                                 s.request(1);
@@ -84,22 +92,55 @@ public class SaveHelper {
 
                             @Override
                             public void onError(Throwable t) {
-                                logger.error("Failed to create collection: " + t.getMessage());
+                                logger.error("Failed to create player collection: " + t.getMessage());
                             }
 
                             @Override
                             public void onComplete() {
-                                logger.log(Level.INFO, "Created collection: " + collectionName, 0);
+                                logger.log(Level.INFO, "Created player collection: " + playerCollectionName, 0);
                             }
                         });
                     } else {
-                        logger.log(Level.INFO, "Collection already exists: " + collectionName, 0);
+                        logger.log(Level.INFO, "Player collection already exists: " + playerCollectionName, 0);
+                    }
+
+                    // Check for serverConfigs collection
+                    String serverConfigsCollectionName = "serverConfigs";
+                    if (!collectionNames.contains(serverConfigsCollectionName)) {
+                        database.createCollection(serverConfigsCollectionName).subscribe(new Subscriber<Void>() {
+                            @Override
+                            public void onSubscribe(Subscription s) {
+                                s.request(1);
+                            }
+
+                            @Override
+                            public void onNext(Void aVoid) {
+                                // Not used
+                            }
+
+                            @Override
+                            public void onError(Throwable t) {
+                                logger.error("Failed to create serverConfigs collection: " + t.getMessage());
+                            }
+
+                            @Override
+                            public void onComplete() {
+                                logger.log(Level.INFO, "Created serverConfigs collection: " + serverConfigsCollectionName, 0);
+                                initializeLevelsDocument();
+                            }
+                        });
+                    } else {
+                        logger.log(Level.INFO, "serverConfigs collection already exists.", 0);
+                        // Check if levels document exists
+                        checkAndInitializeLevelsDocument();
                     }
                 }
             });
 
-            this.playerCollection = database.getCollection(collectionName, PlayerData.class).withCodecRegistry(pojoCodecRegistry);
-            logger.log(Level.INFO, "Connected to MongoDB and initialized playerData collection", 0);
+            this.playerCollection = database.getCollection(playerCollectionName, PlayerData.class).withCodecRegistry(pojoCodecRegistry);
+            this.serverConfigsCollection = database.getCollection("serverConfigs", Document.class);
+
+            logger.log(Level.INFO, "Connected to MongoDB and initialized collections", 0);
 
             // Register the saveData command
             registerSaveDataCommand();
@@ -108,6 +149,129 @@ public class SaveHelper {
             logger.error("Failed to connect to MongoDB: " + e.getMessage());
             throw new RuntimeException(e);
         }
+    }
+
+    // Check if the levels document exists in serverConfigs collection, if not, initialize it
+    private void checkAndInitializeLevelsDocument() {
+        serverConfigsCollection.find(eq("_id", "levels")).first().subscribe(new Subscriber<Document>() {
+            @Override
+            public void onSubscribe(Subscription s) {
+                s.request(1);
+            }
+
+            @Override
+            public void onNext(Document document) {
+                // Levels document already exists, no need to initialize
+                logger.log(Level.INFO, "Levels document already exists in serverConfigs collection", 0);
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                logger.error("Error checking levels document in serverConfigs: " + t.getMessage());
+            }
+
+            @Override
+            public void onComplete() {
+                // If no levels document is found, initialize it
+                initializeLevelsDocument();
+            }
+        });
+    }
+
+    // Initialize the levels document in serverConfigs collection
+    private void initializeLevelsDocument() {
+        Document levelsDocument = loadLevelsFromFile();
+        if (levelsDocument != null) {
+            serverConfigsCollection.replaceOne(eq("_id", "levels"), levelsDocument, new ReplaceOptions().upsert(true))
+                    .subscribe(new Subscriber<UpdateResult>() {
+                        @Override
+                        public void onSubscribe(Subscription s) {
+                            s.request(1);
+                        }
+
+                        @Override
+                        public void onNext(UpdateResult updateResult) {
+                            // You can handle updateResult here if needed
+                        }
+
+                        @Override
+                        public void onError(Throwable t) {
+                            logger.error("Error initializing levels document in serverConfigs: " + t.getMessage());
+                        }
+
+                        @Override
+                        public void onComplete() {
+                            logger.log(Level.INFO, "Successfully initialized levels document in serverConfigs collection", 0);
+                        }
+                    });
+        }
+    }
+
+    // Load levels from the JSON file in resources
+    private Document loadLevelsFromFile() {
+        try (InputStream inputStream = getClass().getResourceAsStream("/leveling/Levels.json")) {
+            if (inputStream == null) {
+                logger.error("Levels.json file not found in resources/leveling/");
+                return null;
+            }
+
+            try (Scanner scanner = new Scanner(inputStream, StandardCharsets.UTF_8.name())) {
+                String jsonContent = scanner.useDelimiter("\\A").next();
+                return Document.parse(jsonContent);
+            }
+        } catch (Exception e) {
+            logger.error("Error reading Levels.json file: " + e.getMessage());
+            return null;
+        }
+    }
+
+    // Method to fetch levels from MongoDB
+    public Map<Integer, LevelData> fetchLevels() {
+        Map<Integer, LevelData> levels = new HashMap<>();
+        Document filter = new Document("_id", "levels");
+
+        serverConfigsCollection.find(filter).first().subscribe(new Subscriber<Document>() {
+            @Override
+            public void onSubscribe(Subscription s) {
+                s.request(1);
+            }
+
+            @Override
+            public void onNext(Document document) {
+                if (document != null) {
+                    Document levelsDocument = (Document) document.get("levels");
+                    if (levelsDocument != null) {
+                        for (String key : levelsDocument.keySet()) {
+                            try {
+                                int level = Integer.parseInt(key);
+                                Document levelDataDoc = levelsDocument.get(key, Document.class);
+                                LevelData levelData = new LevelData(
+                                        levelDataDoc.getInteger("xp_required"),
+                                        levelDataDoc.getString("command"),
+                                        (Map<String, Integer>) levelDataDoc.get("rewards"),
+                                        levelDataDoc.getBoolean("special", false)
+                                );
+                                levels.put(level, levelData);
+                            } catch (NumberFormatException e) {
+                                logger.error("Invalid level key found in levels document: " + key);
+                            }
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                logger.error("Error fetching levels from serverConfigs: " + t.getMessage());
+            }
+
+            @Override
+            public void onComplete() {
+                logger.log(Level.INFO, "Successfully fetched levels from serverConfigs collection", 0);
+            }
+        });
+
+        return levels;
     }
 
     public void loadPlayer(UUID uuid, Callback<PlayerData> callback) {

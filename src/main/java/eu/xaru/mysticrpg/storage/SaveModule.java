@@ -139,4 +139,7 @@ public class SaveModule implements IBaseModule {
     public PlayerDataCache getPlayerDataCache() {
         return playerDataCache;
     }
+    public SaveHelper getSaveHelper() {
+        return saveHelper;
+    }
 }

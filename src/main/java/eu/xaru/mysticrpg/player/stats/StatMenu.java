@@ -19,7 +19,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
-import java.util.logging.Level;
 
 public class StatMenu {
     private final MysticCore plugin;

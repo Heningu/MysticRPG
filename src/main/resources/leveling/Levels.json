@@ -9,6 +9,86 @@
     },
     "special": false
   },
+  "2": {
+    "xp_required": 200,
+    "command": "say {player} has reached level 2!",
+    "rewards": {
+      "HP": 10,
+      "Strength": 4,
+      "AttributePoints": 2
+    },
+    "special": false
+  },
+  "3": {
+    "xp_required": 300,
+    "command": "say {player} has reached level 3!",
+    "rewards": {
+      "HP": 15,
+      "Strength": 6,
+      "AttributePoints": 3
+    },
+    "special": false
+  },
+  "4": {
+    "xp_required": 400,
+    "command": "say {player} has reached level 4!",
+    "rewards": {
+      "HP": 20,
+      "Strength": 8,
+      "AttributePoints": 4
+    },
+    "special": false
+  },
+  "5": {
+    "xp_required": 500,
+    "command": "say {player} has reached level 5!",
+    "rewards": {
+      "HP": 25,
+      "Strength": 10,
+      "AttributePoints": 5
+    },
+    "special": false
+  },
+  "6": {
+    "xp_required": 600,
+    "command": "say {player} has reached level 6!",
+    "rewards": {
+      "HP": 30,
+      "Strength": 12,
+      "AttributePoints": 6
+    },
+    "special": false
+  },
+  "7": {
+    "xp_required": 700,
+    "command": "say {player} has reached level 7!",
+    "rewards": {
+      "HP": 35,
+      "Strength": 14,
+      "AttributePoints": 7
+    },
+    "special": false
+  },
+  "8": {
+    "xp_required": 800,
+    "command": "say {player} has reached level 8!",
+    "rewards": {
+      "HP": 40,
+      "Strength": 16,
+      "AttributePoints": 8
+    },
+    "special": false
+  },
+  "9": {
+    "xp_required": 900,
+    "command": "say {player} has reached level 9!",
+    "rewards": {
+      "HP": 45,
+      "Strength": 18,
+      "AttributePoints": 9
+    },
+    "special": false
+  },
   "10": {
     "xp_required": 1000,
     "command": "say {player} has reached level 10!",
@@ -106,16 +186,6 @@
       "HP": 95,
       "Strength": 38,
       "AttributePoints": 19
-    },
-    "special": false
-  },
-  "2": {
-    "xp_required": 200,
-    "command": "say {player} has reached level 2!",
-    "rewards": {
-      "HP": 10,
-      "Strength": 4,
-      "AttributePoints": 2
     },
     "special": false
   },
@@ -219,16 +289,6 @@
     },
     "special": false
   },
-  "3": {
-    "xp_required": 300,
-    "command": "say {player} has reached level 3!",
-    "rewards": {
-      "HP": 15,
-      "Strength": 6,
-      "AttributePoints": 3
-    },
-    "special": false
-  },
   "30": {
     "xp_required": 3000,
     "command": "say {player} has reached level 30!",
@@ -326,16 +386,6 @@
       "HP": 195,
       "Strength": 78,
       "AttributePoints": 39
-    },
-    "special": false
-  },
-  "4": {
-    "xp_required": 400,
-    "command": "say {player} has reached level 4!",
-    "rewards": {
-      "HP": 20,
-      "Strength": 8,
-      "AttributePoints": 4
     },
     "special": false
   },
@@ -439,16 +489,6 @@
     },
     "special": false
   },
-  "5": {
-    "xp_required": 500,
-    "command": "say {player} has reached level 5!",
-    "rewards": {
-      "HP": 25,
-      "Strength": 10,
-      "AttributePoints": 5
-    },
-    "special": false
-  },
   "50": {
     "xp_required": 5000,
     "command": "say {player} has reached level 50!",
@@ -456,46 +496,6 @@
       "HP": 250,
       "Strength": 100,
       "AttributePoints": 50
-    },
-    "special": false
-  },
-  "6": {
-    "xp_required": 600,
-    "command": "say {player} has reached level 6!",
-    "rewards": {
-      "HP": 30,
-      "Strength": 12,
-      "AttributePoints": 6
-    },
-    "special": false
-  },
-  "7": {
-    "xp_required": 700,
-    "command": "say {player} has reached level 7!",
-    "rewards": {
-      "HP": 35,
-      "Strength": 14,
-      "AttributePoints": 7
-    },
-    "special": false
-  },
-  "8": {
-    "xp_required": 800,
-    "command": "say {player} has reached level 8!",
-    "rewards": {
-      "HP": 40,
-      "Strength": 16,
-      "AttributePoints": 8
-    },
-    "special": false
-  },
-  "9": {
-    "xp_required": 900,
-    "command": "say {player} has reached level 9!",
-    "rewards": {
-      "HP": 45,
-      "Strength": 18,
-      "AttributePoints": 9
     },
     "special": false
   }
