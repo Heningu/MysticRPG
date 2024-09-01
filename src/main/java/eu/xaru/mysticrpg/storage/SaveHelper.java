@@ -334,6 +334,7 @@ public class SaveHelper {
             @Override
             public void onNext(UpdateResult updateResult) {
                 // You can handle updateResult here if needed
+
             }
 
             @Override

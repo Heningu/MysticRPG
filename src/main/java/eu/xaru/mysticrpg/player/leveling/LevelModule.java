@@ -83,7 +83,7 @@ public class LevelModule implements IBaseModule {
 
     @Override
     public EModulePriority getPriority() {
-        return EModulePriority.NORMAL; // Standard priority
+        return EModulePriority.LOW; // Standard priority
     }
 
     private void registerLevelsCommand() {
