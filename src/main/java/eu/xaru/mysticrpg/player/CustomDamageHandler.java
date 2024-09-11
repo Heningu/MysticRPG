@@ -1,4 +1,5 @@
 package eu.xaru.mysticrpg.player;
+
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
@@ -12,6 +13,8 @@ import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -62,45 +65,51 @@ public class CustomDamageHandler implements IBaseModule {
     public void start() {
         logger.log(Level.INFO, "CustomDamageHandler started", 0);
 
+        // Register EntityDamageByEntityEvent first to handle damage from mobs and players specifically
+        eventManager.registerEvent(EntityDamageByEntityEvent.class, event -> {
+            if (event.getEntity() instanceof Player) {
+                Player player = (Player) event.getEntity();
+                if (event.isCancelled()) return;
 
-// Register EntityDamageByEntityEvent first to handle damage from mobs and players specifically
-//        eventManager.registerEvent(EntityDamageByEntityEvent.class, event -> {
-//            if (event.getEntity() instanceof Player) {
-//                Player player = (Player) event.getEntity();
-//                // Check if this is already handled by EntityDamageEvent to avoid double counting
-//                if (event.isCancelled()) return;
-//
-//                logger.log(Level.INFO, "EntityDamageByEntityEvent", 0);
-//                // Directly handle the damage
-//                handleDamage(player, event, event.getFinalDamage());
-//                // Cancel further processing to avoid duplication
-//            }
-//            event.setCancelled(true);
-//        });
+                logger.log(Level.INFO, "EntityDamageByEntityEvent", 0);
 
-// Register EntityDamageEvent for handling environmental damage and other non-entity damage types
+                // Handle only entity-related damage here
+                handleDamage(player, event, event.getFinalDamage());
+                triggerHurtAnimation(player, true);
+
+                // Cancel the event to prevent actual health damage
+                event.setCancelled(true);
+            }
+        });
+
+        // Register EntityDamageEvent for handling environmental damage and other non-entity damage types
         eventManager.registerEvent(EntityDamageEvent.class, event -> {
-            // Skip processing if it's already handled by EntityDamageByEntityEvent
+            if (event instanceof EntityDamageByEntityEvent) {
+                // Skip processing as this is already handled in EntityDamageByEntityEvent
+                return;
+            }
 
             if (event.getEntity() instanceof Player) {
                 Player player = (Player) event.getEntity();
-               // new EntityDamageByEntityEvent(player,event.getEntity(), EntityDamageEvent.DamageCause.ENTITY_ATTACK,event.getFinalDamage());
-
                 EntityDamageEvent.DamageCause cause = event.getCause();
                 logger.log("EntityDamageEvent %s", cause);
 
-
                 switch (cause) {
-                    case FALL, FIRE_TICK, LAVA, DROWNING, ENTITY_ATTACK:
+                    case FALL, FIRE_TICK, LAVA, DROWNING:
+                        // Handle environmental damage
                         handleDamage(player, event, event.getFinalDamage());
+                        triggerHurtAnimation(player, false);
+                        break;
+                    case ENTITY_ATTACK:
+                        // Ignore this, as it is handled by EntityDamageByEntityEvent
                         break;
                     default:
-                        event.setCancelled(true); // Cancel all other damage causes
+                        // Cancel all other damage causes
+                        event.setCancelled(true);
                         break;
                 }
             }
         });
-
 
         // Health regeneration task
         new BukkitRunnable() {
@@ -120,10 +129,6 @@ public class CustomDamageHandler implements IBaseModule {
             return;
         }
 
-        // Ensure damage is capped to 1 heart (2 health points)
-        double appliedDamage = Math.min(damage, 2.0);
-        event.setDamage(appliedDamage);
-
         // Deduct custom HP based on the actual damage
         int currentHp = playerData.getCurrentHp();
         int maxHp = playerData.getAttributes().getOrDefault("HP", 20);
@@ -137,7 +142,7 @@ public class CustomDamageHandler implements IBaseModule {
         // Update the action bar after taking damage
         actionBarManager.updateActionBar(player);
 
-        // Log damage event
+        // Log the damage event
         logger.log("Player " + player.getName() + " took " + damage + " damage. Current HP: " + currentHp);
 
         if (currentHp <= 0) {
@@ -149,14 +154,31 @@ public class CustomDamageHandler implements IBaseModule {
 
             // Reset player's health to max for respawn
             playerData.setCurrentHp(maxHp);
-        } else {
-            // Instantly regenerate the lost default health to simulate only custom HP loss
-            player.setHealth(Math.min(player.getHealth() + appliedDamage, 20.0));
         }
 
         // Record last damage time for regeneration purposes
         lastDamageTime.put(playerUUID, System.currentTimeMillis());
+
+        // Cancel the actual event to prevent health loss from Minecraft's default system
+        event.setCancelled(true);
     }
+
+    // Helper method to trigger hurt animation manually
+    private void triggerHurtAnimation(Player player, boolean isEntityDamage) {
+        // Play hurt sound effect
+        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_HURT, 1.0f, 1.0f);
+
+        // Display damage indicator particles
+        player.getWorld().spawnParticle(Particle.DAMAGE_INDICATOR, player.getLocation(), 10);
+
+        // Apply knockback only if the damage was caused by an entity
+        if (isEntityDamage) {
+            // Apply slight knockback to simulate damage (hurt effect)
+            Vector knockback = player.getLocation().getDirection().multiply(-0.3);
+            player.setVelocity(knockback);
+        }
+    }
+
 
     private void regenerateHealth() {
         Set<UUID> playerUUIDs = playerDataCache.getAllCachedPlayerUUIDs();
