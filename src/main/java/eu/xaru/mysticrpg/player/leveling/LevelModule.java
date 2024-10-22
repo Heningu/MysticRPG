@@ -6,22 +6,26 @@ import dev.jorel.commandapi.arguments.PlayerArgument;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
+import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
+import eu.xaru.mysticrpg.storage.LevelData;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
-import eu.xaru.mysticrpg.storage.LevelData;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bson.Document;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class LevelModule implements IBaseModule {
 
@@ -31,6 +35,7 @@ public class LevelModule implements IBaseModule {
     private Logger logger;
     private DebugLoggerModule debugLogger;
     private LevelingMenu levelingMenu;
+    private final EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
 
     @Override
     public void initialize() {
@@ -43,13 +48,12 @@ public class LevelModule implements IBaseModule {
         }
         this.playerDataCache = saveModule.getPlayerDataCache();
 
-        // Fetch levels data from MongoDB using SaveHelper
-        Map<Integer, LevelData> loadedLevels = saveModule.getSaveHelper().fetchLevels();
-        if (loadedLevels != null) {
-            this.levelDataMap = loadedLevels;
-            logger.info("Levels loaded from database successfully.");
+        // Fetch levels data from the local Levels.json file
+        this.levelDataMap = loadLevelsFromFile();
+        if (this.levelDataMap != null && !this.levelDataMap.isEmpty()) {
+            logger.info("Levels loaded from Levels.json successfully.");
         } else {
-            throw new RuntimeException("Failed to load levels from database.");
+            throw new RuntimeException("Failed to load levels from Levels.json.");
         }
 
         this.maxLevel = levelDataMap.keySet().stream().max(Integer::compare).orElse(100);
@@ -64,6 +68,16 @@ public class LevelModule implements IBaseModule {
         this.levelingMenu = new LevelingMenu(JavaPlugin.getPlugin(MysticCore.class));
 
         debugLogger.log(Level.INFO, "LevelModule started", 0);
+
+        // Register InventoryDragEvent for blocking dragging in leveling menus
+        eventManager.registerEvent(InventoryDragEvent.class, event -> {
+            String inventoryTitle = event.getView().getTitle();
+            if ("Leveling Menu".equals(inventoryTitle)) {
+                debugLogger.log("Player is dragging items in the Leveling Menu.");
+                event.setCancelled(true); // Prevent item movement
+            }
+        });
+
     }
 
     @Override
@@ -83,7 +97,7 @@ public class LevelModule implements IBaseModule {
 
     @Override
     public EModulePriority getPriority() {
-        return EModulePriority.LOW; // Standard priority
+        return EModulePriority.NORMAL; // Standard priority
     }
 
     private void registerLevelsCommand() {
@@ -115,6 +129,12 @@ public class LevelModule implements IBaseModule {
                 .register();
     }
 
+    /**
+     * Adds XP to the player and handles leveling up.
+     *
+     * @param player The player to add XP to.
+     * @param amount The amount of XP to add.
+     */
     public void addXp(Player player, int amount) {
         PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (playerData == null) {
@@ -126,10 +146,16 @@ public class LevelModule implements IBaseModule {
             int newXp = playerData.getXp() + amount;
             playerData.setXp(newXp);
 
+            // Send a message to the player with color codes
+            player.sendMessage(ChatColor.AQUA + "You gained " + ChatColor.GOLD + amount + " XP!");
+
             while (playerData.getLevel() < maxLevel && newXp >= getLevelThreshold(playerData.getLevel() + 1)) {
                 newXp -= getLevelThreshold(playerData.getLevel() + 1);
                 playerData.setLevel(playerData.getLevel() + 1);
                 playerData.setXp(newXp);
+
+                // Send level-up message to the player
+                player.sendMessage(ChatColor.GREEN + "Congratulations! You reached level " + ChatColor.GOLD + playerData.getLevel() + ChatColor.GREEN + "!");
 
                 // Apply level up rewards
                 LevelData levelData = levelDataMap.get(playerData.getLevel());
@@ -148,6 +174,12 @@ public class LevelModule implements IBaseModule {
         }
     }
 
+    /**
+     * Sets the player's XP to a specific amount.
+     *
+     * @param player The player whose XP to set.
+     * @param amount The amount of XP to set.
+     */
     public void setXp(Player player, int amount) {
         PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (playerData == null) {
@@ -182,11 +214,6 @@ public class LevelModule implements IBaseModule {
         return (levelData != null) ? levelData.getXpRequired() : 0;
     }
 
-    public boolean isSpecialLevel(int level) {
-        LevelData levelData = levelDataMap.get(level);
-        return levelData != null && levelData.isSpecial();
-    }
-
     public LevelData getLevelData(int level) {
         return levelDataMap.get(level);
     }
@@ -198,5 +225,37 @@ public class LevelModule implements IBaseModule {
     public Map<String, Integer> getLevelRewards(int level) {
         LevelData levelData = levelDataMap.get(level);
         return levelData != null ? levelData.getRewards() : Collections.emptyMap();
+    }
+
+    // Helper method to load levels from a local JSON file (Levels.json)
+    private Map<Integer, LevelData> loadLevelsFromFile() {
+        Map<Integer, LevelData> levels = new HashMap<>();
+        try (InputStream inputStream = getClass().getResourceAsStream("/leveling/Levels.json")) {
+            if (inputStream == null) {
+                logger.warning("Levels.json file not found!");
+                return levels;
+            }
+
+            try (Scanner scanner = new Scanner(inputStream, StandardCharsets.UTF_8.name())) {
+                String jsonContent = scanner.useDelimiter("\\A").next();
+                Document document = Document.parse(jsonContent);
+
+                // Parse the levels from JSON
+                for (String key : document.keySet()) {
+                    int level = Integer.parseInt(key);
+                    Document levelDataDoc = document.get(key, Document.class);
+                    LevelData levelData = new LevelData(
+                            levelDataDoc.getInteger("xp_required"),
+                            levelDataDoc.getString("command"),
+                            (Map<String, Integer>) levelDataDoc.get("rewards")
+                    );
+                    levels.put(level, levelData);
+                }
+            }
+
+        } catch (Exception e) {
+            logger.warning("Error reading Levels.json file: " + e.getMessage());
+        }
+        return levels;
     }
 }

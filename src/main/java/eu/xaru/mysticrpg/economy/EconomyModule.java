@@ -95,5 +95,9 @@ public class EconomyModule implements IBaseModule {
                         }))
                 .register();
     }
+    public EconomyHelper getEconomyHelper() {
+        return economyHelper;
+    }
+
 
 }

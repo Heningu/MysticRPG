@@ -109,6 +109,13 @@
             <artifactId>mongodb-driver-reactivestreams</artifactId>
             <version>4.9.1</version>
         </dependency>
+        <!-- DecentHolograms API  -->
+        <dependency>
+            <groupId>com.github.decentsoftware-eu</groupId>
+            <artifactId>decentholograms</artifactId>
+            <version>2.8.11</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>

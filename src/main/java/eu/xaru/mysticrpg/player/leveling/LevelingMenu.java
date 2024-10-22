@@ -106,10 +106,6 @@ public class LevelingMenu {
         LevelData levelData = levelModule.getLevelData(level);
         if (levelData == null) return new ItemStack(Material.BARRIER);
 
-        if (levelData.isSpecial()) {
-            material = Material.NETHER_STAR;
-        }
-
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(ChatColor.YELLOW + "Level: " + level);
@@ -132,8 +128,9 @@ public class LevelingMenu {
         return item;
     }
 
+
     private void fillEmptySlots(Inventory inventory) {
-        ItemStack fillerItem = new ItemStack(Material.WHITE_STAINED_GLASS_PANE);
+        ItemStack fillerItem = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
         ItemMeta fillerMeta = fillerItem.getItemMeta();
         fillerMeta.setDisplayName(" ");
         fillerItem.setItemMeta(fillerMeta);

@@ -6,13 +6,11 @@ public class LevelData {
     private int xpRequired;
     private String command;
     private Map<String, Integer> rewards;
-    private boolean special;
 
-    public LevelData(int xpRequired, String command, Map<String, Integer> rewards, boolean special) {
+    public LevelData(int xpRequired, String command, Map<String, Integer> rewards) {
         this.xpRequired = xpRequired;
         this.command = command;
         this.rewards = rewards;
-        this.special = special;
     }
 
     public int getXpRequired() {
@@ -25,9 +23,5 @@ public class LevelData {
 
     public Map<String, Integer> getRewards() {
         return rewards;
-    }
-
-    public boolean isSpecial() {
-        return special;
     }
 }
