@@ -6,6 +6,7 @@ import dev.jorel.commandapi.arguments.StringArgument;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.enums.EModulePriority;
+import eu.xaru.mysticrpg.guis.MobGUI;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
@@ -29,6 +30,7 @@ public class CustomMobModule implements IBaseModule, Listener {
     private DebugLoggerModule logger;
     private final Map<String, CustomMob> mobConfigurations = new HashMap<>();
     public MobManager mobManager;
+    private MobGUI mobGUI;
 
     public CustomMobModule() {
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
@@ -219,10 +221,13 @@ public class CustomMobModule implements IBaseModule, Listener {
 
                             player.sendMessage("Spawned mob: " + customMob.getName() + " at your location.");
                         }))
+                .withSubcommand(new CommandAPICommand("gui")
+                        .withPermission("mysticcore.mobgui") // [ADDED] Permission requirement
+                        .executesPlayer((player, args) -> {
+                            MobGUI mobGUI = new MobGUI(mobManager);
+                            mobGUI.openMobGUI(player);
+                        }))
                 .register();
     }
 
-    public Map<String, CustomMob> getMobConfigurations() {
-        return mobConfigurations;
-    }
 }

@@ -163,6 +163,11 @@ public class MobManager implements Listener {
                 String.format("[LVL%d] %s [%.1f❤]", customMob.getLevel(), customMob.getName(), currentHealth));
     }
 
+    public Map<String, CustomMob> getMobConfigurations() {
+        return mobConfigurations;
+    }
+
+
     /**
      * Finds the CustomMobInstance associated with the given entity.
      *
