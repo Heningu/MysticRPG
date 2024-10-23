@@ -4,6 +4,7 @@ import dev.jorel.commandapi.CommandAPICommand;
 import dev.jorel.commandapi.arguments.ArgumentSuggestions;
 import dev.jorel.commandapi.arguments.StringArgument;
 import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.ModuleManager;
@@ -14,6 +15,7 @@ import org.bukkit.Location;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.EntityType;
+import eu.xaru.mysticrpg.economy.EconomyModule;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -43,8 +45,15 @@ public class CustomMobModule implements IBaseModule, Listener {
 
         loadMobConfigurations();
 
+        EconomyModule economyModule = ModuleManager.getInstance().getModuleInstance(EconomyModule.class);
+        if (economyModule == null) {
+            logger.error("EconomyModule is not loaded. CustomMobModule requires EconomyModule as a dependency.");
+            return;
+        }
+        EconomyHelper economyHelper = economyModule.getEconomyHelper();
+
         // Initialize MobManager after loading mob configurations
-        mobManager = new MobManager(plugin, mobConfigurations);
+        mobManager = new MobManager(plugin, mobConfigurations, economyHelper);
 
         registerCommands();
 
@@ -72,7 +81,7 @@ public class CustomMobModule implements IBaseModule, Listener {
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(DebugLoggerModule.class, LevelModule.class);
+        return List.of(DebugLoggerModule.class, LevelModule.class, EconomyModule.class);
     }
 
     @Override

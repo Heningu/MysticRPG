@@ -8,6 +8,7 @@ import eu.xaru.mysticrpg.player.IndicatorManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import eu.xaru.mysticrpg.economy.EconomyHelper;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.attribute.Attribute;
@@ -34,13 +35,19 @@ public class MobManager implements Listener {
     private final Random random = new Random();
     private final ItemManager itemManager;
     private final IndicatorManager indicatorManager;
+    private final EconomyHelper economyHelper;
 
-    public MobManager(JavaPlugin plugin, Map<String, CustomMob> mobConfigurations) {
+
+    public MobManager(JavaPlugin plugin, Map<String, CustomMob> mobConfigurations, EconomyHelper economyHelper) {
         this.plugin = plugin;
+        this.economyHelper = economyHelper;
         this.mobConfigurations = mobConfigurations;
         this.itemManager = ModuleManager.getInstance().getModuleInstance(CustomItemModule.class).getItemManager();
         this.indicatorManager = ModuleManager.getInstance().getModuleInstance(IndicatorManager.class);
+
+
         Bukkit.getPluginManager().registerEvents(this, plugin);
+
     }
 
     /**
@@ -237,6 +244,22 @@ public class MobManager implements Listener {
     public void handleMobDeath(CustomMobInstance mobInstance, LivingEntity killer) {
         // Log mob death
         Bukkit.getLogger().log(Level.INFO, "Mob died: " + mobInstance.getCustomMob().getName());
+
+        if (killer instanceof Player player) {
+            double currencyReward = mobInstance.getCustomMob().getCurrencyReward();
+
+            // [ADDED] Define the chance for currency reward (100% for testing)
+            double currencyChance = 1.0; // 1.0 represents 100%
+
+            if (random.nextDouble() <= currencyChance) {
+                if (economyHelper != null) {
+                    economyHelper.addBalance(player, currencyReward);
+                    player.sendMessage(ChatColor.GOLD + "You have received $" + currencyReward + " for killing " + mobInstance.getCustomMob().getName() + "!");
+                } else {
+                    player.sendMessage(ChatColor.RED + "Economy system is not available. Cannot reward currency.");
+                }
+            }
+        }
 
         // Give XP to the player who killed the mob
         if (killer instanceof Player player) {
