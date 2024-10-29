@@ -94,7 +94,7 @@ public class SaveModule implements IBaseModule {
 
     @Override
     public EModulePriority getPriority() {
-        return EModulePriority.HIGH;  // Ensure it loads early
+        return EModulePriority.CRITICAL;  // Ensure it loads early
     }
 
     // Load player data into cache on player join

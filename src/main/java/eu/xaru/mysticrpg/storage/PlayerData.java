@@ -1,7 +1,10 @@
 package eu.xaru.mysticrpg.storage;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 public class PlayerData {
     private String uuid;
@@ -16,16 +19,22 @@ public class PlayerData {
     private Set<String> friends;
     private Set<String> blockedPlayers;
     private boolean blockingRequests;
-    private int attributePoints;  // New attribute added
+    private int attributePoints;
+    private List<String> activeQuests;
+    private Map<String, Map<String, Integer>> questProgress;
+    private List<String> completedQuests;
+    private String pinnedQuest;
 
     public PlayerData() {
         // Default constructor for MongoDB POJO codec
+        // Left empty as per your request
     }
 
     public PlayerData(String uuid, double balance, int xp, int level, int nextLevelXP, int currentHp,
                       Map<String, Integer> attributes, Map<String, Boolean> unlockedRecipes,
                       Set<String> friendRequests, Set<String> friends, Set<String> blockedPlayers,
-                      boolean blockingRequests, int attributePoints) {  // Updated constructor
+                      boolean blockingRequests, int attributePoints, List<String> activeQuests,
+                      Map<String, Map<String, Integer>> questProgress, List<String> completedQuests, String pinnedQuest) {
         this.uuid = uuid;
         this.balance = balance;
         this.xp = xp;
@@ -38,10 +47,15 @@ public class PlayerData {
         this.friends = friends;
         this.blockedPlayers = blockedPlayers;
         this.blockingRequests = blockingRequests;
-        this.attributePoints = attributePoints;  // Initialize new attribute
+        this.attributePoints = attributePoints;
+        this.activeQuests = activeQuests;
+        this.questProgress = questProgress;
+        this.completedQuests = completedQuests;
+        this.pinnedQuest = pinnedQuest;
     }
 
     public static PlayerData defaultData(String uuid) {
+        // Adjusting only quest-related parts to use mutable collections
         return new PlayerData(
                 uuid,
                 0.0,
@@ -55,7 +69,11 @@ public class PlayerData {
                 Set.of(),
                 Set.of(),
                 false,
-                1
+                1,
+                new ArrayList<>(), // Mutable list for activeQuests
+                new HashMap<>(),    // Mutable map for questProgress
+                new ArrayList<>(),   // Mutable list for completedQuests
+                null
         );
     }
 
@@ -156,11 +174,51 @@ public class PlayerData {
         this.blockingRequests = blockingRequests;
     }
 
-    public int getAttributePoints() {  // Getter for attributePoints
+    public int getAttributePoints() {
         return attributePoints;
     }
 
-    public void setAttributePoints(int attributePoints) {  // Setter for attributePoints
+    public void setAttributePoints(int attributePoints) {
         this.attributePoints = attributePoints;
+    }
+
+    public List<String> getActiveQuests() {
+        if (activeQuests == null) {
+            activeQuests = new ArrayList<>();
+        }
+        return activeQuests;
+    }
+
+    public void setActiveQuests(List<String> activeQuests) {
+        this.activeQuests = activeQuests;
+    }
+
+    public Map<String, Map<String, Integer>> getQuestProgress() {
+        if (questProgress == null) {
+            questProgress = new HashMap<>();
+        }
+        return questProgress;
+    }
+
+    public void setQuestProgress(Map<String, Map<String, Integer>> questProgress) {
+        this.questProgress = questProgress;
+    }
+
+    public List<String> getCompletedQuests() {
+        if (completedQuests == null) {
+            completedQuests = new ArrayList<>();
+        }
+        return completedQuests;
+    }
+
+    public void setCompletedQuests(List<String> completedQuests) {
+        this.completedQuests = completedQuests;
+    }
+    public String getPinnedQuest() {
+        return pinnedQuest;
+    }
+
+    public void setPinnedQuest(String pinnedQuest) {
+        this.pinnedQuest = pinnedQuest;
     }
 }

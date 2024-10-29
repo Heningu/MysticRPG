@@ -6,6 +6,7 @@ import eu.xaru.mysticrpg.customs.items.ItemManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.IndicatorManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
+import eu.xaru.mysticrpg.quests.QuestModule;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
@@ -151,6 +152,14 @@ public class MobManager implements Listener {
         return null;
     }
 
+    public CustomMob getCustomMobFromEntity(LivingEntity entity) {
+        CustomMobInstance mobInstance = findMobInstance(entity);
+        if (mobInstance != null) {
+            return mobInstance.getCustomMob();
+        }
+        return null;
+    }
+
     /**
      * Creates a formatted name tag for the mob.
      *
@@ -263,6 +272,13 @@ public class MobManager implements Listener {
                 } else {
                     player.sendMessage(ChatColor.RED + "Economy system is not available. Cannot reward currency.");
                 }
+            }
+            // [ADDED] Update quest progress in QuestModule
+            QuestModule questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
+            if (questModule != null) {
+                questModule.updateQuestProgressOnMobDeath(player, mobInstance.getCustomMob());
+            } else {
+                Bukkit.getLogger().warning("QuestModule is not available. Cannot update quest progress.");
             }
         }
 

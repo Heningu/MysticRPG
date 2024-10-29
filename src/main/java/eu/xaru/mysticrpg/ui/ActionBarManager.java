@@ -31,7 +31,7 @@ public class ActionBarManager {
         int maxHp = data.getAttributes().getOrDefault("HP", 20);
         int mana = data.getAttributes().getOrDefault("MANA", 20);
 
-        String actionBarText = "§c❤ " + currentHp + "/" + maxHp + " §b💧 " + mana;
+        String actionBarText = "§c❤ " + currentHp + "/" + maxHp + " §b❀ " + mana;
         player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(actionBarText));
 
         // Logging for debugging

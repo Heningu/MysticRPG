@@ -194,6 +194,10 @@ public class CustomMobModule implements IBaseModule, Listener {
         }
     }
 
+    public MobManager getMobManager(){
+        return mobManager;
+    }
+
     private void registerCommands() {
         new CommandAPICommand("mob")
                 .withSubcommand(new CommandAPICommand("list")
