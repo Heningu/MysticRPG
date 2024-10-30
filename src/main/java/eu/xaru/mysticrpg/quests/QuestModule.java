@@ -245,7 +245,8 @@ public class QuestModule implements IBaseModule {
             if (objectives.containsKey(objectiveKey)) {
                 int current = progress.getOrDefault(objectiveKey, 0) + 1;
                 int required = objectives.get(objectiveKey);
-                progress.put(objectiveKey, Math.min(current, required));
+                int newProgress = Math.min(current, required);
+                progress.put(objectiveKey, newProgress);
 
                 data.getQuestProgress().put(questId, progress);
 
@@ -255,7 +256,6 @@ public class QuestModule implements IBaseModule {
             }
         }
     }
-
 
     private void registerEventHandlers() {
         // Handle PlayerPickupItemEvent for item collection quests
@@ -275,9 +275,12 @@ public class QuestModule implements IBaseModule {
                 String objectiveKey = "collect_" + itemType;
                 if (objectives.containsKey(objectiveKey)) {
                     int amountPickedUp = event.getItem().getItemStack().getAmount();
-                    int current = progress.getOrDefault(objectiveKey, 0) + amountPickedUp;
+
+                    int current = progress.getOrDefault(objectiveKey, 0);
                     int required = objectives.get(objectiveKey);
-                    progress.put(objectiveKey, Math.min(current, required));
+
+                    int newProgress = Math.min(current + amountPickedUp, required);
+                    progress.put(objectiveKey, newProgress);
 
                     data.getQuestProgress().put(questId, progress);
 
@@ -308,7 +311,6 @@ public class QuestModule implements IBaseModule {
                     if (edbe.getDamager() instanceof LivingEntity attacker) {
                         damager = attacker;
                     }
-
                 }
 
                 if (damager instanceof Player player) {
@@ -326,7 +328,8 @@ public class QuestModule implements IBaseModule {
                         if (objectives.containsKey(objectiveKey)) {
                             int currentCount = progress.getOrDefault(objectiveKey, 0) + 1;
                             int required = objectives.get(objectiveKey);
-                            progress.put(objectiveKey, Math.min(currentCount, required));
+                            int newProgress = Math.min(currentCount, required);
+                            progress.put(objectiveKey, newProgress);
 
                             data.getQuestProgress().put(questId, progress);
 
@@ -383,7 +386,8 @@ public class QuestModule implements IBaseModule {
     private boolean isQuestCompleted(Quest quest, Map<String, Integer> progress) {
         for (Map.Entry<String, Integer> objective : quest.getObjectives().entrySet()) {
             int currentProgress = progress.getOrDefault(objective.getKey(), 0);
-            if (currentProgress < objective.getValue()) {
+            int required = objective.getValue();
+            if (currentProgress < required) {
                 return false;
             }
         }
@@ -438,5 +442,9 @@ public class QuestModule implements IBaseModule {
 
     public void completeQuestThroughNPC(Player player, String questId, String npcId) {
         // Placeholder for future NPC integration
+    }
+
+    public QuestManager getQuestManager() {
+        return questManager;
     }
 }

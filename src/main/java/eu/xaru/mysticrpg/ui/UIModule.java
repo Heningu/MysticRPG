@@ -15,6 +15,7 @@ import java.util.logging.Level;
 public class UIModule implements IBaseModule {
 
     private ActionBarManager actionBarManager;
+    private ScoreboardManager scoreboardManager;
     private DebugLoggerModule logger;
     private final JavaPlugin plugin;
 
@@ -30,6 +31,7 @@ public class UIModule implements IBaseModule {
         if (saveModule != null) {
             PlayerDataCache playerDataCache = saveModule.getPlayerDataCache();
             this.actionBarManager = new ActionBarManager((MysticCore) plugin, playerDataCache);
+            this.scoreboardManager = new ScoreboardManager();
             logger.log(Level.INFO, "UIModule initialized successfully.", 0);
         } else {
             logger.error("SaveModule is not initialized. UIModule cannot function without it.");

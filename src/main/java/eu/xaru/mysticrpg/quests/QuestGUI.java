@@ -161,12 +161,18 @@ public class QuestGUI {
                     int required = entry.getValue();
                     int current = progress.getOrDefault(objective, 0);
 
+                    // Cap current at required
+                    current = Math.min(current, required);
+
+                    // Format the objective
+                    String formattedObjective = formatObjectiveKey(objective);
+
                     double percent = (double) current / required * 100;
                     if (percent > 100) percent = 100;
 
                     String progressBar = getProgressBar(percent);
 
-                    lore.add(ChatColor.AQUA + objective + ": " + ChatColor.GREEN + current + "/" + required);
+                    lore.add(ChatColor.AQUA + formattedObjective + ": " + ChatColor.GREEN + current + "/" + required);
                     lore.add(progressBar);
                 }
 
@@ -268,5 +274,30 @@ public class QuestGUI {
             // Play a sound
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
         }
+    }
+
+    private String formatObjectiveKey(String objectiveKey) {
+        if (objectiveKey.startsWith("collect_")) {
+            String itemName = objectiveKey.substring("collect_".length());
+            itemName = itemName.replace("_", " ");
+            return "Collect " + capitalizeWords(itemName);
+        } else if (objectiveKey.startsWith("kill_")) {
+            String mobName = objectiveKey.substring("kill_".length());
+            mobName = mobName.replace("_", " ");
+            return "Kill " + capitalizeWords(mobName);
+        }
+        // Add other cases as needed
+        return capitalizeWords(objectiveKey.replace("_", " "));
+    }
+
+    private String capitalizeWords(String str) {
+        String[] words = str.split(" ");
+        StringBuilder sb = new StringBuilder();
+        for (String word : words) {
+            if (word.length() > 0) {
+                sb.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1)).append(" ");
+            }
+        }
+        return sb.toString().trim();
     }
 }
