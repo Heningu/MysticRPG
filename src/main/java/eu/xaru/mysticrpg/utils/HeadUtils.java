@@ -1,5 +1,6 @@
 package eu.xaru.mysticrpg.utils;
 
+import com.mongodb.lang.Nullable;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -44,6 +45,25 @@ public class HeadUtils {
             }
             head.setItemMeta(skullMeta);
         }
+        return head;
+    }
+
+    public static ItemStack getPlayerHead(Player p, @Nullable String itemName) {
+        ItemStack head = new ItemStack(Material.PLAYER_HEAD, 1);
+        SkullMeta skullMeta = (SkullMeta) head.getItemMeta();
+
+        if (skullMeta != null) {
+            if(p.isOnline()) {
+                skullMeta.setOwningPlayer(Bukkit.getPlayer(p.getName()));
+                if(itemName == null) {
+                    skullMeta.setDisplayName(p.getName());
+                }else{
+                    skullMeta.setDisplayName(itemName);
+                }
+                head.setItemMeta(skullMeta);
+            }
+        }
+
         return head;
     }
 
