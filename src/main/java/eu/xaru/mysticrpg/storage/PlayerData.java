@@ -1,10 +1,6 @@
 package eu.xaru.mysticrpg.storage;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 
 public class PlayerData {
     private String uuid;
@@ -24,6 +20,7 @@ public class PlayerData {
     private Map<String, Map<String, Integer>> questProgress;
     private List<String> completedQuests;
     private String pinnedQuest;
+    private Set<String> completedDialogues;
 
     public PlayerData() {
         // Default constructor for MongoDB POJO codec
@@ -34,7 +31,8 @@ public class PlayerData {
                       Map<String, Integer> attributes, Map<String, Boolean> unlockedRecipes,
                       Set<String> friendRequests, Set<String> friends, Set<String> blockedPlayers,
                       boolean blockingRequests, int attributePoints, List<String> activeQuests,
-                      Map<String, Map<String, Integer>> questProgress, List<String> completedQuests, String pinnedQuest) {
+                      Map<String, Map<String, Integer>> questProgress, List<String> completedQuests, String pinnedQuest,
+                      Set<String> completedDialogues) {
         this.uuid = uuid;
         this.balance = balance;
         this.xp = xp;
@@ -52,6 +50,7 @@ public class PlayerData {
         this.questProgress = questProgress;
         this.completedQuests = completedQuests;
         this.pinnedQuest = pinnedQuest;
+        this.completedDialogues = completedDialogues;
     }
 
     public static PlayerData defaultData(String uuid) {
@@ -73,7 +72,8 @@ public class PlayerData {
                 new ArrayList<>(), // Mutable list for activeQuests
                 new HashMap<>(),    // Mutable map for questProgress
                 new ArrayList<>(),   // Mutable list for completedQuests
-                null
+                null,
+                new HashSet<>()
         );
     }
 
@@ -220,5 +220,15 @@ public class PlayerData {
 
     public void setPinnedQuest(String pinnedQuest) {
         this.pinnedQuest = pinnedQuest;
+    }
+    public Set<String> getCompletedDialogues() {
+        if (completedDialogues == null) {
+            completedDialogues = new HashSet<>();
+        }
+        return completedDialogues;
+    }
+
+    public void setCompletedDialogues(Set<String> completedDialogues) {
+        this.completedDialogues = completedDialogues;
     }
 }

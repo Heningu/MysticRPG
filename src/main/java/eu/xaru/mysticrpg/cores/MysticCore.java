@@ -1,5 +1,7 @@
 package eu.xaru.mysticrpg.cores;
 
+import com.github.juliarn.npclib.api.Platform;
+import com.github.juliarn.npclib.bukkit.BukkitPlatform;
 import dev.jorel.commandapi.CommandAPI;
 import dev.jorel.commandapi.CommandAPIBukkitConfig;
 import eu.xaru.mysticrpg.config.ConfigCreator;
@@ -7,10 +9,28 @@ import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import org.bukkit.plugin.java.JavaPlugin;
 
+// Import necessary NPC-Lib classes
+import org.bukkit.World;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
+
 public class MysticCore extends JavaPlugin {
 
     private ModuleManager moduleManager;
     private DebugLoggerModule logger;
+
+    // Initialize the NPC-Lib platform
+    private final Platform<World, Player, ItemStack, Plugin> npcPlatform = BukkitPlatform
+            .bukkitNpcPlatformBuilder()
+            .extension(this)
+            .actionController(builder -> {}) // Enable action controller without changing the default config
+            .build();
+
+    // Getter for the NPC platform
+    public Platform<World, Player, ItemStack, Plugin> getNpcPlatform() {
+        return npcPlatform;
+    }
 
     @Override
     public void onEnable() {
@@ -62,5 +82,5 @@ public class MysticCore extends JavaPlugin {
                 logger.error("Error during plugin disable. Exception: " + e.getMessage(), e, null);
             }
         }
-        }
     }
+}

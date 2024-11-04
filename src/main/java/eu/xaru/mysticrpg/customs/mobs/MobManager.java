@@ -4,7 +4,6 @@ import eu.xaru.mysticrpg.customs.items.CustomItem;
 import eu.xaru.mysticrpg.customs.items.CustomItemModule;
 import eu.xaru.mysticrpg.customs.items.ItemManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.player.IndicatorManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.quests.QuestModule;
 import org.bukkit.Bukkit;
@@ -35,7 +34,6 @@ public class MobManager implements Listener {
     private final Map<UUID, CustomMobInstance> activeMobs = new HashMap<>();
     private final Random random = new Random();
     private final ItemManager itemManager;
-    private final IndicatorManager indicatorManager;
     private final EconomyHelper economyHelper;
 
 
@@ -44,7 +42,6 @@ public class MobManager implements Listener {
         this.economyHelper = economyHelper;
         this.mobConfigurations = mobConfigurations;
         this.itemManager = ModuleManager.getInstance().getModuleInstance(CustomItemModule.class).getItemManager();
-        this.indicatorManager = ModuleManager.getInstance().getModuleInstance(IndicatorManager.class);
 
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
@@ -211,16 +208,6 @@ public class MobManager implements Listener {
         // Update name tag
         livingEntity.setCustomName(createMobNameTag(customMob, currentHp));
 
-        // Show damage indicator at mob's location
-        if (indicatorManager != null && damage > 0) {
-            Location location = livingEntity.getLocation().clone().add(0, livingEntity.getHeight() / 2, 0);
-            indicatorManager.showDamageIndicator(location, damage);
-        } else {
-            if (indicatorManager == null) {
-                Bukkit.getLogger().log(Level.WARNING, "IndicatorManager is not initialized.");
-            }
-        }
-
         // Check if mob is dead
         if (currentHp <= 0) {
             // Mob dies
@@ -290,14 +277,6 @@ public class MobManager implements Listener {
             LevelModule levelModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
             if (levelModule != null) {
                 levelModule.addXp(player, experienceReward);
-
-                // Show XP indicator at the mob's death location
-                if (indicatorManager != null) {
-                    Location deathLocation = mobInstance.getEntity().getLocation();
-                    indicatorManager.showXPIndicator(deathLocation, experienceReward);
-                } else {
-                    Bukkit.getLogger().log(Level.WARNING, "IndicatorManager is not initialized.");
-                }
             } else {
                 player.sendMessage(ChatColor.RED + "Unable to add XP. LevelModule is not available.");
                 Bukkit.getLogger().severe("LevelModule is not available. Cannot add XP to player.");
