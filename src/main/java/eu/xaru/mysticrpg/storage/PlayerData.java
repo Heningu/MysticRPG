@@ -1,11 +1,15 @@
 package eu.xaru.mysticrpg.storage;
 
+import org.bukkit.inventory.ItemStack;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+/**
+ * Represents the data associated with a player.
+ */
 public class PlayerData {
     private String uuid;
     private double balance;
@@ -25,16 +29,20 @@ public class PlayerData {
     private List<String> completedQuests;
     private String pinnedQuest;
 
+    // New fields for pending transactions
+    private double pendingBalance;
+    private List<String> pendingItems; // List of Base64 encoded ItemStacks
+
     public PlayerData() {
         // Default constructor for MongoDB POJO codec
-        // Left empty as per your request
     }
 
     public PlayerData(String uuid, double balance, int xp, int level, int nextLevelXP, int currentHp,
                       Map<String, Integer> attributes, Map<String, Boolean> unlockedRecipes,
                       Set<String> friendRequests, Set<String> friends, Set<String> blockedPlayers,
                       boolean blockingRequests, int attributePoints, List<String> activeQuests,
-                      Map<String, Map<String, Integer>> questProgress, List<String> completedQuests, String pinnedQuest) {
+                      Map<String, Map<String, Integer>> questProgress, List<String> completedQuests,
+                      String pinnedQuest, double pendingBalance, List<String> pendingItems) {
         this.uuid = uuid;
         this.balance = balance;
         this.xp = xp;
@@ -52,6 +60,8 @@ public class PlayerData {
         this.questProgress = questProgress;
         this.completedQuests = completedQuests;
         this.pinnedQuest = pinnedQuest;
+        this.pendingBalance = pendingBalance;
+        this.pendingItems = pendingItems;
     }
 
     public static PlayerData defaultData(String uuid) {
@@ -72,12 +82,38 @@ public class PlayerData {
                 1,
                 new ArrayList<>(), // Mutable list for activeQuests
                 new HashMap<>(),    // Mutable map for questProgress
-                new ArrayList<>(),   // Mutable list for completedQuests
-                null
+                new ArrayList<>(),  // Mutable list for completedQuests
+                null,
+                0.0,                // Pending balance initialized to 0.0
+                new ArrayList<>()   // Empty list for pending items
         );
     }
 
     // Getters and setters
+    // Existing getters and setters...
+
+    public double getPendingBalance() {
+        return pendingBalance;
+    }
+
+    public void setPendingBalance(double pendingBalance) {
+        this.pendingBalance = pendingBalance;
+    }
+
+    public List<String> getPendingItems() {
+        if (pendingItems == null) {
+            pendingItems = new ArrayList<>();
+        }
+        return pendingItems;
+    }
+
+    public void setPendingItems(List<String> pendingItems) {
+        this.pendingItems = pendingItems;
+    }
+
+    // Existing methods...
+
+    // Other getters and setters
     public String getUuid() {
         return uuid;
     }
@@ -214,6 +250,7 @@ public class PlayerData {
     public void setCompletedQuests(List<String> completedQuests) {
         this.completedQuests = completedQuests;
     }
+
     public String getPinnedQuest() {
         return pinnedQuest;
     }
