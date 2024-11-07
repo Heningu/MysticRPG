@@ -3,23 +3,24 @@ package eu.xaru.mysticrpg.customs.mobs;
 import eu.xaru.mysticrpg.customs.items.CustomItem;
 import eu.xaru.mysticrpg.customs.items.CustomItemModule;
 import eu.xaru.mysticrpg.customs.items.ItemManager;
+import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.IndicatorManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.quests.QuestModule;
+import eu.xaru.mysticrpg.social.party.Party;
+import eu.xaru.mysticrpg.social.party.PartyHelper;
+import eu.xaru.mysticrpg.social.party.PartyModule;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import eu.xaru.mysticrpg.economy.EconomyHelper;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.*;
 import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -37,7 +38,7 @@ public class MobManager implements Listener {
     private final ItemManager itemManager;
     private final IndicatorManager indicatorManager;
     private final EconomyHelper economyHelper;
-
+    private final PartyHelper partyHelper;
 
     public MobManager(JavaPlugin plugin, Map<String, CustomMob> mobConfigurations, EconomyHelper economyHelper) {
         this.plugin = plugin;
@@ -46,9 +47,16 @@ public class MobManager implements Listener {
         this.itemManager = ModuleManager.getInstance().getModuleInstance(CustomItemModule.class).getItemManager();
         this.indicatorManager = ModuleManager.getInstance().getModuleInstance(IndicatorManager.class);
 
+        // Get PartyHelper instance
+        PartyModule partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
+        if (partyModule != null) {
+            this.partyHelper = partyModule.getPartyHelper();
+        } else {
+            this.partyHelper = null;
+            Bukkit.getLogger().warning("PartyModule is not available. Party features will be disabled.");
+        }
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
-
     }
 
     /**
@@ -163,7 +171,7 @@ public class MobManager implements Listener {
     /**
      * Creates a formatted name tag for the mob.
      *
-     * @param customMob    The custom mob configuration.
+     * @param customMob     The custom mob configuration.
      * @param currentHealth The current health of the mob.
      * @return The formatted name tag.
      */
@@ -175,7 +183,6 @@ public class MobManager implements Listener {
     public Map<String, CustomMob> getMobConfigurations() {
         return mobConfigurations;
     }
-
 
     /**
      * Finds the CustomMobInstance associated with the given entity.
@@ -204,6 +211,18 @@ public class MobManager implements Listener {
         // Capture the damage before modifying it
         double damage = event.getFinalDamage();
 
+        // Record the last damager if applicable
+        if (event instanceof EntityDamageByEntityEvent edbe) {
+            Entity damager = edbe.getDamager();
+            if (damager instanceof Player playerDamager) {
+                mobInstance.setLastDamager(playerDamager.getUniqueId());
+            } else if (damager instanceof Projectile projectile) {
+                if (projectile.getShooter() instanceof Player playerShooter) {
+                    mobInstance.setLastDamager(playerShooter.getUniqueId());
+                }
+            }
+        }
+
         // Reduce custom HP
         double currentHp = mobInstance.getCurrentHp() - damage;
         mobInstance.setCurrentHp(currentHp);
@@ -225,14 +244,9 @@ public class MobManager implements Listener {
         if (currentHp <= 0) {
             // Mob dies
             activeMobs.remove(livingEntity.getUniqueId());
+
             // Handle mob death
-            LivingEntity killer = null;
-            if (event instanceof EntityDamageByEntityEvent edbe) {
-                if (edbe.getDamager() instanceof LivingEntity attacker) {
-                    killer = attacker;
-                }
-            }
-            handleMobDeath(mobInstance, killer);
+            handleMobDeath(mobInstance);
             livingEntity.remove();
         }
 
@@ -253,55 +267,111 @@ public class MobManager implements Listener {
      * Handles the death of a mob, awarding XP and dropping items.
      *
      * @param mobInstance The instance of the dead mob.
-     * @param killer      The entity that killed the mob.
      */
-    public void handleMobDeath(CustomMobInstance mobInstance, LivingEntity killer) {
+    public void handleMobDeath(CustomMobInstance mobInstance) {
         // Log mob death
         Bukkit.getLogger().log(Level.INFO, "Mob died: " + mobInstance.getCustomMob().getName());
 
-        if (killer instanceof Player player) {
-            double currencyReward = mobInstance.getCustomMob().getCurrencyReward();
+        UUID killerUUID = mobInstance.getLastDamager();
+        Bukkit.getLogger().log(Level.INFO, "Mob's last damager UUID: " + killerUUID);
 
-            // [ADDED] Define the chance for currency reward (100% for testing)
-            double currencyChance = 1.0; // 1.0 represents 100%
+        if (killerUUID != null) {
+            Player killer = Bukkit.getPlayer(killerUUID);
+            if (killer != null && killer.isOnline()) {
+                Bukkit.getLogger().log(Level.INFO, "Killer found: " + killer.getName());
+                int experienceReward = mobInstance.getCustomMob().getExperienceReward();
+                Bukkit.getLogger().log(Level.INFO, "Experience Reward: " + experienceReward);
 
-            if (random.nextDouble() <= currencyChance) {
-                if (economyHelper != null) {
-                    economyHelper.addBalance(player, currencyReward);
-                    player.sendMessage(ChatColor.GOLD + "You have received $" + currencyReward + " for killing " + mobInstance.getCustomMob().getName() + "!");
+                // Retrieve LevelModule instance when needed
+                LevelModule levelModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
+                if (levelModule != null) {
+                    Bukkit.getLogger().log(Level.INFO, "LevelModule found.");
+
+                    // Get the party members
+                    List<Player> partyMembers = new ArrayList<>();
+
+                    if (partyHelper != null) {
+                        Bukkit.getLogger().log(Level.INFO, "PartyHelper found.");
+                        Party party = partyHelper.getParty(killer.getUniqueId());
+                        if (party != null) {
+                            Bukkit.getLogger().log(Level.INFO, "Party found for killer. Party members:");
+                            // Get online members
+                            for (UUID memberUUID : party.getMembers()) {
+                                Player member = Bukkit.getPlayer(memberUUID);
+                                if (member != null && member.isOnline()) {
+                                    Bukkit.getLogger().log(Level.INFO, "- " + member.getName());
+                                    partyMembers.add(member);
+                                } else {
+                                    Bukkit.getLogger().log(Level.INFO, "- Member UUID " + memberUUID + " is offline or not found.");
+                                }
+                            }
+                        } else {
+                            Bukkit.getLogger().log(Level.INFO, "Killer is not in a party.");
+                            // Not in a party, only the killer
+                            partyMembers.add(killer);
+                        }
+                    } else {
+                        Bukkit.getLogger().log(Level.INFO, "PartyHelper not available.");
+                        // PartyHelper not available
+                        partyMembers.add(killer);
+                    }
+
+                    int partySize = partyMembers.size();
+                    Bukkit.getLogger().log(Level.INFO, "Party size: " + partySize);
+
+                    // Cap party size at 3
+                    if (partySize > 3) {
+                        partySize = 3;
+                        partyMembers = partyMembers.subList(0, 3);
+                    }
+
+                    int xpPerPlayer = experienceReward / partySize;
+                    Bukkit.getLogger().log(Level.INFO, "XP per player: " + xpPerPlayer);
+
+                    for (Player member : partyMembers) {
+                        Bukkit.getLogger().log(Level.INFO, "Adding XP to member: " + member.getName());
+                        levelModule.addXp(member, xpPerPlayer);
+                        // Show XP indicator at the mob's death location
+                        if (indicatorManager != null) {
+                            Location deathLocation = mobInstance.getEntity().getLocation();
+                            indicatorManager.showXPIndicator(deathLocation, xpPerPlayer);
+                        } else {
+                            Bukkit.getLogger().log(Level.WARNING, "IndicatorManager is not initialized.");
+                        }
+                        member.sendMessage(ChatColor.GREEN + "You received " + xpPerPlayer + " XP from killing " + mobInstance.getCustomMob().getName() + ".");
+                    }
                 } else {
-                    player.sendMessage(ChatColor.RED + "Economy system is not available. Cannot reward currency.");
+                    killer.sendMessage(ChatColor.RED + "Unable to add XP. LevelModule is not available.");
+                    Bukkit.getLogger().severe("LevelModule is not available. Cannot add XP to player.");
                 }
-            }
-            // [ADDED] Update quest progress in QuestModule
-            QuestModule questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
-            if (questModule != null) {
-                questModule.updateQuestProgressOnMobDeath(player, mobInstance.getCustomMob());
-            } else {
-                Bukkit.getLogger().warning("QuestModule is not available. Cannot update quest progress.");
-            }
-        }
 
-        // Give XP to the player who killed the mob
-        if (killer instanceof Player player) {
-            int experienceReward = mobInstance.getCustomMob().getExperienceReward();
+                // Currency reward (only the killer gets this)
+                double currencyReward = mobInstance.getCustomMob().getCurrencyReward();
 
-            // Retrieve LevelModule instance when needed
-            LevelModule levelModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
-            if (levelModule != null) {
-                levelModule.addXp(player, experienceReward);
+                // Define the chance for currency reward (100% for testing)
+                double currencyChance = 1.0; // 1.0 represents 100%
 
-                // Show XP indicator at the mob's death location
-                if (indicatorManager != null) {
-                    Location deathLocation = mobInstance.getEntity().getLocation();
-                    indicatorManager.showXPIndicator(deathLocation, experienceReward);
+                if (random.nextDouble() <= currencyChance) {
+                    if (economyHelper != null) {
+                        economyHelper.addBalance(killer, currencyReward);
+                        killer.sendMessage(ChatColor.GOLD + "You have received $" + currencyReward + " for killing " + mobInstance.getCustomMob().getName() + "!");
+                    } else {
+                        killer.sendMessage(ChatColor.RED + "Economy system is not available. Cannot reward currency.");
+                    }
+                }
+
+                // Update quest progress (only for the killer)
+                QuestModule questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
+                if (questModule != null) {
+                    questModule.updateQuestProgressOnMobDeath(killer, mobInstance.getCustomMob());
                 } else {
-                    Bukkit.getLogger().log(Level.WARNING, "IndicatorManager is not initialized.");
+                    Bukkit.getLogger().warning("QuestModule is not available. Cannot update quest progress.");
                 }
             } else {
-                player.sendMessage(ChatColor.RED + "Unable to add XP. LevelModule is not available.");
-                Bukkit.getLogger().severe("LevelModule is not available. Cannot add XP to player.");
+                Bukkit.getLogger().log(Level.WARNING, "Killer is null or offline.");
             }
+        } else {
+            Bukkit.getLogger().log(Level.WARNING, "Mob died but no killer was found.");
         }
 
         // Handle drops

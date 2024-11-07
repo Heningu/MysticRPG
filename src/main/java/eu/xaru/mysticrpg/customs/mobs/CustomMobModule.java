@@ -10,6 +10,7 @@ import eu.xaru.mysticrpg.guis.MobGUI;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
+import eu.xaru.mysticrpg.social.party.PartyModule;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -39,6 +40,12 @@ public class CustomMobModule implements IBaseModule, Listener {
     @Override
     public void initialize() {
         logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
+        // [ADDED] Ensure PartyModule is initialized before proceeding
+        PartyModule partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
+        if (partyModule == null) {
+            logger.error("PartyModule is not loaded. CustomMobModule requires PartyModule as a dependency.");
+            return;
+        }
 
         if (logger == null) {
             Bukkit.getLogger().severe("DebugLoggerModule not initialized. CustomMobModule cannot function without it.");
@@ -83,7 +90,7 @@ public class CustomMobModule implements IBaseModule, Listener {
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(DebugLoggerModule.class, LevelModule.class, EconomyModule.class);
+        return List.of(DebugLoggerModule.class, LevelModule.class, EconomyModule.class, PartyModule.class);
     }
 
     @Override

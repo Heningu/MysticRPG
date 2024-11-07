@@ -12,6 +12,7 @@ public class CustomMobInstance {
     private final String assignedArea;
     private final UUID mobUUID;
     private final LivingEntity entity;
+    private UUID lastDamager;
 
     // Custom HP tracking
     private double currentHp;
@@ -54,5 +55,13 @@ public class CustomMobInstance {
 
     public void setCurrentHp(double currentHp) {
         this.currentHp = currentHp;
+    }
+
+    public UUID getLastDamager() {
+        return lastDamager;
+    }
+
+    public void setLastDamager(UUID lastDamager) {
+        this.lastDamager = lastDamager;
     }
 }
