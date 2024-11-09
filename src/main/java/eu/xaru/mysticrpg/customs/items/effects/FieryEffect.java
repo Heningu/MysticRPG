@@ -16,6 +16,9 @@ public class FieryEffect implements Effect {
     public void apply(EntityDamageByEntityEvent event, Player player) {
         Entity target = event.getEntity();
         target.setFireTicks(60); // Sets the entity on fire for 3 seconds
+
+
+
     }
 
     @Override

@@ -3,6 +3,7 @@ package eu.xaru.mysticrpg.social.friends;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.utils.CustomInventoryManager;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -11,10 +12,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Utility class for creating and managing the Friends GUI.
@@ -88,7 +86,7 @@ public class FriendsGUI {
 
         Set<String> friendsUUIDs = playerData.getFriends();
         if (friendsUUIDs.isEmpty()) {
-            // Optionally, add an item indicating no friends
+            // Add an item indicating no friends
             ItemStack noFriends = getDefaultHead(ChatColor.GRAY + "No Friends");
             // Place it in the center slot (e.g., slot 22)
             CustomInventoryManager.addItemToSlot(inventory, 22, noFriends);
@@ -128,7 +126,12 @@ public class FriendsGUI {
             OfflinePlayer friend = player.getServer().getOfflinePlayer(friendUUID);
 
             // Create a player head for the friend
-            ItemStack head = getOfflinePlayerHead(friend);
+            ItemStack head;
+            if (friend.isOnline() && friend.getPlayer() != null) {
+                head = getPlayerHead(friend.getPlayer(), friendUUID);
+            } else {
+                head = getOfflineSkeletonHead(friend, friendUUID);
+            }
 
             // Assign the head to the appropriate slot
             if (i < middleSlots.length) {
@@ -140,37 +143,40 @@ public class FriendsGUI {
     }
 
     /**
-     * Creates a player head for an online player using the provided method.
+     * Creates a player head for an online player with UUID in lore.
      *
-     * @param player The online player.
+     * @param player     The online player.
+     * @param friendUUID The UUID of the friend.
      * @return The player head ItemStack.
      */
-    private static ItemStack getPlayerHead(Player player) {
+    private static ItemStack getPlayerHead(Player player, UUID friendUUID) {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) head.getItemMeta();
         if (meta != null) {
             meta.setOwningPlayer(player);
             meta.setDisplayName(ChatColor.YELLOW + player.getName());
+            meta.setLore(Collections.singletonList(friendUUID.toString())); // Embed UUID in lore
             head.setItemMeta(meta);
         }
         return head;
     }
 
     /**
-     * Creates a player head for an offline player.
+     * Creates a skeleton head for an offline player with "[Offline]" prefix and UUID in lore.
      *
      * @param offlinePlayer The offline player.
-     * @return The player head ItemStack.
+     * @param friendUUID    The UUID of the friend.
+     * @return The skeleton head ItemStack.
      */
-    private static ItemStack getOfflinePlayerHead(OfflinePlayer offlinePlayer) {
-        ItemStack head = new ItemStack(Material.PLAYER_HEAD);
-        SkullMeta meta = (SkullMeta) head.getItemMeta();
+    private static ItemStack getOfflineSkeletonHead(OfflinePlayer offlinePlayer, UUID friendUUID) {
+        ItemStack skeletonHead = new ItemStack(Material.SKELETON_SKULL);
+        SkullMeta meta = (SkullMeta) skeletonHead.getItemMeta();
         if (meta != null) {
-            meta.setOwningPlayer(offlinePlayer);
-            meta.setDisplayName(ChatColor.YELLOW + (offlinePlayer.getName() != null ? offlinePlayer.getName() : "Unknown"));
-            head.setItemMeta(meta);
+            meta.setDisplayName(ChatColor.YELLOW + "[Offline] " + (offlinePlayer.getName() != null ? offlinePlayer.getName() : "Unknown"));
+            meta.setLore(Collections.singletonList(friendUUID.toString())); // Embed UUID in lore
+            skeletonHead.setItemMeta(meta);
         }
-        return head;
+        return skeletonHead;
     }
 
     /**
@@ -183,11 +189,70 @@ public class FriendsGUI {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) head.getItemMeta();
         if (meta != null) {
-            // Optionally, set a default owning player or leave it empty
             meta.setDisplayName(displayName);
             head.setItemMeta(meta);
         }
         return head;
+    }
+
+    /**
+     * Opens the Friend Options GUI for the specified player and friend.
+     *
+     * @param player          The player who will see the GUI.
+     * @param cache           The cache containing player data.
+     * @param friendUUID      The UUID of the friend.
+     */
+    public static void openFriendOptionsGUI(Player player, PlayerDataCache cache, UUID friendUUID) {
+        // Retrieve the friend's name
+        OfflinePlayer friend = Bukkit.getOfflinePlayer(friendUUID);
+        String friendName = (friend.getName() != null) ? friend.getName() : "Unknown";
+
+        // Create an inventory with 9 slots (single row) titled "FRIENDNAME"
+        String inventoryTitle = ChatColor.translateAlternateColorCodes('&', friendName);
+        Inventory friendOptionsInventory = CustomInventoryManager.createInventory(9, inventoryTitle);
+
+        // Define placeholder for empty slots
+        ItemStack placeholder = CustomInventoryManager.createPlaceholder(Material.BLACK_STAINED_GLASS_PANE, " ");
+
+        // Fill all slots with placeholders first
+        for (int slot = 0; slot < 9; slot++) {
+            CustomInventoryManager.addItemToSlot(friendOptionsInventory, slot, placeholder);
+        }
+
+        // Add the friend's head to slot 0
+        ItemStack friendHead = new ItemStack(Material.PLAYER_HEAD);
+        SkullMeta meta = (SkullMeta) friendHead.getItemMeta();
+        if (meta != null) {
+            meta.setOwningPlayer(friend);
+            meta.setDisplayName(ChatColor.YELLOW + friendName);
+            meta.setLore(Collections.singletonList(friendUUID.toString())); // Embed UUID in lore
+            friendHead.setItemMeta(meta);
+        }
+        CustomInventoryManager.addItemToSlot(friendOptionsInventory, 0, friendHead);
+
+        // Define the buttons
+        // Slot 2: Invite to Party (Cake)
+        ItemStack inviteButton = new ItemStack(Material.CAKE);
+        CustomInventoryManager.setItemDisplayName(inviteButton, ChatColor.GREEN + "Invite to Party");
+        CustomInventoryManager.addItemToSlot(friendOptionsInventory, 2, inviteButton);
+
+        // Slot 4: Send a Message (Paper)
+        ItemStack messageButton = new ItemStack(Material.PAPER);
+        CustomInventoryManager.setItemDisplayName(messageButton, ChatColor.BLUE + "Send a Message");
+        CustomInventoryManager.addItemToSlot(friendOptionsInventory, 4, messageButton);
+
+        // Slot 6: Remove Friend (Redstone Block)
+        ItemStack removeButton = new ItemStack(Material.REDSTONE_BLOCK);
+        CustomInventoryManager.setItemDisplayName(removeButton, ChatColor.RED + "Remove Friend");
+        CustomInventoryManager.addItemToSlot(friendOptionsInventory, 6, removeButton);
+
+        // Slot 8: Back (Arrow)
+        ItemStack backButton = new ItemStack(Material.ARROW);
+        CustomInventoryManager.setItemDisplayName(backButton, ChatColor.GOLD + "Back");
+        CustomInventoryManager.addItemToSlot(friendOptionsInventory, 8, backButton);
+
+        // Open the inventory for the player
+        CustomInventoryManager.openInventory(player, friendOptionsInventory);
     }
 
     /**
@@ -217,24 +282,5 @@ public class FriendsGUI {
         String reminderStatus = remindersEnabled ? "ON" : "OFF";
         CustomInventoryManager.setItemDisplayName(reminderTorch, ChatColor.GOLD + "Reminders: " + reminderStatus);
         inventory.setItem(51, reminderTorch);
-
-        // Optional: Add pagination controls if multiple pages exist
-        /*
-        if (totalPages > 1) {
-            // Previous Page Button (e.g., Slot 45)
-            if (currentPage > 1) {
-                ItemStack prevPage = new ItemStack(Material.ARROW);
-                CustomInventoryManager.setItemDisplayName(prevPage, ChatColor.GREEN + "Previous Page");
-                inventory.setItem(45, prevPage);
-            }
-
-            // Next Page Button (e.g., Slot 53)
-            if (currentPage < totalPages) {
-                ItemStack nextPage = new ItemStack(Material.ARROW);
-                CustomInventoryManager.setItemDisplayName(nextPage, ChatColor.GREEN + "Next Page");
-                inventory.setItem(53, nextPage);
-            }
-        }
-        */
     }
 }

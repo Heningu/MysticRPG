@@ -14,18 +14,21 @@ import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.utils.CustomInventoryManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Consumer;
 
 /**
@@ -42,7 +45,13 @@ public class FriendsModule implements IBaseModule {
     private PartyHelper partyHelper;
 
     // Map to track players' current pages in the Friends GUI
-    private final java.util.Map<UUID, Integer> playerPages = new java.util.HashMap<>();
+    private final Map<UUID, Integer> playerPages = new HashMap<>();
+
+    // Map to track players' current pages in the Friend Requests GUI
+    private final Map<UUID, Integer> friendRequestsPages = new HashMap<>();
+
+    // Map to track players' selected friends for the Friend Options GUI
+    private final Map<UUID, UUID> openFriendOptions = new HashMap<>();
 
     /**
      * Initializes the FriendsModule by setting up necessary components.
@@ -111,7 +120,7 @@ public class FriendsModule implements IBaseModule {
      */
     @Override
     public EModulePriority getPriority() {
-        return EModulePriority.NORMAL;
+        return EModulePriority.LOW;
     }
 
     /**
@@ -201,7 +210,7 @@ public class FriendsModule implements IBaseModule {
             }
         });
 
-        // Handle InventoryClickEvent for the Friends GUI
+        // Handle InventoryClickEvent for the Friends GUI, Friend Requests GUI, and Friend Options GUI
         eventManager.registerEvent(InventoryClickEvent.class, (Consumer<InventoryClickEvent>) event -> {
             if (!(event.getWhoClicked() instanceof Player)) return;
 
@@ -212,51 +221,48 @@ public class FriendsModule implements IBaseModule {
             String inventoryTitle = ChatColor.stripColor(event.getView().getTitle());
             ItemStack clickedItem = event.getCurrentItem();
 
-            if (!inventoryTitle.equalsIgnoreCase("Friends")) return;
-
-            event.setCancelled(true); // Prevent taking items
-
-            if (clickedItem == null || !clickedItem.hasItemMeta()) {
-                return;
-            }
-
-            String itemName = ChatColor.stripColor(clickedItem.getItemMeta().getDisplayName());
-
-            switch (itemName) {
-                case "Friend Requests":
-                    // Open Friend Requests GUI or perform related action
-                    player.sendMessage(ChatColor.YELLOW + "Opening Friend Requests...");
-                    // Implement the Friend Requests GUI here
-                    // Example:
-                    // FriendRequestsGUI.openFriendRequestsGUI(player, playerDataCache, false, 1);
-                    break;
-
-                case "Close":
-                    player.closeInventory();
-                    break;
-
-                case "Reminders: ON":
-                case "Reminders: OFF":
-                    toggleReminders(player);
-                    break;
-
-                case "Previous Page":
-                    navigatePage(player, -1);
-                    break;
-
-                case "Next Page":
-                    navigatePage(player, 1);
-                    break;
-
-                default:
-                    // Handle clicks on friend heads if needed
-                    // For example, opening a profile view or sending a message
-                    // Implement additional cases as necessary
-                    break;
+            if (inventoryTitle.equalsIgnoreCase("Friends")) {
+                handleFriendsInventoryClick(event, player, clickedItem);
+                event.setCancelled(true); // Prevent item movement
+            } else if (inventoryTitle.equalsIgnoreCase("Friend Requests")) {
+                handleFriendRequestsInventoryClick(event, player, clickedItem);
+                event.setCancelled(true); // Prevent item movement
+            } else {
+                // Check if the inventory title matches any friend's name the player has open
+                UUID friendUUID = openFriendOptions.get(player.getUniqueId());
+                if (friendUUID != null) {
+                    String friendName = Bukkit.getOfflinePlayer(friendUUID).getName();
+                    if (inventoryTitle.equalsIgnoreCase(friendName)) {
+                        handleFriendOptionsInventoryClick(event, player, clickedItem, friendUUID);
+                        event.setCancelled(true); // Prevent item movement
+                        return;
+                    }
+                }
             }
         }, EventPriority.NORMAL);
 
-        // Handle InventoryCloseEvent to clean up page tracking
+        // Handle InventoryDragEvent for the Friends GUI, Friend Requests GUI, and Friend Options GUI
+        eventManager.registerEvent(InventoryDragEvent.class, (Consumer<InventoryDragEvent>) event -> {
+            String inventoryTitle = ChatColor.stripColor(event.getView().getTitle());
+            if ("Friends".equalsIgnoreCase(inventoryTitle) || "Friend Requests".equalsIgnoreCase(inventoryTitle)) {
+                event.setCancelled(true); // Prevent item dragging
+                Player player = (Player) event.getWhoClicked();
+                player.sendMessage(ChatColor.RED + "You cannot move items in this GUI.");
+            } else {
+                // Check if the inventory title matches any friend's name the player has open
+                Player player = (Player) event.getWhoClicked();
+                UUID friendUUID = openFriendOptions.get(player.getUniqueId());
+                if (friendUUID != null) {
+                    String friendName = Bukkit.getOfflinePlayer(friendUUID).getName();
+                    if (inventoryTitle.equalsIgnoreCase(friendName)) {
+                        event.setCancelled(true); // Prevent item dragging
+                        player.sendMessage(ChatColor.RED + "You cannot move items in this GUI.");
+                    }
+                }
+            }
+        }, EventPriority.NORMAL);
+
+        // Handle InventoryCloseEvent to clean up page tracking and sub-GUI tracking
         eventManager.registerEvent(org.bukkit.event.inventory.InventoryCloseEvent.class, (Consumer<org.bukkit.event.inventory.InventoryCloseEvent>) event -> {
             if (!(event.getPlayer() instanceof Player)) return;
 
@@ -266,8 +272,266 @@ public class FriendsModule implements IBaseModule {
             if (inventoryTitle.equalsIgnoreCase("Friends")) {
                 // Remove the player's page tracking
                 playerPages.remove(player.getUniqueId());
+            } else if (inventoryTitle.equalsIgnoreCase("Friend Requests")) {
+                // Remove the player's friend requests page tracking
+                friendRequestsPages.remove(player.getUniqueId());
+            } else {
+                // Check if the inventory title matches any friend's name the player has open
+                UUID friendUUID = openFriendOptions.get(player.getUniqueId());
+                if (friendUUID != null) {
+                    String friendName = Bukkit.getOfflinePlayer(friendUUID).getName();
+                    if (inventoryTitle.equalsIgnoreCase(friendName)) {
+                        // Remove the player's friend option tracking
+                        openFriendOptions.remove(player.getUniqueId());
+                    }
+                }
             }
         }, EventPriority.NORMAL);
+    }
+
+    /**
+     * Handles clicks within the Friends GUI.
+     *
+     * @param event       The InventoryClickEvent.
+     * @param player      The player who clicked.
+     * @param clickedItem The item that was clicked.
+     */
+    private void handleFriendsInventoryClick(InventoryClickEvent event, Player player, ItemStack clickedItem) {
+        if (clickedItem == null || !clickedItem.hasItemMeta()) {
+            return;
+        }
+
+        // Check if the clicked item is a player head or skeleton skull
+        Material itemType = clickedItem.getType();
+        if (itemType == Material.PLAYER_HEAD || itemType == Material.SKELETON_SKULL) {
+            // Handle friend head click
+            handleFriendHeadClick(event, player, clickedItem);
+            return;
+        }
+
+        // Handle other clickable items by their display name
+        String itemName = ChatColor.stripColor(clickedItem.getItemMeta().getDisplayName());
+
+        switch (itemName) {
+            case "Friend Requests":
+                // Open Friend Requests GUI
+                FriendRequestsGUI.openFriendRequestsGUI(player, playerDataCache, 1);
+                // Track the current page for the player
+                friendRequestsPages.put(player.getUniqueId(), 1);
+                break;
+
+            case "Close":
+                player.closeInventory();
+                break;
+
+            case "Reminders: ON":
+            case "Reminders: OFF":
+                toggleReminders(player);
+                break;
+
+            default:
+                // Do nothing for other items
+                break;
+        }
+    }
+
+    /**
+     * Handles clicks within the Friend Requests GUI.
+     *
+     * @param event       The InventoryClickEvent.
+     * @param player      The player who clicked.
+     * @param clickedItem The item that was clicked.
+     */
+    private void handleFriendRequestsInventoryClick(InventoryClickEvent event, Player player, ItemStack clickedItem) {
+        if (clickedItem == null || !clickedItem.hasItemMeta()) {
+            return;
+        }
+
+        // Check if the clicked item is the back button
+        String itemName = ChatColor.stripColor(clickedItem.getItemMeta().getDisplayName());
+
+        if (itemName.equalsIgnoreCase("Back") && clickedItem.getType() == Material.ARROW) {
+            // Remove the player's page tracking
+            friendRequestsPages.remove(player.getUniqueId());
+            // Reopen the main Friends GUI
+            FriendsGUI.openFriendsGUI(player, playerDataCache, false, 1);
+            return;
+        }
+
+        // Check if the clicked item is a player head or skeleton skull
+        Material itemType = clickedItem.getType();
+        if (itemType == Material.PLAYER_HEAD || itemType == Material.SKELETON_SKULL) {
+            // Determine if left or right click
+            boolean isLeftClick = event.isLeftClick();
+            boolean isRightClick = event.isRightClick();
+
+            if (isLeftClick || isRightClick) {
+                // Get the sender's UUID from the item's lore
+                SkullMeta meta = (SkullMeta) clickedItem.getItemMeta();
+                if (meta == null || !meta.hasLore()) {
+                    player.sendMessage(ChatColor.RED + "Unable to retrieve friend request information.");
+                    return;
+                }
+
+                List<String> lore = meta.getLore();
+                if (lore == null || lore.isEmpty()) {
+                    player.sendMessage(ChatColor.RED + "Unable to retrieve friend request information.");
+                    return;
+                }
+
+                String senderUUIDString = lore.get(0);
+                UUID senderUUID;
+                try {
+                    senderUUID = UUID.fromString(senderUUIDString);
+                } catch (IllegalArgumentException e) {
+                    player.sendMessage(ChatColor.RED + "Invalid friend request data.");
+                    return;
+                }
+
+                OfflinePlayer sender = Bukkit.getOfflinePlayer(senderUUID);
+
+                if (isLeftClick) {
+                    // Accept the friend request
+                    friendsHelper.acceptFriendRequest(player, sender.getName());
+                } else if (isRightClick) {
+                    // Deny the friend request
+                    friendsHelper.denyFriendRequest(player, sender.getName());
+                }
+
+                // Refresh the Friend Requests GUI
+                FriendRequestsGUI.openFriendRequestsGUI(player, playerDataCache, friendRequestsPages.getOrDefault(player.getUniqueId(), 1));
+            }
+            return;
+        }
+    }
+
+    /**
+     * Handles clicks within the Friend Options GUI.
+     *
+     * @param event      The InventoryClickEvent.
+     * @param player     The player who clicked.
+     * @param clickedItem The item that was clicked.
+     * @param friendUUID The UUID of the friend associated with this GUI.
+     */
+    private void handleFriendOptionsInventoryClick(InventoryClickEvent event, Player player, ItemStack clickedItem, UUID friendUUID) {
+        if (clickedItem == null || !clickedItem.hasItemMeta()) {
+            return;
+        }
+
+        String itemName = ChatColor.stripColor(clickedItem.getItemMeta().getDisplayName());
+
+        // Check if the clicked item is one of the button materials
+        Material itemType = clickedItem.getType();
+        if (!(itemType == Material.CAKE || itemType == Material.PAPER || itemType == Material.REDSTONE_BLOCK || itemType == Material.ARROW)) {
+            // Clicked item is a placeholder or unhandled, do nothing
+            return;
+        }
+
+        OfflinePlayer friend = Bukkit.getOfflinePlayer(friendUUID);
+        String friendName = (friend.getName() != null) ? friend.getName() : "Unknown";
+
+        switch (itemName) {
+            case "Invite to Party":
+                // Implement invite to party logic using PartyHelper
+                inviteFriendToParty(player, friend);
+                break;
+
+            case "Send a Message":
+                // Placeholder: Implement send message logic
+                player.sendMessage(ChatColor.YELLOW + "Send a Message clicked. (Not implemented yet)");
+                break;
+
+            case "Remove Friend":
+                // Remove the friend
+                friendsHelper.removeFriend(player, friend);
+                // Remove from map and reopen Friends GUI
+                openFriendOptions.remove(player.getUniqueId());
+                FriendsGUI.openFriendsGUI(player, playerDataCache, false, 1);
+                // Optionally, notify the player
+                player.sendMessage(ChatColor.GREEN + "Removed " + friendName + " from your friends list.");
+                break;
+
+            case "Back":
+                // Remove from map and reopen Friends GUI
+                openFriendOptions.remove(player.getUniqueId());
+                FriendsGUI.openFriendsGUI(player, playerDataCache, false, 1);
+                break;
+
+            default:
+                // Unknown item clicked
+                break;
+        }
+    }
+
+    /**
+     * Invites the friend to the party using PartyHelper.
+     *
+     * @param inviter The player sending the invitation.
+     * @param invitee The player being invited.
+     */
+    private void inviteFriendToParty(Player inviter, OfflinePlayer invitee) {
+        if (invitee == null || invitee.getUniqueId() == null) {
+            inviter.sendMessage(ChatColor.RED + "Unable to find the player to invite.");
+            return;
+        }
+
+        UUID inviterUUID = inviter.getUniqueId();
+        UUID inviteeUUID = invitee.getUniqueId();
+
+        // Ensure that the invitee is online to receive the invitation
+        if (!invitee.isOnline()) {
+            inviter.sendMessage(ChatColor.RED + invitee.getName() + " is not online.");
+            return;
+        }
+
+        Player inviteePlayer = invitee.getPlayer();
+        if (inviteePlayer == null) {
+            inviter.sendMessage(ChatColor.RED + "Unable to find the player to invite.");
+            return;
+        }
+
+        // Use PartyHelper to send the party invitation
+        partyHelper.invitePlayer(inviter, inviteePlayer);
+
+        // Optionally, you can add feedback to the inviter
+        inviter.sendMessage(ChatColor.GREEN + "You have invited " + invitee.getName() + " to your party.");
+    }
+
+    /**
+     * Handles clicks on friend heads within the Friends GUI.
+     *
+     * @param event       The InventoryClickEvent.
+     * @param player      The player who clicked.
+     * @param clickedItem The item that was clicked.
+     */
+    private void handleFriendHeadClick(InventoryClickEvent event, Player player, ItemStack clickedItem) {
+        // Get the friend's UUID from the item's lore
+        SkullMeta meta = (SkullMeta) clickedItem.getItemMeta();
+        if (meta == null || !meta.hasLore()) {
+            player.sendMessage(ChatColor.RED + "Unable to retrieve friend information.");
+            return;
+        }
+
+        List<String> lore = meta.getLore();
+        if (lore == null || lore.isEmpty()) {
+            player.sendMessage(ChatColor.RED + "Unable to retrieve friend information.");
+            return;
+        }
+
+        String friendUUIDString = lore.get(0);
+        UUID friendUUID;
+        try {
+            friendUUID = UUID.fromString(friendUUIDString);
+        } catch (IllegalArgumentException e) {
+            player.sendMessage(ChatColor.RED + "Invalid friend data.");
+            return;
+        }
+
+        // Track the selected friend in the map
+        openFriendOptions.put(player.getUniqueId(), friendUUID);
+
+        // Open the Friend Options GUI
+        FriendsGUI.openFriendOptionsGUI(player, playerDataCache, friendUUID);
     }
 
     /**
@@ -300,13 +564,28 @@ public class FriendsModule implements IBaseModule {
     /**
      * Navigates to the next or previous page in the Friends GUI.
      *
-     * @param player The player navigating the GUI.
+     * @param player    The player navigating the GUI.
      * @param direction The direction to navigate (-1 for previous, 1 for next).
      */
     private void navigatePage(Player player, int direction) {
         UUID playerUUID = player.getUniqueId();
         int currentPage = playerPages.getOrDefault(playerUUID, 1);
         int newPage = currentPage + direction;
+
+        // Retrieve total pages
+        PlayerData playerData = playerDataCache.getCachedPlayerData(playerUUID);
+        if (playerData == null) return;
+
+        Set<String> friendsUUIDs = playerData.getFriends();
+        int friendsPerPage = 28;
+        int totalPages = (int) Math.ceil((double) friendsUUIDs.size() / friendsPerPage);
+        newPage = Math.max(1, Math.min(newPage, totalPages));
+
+        if (newPage == currentPage) {
+            // Already at the boundary; do nothing or notify the player
+            player.sendMessage(ChatColor.RED + "No more pages in that direction.");
+            return;
+        }
 
         // Update the page tracking
         playerPages.put(playerUUID, newPage);
