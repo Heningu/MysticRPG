@@ -1,15 +1,7 @@
 package eu.xaru.mysticrpg.storage;
 
-import org.bukkit.inventory.ItemStack;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 
-/**
- * Represents the data associated with a player.
- */
 public class PlayerData {
     private String uuid;
     private double balance;
@@ -28,10 +20,9 @@ public class PlayerData {
     private Map<String, Map<String, Integer>> questProgress;
     private List<String> completedQuests;
     private String pinnedQuest;
-
-    // New fields for pending transactions
+    private boolean remindersEnabled;
     private double pendingBalance;
-    private List<String> pendingItems; // List of Base64 encoded ItemStacks
+    private List<String> pendingItems;
 
     public PlayerData() {
         // Default constructor for MongoDB POJO codec
@@ -42,7 +33,8 @@ public class PlayerData {
                       Set<String> friendRequests, Set<String> friends, Set<String> blockedPlayers,
                       boolean blockingRequests, int attributePoints, List<String> activeQuests,
                       Map<String, Map<String, Integer>> questProgress, List<String> completedQuests,
-                      String pinnedQuest, double pendingBalance, List<String> pendingItems) {
+                      String pinnedQuest, double pendingBalance, List<String> pendingItems,
+                      boolean remindersEnabled) {
         this.uuid = uuid;
         this.balance = balance;
         this.xp = xp;
@@ -62,10 +54,10 @@ public class PlayerData {
         this.pinnedQuest = pinnedQuest;
         this.pendingBalance = pendingBalance;
         this.pendingItems = pendingItems;
+        this.remindersEnabled = remindersEnabled;
     }
 
     public static PlayerData defaultData(String uuid) {
-        // Adjusting only quest-related parts to use mutable collections
         return new PlayerData(
                 uuid,
                 0.0,
@@ -73,47 +65,58 @@ public class PlayerData {
                 1,
                 100,
                 20,
-                Map.of("HP", 20, "MANA", 10, "Vitality", 1, "Intelligence", 1, "Dexterity", 1, "Strength", 1),
-                Map.of(),
-                Set.of(),
-                Set.of(),
-                Set.of(),
+                new HashMap<>(Map.of("HP", 20, "MANA", 10, "Vitality", 1, "Intelligence", 1, "Dexterity", 1, "Strength", 1)),
+                new HashMap<>(),
+                new HashSet<>(),
+                new HashSet<>(),
+                new HashSet<>(),
                 false,
                 1,
-                new ArrayList<>(), // Mutable list for activeQuests
-                new HashMap<>(),    // Mutable map for questProgress
-                new ArrayList<>(),  // Mutable list for completedQuests
+                new ArrayList<>(),
+                new HashMap<>(),
+                new ArrayList<>(),
                 null,
-                0.0,                // Pending balance initialized to 0.0
-                new ArrayList<>()   // Empty list for pending items
+                0.0,
+                new ArrayList<>(),
+                true // Reminders enabled by default
         );
     }
 
-    // Getters and setters
-    // Existing getters and setters...
-
-    public double getPendingBalance() {
-        return pendingBalance;
-    }
-
-    public void setPendingBalance(double pendingBalance) {
-        this.pendingBalance = pendingBalance;
-    }
-
-    public List<String> getPendingItems() {
-        if (pendingItems == null) {
-            pendingItems = new ArrayList<>();
+    /**
+     * Ensures that collections are mutable after deserialization.
+     */
+    public void ensureMutableCollections() {
+        if (!(friendRequests instanceof HashSet)) {
+            friendRequests = new HashSet<>(friendRequests);
         }
-        return pendingItems;
+        if (!(friends instanceof HashSet)) {
+            friends = new HashSet<>(friends);
+        }
+        if (!(blockedPlayers instanceof HashSet)) {
+            blockedPlayers = new HashSet<>(blockedPlayers);
+        }
+        if (!(attributes instanceof HashMap)) {
+            attributes = new HashMap<>(attributes);
+        }
+        if (!(unlockedRecipes instanceof HashMap)) {
+            unlockedRecipes = new HashMap<>(unlockedRecipes);
+        }
+        if (!(activeQuests instanceof ArrayList)) {
+            activeQuests = new ArrayList<>(activeQuests);
+        }
+        if (!(questProgress instanceof HashMap)) {
+            questProgress = new HashMap<>(questProgress);
+        }
+        if (!(completedQuests instanceof ArrayList)) {
+            completedQuests = new ArrayList<>(completedQuests);
+        }
+        if (!(pendingItems instanceof ArrayList)) {
+            pendingItems = new ArrayList<>(pendingItems);
+        }
     }
 
-    public void setPendingItems(List<String> pendingItems) {
-        this.pendingItems = pendingItems;
-    }
+    // Getters and setters for all fields
 
-    // Existing methods...
-
-    // Other getters and setters
     public String getUuid() {
         return uuid;
     }
@@ -142,16 +145,16 @@ public class PlayerData {
         return level;
     }
 
-    public void setLevel(int level) {
-        this.level = level;
-    }
-
     public int getNextLevelXP() {
         return nextLevelXP;
     }
 
     public void setNextLevelXP(int nextLevelXP) {
         this.nextLevelXP = nextLevelXP;
+    }
+
+    public void setLevel(int level) {
+        this.level = level;
     }
 
     public int getCurrentHp() {
@@ -219,9 +222,6 @@ public class PlayerData {
     }
 
     public List<String> getActiveQuests() {
-        if (activeQuests == null) {
-            activeQuests = new ArrayList<>();
-        }
         return activeQuests;
     }
 
@@ -230,9 +230,6 @@ public class PlayerData {
     }
 
     public Map<String, Map<String, Integer>> getQuestProgress() {
-        if (questProgress == null) {
-            questProgress = new HashMap<>();
-        }
         return questProgress;
     }
 
@@ -241,9 +238,6 @@ public class PlayerData {
     }
 
     public List<String> getCompletedQuests() {
-        if (completedQuests == null) {
-            completedQuests = new ArrayList<>();
-        }
         return completedQuests;
     }
 
@@ -257,5 +251,29 @@ public class PlayerData {
 
     public void setPinnedQuest(String pinnedQuest) {
         this.pinnedQuest = pinnedQuest;
+    }
+
+    public boolean isRemindersEnabled() {
+        return remindersEnabled;
+    }
+
+    public void setRemindersEnabled(boolean remindersEnabled) {
+        this.remindersEnabled = remindersEnabled;
+    }
+
+    public double getPendingBalance() {
+        return pendingBalance;
+    }
+
+    public void setPendingBalance(double pendingBalance) {
+        this.pendingBalance = pendingBalance;
+    }
+
+    public List<String> getPendingItems() {
+        return pendingItems;
+    }
+
+    public void setPendingItems(List<String> pendingItems) {
+        this.pendingItems = pendingItems;
     }
 }
