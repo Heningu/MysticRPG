@@ -2,3 +2,5 @@
 storage:
   type: local # Options: local, mongodb
 mongoURL: ""
+discordBotToken: ""
+discordGuildId: "1265708766100324415"

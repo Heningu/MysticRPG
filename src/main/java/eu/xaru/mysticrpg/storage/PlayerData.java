@@ -24,6 +24,9 @@ public class PlayerData {
     private double pendingBalance;
     private List<String> pendingItems;
 
+    // New field for Discord User ID (nullable)
+    private Long discordId;
+
     public PlayerData() {
         // Default constructor for MongoDB POJO codec
     }
@@ -34,7 +37,7 @@ public class PlayerData {
                       boolean blockingRequests, int attributePoints, List<String> activeQuests,
                       Map<String, Map<String, Integer>> questProgress, List<String> completedQuests,
                       String pinnedQuest, double pendingBalance, List<String> pendingItems,
-                      boolean remindersEnabled) {
+                      boolean remindersEnabled, Long discordId) { // Updated constructor
         this.uuid = uuid;
         this.balance = balance;
         this.xp = xp;
@@ -55,6 +58,7 @@ public class PlayerData {
         this.pendingBalance = pendingBalance;
         this.pendingItems = pendingItems;
         this.remindersEnabled = remindersEnabled;
+        this.discordId = discordId;
     }
 
     public static PlayerData defaultData(String uuid) {
@@ -78,7 +82,8 @@ public class PlayerData {
                 null,
                 0.0,
                 new ArrayList<>(),
-                true // Reminders enabled by default
+                true, // Reminders enabled by default
+                null  // Discord ID initially null
         );
     }
 
@@ -275,5 +280,15 @@ public class PlayerData {
 
     public void setPendingItems(List<String> pendingItems) {
         this.pendingItems = pendingItems;
+    }
+
+    // New getter and setter for Discord ID
+
+    public Long getDiscordId() {
+        return discordId;
+    }
+
+    public void setDiscordId(Long discordId) {
+        this.discordId = discordId;
     }
 }

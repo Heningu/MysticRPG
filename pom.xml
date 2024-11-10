@@ -59,6 +59,13 @@
             <scope>compile</scope>
         </dependency>
 
+        <dependency>
+            <groupId>net.dv8tion</groupId>
+            <artifactId>JDA</artifactId>
+            <version>5.2.0</version>
+        </dependency>
+
+
         <!-- PlaceholderAPI for placeholder management in Minecraft -->
         <dependency>
             <groupId>me.clip</groupId>
@@ -145,11 +152,18 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <minimizeJar>true</minimizeJar>
                     <relocations>
                         <relocation>
                             <pattern>net.kyori.adventure</pattern>
                             <shadedPattern>eu.xaru.mysticrpg.shaded.net.kyori.adventure</shadedPattern>
                         </relocation>
+
+                        <relocation>
+                            <pattern>net.dv8tion.jda</pattern>
+                            <shadedPattern>eu.xaru.mysticrpg.discord.shaded.jda</shadedPattern>
+                        </relocation>
+
 
                         <relocation>
                             <pattern>io.github.classgraph</pattern>

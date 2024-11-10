@@ -23,6 +23,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.*;
 import java.util.Base64;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 
 import static org.bson.codecs.configuration.CodecRegistries.*;
@@ -35,6 +36,28 @@ public class SaveHelper {
     private final MongoCollection<PlayerData> playerCollection;
     private final MongoCollection<Auction> auctionCollection; // Collection for auctions
     private final DebugLoggerModule logger;
+
+    // Listener mechanism to notify external modules (e.g., DiscordModule) about data changes
+    private final List<PlayerDataListener> listeners = new CopyOnWriteArrayList<>();
+
+    /**
+     * Interface for listeners to receive player data events.
+     */
+    public interface PlayerDataListener {
+        /**
+         * Called when all player data has been loaded.
+         *
+         * @param players List of all loaded PlayerData.
+         */
+        void onAllPlayersLoaded(List<PlayerData> players);
+
+        /**
+         * Called when a specific player's data has been updated.
+         *
+         * @param playerData The updated PlayerData.
+         */
+        void onPlayerDataUpdated(PlayerData playerData);
+    }
 
     /**
      * Constructor for SaveHelper.
@@ -80,6 +103,50 @@ public class SaveHelper {
         }
     }
 
+    // -------------------------- Listener Registration Methods --------------------------
+
+    /**
+     * Registers a PlayerDataListener to receive player data events.
+     *
+     * @param listener The listener to register.
+     */
+    public void addPlayerDataListener(PlayerDataListener listener) {
+        listeners.add(listener);
+        logger.log(Level.INFO, "PlayerDataListener added: " + listener.getClass().getName(), 0);
+    }
+
+    /**
+     * Unregisters a PlayerDataListener.
+     *
+     * @param listener The listener to unregister.
+     */
+    public void removePlayerDataListener(PlayerDataListener listener) {
+        listeners.remove(listener);
+        logger.log(Level.INFO, "PlayerDataListener removed: " + listener.getClass().getName(), 0);
+    }
+
+    /**
+     * Notifies all registered listeners that all players have been loaded.
+     *
+     * @param players List of all loaded PlayerData.
+     */
+    private void notifyAllPlayersLoaded(List<PlayerData> players) {
+        for (PlayerDataListener listener : listeners) {
+            listener.onAllPlayersLoaded(players);
+        }
+    }
+
+    /**
+     * Notifies all registered listeners that a player's data has been updated.
+     *
+     * @param playerData The updated PlayerData.
+     */
+    private void notifyPlayerDataUpdated(PlayerData playerData) {
+        for (PlayerDataListener listener : listeners) {
+            listener.onPlayerDataUpdated(playerData);
+        }
+    }
+
     // -------------------------- Player Data Methods --------------------------
 
     /**
@@ -121,6 +188,7 @@ public class SaveHelper {
                         public void onSuccess(Void result) {
                             logger.log(Level.INFO, "Successfully saved data for new player UUID: " + newPlayerData.getUuid(), 0);
                             callback.onSuccess(newPlayerData);
+                            notifyPlayerDataUpdated(newPlayerData); // Notify listeners about the new player data
                         }
 
                         @Override
@@ -132,6 +200,7 @@ public class SaveHelper {
                 } else {
                     logger.log(Level.INFO, "Successfully loaded data for UUID: " + uuidString, 0);
                     callback.onSuccess(playerData);
+                    notifyPlayerDataUpdated(playerData); // Notify listeners about the loaded player data
                 }
             }
         });
@@ -166,6 +235,7 @@ public class SaveHelper {
             public void onComplete() {
                 logger.log(Level.INFO, "Successfully saved data for UUID: " + playerData.getUuid(), 0);
                 callback.onSuccess(null);
+                notifyPlayerDataUpdated(playerData); // Notify listeners about the updated player data
             }
         });
     }
@@ -317,7 +387,55 @@ public class SaveHelper {
                 .register();
     }
 
-    // Utility methods for serializing and deserializing ItemStacks
+    // -------------------------- New Method: loadAllPlayers --------------------------
+
+    /**
+     * Loads all PlayerData entries from the database and notifies listeners.
+     *
+     * @param callback Callback to handle success or failure.
+     */
+    public void loadAllPlayers(Callback<List<PlayerData>> callback) {
+        logger.log(Level.INFO, "Attempting to load all player data from the database.", 0);
+        List<PlayerData> allPlayerData = new ArrayList<>();
+        playerCollection.find().subscribe(new Subscriber<PlayerData>() {
+            @Override
+            public void onSubscribe(Subscription s) {
+                s.request(Long.MAX_VALUE); // Request all data
+            }
+
+            @Override
+            public void onNext(PlayerData playerData) {
+                // Parse UUID from the UUID string
+                UUID playerUUID;
+                try {
+                    playerUUID = UUID.fromString(playerData.getUuid());
+                } catch (IllegalArgumentException e) {
+                    logger.error("Invalid UUID format for player data: " + playerData.getUuid());
+                    return; // Skip this entry
+                }
+                // Add to the list
+                allPlayerData.add(playerData);
+                logger.log(Level.INFO, "Loaded player data for UUID: " + playerUUID, 0);
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                logger.error("Error loading all player data: " + t.getMessage());
+                callback.onFailure(t);
+            }
+
+            @Override
+            public void onComplete() {
+                logger.log(Level.INFO, "Successfully loaded all player data. Total players loaded: " + allPlayerData.size(), 0);
+                callback.onSuccess(allPlayerData);
+                notifyAllPlayersLoaded(allPlayerData); // Notify listeners about all loaded players
+            }
+        });
+    }
+
+    // ---------------------- End of New Method -----------------------
+
+    // -------------------------- Utility Methods --------------------------
 
     /**
      * Serializes an ItemStack to a Base64 encoded string.

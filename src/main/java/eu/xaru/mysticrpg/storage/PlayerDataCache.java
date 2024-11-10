@@ -4,7 +4,9 @@ import dev.jorel.commandapi.CommandAPICommand;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -144,6 +146,15 @@ public class PlayerDataCache {
         return cache.keySet();
     }
 
+    /**
+     * New Method Added: Retrieves all cached PlayerData instances.
+     *
+     * @return A list containing all PlayerData objects in the cache.
+     */
+    public List<PlayerData> getAllCachedPlayerData() {
+        return new ArrayList<>(cache.values());
+    }
+
     // Registering the checkCachedData Command
     private void registerCheckCachedDataCommand() {
         new CommandAPICommand("checkCachedData")
@@ -161,7 +172,7 @@ public class PlayerDataCache {
                         player.sendMessage("Next Level XP: " + playerData.getNextLevelXP());
                         player.sendMessage("Current HP: " + playerData.getCurrentHp());
                         player.sendMessage("Attributes: " + playerData.getAttributes().toString());
-                        player.sendMessage("attributePoints" + playerData.getAttributePoints());
+                        player.sendMessage("Attribute Points: " + playerData.getAttributePoints());
                         player.sendMessage("Unlocked Recipes: " + playerData.getUnlockedRecipes().toString());
                         player.sendMessage("Friend Requests: " + playerData.getFriendRequests().toString());
                         player.sendMessage("Friends: " + playerData.getFriends().toString());
