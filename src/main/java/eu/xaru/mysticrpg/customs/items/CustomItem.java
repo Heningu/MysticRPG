@@ -182,7 +182,7 @@ public class CustomItem {
             if (enchantedEffect) {
                 meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
                 itemStack.setItemMeta(meta);
-                itemStack.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.DURABILITY, 1);
+                itemStack.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.UNBREAKING, 1);
             } else {
                 itemStack.setItemMeta(meta);
             }

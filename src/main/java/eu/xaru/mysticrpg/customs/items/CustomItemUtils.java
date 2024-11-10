@@ -287,7 +287,7 @@ public class CustomItemUtils {
         if (meta == null) return;
 
         // Add enchanted effect without actual enchantments
-        meta.addEnchant(Enchantment.DURABILITY, 1, true);
+        meta.addEnchant(Enchantment.UNBREAKING, 1, true);
         meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
 
         itemStack.setItemMeta(meta);

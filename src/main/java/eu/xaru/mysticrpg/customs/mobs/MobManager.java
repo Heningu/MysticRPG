@@ -5,7 +5,6 @@ import eu.xaru.mysticrpg.customs.items.CustomItemModule;
 import eu.xaru.mysticrpg.customs.items.ItemManager;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.player.IndicatorManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.quests.QuestModule;
 import eu.xaru.mysticrpg.social.party.Party;
@@ -36,7 +35,7 @@ public class MobManager implements Listener {
     private final Map<UUID, CustomMobInstance> activeMobs = new HashMap<>();
     private final Random random = new Random();
     private final ItemManager itemManager;
-    private final IndicatorManager indicatorManager;
+    
     private final EconomyHelper economyHelper;
     private final PartyHelper partyHelper;
 
@@ -45,7 +44,7 @@ public class MobManager implements Listener {
         this.economyHelper = economyHelper;
         this.mobConfigurations = mobConfigurations;
         this.itemManager = ModuleManager.getInstance().getModuleInstance(CustomItemModule.class).getItemManager();
-        this.indicatorManager = ModuleManager.getInstance().getModuleInstance(IndicatorManager.class);
+        
 
         // Get PartyHelper instance
         PartyModule partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
@@ -78,7 +77,7 @@ public class MobManager implements Listener {
         // Set custom HP and name tag
         mob.setCustomName(createMobNameTag(customMob, customMob.getHealth()));
         mob.setCustomNameVisible(true);
-        AttributeInstance maxHealthAttr = mob.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+        AttributeInstance maxHealthAttr = mob.getAttribute(Attribute.MAX_HEALTH);
         if (maxHealthAttr != null) {
             maxHealthAttr.setBaseValue(customMob.getHealth());
         }
@@ -98,19 +97,19 @@ public class MobManager implements Listener {
      */
     private void applyCustomAttributes(LivingEntity mob, CustomMob customMob) {
         // Apply movement speed
-        AttributeInstance speedAttribute = mob.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
+        AttributeInstance speedAttribute = mob.getAttribute(Attribute.MOVEMENT_SPEED);
         if (speedAttribute != null) {
             speedAttribute.setBaseValue(customMob.getMovementSpeed());
         }
 
         // Apply base armor
-        AttributeInstance armorAttribute = mob.getAttribute(Attribute.GENERIC_ARMOR);
+        AttributeInstance armorAttribute = mob.getAttribute(Attribute.ARMOR);
         if (armorAttribute != null) {
             armorAttribute.setBaseValue(customMob.getBaseArmor());
         }
 
         // Apply base damage
-        AttributeInstance damageAttribute = mob.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE);
+        AttributeInstance damageAttribute = mob.getAttribute(Attribute.ATTACK_DAMAGE);
         if (damageAttribute != null) {
             damageAttribute.setBaseValue(customMob.getBaseDamage());
         }
@@ -230,15 +229,6 @@ public class MobManager implements Listener {
         // Update name tag
         livingEntity.setCustomName(createMobNameTag(customMob, currentHp));
 
-        // Show damage indicator at mob's location
-        if (indicatorManager != null && damage > 0) {
-            Location location = livingEntity.getLocation().clone().add(0, livingEntity.getHeight() / 2, 0);
-            indicatorManager.showDamageIndicator(location, damage);
-        } else {
-            if (indicatorManager == null) {
-                Bukkit.getLogger().log(Level.WARNING, "IndicatorManager is not initialized.");
-            }
-        }
 
         // Check if mob is dead
         if (currentHp <= 0) {
@@ -332,12 +322,7 @@ public class MobManager implements Listener {
                         Bukkit.getLogger().log(Level.INFO, "Adding XP to member: " + member.getName());
                         levelModule.addXp(member, xpPerPlayer);
                         // Show XP indicator at the mob's death location
-                        if (indicatorManager != null) {
-                            Location deathLocation = mobInstance.getEntity().getLocation();
-                            indicatorManager.showXPIndicator(deathLocation, xpPerPlayer);
-                        } else {
-                            Bukkit.getLogger().log(Level.WARNING, "IndicatorManager is not initialized.");
-                        }
+
                         member.sendMessage(ChatColor.GREEN + "You received " + xpPerPlayer + " XP from killing " + mobInstance.getCustomMob().getName() + ".");
                     }
                 } else {

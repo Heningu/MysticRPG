@@ -1,6 +1,10 @@
 # MysticRPG Configuration
-storage:
-  type: local # Options: local, mongodb
-mongoURL: ""
+database:
+  type: sqlite # or sqlite
+  mongo:
+    connectionString: "mongodb://localhost:27017"
+    databaseName: "xarumystic"
+  sqlite:
+    path: "plugins/MysticRPG/database.db"
 discordBotToken: ""
 discordGuildId: "1265708766100324415"

@@ -1,33 +1,49 @@
 package eu.xaru.mysticrpg.storage;
 
-import dev.jorel.commandapi.CommandAPICommand;
+import eu.xaru.mysticrpg.storage.database.DatabaseManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import dev.jorel.commandapi.CommandAPICommand;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Level;
 
 public class PlayerDataCache {
 
     private static PlayerDataCache instance;
-    private final Map<UUID, PlayerData> cache = new HashMap<>();
-    private final SaveHelper saveHelper;
+    private final Map<UUID, PlayerData> cache = Collections.synchronizedMap(new HashMap<>());
+    private final DatabaseManager databaseManager;
     private final DebugLoggerModule logger;
 
-    private PlayerDataCache(SaveHelper saveHelper, DebugLoggerModule logger) {
-        this.saveHelper = saveHelper;
+    // Private constructor to prevent direct instantiation
+    private PlayerDataCache(DatabaseManager databaseManager, DebugLoggerModule logger) {
+        this.databaseManager = databaseManager;
         this.logger = logger;
         registerCheckCachedDataCommand();
     }
 
-    public static PlayerDataCache getInstance(SaveHelper saveHelper, DebugLoggerModule logger) {
+    /**
+     * Initializes the singleton instance. Should be called once during plugin initialization.
+     *
+     * @param databaseManager The DatabaseManager instance.
+     * @param logger           The DebugLoggerModule instance.
+     */
+    public static synchronized void initialize(DatabaseManager databaseManager, DebugLoggerModule logger) {
         if (instance == null) {
-            instance = new PlayerDataCache(saveHelper, logger);
+            instance = new PlayerDataCache(databaseManager, logger);
+        } else {
+            logger.log(Level.WARNING, "PlayerDataCache is already initialized.", 0);
+        }
+    }
+
+    /**
+     * Retrieves the singleton instance.
+     *
+     * @return The PlayerDataCache instance.
+     */
+    public static PlayerDataCache getInstance() {
+        if (instance == null) {
+            throw new IllegalStateException("PlayerDataCache is not initialized. Call initialize() first.");
         }
         return instance;
     }
@@ -35,7 +51,7 @@ public class PlayerDataCache {
     // Load data into cache when player joins
     public void loadPlayerData(UUID playerUUID, Callback<PlayerData> callback) {
         logger.log(Level.INFO, "Attempting to load player data for UUID: " + playerUUID, 0);
-        saveHelper.loadPlayer(playerUUID, new Callback<PlayerData>() {
+        databaseManager.loadPlayerData(playerUUID, new Callback<PlayerData>() {
             @Override
             public void onSuccess(PlayerData playerData) {
                 cache.put(playerUUID, playerData);
@@ -55,7 +71,7 @@ public class PlayerDataCache {
     public void savePlayerData(UUID playerUUID, Callback<Void> callback) {
         PlayerData playerData = cache.get(playerUUID);
         if (playerData != null) {
-            saveHelper.savePlayer(playerData, new Callback<Void>() {
+            databaseManager.savePlayerData(playerData, new Callback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
                     logger.log(Level.INFO, "Player data saved to database for UUID: " + playerUUID, 0);
@@ -69,9 +85,9 @@ public class PlayerDataCache {
                 }
             });
         } else {
-            logger.error("No cached data found for player: " + playerUUID);
+            logger.error("No cached data found for player UUID: " + playerUUID);
             logger.log(Level.INFO, "Current cache contents: " + cache.toString(), 0);
-            callback.onFailure(new IllegalStateException("No cached data found for player: " + playerUUID));
+            callback.onFailure(new IllegalStateException("No cached data found for player UUID: " + playerUUID));
         }
     }
 
@@ -144,15 +160,6 @@ public class PlayerDataCache {
 
     public Set<UUID> getAllCachedPlayerUUIDs() {
         return cache.keySet();
-    }
-
-    /**
-     * New Method Added: Retrieves all cached PlayerData instances.
-     *
-     * @return A list containing all PlayerData objects in the cache.
-     */
-    public List<PlayerData> getAllCachedPlayerData() {
-        return new ArrayList<>(cache.values());
     }
 
     // Registering the checkCachedData Command

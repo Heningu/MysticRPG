@@ -8,6 +8,7 @@ import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
+import eu.xaru.mysticrpg.storage.database.DatabaseManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -26,7 +27,7 @@ import java.util.logging.Level;
  */
 public class SaveModule implements IBaseModule {
 
-    private SaveHelper saveHelper;
+    private DatabaseManager databaseManager;
     private PlayerDataCache playerDataCache;
     private DebugLoggerModule logger;
     private EconomyHelper economyHelper;
@@ -34,21 +35,24 @@ public class SaveModule implements IBaseModule {
     // EventManager to handle player join and quit events
     private final EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
 
+    public PlayerDataCache getPlayerDataCache() {
+        return playerDataCache;
+    }
+
     @Override
     public void initialize() {
         // Initialize logger
         logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
 
-        // Retrieve MongoDB connection string from configuration
-        String connectionString = Bukkit.getPluginManager().getPlugin("MysticRPG").getConfig().getString("mongoURL");
-        try {
-            // Initialize SaveHelper with MongoDB connection
-            saveHelper = new SaveHelper(connectionString, "xarumystic", "playerData", logger);
-            playerDataCache = PlayerDataCache.getInstance(saveHelper, logger); // Use Singleton pattern
-            logger.log(Level.INFO, "SaveModule initialized", 0);
-        } catch (Exception e) {
-            logger.error("Failed to initialize SaveModule: " + e.getMessage());
-        }
+        // Initialize DatabaseManager
+        DatabaseManager.initialize(logger);
+        databaseManager = DatabaseManager.getInstance();
+
+        // Initialize PlayerDataCache
+        PlayerDataCache.initialize(databaseManager, logger);
+        playerDataCache = PlayerDataCache.getInstance();
+
+        logger.log(Level.INFO, "SaveModule initialized", 0);
     }
 
     @Override
@@ -68,10 +72,12 @@ public class SaveModule implements IBaseModule {
         eventManager.registerEvent(PlayerJoinEvent.class, (event) -> {
             Player player = event.getPlayer();
             UUID playerUUID = player.getUniqueId();
-            loadPlayerData(player, new Callback<PlayerData>() {
+            logger.log(Level.INFO, "SaveModule: Loading data for player: " + player.getName(), 0);
+
+            playerDataCache.loadPlayerData(playerUUID, new Callback<PlayerData>() {
                 @Override
                 public void onSuccess(PlayerData playerData) {
-                    logger.log(Level.INFO, "Player data loaded and cached for " + player.getName(), 0);
+                    logger.log(Level.INFO, "SaveModule$1: Player data loaded and cached for " + player.getName(), 0);
 
                     // Check for pending balance
                     if (playerData.getPendingBalance() > 0) {
@@ -79,6 +85,7 @@ public class SaveModule implements IBaseModule {
                         playerData.setBalance(playerData.getBalance() + pendingBalance);
                         playerData.setPendingBalance(0.0);
                         player.sendMessage(ChatColor.GREEN + "You have received $" + economyHelper.formatBalance(pendingBalance) + " from your sold auctions.");
+                        logger.log(Level.INFO, "Applied pending balance for " + player.getName(), 0);
                     }
 
                     // Check for pending items
@@ -91,25 +98,29 @@ public class SaveModule implements IBaseModule {
                         }
                         playerData.getPendingItems().clear();
                         player.sendMessage(ChatColor.GREEN + "You have received items from your expired auctions.");
+                        logger.log(Level.INFO, "Applied pending items for " + player.getName(), 0);
                     }
 
                     // Save the updated player data
                     playerDataCache.savePlayerData(playerUUID, new Callback<Void>() {
                         @Override
                         public void onSuccess(Void result) {
-                            logger.log(Level.INFO, "Updated player data saved for " + player.getName(), 0);
+                            player.sendMessage("Your data has been saved to the database.");
+                            logger.log(Level.INFO, "SaveModule$1: Data saved successfully for player: " + player.getName(), 0);
                         }
 
                         @Override
                         public void onFailure(Throwable throwable) {
-                            logger.error("Failed to save updated player data for " + player.getName() + ": " + throwable.getMessage());
+                            player.sendMessage("Failed to save your data. Please try again later.");
+                            logger.error("SaveModule$1: Failed to save data for player: " + player.getName() + ". " + throwable.getMessage());
                         }
                     });
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
-                    logger.error("Failed to load player data for " + player.getName() + ": " + throwable.getMessage());
+                    player.sendMessage("Failed to load your data. Please try again later.");
+                    logger.error("SaveModule$1: Failed to load data for player: " + player.getName() + ". " + throwable.getMessage());
                 }
             });
         });
@@ -118,17 +129,18 @@ public class SaveModule implements IBaseModule {
         eventManager.registerEvent(PlayerQuitEvent.class, (event) -> {
             Player player = event.getPlayer();
             UUID playerUUID = player.getUniqueId();
-            savePlayerData(player, new Callback<Void>() {
+            logger.log(Level.INFO, "SaveModule: Saving data for player: " + player.getName(), 0);
+            playerDataCache.savePlayerData(playerUUID, new Callback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
-                    logger.log(Level.INFO, "Player data saved for " + player.getName(), 0);
+                    logger.log(Level.INFO, "SaveModule$1: Player data saved for " + player.getName(), 0);
                     playerDataCache.clearPlayerData(playerUUID);  // Clear player data from cache
-                    logger.log(Level.INFO, "Player data cache cleared for " + player.getName(), 0);
+                    logger.log(Level.INFO, "SaveModule$1: Player data cache cleared for " + player.getName(), 0);
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
-                    logger.error("Failed to save player data for " + player.getName() + ": " + throwable.getMessage());
+                    logger.error("SaveModule$1: Failed to save player data for " + player.getName() + ": " + throwable.getMessage());
                 }
             });
         });
@@ -154,32 +166,6 @@ public class SaveModule implements IBaseModule {
         return EModulePriority.CRITICAL;  // Ensure it loads early
     }
 
-    // -------------------------- Player Data Methods --------------------------
-
-    /**
-     * Loads player data into cache on player join.
-     *
-     * @param player   The player whose data is to be loaded.
-     * @param callback Callback for success or failure.
-     */
-    public void loadPlayerData(Player player, Callback<PlayerData> callback) {
-        UUID playerUUID = player.getUniqueId();
-        logger.log(Level.INFO, "Loading data for player: " + player.getName(), 0);
-        playerDataCache.loadPlayerData(playerUUID, callback);
-    }
-
-    /**
-     * Saves cached player data to database on player disconnect.
-     *
-     * @param player   The player whose data is to be saved.
-     * @param callback Callback for success or failure.
-     */
-    public void savePlayerData(Player player, Callback<Void> callback) {
-        UUID playerUUID = player.getUniqueId();
-        logger.log(Level.INFO, "Saving data for player: " + player.getName(), 0);
-        playerDataCache.savePlayerData(playerUUID, callback);
-    }
-
     // -------------------------- Auction Methods --------------------------
 
     /**
@@ -189,7 +175,7 @@ public class SaveModule implements IBaseModule {
      * @param callback Callback for success or failure.
      */
     public void saveAuction(Auction auction, Callback<Void> callback) {
-        saveHelper.saveAuction(auction, callback);
+        databaseManager.saveAuction(auction, callback);
     }
 
     /**
@@ -198,7 +184,7 @@ public class SaveModule implements IBaseModule {
      * @param callback Callback with the list of auctions.
      */
     public void loadAuctions(Callback<List<Auction>> callback) {
-        saveHelper.loadAuctions(callback);
+        databaseManager.loadAuctions(callback);
     }
 
     /**
@@ -208,16 +194,8 @@ public class SaveModule implements IBaseModule {
      * @param callback  Callback for success or failure.
      */
     public void deleteAuction(UUID auctionId, Callback<Void> callback) {
-        saveHelper.deleteAuction(auctionId, callback);
+        databaseManager.deleteAuction(auctionId, callback);
     }
 
     // ---------------------- End of Auction Methods -----------------------
-
-    public PlayerDataCache getPlayerDataCache() {
-        return playerDataCache;
-    }
-
-    public SaveHelper getSaveHelper() {
-        return saveHelper;
-    }
 }

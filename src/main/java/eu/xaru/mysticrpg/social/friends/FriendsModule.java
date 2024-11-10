@@ -65,7 +65,7 @@ public class FriendsModule implements IBaseModule {
         // Retrieve the debug logger module for logging purposes
         this.logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
         // Initialize the player data cache
-        this.playerDataCache = PlayerDataCache.getInstance(null, logger);
+        this.playerDataCache = PlayerDataCache.getInstance();
         // Initialize the friends helper
         this.friendsHelper = new FriendsHelper(playerDataCache, logger);
 

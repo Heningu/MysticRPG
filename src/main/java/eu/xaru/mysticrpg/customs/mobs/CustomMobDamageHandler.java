@@ -33,7 +33,7 @@ public class CustomMobDamageHandler implements Listener {
     }
 
     private double getTotalAttackDamage(LivingEntity entity) {
-        AttributeInstance attackAttribute = entity.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE);
+        AttributeInstance attackAttribute = entity.getAttribute(Attribute.ATTACK_DAMAGE);
         if (attackAttribute != null) {
             return attackAttribute.getValue();
         }

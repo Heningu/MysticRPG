@@ -1,9 +1,9 @@
-
 package eu.xaru.mysticrpg.enums;
 
 public enum EModulePriority {
-    LOW,
-    NORMAL,
+    FIRST,      // Highest priority group
+    CRITICAL,
     HIGH,
-    CRITICAL
+    NORMAL,
+    LOW
 }

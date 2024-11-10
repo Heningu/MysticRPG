@@ -2,42 +2,51 @@ package eu.xaru.mysticrpg.managers;
 
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ScanResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryMXBean;
-import java.lang.management.ThreadMXBean;
-import java.lang.ref.ReferenceQueue;
-import java.lang.ref.WeakReference;
 import java.lang.reflect.Constructor;
 import java.util.*;
-import java.util.concurrent.*;
-import java.util.logging.Level;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
+/**
+ * Manages the lifecycle of modules, including loading, initializing, starting, stopping, and unloading.
+ * Ensures modules are loaded in the correct order based on dependencies and priorities.
+ * Handles circular dependencies with auto-correction strategies.
+ * Supports lazy loading of modules.
+ */
 public class ModuleManager {
-    private final ConcurrentHashMap<Class<? extends IBaseModule>, WeakReference<IBaseModule>> loadedModules = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Class<? extends IBaseModule>, LinkedList<Long>> executionTimes = new ConcurrentHashMap<>();
-    private final CopyOnWriteArrayList<Class<? extends IBaseModule>> loadingOrder = new CopyOnWriteArrayList<>();
-    private final Set<Class<? extends IBaseModule>> currentlyLoadingModules = Collections.newSetFromMap(new ConcurrentHashMap<>());
-    private final MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
-    private final ScheduledExecutorService monitorExecutor = Executors.newSingleThreadScheduledExecutor();
-    private DebugLoggerModule logger;
-    private final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
-    private final ReferenceQueue<IBaseModule> referenceQueue = new ReferenceQueue<>();
+    private static final Logger log = LoggerFactory.getLogger(ModuleManager.class);
 
+    // Map to hold loaded modules
+    private final Map<Class<? extends IBaseModule>, IBaseModule> loadedModules = new ConcurrentHashMap<>();
+
+    // List to maintain the order of module loading
+    private final List<Class<? extends IBaseModule>> loadingOrder = new ArrayList<>();
+
+    // Cache for module instances to avoid repeated instantiation
+    private final Map<Class<? extends IBaseModule>, IBaseModule> moduleInstanceCache = new ConcurrentHashMap<>();
+
+    // Set to track modules that are lazy-loaded and not yet loaded
+    private final Set<Class<? extends IBaseModule>> lazyModules = ConcurrentHashMap.newKeySet();
+
+    // Singleton instance
     private static volatile ModuleManager instance;
 
-    private static final int SAMPLE_SIZE = 3;  // Adjusted to require fewer data points
-    private static final long STALL_THRESHOLD = 4000_000_000L;  // Threshold for detecting a stall
-    private final int MONITOR_INTERVAL = 5; // Interval in seconds for monitoring
-
+    // Private constructor for singleton pattern
     private ModuleManager() {
-        startMonitoring();
+        // Initialize if needed
     }
 
+    /**
+     * Retrieves the singleton instance of ModuleManager.
+     *
+     * @return the singleton instance
+     */
     public static ModuleManager getInstance() {
         if (instance == null) {
             synchronized (ModuleManager.class) {
@@ -49,241 +58,536 @@ public class ModuleManager {
         return instance;
     }
 
-    private void startMonitoring() {
-        // Start periodic sampling to collect execution times continuously
-        monitorExecutor.scheduleAtFixedRate(this::monitorModules, 0, MONITOR_INTERVAL, TimeUnit.SECONDS);
-    }
-
-    private void monitorModules() {
-        for (Class<? extends IBaseModule> moduleClass : loadedModules.keySet()) {
-            checkModuleExecutionTime(moduleClass);
-        }
-    }
-
-    private void checkModuleExecutionTime(Class<? extends IBaseModule> moduleClass) {
-        LinkedList<Long> times = executionTimes.get(moduleClass);
-        if (times != null && times.size() >= SAMPLE_SIZE) {
-            long averageTime = times.stream().mapToLong(Long::longValue).sum() / times.size();
-            if (logger != null) {
-                logger.log("Average execution time for " + moduleClass.getSimpleName() + ": " + (averageTime / 1_000_000) + " ms.", Level.INFO);
-            }
-
-            if (averageTime > STALL_THRESHOLD) {
-                logWarn("Module " + moduleClass.getSimpleName() + " is stalling with an average execution time of " + (averageTime / 1_000_000) + " ms.");
-                restartModule(moduleClass);
-            } else {
-                logInfo("Module " + moduleClass.getSimpleName() + " is operating within normal limits.");
-            }
-        } else {
-           // logInfo("Not enough data points yet for " + moduleClass.getSimpleName() + ". Currently recorded: " + (times != null ? times.size() : 0));
-        }
-    }
-
-    private void restartModule(Class<? extends IBaseModule> moduleClass) {
-        try {
-            logWarn("Restarting module " + moduleClass.getSimpleName() + " due to stalling.");
-            stopAndUnloadModule(moduleClass);
-            loadModule(moduleClass);
-            startModule(moduleClass);
-        } catch (Exception e) {
-            logError("Failed to restart module " + moduleClass.getSimpleName(), e);
-        }
-    }
-
+    /**
+     * Loads all modules automatically using ClassGraph, resolving dependencies and ordering by priority.
+     * Eagerly loads non-lazy modules and registers lazy modules for on-demand loading.
+     */
     public synchronized void loadAllModules() {
         unloadAllModules(); // Ensure previous modules are unloaded
 
-        // Initialize and start the logger first
-        loadAndStartLogger();
+        // Discover all module classes within eu.xaru.mysticrpg and its subpackages
+        Set<Class<? extends IBaseModule>> moduleClasses = discoverModules();
 
-        // Then load and start all other modules based on priority
-        try (ScanResult scanResult = new ClassGraph()
-                .enableClassInfo()
-                .acceptPackages("eu.xaru.mysticrpg")
-                .scan()) {
-
-            for (ClassInfo classInfo : scanResult.getClassesImplementing(IBaseModule.class.getName())) {
-                @SuppressWarnings("unchecked")
-                Class<? extends IBaseModule> moduleClass = (Class<? extends IBaseModule>) classInfo.loadClass();
-                if (moduleClass != DebugLoggerModule.class) {
-                    loadModule(moduleClass);
-                }
-            }
-        } catch (Exception e) {
-            logError("Failed to load modules.", e);
+        if (moduleClasses.isEmpty()) {
+            log.warn("No modules found to load.");
+            return;
         }
 
+        // Separate eager and lazy modules
+        Set<Class<? extends IBaseModule>> eagerModules = moduleClasses.stream()
+                .filter(moduleClass -> {
+                    IBaseModule module = instantiateModule(moduleClass);
+                    if (module != null && module.isLazy()) {
+                        lazyModules.add(moduleClass);
+                        log.debug("Module {} marked as lazy-loaded.", moduleClass.getSimpleName());
+                        return false;
+                    }
+                    return true;
+                })
+                .collect(Collectors.toSet());
+
+        // Resolve dependencies and determine loading order for eager modules
+        List<Class<? extends IBaseModule>> orderedEagerModules = resolveLoadingOrder(eagerModules);
+
+        if (orderedEagerModules == null) {
+            log.error("Failed to resolve eager module loading order due to circular dependencies.");
+            return;
+        }
+
+        log.info("Final eager module loading order: {}", orderedEagerModules.stream()
+                .map(Class::getSimpleName)
+                .collect(Collectors.joining(", ")));
+
+        // Load and initialize eager modules in the determined order
+        for (Class<? extends IBaseModule> moduleClass : orderedEagerModules) {
+            try {
+                loadModule(moduleClass);
+                log.info("Module {} loaded successfully.", moduleClass.getSimpleName());
+            } catch (Exception e) {
+                log.error("Failed to load module {}: {}", moduleClass.getSimpleName(), e.getMessage(), e);
+            }
+        }
+
+        // Start all eager modules
         startModules();
     }
 
-    private void loadAndStartLogger() {
-        try {
-            loadModule(DebugLoggerModule.class);
-            logger = getModuleInstance(DebugLoggerModule.class);
-            if (logger != null) {
-                logger.start();
-                logger.log(Level.INFO, "Logger initialized as the first module.", 0);
-            } else {
-                System.out.println("Failed to initialize the logger!");
+    /**
+     * Uses ClassGraph to discover all classes implementing IBaseModule within the eu.xaru.mysticrpg package and its subpackages.
+     *
+     * @return a set of module classes
+     */
+    private Set<Class<? extends IBaseModule>> discoverModules() {
+        Set<Class<? extends IBaseModule>> modules = new HashSet<>();
+        try (ScanResult scanResult = new ClassGraph()
+                .enableClassInfo()
+                .acceptPackages("eu.xaru.mysticrpg") // Broad scan of the entire package
+                .scan()) {
+
+            for (ClassInfo classInfo : scanResult.getClassesImplementing(IBaseModule.class.getName())) {
+                if (classInfo.isAbstract() || classInfo.isInterface()) {
+                    continue; // Skip abstract classes and interfaces
+                }
+                @SuppressWarnings("unchecked")
+                Class<? extends IBaseModule> moduleClass = (Class<? extends IBaseModule>) classInfo.loadClass();
+                modules.add(moduleClass);
+                log.debug("Discovered module class: {}", moduleClass.getSimpleName());
             }
         } catch (Exception e) {
-            logError("Failed to load or start logger", e);
+            log.error("Error during module discovery: {}", e.getMessage(), e);
         }
+        return modules;
     }
 
-    public synchronized void loadModule(Class<? extends IBaseModule> moduleClass) throws Exception {
-        if (loadedModules.containsKey(moduleClass) || currentlyLoadingModules.contains(moduleClass)) return;
+    /**
+     * Resolves the loading order based on dependencies and priorities using topological sorting.
+     * Handles the `FIRST` priority group by ensuring they are loaded before others.
+     * Implements auto-correction strategies for circular dependencies.
+     *
+     * @param modules the set of discovered module classes
+     * @return a list of module classes ordered for loading, or null if unresolved circular dependencies exist
+     */
+    private List<Class<? extends IBaseModule>> resolveLoadingOrder(Set<Class<? extends IBaseModule>> modules) {
+        // Build dependency graph
+        Map<Class<? extends IBaseModule>, Set<Class<? extends IBaseModule>>> dependencyGraph = new HashMap<>();
+        for (Class<? extends IBaseModule> module : modules) {
+            try {
+                IBaseModule moduleInstance = instantiateModule(module);
+                if (moduleInstance == null) {
+                    log.warn("Module {} could not be instantiated for dependency resolution.", module.getSimpleName());
+                    dependencyGraph.put(module, new HashSet<>());
+                    continue;
+                }
 
-        currentlyLoadingModules.add(moduleClass);
-        Constructor<? extends IBaseModule> constructor = moduleClass.getDeclaredConstructor();
-        constructor.setAccessible(true);
-        IBaseModule module = constructor.newInstance();
+                List<Class<? extends IBaseModule>> dependencies = moduleInstance.getDependencies();
 
-        for (Class<? extends IBaseModule> dependency : module.getDependencies()) {
-            loadModule(dependency);
+                // Enforce that `FIRST` modules only depend on other `FIRST` modules
+                if (moduleInstance.getPriority() == EModulePriority.FIRST) {
+                    for (Class<? extends IBaseModule> dependency : dependencies) {
+                        IBaseModule depModule = moduleInstanceCache.get(dependency);
+                        if (depModule != null && depModule.getPriority() != EModulePriority.FIRST) {
+                            log.error("Module {} in `FIRST` group cannot depend on non-`FIRST` module {}.",
+                                    module.getSimpleName(), dependency.getSimpleName());
+                            throw new IllegalArgumentException("Invalid dependency: `FIRST` modules cannot depend on non-`FIRST` modules.");
+                        }
+                    }
+                }
+
+                dependencyGraph.put(module, new HashSet<>(dependencies));
+                log.debug("Module {} dependencies: {}", module.getSimpleName(),
+                        dependencies.stream().map(Class::getSimpleName).collect(Collectors.joining(", ")));
+            } catch (Exception e) {
+                log.error("Error instantiating module {} for dependency resolution: {}", module.getSimpleName(), e.getMessage(), e);
+                dependencyGraph.put(module, new HashSet<>()); // Assume no dependencies on failure
+            }
         }
 
-        insertModuleInOrder(moduleClass, module.getPriority());
+        // Perform topological sort with cycle detection
+        List<Class<? extends IBaseModule>> sortedModules = new ArrayList<>();
+        Set<Class<? extends IBaseModule>> visited = new HashSet<>();
+        Set<Class<? extends IBaseModule>> visiting = new HashSet<>();
+        boolean hasCycle = false;
 
-        long startTime = System.nanoTime();
-        module.initialize();
-        long duration = System.nanoTime() - startTime;
-        recordExecutionTime(moduleClass, duration);
-
-        loadedModules.put(moduleClass, new WeakReference<>(module, referenceQueue));
-
-        currentlyLoadingModules.remove(moduleClass);
-    }
-
-    private void recordExecutionTime(Class<? extends IBaseModule> moduleClass, long duration) {
-        executionTimes.computeIfAbsent(moduleClass, k -> new LinkedList<>());
-        LinkedList<Long> times = executionTimes.get(moduleClass);
-        if (times.size() >= SAMPLE_SIZE) {
-            times.poll(); // Remove the oldest sample if we have enough samples
-        }
-        times.add(duration);
-        if (logger != null) {
-            logger.log("Recorded execution time for " + moduleClass.getSimpleName() + ": " + (duration / 1_000_000) + " ms.", Level.INFO);
-        }
-    }
-
-    private void insertModuleInOrder(Class<? extends IBaseModule> moduleClass, EModulePriority priority) {
-        synchronized (loadingOrder) {
-            int index = 0;
-            for (Class<? extends IBaseModule> clazz : loadingOrder) {
-                EModulePriority existingPriority = getModuleInstance(clazz).getPriority();
-                if (existingPriority.ordinal() > priority.ordinal()) {
-                    index++;
-                } else {
+        for (Class<? extends IBaseModule> module : modules) {
+            if (!visited.contains(module)) {
+                if (!topologicalSort(module, dependencyGraph, sortedModules, visited, visiting)) {
+                    hasCycle = true;
                     break;
                 }
             }
-            loadingOrder.add(index, moduleClass);
         }
-    }
 
-    private void startModule(Class<? extends IBaseModule> moduleClass) {
-        IBaseModule module = getModuleInstance(moduleClass);
-        if (module != null) {
-            long startTime = System.nanoTime();
-            try {
-                module.start();
-                long duration = System.nanoTime() - startTime;
-                recordExecutionTime(moduleClass, duration);
-            } catch (Exception e) {
-                logError("Failed to start module " + moduleClass.getSimpleName(), e);
+        if (hasCycle) {
+            log.warn("Circular dependencies detected. Attempting to auto-correct loading order.");
+
+            // Attempt to break cycles by removing dependencies that cause cycles
+            // Strategy: Remove the lowest priority dependency in the cycle
+            Set<Class<? extends IBaseModule>> modulesInCycle = findModulesInCycle(dependencyGraph);
+            if (modulesInCycle.isEmpty()) {
+                log.error("Unable to identify modules involved in circular dependencies.");
+                return null;
+            }
+
+            // Find the module with the lowest priority in the cycle
+            Class<? extends IBaseModule> lowestPriorityModule = modulesInCycle.stream()
+                    .min(Comparator.comparingInt(this::getModulePriorityOrdinal))
+                    .orElse(null);
+
+            if (lowestPriorityModule != null) {
+                log.warn("Auto-correcting by removing dependencies from module {}", lowestPriorityModule.getSimpleName());
+                dependencyGraph.put(lowestPriorityModule, new HashSet<>()); // Remove its dependencies
+
+                // Retry topological sort after correction
+                sortedModules.clear();
+                visited.clear();
+                visiting.clear();
+                hasCycle = false;
+
+                for (Class<? extends IBaseModule> module : modules) {
+                    if (!visited.contains(module)) {
+                        if (!topologicalSort(module, dependencyGraph, sortedModules, visited, visiting)) {
+                            hasCycle = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (hasCycle) {
+                    log.error("Failed to resolve circular dependencies after auto-correction.");
+                    return null;
+                }
+            } else {
+                log.error("No suitable module found to break the circular dependency.");
+                return null;
             }
         }
+
+        // Sort by priority in ascending order (FIRST=0 first)
+        sortedModules.sort(Comparator.comparingInt((Class<? extends IBaseModule> cls) -> {
+            IBaseModule module = moduleInstanceCache.get(cls);
+            return module != null ? module.getPriority().ordinal() : EModulePriority.LOW.ordinal();
+        }));
+
+        log.debug("Resolved loading order after handling dependencies: {}", sortedModules.stream()
+                .map(Class::getSimpleName)
+                .collect(Collectors.joining(", ")));
+        return sortedModules;
     }
 
+    /**
+     * Performs a topological sort on the dependency graph.
+     *
+     * @param module          the current module being visited
+     * @param dependencyGraph the dependency graph
+     * @param sortedModules   the list to populate with sorted modules
+     * @param visited         the set of already visited modules
+     * @param visiting        the set of modules currently being visited (for cycle detection)
+     * @return true if successful, false if a circular dependency is detected
+     */
+    private boolean topologicalSort(Class<? extends IBaseModule> module,
+                                    Map<Class<? extends IBaseModule>, Set<Class<? extends IBaseModule>>> dependencyGraph,
+                                    List<Class<? extends IBaseModule>> sortedModules,
+                                    Set<Class<? extends IBaseModule>> visited,
+                                    Set<Class<? extends IBaseModule>> visiting) {
+        visiting.add(module);
+        for (Class<? extends IBaseModule> dependency : dependencyGraph.getOrDefault(module, Collections.emptySet())) {
+            if (!dependencyGraph.containsKey(dependency)) {
+                log.warn("Module {} depends on unknown module {}", module.getSimpleName(), dependency.getSimpleName());
+                continue; // Skip unknown dependencies
+            }
+            if (visiting.contains(dependency)) {
+                log.error("Circular dependency detected: {} <-> {}", module.getSimpleName(), dependency.getSimpleName());
+                return false; // Circular dependency detected
+            }
+            if (!visited.contains(dependency)) {
+                if (!topologicalSort(dependency, dependencyGraph, sortedModules, visited, visiting)) {
+                    return false;
+                }
+            }
+        }
+        visiting.remove(module);
+        visited.add(module);
+        sortedModules.add(module);
+        return true;
+    }
+
+    /**
+     * Identifies all modules involved in circular dependencies.
+     *
+     * @param dependencyGraph the dependency graph
+     * @return a set of modules involved in cycles
+     */
+    private Set<Class<? extends IBaseModule>> findModulesInCycle(Map<Class<? extends IBaseModule>, Set<Class<? extends IBaseModule>>> dependencyGraph) {
+        Set<Class<? extends IBaseModule>> modulesInCycle = new HashSet<>();
+        Set<Class<? extends IBaseModule>> visited = new HashSet<>();
+        Set<Class<? extends IBaseModule>> stack = new HashSet<>();
+
+        for (Class<? extends IBaseModule> module : dependencyGraph.keySet()) {
+            if (detectCycleDFS(module, dependencyGraph, visited, stack, modulesInCycle)) {
+                // Cycle detected, modules involved are added to modulesInCycle
+            }
+        }
+        return modulesInCycle;
+    }
+
+    /**
+     * Depth-First Search to detect cycles and collect modules involved.
+     *
+     * @param module          the current module
+     * @param dependencyGraph the dependency graph
+     * @param visited         the set of already visited modules
+     * @param stack           the current recursion stack
+     * @param modulesInCycle  the set to collect modules involved in cycles
+     * @return true if a cycle is detected, false otherwise
+     */
+    private boolean detectCycleDFS(Class<? extends IBaseModule> module,
+                                   Map<Class<? extends IBaseModule>, Set<Class<? extends IBaseModule>>> dependencyGraph,
+                                   Set<Class<? extends IBaseModule>> visited,
+                                   Set<Class<? extends IBaseModule>> stack,
+                                   Set<Class<? extends IBaseModule>> modulesInCycle) {
+        if (stack.contains(module)) {
+            modulesInCycle.add(module);
+            return true;
+        }
+        if (visited.contains(module)) {
+            return false;
+        }
+        visited.add(module);
+        stack.add(module);
+        for (Class<? extends IBaseModule> dependency : dependencyGraph.getOrDefault(module, Collections.emptySet())) {
+            if (detectCycleDFS(dependency, dependencyGraph, visited, stack, modulesInCycle)) {
+                modulesInCycle.add(module);
+                return true;
+            }
+        }
+        stack.remove(module);
+        return false;
+    }
+
+    /**
+     * Retrieves the ordinal value of a module's priority.
+     *
+     * @param moduleClass the class of the module
+     * @return the ordinal value of the module's priority
+     */
+    private int getModulePriorityOrdinal(Class<? extends IBaseModule> moduleClass) {
+        IBaseModule module = moduleInstanceCache.get(moduleClass);
+        return module != null ? module.getPriority().ordinal() : EModulePriority.LOW.ordinal();
+    }
+
+    /**
+     * Instantiates a module without registering it.
+     * Caches the instance to avoid repeated instantiation.
+     *
+     * @param moduleClass the class of the module to instantiate
+     * @return an instance of the module, or null if instantiation fails
+     */
+    private IBaseModule instantiateModule(Class<? extends IBaseModule> moduleClass) {
+        if (moduleInstanceCache.containsKey(moduleClass)) {
+            return moduleInstanceCache.get(moduleClass);
+        }
+        try {
+            Constructor<? extends IBaseModule> constructor = moduleClass.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            IBaseModule module = constructor.newInstance();
+            moduleInstanceCache.put(moduleClass, module);
+            return module;
+        } catch (Exception e) {
+            log.error("Failed to instantiate module {}: {}", moduleClass.getSimpleName(), e.getMessage(), e);
+            return null;
+        }
+    }
+
+    /**
+     * Loads and initializes a single module.
+     *
+     * @param moduleClass the class of the module to load
+     * @throws Exception if loading fails
+     */
+    private void loadModule(Class<? extends IBaseModule> moduleClass) throws Exception {
+        if (loadedModules.containsKey(moduleClass)) {
+            log.warn("Module {} is already loaded.", moduleClass.getSimpleName());
+            return;
+        }
+
+        IBaseModule module = moduleInstanceCache.get(moduleClass);
+        if (module == null) {
+            module = instantiateModule(moduleClass);
+            if (module == null) {
+                throw new Exception("Module instantiation failed.");
+            }
+        }
+
+        // Initialize the module
+        module.initialize();
+        loadedModules.put(moduleClass, module);
+        loadingOrder.add(moduleClass);
+        log.info("Module {} initialized.", moduleClass.getSimpleName());
+    }
+
+    /**
+     * Starts all loaded modules in the determined loading order.
+     */
     public synchronized void startModules() {
         for (Class<? extends IBaseModule> moduleClass : loadingOrder) {
             startModule(moduleClass);
         }
     }
 
-    public synchronized void stopAndUnloadModule(Class<? extends IBaseModule> moduleClass) {
-        WeakReference<IBaseModule> moduleRef = loadedModules.remove(moduleClass);
-        IBaseModule module = moduleRef != null ? moduleRef.get() : null;
-
-        if (module != null) {
-            try {
-                module.stop();
-                module.unload();
-                loadingOrder.remove(moduleClass);
-                logInfo("Module " + moduleClass.getSimpleName() + " stopped and unloaded.");
-            } catch (Exception e) {
-                logError("Failed to stop or unload module " + moduleClass.getSimpleName(), e);
-            }
+    /**
+     * Starts a single module.
+     *
+     * @param moduleClass the class of the module to start
+     */
+    private void startModule(Class<? extends IBaseModule> moduleClass) {
+        IBaseModule module = loadedModules.get(moduleClass);
+        if (module == null) {
+            log.warn("Module {} is not loaded and cannot be started.", moduleClass.getSimpleName());
+            return;
         }
-
-        cleanupResources();
+        try {
+            module.start();
+            log.info("Module {} started.", moduleClass.getSimpleName());
+        } catch (Exception e) {
+            log.error("Failed to start module {}: {}", moduleClass.getSimpleName(), e.getMessage(), e);
+        }
     }
 
+    /**
+     * Stops and unloads a specific module.
+     *
+     * @param moduleClass the class of the module to stop and unload
+     */
+    public synchronized void stopAndUnloadModule(Class<? extends IBaseModule> moduleClass) {
+        IBaseModule module = loadedModules.remove(moduleClass);
+        if (module == null) {
+            log.warn("Module {} is not loaded.", moduleClass.getSimpleName());
+            return;
+        }
+
+        try {
+            module.stop();
+            module.unload();
+            loadingOrder.remove(moduleClass);
+            log.info("Module {} stopped and unloaded.", moduleClass.getSimpleName());
+        } catch (Exception e) {
+            log.error("Failed to stop or unload module {}: {}", moduleClass.getSimpleName(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Stops and unloads all loaded modules in reverse loading order.
+     */
     public synchronized void unloadAllModules() {
         List<Class<? extends IBaseModule>> modulesToUnload = new ArrayList<>(loadingOrder);
-        Collections.reverse(modulesToUnload); // Unload in reverse order of loading
+        Collections.reverse(modulesToUnload); // Unload in reverse order
 
         for (Class<? extends IBaseModule> moduleClass : modulesToUnload) {
             stopAndUnloadModule(moduleClass);
         }
 
-        cleanupResources();
-        if (logger != null) {
-            logger.log(Level.INFO, "All modules have been unloaded.", 0);
-        }
+        loadingOrder.clear();
+        loadedModules.clear();
+        moduleInstanceCache.clear();
+        lazyModules.clear();
+
+        log.info("All modules have been unloaded.");
     }
 
+    /**
+     * Retrieves an instance of a loaded module.
+     *
+     * @param moduleClass the class of the module to retrieve
+     * @param <T>         the type of the module
+     * @return the module instance, or null if not loaded
+     */
     public synchronized <T extends IBaseModule> T getModuleInstance(Class<T> moduleClass) {
-        WeakReference<IBaseModule> moduleRef = loadedModules.get(moduleClass);
-        return moduleClass.cast(moduleRef != null ? moduleRef.get() : null);
+        IBaseModule module = loadedModules.get(moduleClass);
+        if (module == null) {
+            log.warn("Module {} is not loaded.", moduleClass.getSimpleName());
+            return null;
+        }
+        return moduleClass.cast(module);
     }
 
-    private void cleanupResources() {
-        cleanupReferences();
-    }
+    /**
+     * Loads a lazy module on-demand, ensuring its dependencies are loaded first.
+     *
+     * @param moduleClass the class of the module to load
+     * @return true if the module was loaded successfully, false otherwise
+     */
+    public synchronized boolean loadLazyModule(Class<? extends IBaseModule> moduleClass) {
+        if (!lazyModules.contains(moduleClass)) {
+            log.warn("Module {} is not marked as lazy-loaded.", moduleClass.getSimpleName());
+            return false;
+        }
 
-    private void cleanupReferences() {
-        WeakReference<? extends IBaseModule> ref;
-        while ((ref = (WeakReference<? extends IBaseModule>) referenceQueue.poll()) != null) {
-            if (logger != null) {
-                logger.log(Level.INFO, "Cleaning up weak reference to module.", 0);
+        // Remove from lazyModules as it will be loaded
+        lazyModules.remove(moduleClass);
+
+        // Resolve dependencies and determine loading order for this module and its dependencies
+        Set<Class<? extends IBaseModule>> modulesToLoad = new HashSet<>();
+        collectDependencies(moduleClass, modulesToLoad, new HashSet<>());
+
+        // Exclude already loaded modules
+        modulesToLoad.removeAll(loadedModules.keySet());
+
+        if (modulesToLoad.isEmpty()) {
+            log.info("No new modules to load for {}", moduleClass.getSimpleName());
+            return true;
+        }
+
+        List<Class<? extends IBaseModule>> orderedModules = resolveLoadingOrder(modulesToLoad);
+
+        if (orderedModules == null) {
+            log.error("Failed to resolve loading order for lazy module {} due to circular dependencies.", moduleClass.getSimpleName());
+            return false;
+        }
+
+        log.info("Loading lazy module {} and its dependencies in order: {}", moduleClass.getSimpleName(),
+                orderedModules.stream().map(Class::getSimpleName).collect(Collectors.joining(", ")));
+
+        // Load and initialize modules in the determined order
+        for (Class<? extends IBaseModule> cls : orderedModules) {
+            try {
+                loadModule(cls);
+                log.info("Module {} loaded successfully.", cls.getSimpleName());
+            } catch (Exception e) {
+                log.error("Failed to load module {}: {}", cls.getSimpleName(), e.getMessage(), e);
+                return false;
             }
-            ref.clear();
         }
+
+        // Start the newly loaded modules
+        for (Class<? extends IBaseModule> cls : orderedModules) {
+            startModule(cls);
+        }
+
+        return true;
     }
 
-    public void shutdown() {
-        monitorExecutor.shutdownNow();
+    /**
+     * Recursively collects dependencies for a module.
+     *
+     * @param module        the module to collect dependencies for
+     * @param modulesToLoad the set to collect modules into
+     * @param visited       the set of already visited modules to prevent infinite recursion
+     */
+    private void collectDependencies(Class<? extends IBaseModule> module,
+                                     Set<Class<? extends IBaseModule>> modulesToLoad,
+                                     Set<Class<? extends IBaseModule>> visited) {
+        if (visited.contains(module)) {
+            return;
+        }
+        visited.add(module);
+        IBaseModule moduleInstance = instantiateModule(module);
+        if (moduleInstance == null) {
+            log.warn("Module {} could not be instantiated during dependency collection.", module.getSimpleName());
+            return;
+        }
+        for (Class<? extends IBaseModule> dependency : moduleInstance.getDependencies()) {
+            if (!loadedModules.containsKey(dependency)) {
+                modulesToLoad.add(dependency);
+                collectDependencies(dependency, modulesToLoad, visited);
+            }
+        }
+        modulesToLoad.add(module);
+    }
+
+    /**
+     * Shuts down the ModuleManager by unloading all modules.
+     */
+    public synchronized void shutdown() {
         unloadAllModules();
-        cleanupResources();
+        log.info("ModuleManager has been shut down.");
     }
 
+    /**
+     * Returns a set of currently loaded modules.
+     *
+     * @return an unmodifiable set of loaded module classes
+     */
     public Set<Class<? extends IBaseModule>> getLoadedModules() {
-        return loadedModules.keySet();
-    }
-
-    private void logError(String message, Exception e) {
-        if (logger != null) {
-            logger.error(message + " Exception: " + e.getMessage(), e, null);
-        }
-    }
-
-    private void logError(String message) {
-        if (logger != null) {
-            logger.error(message);
-        }
-    }
-
-    private void logWarn(String message) {
-        if (logger != null) {
-            logger.warn(message);
-        }
-    }
-
-    private void logInfo(String message) {
-        if (logger != null) {
-            logger.log(Level.INFO, message, 0);
-        }
+        return Collections.unmodifiableSet(loadedModules.keySet());
     }
 }

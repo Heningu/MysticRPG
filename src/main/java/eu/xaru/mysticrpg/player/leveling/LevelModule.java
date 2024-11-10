@@ -8,10 +8,7 @@ import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.storage.LevelData;
-import eu.xaru.mysticrpg.storage.PlayerData;
-import eu.xaru.mysticrpg.storage.PlayerDataCache;
-import eu.xaru.mysticrpg.storage.SaveModule;
+import eu.xaru.mysticrpg.storage.*;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -170,7 +167,17 @@ public class LevelModule implements IBaseModule {
                 }
             }
 
-            playerDataCache.savePlayerData(player.getUniqueId(), null);
+            playerDataCache.savePlayerData(player.getUniqueId(), new Callback<>() {
+                @Override
+                public void onSuccess(Void result) {
+                    logger.log(Level.INFO, "saved");
+                }
+
+                @Override
+                public void onFailure(Throwable throwable) {
+                    logger.log(Level.SEVERE, "failed to save", throwable);
+                }
+            });
         }
     }
 

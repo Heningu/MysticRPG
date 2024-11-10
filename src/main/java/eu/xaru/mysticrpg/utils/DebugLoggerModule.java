@@ -17,6 +17,9 @@ import java.util.logging.Level;
 import static java.util.logging.Level.SEVERE;
 import static java.util.logging.Level.WARNING;
 
+/**
+ * DebugLoggerModule handles logging functionalities for the plugin.
+ */
 public class DebugLoggerModule implements IBaseModule {
 
     private final boolean debuggingEnabled = true;
@@ -48,9 +51,16 @@ public class DebugLoggerModule implements IBaseModule {
 
     @Override
     public EModulePriority getPriority() {
-        return EModulePriority.CRITICAL;
+        return EModulePriority.FIRST;
     }
 
+    /**
+     * Logs a message with the specified level and depth.
+     *
+     * @param level   The logging level.
+     * @param message The message to log.
+     * @param depth   The stack trace depth to identify the caller.
+     */
     public void log(Level level, String message, int depth) {
         if (debuggingEnabled) {
             String className = getCallerClassName(depth);
@@ -59,27 +69,60 @@ public class DebugLoggerModule implements IBaseModule {
         }
     }
 
+    /**
+     * Logs a simple informational message.
+     *
+     * @param message The message to log.
+     */
     public void log(String message) {
         log(Level.INFO, message, 2);
     }
 
+    /**
+     * Logs a formatted informational message with arguments.
+     *
+     * @param message The message format.
+     * @param args    The arguments for formatting.
+     */
     public void log(String message, Object... args) {
         log(Level.INFO, String.format(message, args), 2);
     }
 
+    /**
+     * Logs the state of an object.
+     *
+     * @param obj The object to log.
+     */
     public void logObject(Object obj) {
         log(Level.INFO, "Object state:", 2);
         log(Level.INFO, formatObject(obj), 3);
     }
 
+    /**
+     * Logs a warning message.
+     *
+     * @param message The warning message.
+     */
     public void warn(String message) {
         log(WARNING, message, 2);
     }
 
+    /**
+     * Logs an error message.
+     *
+     * @param message The error message.
+     */
     public void error(String message) {
         log(SEVERE, message, 2);
     }
 
+    /**
+     * Logs an error message along with a throwable and additional data.
+     *
+     * @param message   The error message.
+     * @param throwable The throwable to log.
+     * @param data      Additional data to log.
+     */
     public void error(String message, Throwable throwable, Map<String, Object> data) {
         log(SEVERE, message, 2);
         log(SEVERE, getStackTraceAsString(throwable), 3);
@@ -90,6 +133,14 @@ public class DebugLoggerModule implements IBaseModule {
         }
     }
 
+    /**
+     * Formats the log message with color codes and prefixes.
+     *
+     * @param level     The logging level.
+     * @param className The name of the class logging the message.
+     * @param message   The message to format.
+     * @return The formatted message.
+     */
     private String formatLogMessage(Level level, String className, String message) {
         String prefix;
         ChatColor levelColor;
@@ -109,6 +160,12 @@ public class DebugLoggerModule implements IBaseModule {
         return String.format("%s%s%s%s", formattedPrefix, className, ": ", message);
     }
 
+    /**
+     * Formats an object's state by reflecting its fields.
+     *
+     * @param obj The object to format.
+     * @return The formatted object state.
+     */
     private String formatObject(Object obj) {
         StringBuilder sb = new StringBuilder();
         if (obj == null) {
@@ -135,6 +192,12 @@ public class DebugLoggerModule implements IBaseModule {
         return sb.toString();
     }
 
+    /**
+     * Converts a throwable's stack trace to a string.
+     *
+     * @param throwable The throwable to convert.
+     * @return The stack trace as a string.
+     */
     private String getStackTraceAsString(Throwable throwable) {
         if (throwable == null) {
             return "";
@@ -146,8 +209,19 @@ public class DebugLoggerModule implements IBaseModule {
         return sw.toString();
     }
 
+    /**
+     * Retrieves the caller's class name based on the stack trace depth.
+     *
+     * @param stackTraceDepth The depth in the stack trace.
+     * @return The caller's class name.
+     */
     private String getCallerClassName(int stackTraceDepth) {
-        String fullClassName = Thread.currentThread().getStackTrace()[3 + stackTraceDepth].getClassName();
+        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+        int index = 3 + stackTraceDepth;
+        if (index >= stackTrace.length) {
+            index = stackTrace.length - 1;
+        }
+        String fullClassName = stackTrace[index].getClassName();
         return fullClassName.substring(fullClassName.lastIndexOf(".") + 1);
     }
 }

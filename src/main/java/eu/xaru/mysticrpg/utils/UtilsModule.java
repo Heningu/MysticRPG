@@ -58,12 +58,12 @@ public class UtilsModule implements IBaseModule {
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of();  // No dependencies as it should be a fundamental utility module
+        return List.of(DebugLoggerModule.class);  // No dependencies as it should be a fundamental utility module
     }
 
     @Override
     public EModulePriority getPriority() {
-        return EModulePriority.CRITICAL;
+        return EModulePriority.FIRST;
     }
 
 

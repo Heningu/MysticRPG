@@ -1,13 +1,14 @@
 package eu.xaru.mysticrpg.interfaces;
 
 import eu.xaru.mysticrpg.enums.EModulePriority;
+import java.util.Collections;
 import java.util.List;
 
 public interface IBaseModule {
 
     /**
      * Called when the module is initialized.
-     * This is where any setup or configuration should occur.
+     * Perform setup or configuration here.
      *
      * @throws Exception if initialization fails
      */
@@ -15,7 +16,7 @@ public interface IBaseModule {
 
     /**
      * Called when the module is started.
-     * This should handle any logic required to begin the module's operation.
+     * Begin the module's operations here.
      *
      * @throws Exception if the module fails to start
      */
@@ -23,7 +24,7 @@ public interface IBaseModule {
 
     /**
      * Called when the module is stopped.
-     * This should handle any logic required to cease the module's operation.
+     * Cease the module's operations here.
      *
      * @throws Exception if the module fails to stop
      */
@@ -31,7 +32,7 @@ public interface IBaseModule {
 
     /**
      * Called when the module is unloaded.
-     * This should handle any cleanup, freeing resources, or other final operations.
+     * Perform cleanup and resource release here.
      *
      * @throws Exception if the module fails to unload
      */
@@ -39,17 +40,31 @@ public interface IBaseModule {
 
     /**
      * Returns a list of dependencies that this module requires.
-     * The dependencies will be loaded and initialized before this module.
+     * Dependencies will be loaded and initialized before this module.
      *
      * @return a list of module classes that this module depends on
      */
-    List<Class<? extends IBaseModule>> getDependencies();
+    default List<Class<? extends IBaseModule>> getDependencies() {
+        return Collections.emptyList();
+    }
 
     /**
      * Returns the priority of this module.
-     * Modules with higher priority will be initialized and started before others.
+     * Modules with higher priority are loaded and started before others.
      *
      * @return the priority of the module
      */
-    EModulePriority getPriority();
+    default EModulePriority getPriority() {
+        return EModulePriority.NORMAL;
+    }
+
+    /**
+     * Indicates whether the module should be lazily loaded.
+     * Lazy modules are only loaded when explicitly required.
+     *
+     * @return true if the module is lazy-loaded, false otherwise
+     */
+    default boolean isLazy() {
+        return false;
+    }
 }
