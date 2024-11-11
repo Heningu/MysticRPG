@@ -10,6 +10,7 @@ import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -101,8 +102,8 @@ public class AuctionHouseModule implements IBaseModule {
                     if (auctionHouseHelper.areAuctionsLoaded()) {
                         auctionsGUI.openMainGUI(player);
                     } else {
-                        player.sendMessage(ChatColor.RED + "Please wait, " +
-                                "auctions are still loading.");
+                        player.sendMessage(Utils.getInstance().$("Please wait, " +
+                                "auctions are still loading."));
                     }
                 })
                 .register();
@@ -146,6 +147,7 @@ public class AuctionHouseModule implements IBaseModule {
 
         // Register AsyncPlayerChatEvent for handling bids
         eventManager.registerEvent(AsyncPlayerChatEvent.class, event -> {
+            event.setMessage(Utils.getInstance().$(event.getMessage()));
             auctionsGUI.onPlayerChat(event);
         });
     }

@@ -1,5 +1,7 @@
 package eu.xaru.mysticrpg.social.party;
 
+import eu.xaru.mysticrpg.utils.Utils;
+import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.ComponentBuilder;
 import net.md_5.bungee.api.chat.HoverEvent;
@@ -25,17 +27,17 @@ public class PartyHelper {
      */
     public void invitePlayer(Player inviter, Player invitee) {
         if (inviter.equals(invitee)) {
-            inviter.sendMessage(ChatColor.RED + "You cannot invite yourself.");
+            inviter.sendMessage(Utils.getInstance().$("You cannot invite yourself."));
             return;
         }
 
         if (playerPartyMap.containsKey(invitee.getUniqueId())) {
-            inviter.sendMessage(ChatColor.RED + invitee.getName() + " is already in a party.");
+            inviter.sendMessage(Utils.getInstance().$(invitee.getName() + " is already in a party."));
             return;
         }
 
         if (pendingInvitations.containsKey(invitee.getUniqueId())) {
-            inviter.sendMessage(ChatColor.RED + invitee.getName() + " already has a pending invitation.");
+            inviter.sendMessage(Utils.getInstance().$(invitee.getName() + " already has a pending invitation."));
             return;
         }
 
@@ -47,14 +49,14 @@ public class PartyHelper {
         }
 
         if (party.getMembers().size() >= 3) {
-            inviter.sendMessage(ChatColor.RED + "Your party is full.");
+            inviter.sendMessage(Utils.getInstance().$("Your party is full."));
             return;
         }
 
         pendingInvitations.put(invitee.getUniqueId(), inviter.getUniqueId());
-        inviter.sendMessage(ChatColor.GREEN + "You have invited " + invitee.getName() + " to your party.");
+        inviter.sendMessage(Utils.getInstance().$("You have invited " + invitee.getName() + " to your party."));
 
-        invitee.sendMessage(ChatColor.YELLOW + inviter.getName() + " has invited you to join their party.");
+        invitee.sendMessage(Utils.getInstance().$(inviter.getName() + " has invited you to join their party."));
 
         // Using TextComponent for clickable [Accept] and [Decline] messages
         TextComponent acceptButton = new TextComponent("[Accept]");
@@ -74,14 +76,14 @@ public class PartyHelper {
         message.addExtra(separator);
         message.addExtra(declineButton);
 
-        invitee.spigot().sendMessage(message);
+        invitee.spigot().sendMessage(ChatMessageType.valueOf(Utils.getInstance().$(String.valueOf(message))));
 
         // Schedule a task to remove the invitation after a timeout (e.g., 60 seconds)
         Bukkit.getScheduler().runTaskLater(JavaPlugin.getProvidingPlugin(getClass()), () -> {
             if (pendingInvitations.containsKey(invitee.getUniqueId())) {
                 pendingInvitations.remove(invitee.getUniqueId());
-                inviter.sendMessage(ChatColor.RED + invitee.getName() + " did not respond to your party invitation.");
-                invitee.sendMessage(ChatColor.RED + "Party invitation from " + inviter.getName() + " has expired.");
+                inviter.sendMessage(Utils.getInstance().$(invitee.getName() + " did not respond to your party invitation."));
+                invitee.sendMessage(Utils.getInstance().$("Party invitation from " + inviter.getName() + " has expired."));
             }
         }, 1200L); // 1200 ticks = 60 seconds
     }
@@ -94,7 +96,7 @@ public class PartyHelper {
     public void acceptInvitation(Player player) {
         UUID inviterUUID = pendingInvitations.remove(player.getUniqueId());
         if (inviterUUID == null) {
-            player.sendMessage(ChatColor.RED + "You have no pending party invitations.");
+            player.sendMessage(Utils.getInstance().$("You have no pending party invitations."));
             return;
         }
 
@@ -105,7 +107,7 @@ public class PartyHelper {
         }
 
         if (party.getMembers().size() >= 3) {
-            player.sendMessage(ChatColor.RED + "The party is already full.");
+            player.sendMessage(Utils.getInstance().$("The party is already full."));
             return;
         }
 
@@ -116,7 +118,7 @@ public class PartyHelper {
         for (UUID memberUUID : party.getMembers()) {
             Player member = Bukkit.getPlayer(memberUUID);
             if (member != null && member.isOnline()) {
-                member.sendMessage(ChatColor.GREEN + player.getName() + " has joined the party.");
+                member.sendMessage(Utils.getInstance().$(player.getName() + " has joined the party."));
             }
         }
     }
@@ -129,16 +131,16 @@ public class PartyHelper {
     public void declineInvitation(Player player) {
         UUID inviterUUID = pendingInvitations.remove(player.getUniqueId());
         if (inviterUUID == null) {
-            player.sendMessage(ChatColor.RED + "You have no pending party invitations.");
+            player.sendMessage(Utils.getInstance().$("You have no pending party invitations."));
             return;
         }
 
         Player inviter = Bukkit.getPlayer(inviterUUID);
         if (inviter != null && inviter.isOnline()) {
-            inviter.sendMessage(ChatColor.RED + player.getName() + " has declined your party invitation.");
+            inviter.sendMessage(Utils.getInstance().$(player.getName() + " has declined your party invitation."));
         }
 
-        player.sendMessage(ChatColor.YELLOW + "You have declined the party invitation from " + (inviter != null ? inviter.getName() : "a player") + ".");
+        player.sendMessage(Utils.getInstance().$("You have declined the party invitation from " + (inviter != null ? inviter.getName() : "a player") + "."));
     }
 
     /**
@@ -149,19 +151,19 @@ public class PartyHelper {
     public void leaveParty(Player player) {
         Party party = playerPartyMap.get(player.getUniqueId());
         if (party == null) {
-            player.sendMessage(ChatColor.RED + "You are not in a party.");
+            player.sendMessage(Utils.getInstance().$("You are not in a party."));
             return;
         }
 
         party.removeMember(player.getUniqueId());
         playerPartyMap.remove(player.getUniqueId());
-        player.sendMessage(ChatColor.YELLOW + "You have left the party.");
+        player.sendMessage(Utils.getInstance().$("You have left the party."));
 
         // Notify remaining party members
         for (UUID memberUUID : party.getMembers()) {
             Player member = Bukkit.getPlayer(memberUUID);
             if (member != null && member.isOnline()) {
-                member.sendMessage(ChatColor.YELLOW + player.getName() + " has left the party.");
+                member.sendMessage(Utils.getInstance().$(player.getName() + " has left the party."));
             }
         }
 
@@ -174,7 +176,7 @@ public class PartyHelper {
             party.setLeader(newLeaderUUID);
             Player newLeader = Bukkit.getPlayer(newLeaderUUID);
             if (newLeader != null && newLeader.isOnline()) {
-                newLeader.sendMessage(ChatColor.GREEN + "You are now the party leader.");
+                newLeader.sendMessage(Utils.getInstance().$("You are now the party leader."));
             }
         }
     }
@@ -189,7 +191,7 @@ public class PartyHelper {
             playerPartyMap.remove(memberUUID);
             Player member = Bukkit.getPlayer(memberUUID);
             if (member != null && member.isOnline()) {
-                member.sendMessage(ChatColor.RED + "Your party has been disbanded.");
+                member.sendMessage(Utils.getInstance().$("Your party has been disbanded."));
             }
         }
     }
@@ -241,31 +243,31 @@ public class PartyHelper {
     public void kickPlayer(Player leader, Player targetPlayer) {
         Party party = playerPartyMap.get(leader.getUniqueId());
         if (party == null) {
-            leader.sendMessage(ChatColor.RED + "You are not in a party.");
+            leader.sendMessage(Utils.getInstance().$("You are not in a party."));
             return;
         }
 
         if (!party.getLeader().equals(leader.getUniqueId())) {
-            leader.sendMessage(ChatColor.RED + "You are not the party leader.");
+            leader.sendMessage(Utils.getInstance().$("You are not the party leader."));
             return;
         }
 
         if (!party.getMembers().contains(targetPlayer.getUniqueId())) {
-            leader.sendMessage(ChatColor.RED + targetPlayer.getName() + " is not in your party.");
+            leader.sendMessage(Utils.getInstance().$(targetPlayer.getName() + " is not in your party."));
             return;
         }
 
         party.removeMember(targetPlayer.getUniqueId());
         playerPartyMap.remove(targetPlayer.getUniqueId());
 
-        leader.sendMessage(ChatColor.YELLOW + "You have kicked " + targetPlayer.getName() + " from the party.");
-        targetPlayer.sendMessage(ChatColor.RED + "You have been kicked from the party by " + leader.getName() + ".");
+        leader.sendMessage(Utils.getInstance().$("You have kicked " + targetPlayer.getName() + " from the party."));
+        targetPlayer.sendMessage(Utils.getInstance().$("You have been kicked from the party by " + leader.getName() + "."));
 
         // Notify remaining party members
         for (UUID memberUUID : party.getMembers()) {
             Player member = Bukkit.getPlayer(memberUUID);
             if (member != null && member.isOnline()) {
-                member.sendMessage(ChatColor.YELLOW + targetPlayer.getName() + " has been kicked from the party.");
+                member.sendMessage(Utils.getInstance().$(targetPlayer.getName() + " has been kicked from the party."));
             }
         }
     }

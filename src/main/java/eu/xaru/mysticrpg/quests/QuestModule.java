@@ -1,5 +1,8 @@
 package eu.xaru.mysticrpg.quests;
 
+import com.github.juliarn.npclib.api.event.AttackNpcEvent;
+import com.github.juliarn.npclib.api.event.InteractNpcEvent;
+import com.github.juliarn.npclib.api.protocol.enums.EntityAnimation;
 import dev.jorel.commandapi.CommandAPICommand;
 import dev.jorel.commandapi.arguments.ArgumentSuggestions;
 import dev.jorel.commandapi.arguments.PlayerArgument;
@@ -16,12 +19,17 @@ import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
+import eu.xaru.mysticrpg.npc.NPCManager;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.Sound;
+import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -108,12 +116,53 @@ public class QuestModule implements IBaseModule {
     }
 
     private void registerCommands() {
+
+        new CommandAPICommand("debug")
+                .withSubcommand(new CommandAPICommand("quest")
+                        .executesPlayer((player, args) -> {
+                            player.sendMessage(Utils.getInstance().$("&cQuest &#6600ffdebug command"));
+                        }))
+                .withSubcommand(new CommandAPICommand("spawnnpc")
+                        .executesPlayer((player, args) -> {
+
+                            player.sendMessage(Utils.getInstance().$("&7 npc &#6600ffdebug command"));
+                            Location npcLocation = player.getLocation();
+                            String npcName = "Bob";
+                            NPCManager npcManager = new NPCManager(MysticCore.getInstance().getPlatform());
+
+                            npcManager
+                                    .createNPC(npcLocation, npcName)
+                                    .exceptionally(throwable -> {
+                                // Handle any exceptions during NPC creation
+                                plugin.getLogger().severe("Failed to create NPC: " + throwable.getMessage());
+                                return null;
+                            });
+                            var eventManager = MysticCore.getInstance().getPlatform().eventManager();
+                            eventManager.registerEventHandler(AttackNpcEvent.class, attackEvent -> {
+                                var npc = attackEvent.npc();
+                                Player player2 = attackEvent.player();
+                                npc.platform().packetFactory().createAnimationPacket(EntityAnimation.TAKE_DAMAGE).schedule(player2, npc);
+                                player2.sendMessage("You attacked NPC " + npc.profile().name() + "! That's not nice!");
+                            });
+                            eventManager.registerEventHandler(InteractNpcEvent.class, interactEvent -> {
+                                var npc = interactEvent.npc();
+                                Player player3 = interactEvent.player();
+                                if(interactEvent.hand() == InteractNpcEvent.Hand.MAIN_HAND) {
+                                    player3.sendMessage("You interacted with NPC " + npc.profile().name() + " with your main hand!");
+                                } else {
+                                    player3.sendMessage("You interacted with NPC " + npc.profile().name() + " with your off hand!");
+                                }
+                            });
+                        }))
+                .register();
+
+
         new CommandAPICommand("quests")
                 .withSubcommand(new CommandAPICommand("list")
                         .executesPlayer((player, args) -> {
-                            player.sendMessage(ChatColor.GREEN + "Available Quests:");
+                            player.sendMessage(Utils.getInstance().$("Available Quests:"));
                             for (Quest quest : questManager.getAllQuests()) {
-                                player.sendMessage("- " + quest.getId() + ": " + quest.getName());
+                                player.sendMessage(Utils.getInstance().$("- " + quest.getId() + ": " + quest.getName()));
                             }
                         }))
                 .withSubcommand(new CommandAPICommand("check")
@@ -123,23 +172,23 @@ public class QuestModule implements IBaseModule {
                             PlayerData data = playerDataCache.getCachedPlayerData(target.getUniqueId());
 
                             if (data == null) {
-                                sender.sendMessage(ChatColor.RED + "No data found for player " + target.getName());
+                                sender.sendMessage(Utils.getInstance().$("No data found for player " + target.getName()));
                                 return;
                             }
 
-                            sender.sendMessage(ChatColor.AQUA + "Active Quests for " + target.getName() + ":");
+                            sender.sendMessage(Utils.getInstance().$("Active Quests for " + target.getName() + ":"));
                             for (String questId : data.getActiveQuests()) {
                                 Quest quest = questManager.getQuest(questId);
                                 if (quest != null) {
-                                    sender.sendMessage("- " + quest.getName());
+                                    sender.sendMessage(Utils.getInstance().$("- " + quest.getName()));
                                 }
                             }
 
-                            sender.sendMessage(ChatColor.GREEN + "Completed Quests for " + target.getName() + ":");
+                            sender.sendMessage(Utils.getInstance().$("Completed Quests for " + target.getName() + ":"));
                             for (String questId : data.getCompletedQuests()) {
                                 Quest quest = questManager.getQuest(questId);
                                 if (quest != null) {
-                                    sender.sendMessage("- " + quest.getName());
+                                    sender.sendMessage(Utils.getInstance().$("- " + quest.getName()));
                                 }
                             }
 
@@ -147,7 +196,7 @@ public class QuestModule implements IBaseModule {
                             if (pinnedQuestId != null) {
                                 Quest pinnedQuest = questManager.getQuest(pinnedQuestId);
                                 if (pinnedQuest != null) {
-                                    sender.sendMessage(ChatColor.YELLOW + "Pinned Quest: " + pinnedQuest.getName());
+                                    sender.sendMessage(Utils.getInstance().$("Pinned Quest: " + pinnedQuest.getName()));
                                 }
                             }
                         }))
@@ -171,26 +220,26 @@ public class QuestModule implements IBaseModule {
 
                             Quest quest = questManager.getQuest(questId);
                             if (quest == null) {
-                                sender.sendMessage(ChatColor.RED + "Quest not found: " + questId);
+                                sender.sendMessage(Utils.getInstance().$("Quest not found: " + questId));
                                 return;
                             }
 
                             PlayerData data = playerDataCache.getCachedPlayerData(target.getUniqueId());
                             if (data == null) {
-                                sender.sendMessage(ChatColor.RED + "No data found for player " + target.getName());
+                                sender.sendMessage(Utils.getInstance().$("No data found for player " + target.getName()));
                                 return;
                             }
 
                             if (data.getActiveQuests().contains(questId) || data.getCompletedQuests().contains(questId)) {
-                                sender.sendMessage(ChatColor.YELLOW + target.getName() + " already has or completed this quest.");
+                                sender.sendMessage(Utils.getInstance().$(target.getName() + " already has or completed this quest."));
                                 return;
                             }
 
                             data.getActiveQuests().add(questId);
                             data.getQuestProgress().put(questId, new HashMap<>());
 
-                            sender.sendMessage(ChatColor.GREEN + "Quest " + quest.getName() + " given to " + target.getName());
-                            target.sendMessage(ChatColor.AQUA + "You have received a new quest: " + quest.getName());
+                            sender.sendMessage(Utils.getInstance().$("Quest " + quest.getName() + " given to " + target.getName()));
+                            target.sendMessage(Utils.getInstance().$("You have received a new quest: " + quest.getName()));
                         }))
                 .withSubcommand(new CommandAPICommand("reset")
                         .withArguments(
@@ -204,13 +253,13 @@ public class QuestModule implements IBaseModule {
 
                             Quest quest = questManager.getQuest(questId);
                             if (quest == null) {
-                                sender.sendMessage(ChatColor.RED + "Quest not found: " + questId);
+                                sender.sendMessage(Utils.getInstance().$("Quest not found: " + questId));
                                 return;
                             }
 
                             PlayerData data = playerDataCache.getCachedPlayerData(target.getUniqueId());
                             if (data == null) {
-                                sender.sendMessage(ChatColor.RED + "No data found for player " + target.getName());
+                                sender.sendMessage(Utils.getInstance().$("No data found for player " + target.getName()));
                                 return;
                             }
 
@@ -223,7 +272,7 @@ public class QuestModule implements IBaseModule {
                                 data.setPinnedQuest(null);
                             }
 
-                            sender.sendMessage(ChatColor.GREEN + "Quest " + quest.getName() + " has been reset for " + target.getName());
+                            sender.sendMessage(Utils.getInstance().$("Quest " + quest.getName() + " has been reset for " + target.getName()));
                         }))
                 .register();
     }
@@ -422,17 +471,17 @@ public class QuestModule implements IBaseModule {
                     CustomItem customItem = itemManager.getCustomItem(itemId);
                     if (customItem != null) {
                         player.getInventory().addItem(customItem.toItemStack());
-                        player.sendMessage(ChatColor.GREEN + "You have received: " + customItem.getName());
+                        player.sendMessage(Utils.getInstance().$("You have received: " + customItem.getName()));
                     } else {
-                        player.sendMessage(ChatColor.RED + "Failed to find custom item: " + itemId);
+                        player.sendMessage(Utils.getInstance().$("Failed to find custom item: " + itemId));
                     }
                 }
             }
         }
 
         // Notify the player
-        player.sendMessage(ChatColor.GREEN + "You have completed the quest: " + quest.getName());
-        player.sendTitle(ChatColor.GREEN + "Quest Completed!", ChatColor.YELLOW + quest.getName(), 10, 70, 20);
+        player.sendMessage(Utils.getInstance().$("You have completed the quest: " + quest.getName()));
+        player.sendTitle(Utils.getInstance().$( "Quest Completed!"), Utils.getInstance().$(quest.getName()), 10, 70, 20);
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
     }
 

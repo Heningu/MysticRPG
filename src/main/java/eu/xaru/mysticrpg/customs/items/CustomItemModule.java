@@ -11,6 +11,7 @@ import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -101,17 +102,17 @@ public class CustomItemModule implements IBaseModule {
                             String itemId = (String) args.get("itemId");
                             CustomItem customItem = itemManager.getCustomItem(itemId);
                             if (customItem == null) {
-                                player.sendMessage(ChatColor.RED + "Custom item not found: " + itemId);
+                                player.sendMessage(Utils.getInstance().$("Custom item not found: " + itemId));
                                 return;
                             }
                             player.getInventory().addItem(customItem.toItemStack());
-                            player.sendMessage(ChatColor.GREEN + "You have received a custom item: " + customItem.getId());
+                            player.sendMessage(Utils.getInstance().$("You have received a custom item: " + customItem.getId()));
                         }))
                 .withSubcommand(new CommandAPICommand("list")
                         .executesPlayer((player, args) -> {
-                            player.sendMessage("Available Custom Items:");
+                            player.sendMessage(Utils.getInstance().$("Available Custom Items:"));
                             for (CustomItem item : itemManager.getAllCustomItems()) {
-                                player.sendMessage("- " + item.getId());
+                                player.sendMessage(Utils.getInstance().$("- " + item.getId()));
                             }
                         }))
                 .register();
@@ -204,9 +205,9 @@ public class CustomItemModule implements IBaseModule {
     private void applyUpgradeStone(Player player, ItemStack itemStack, ItemStack upgradeStoneItem) {
         boolean success = CustomItemUtils.upgradeItem(itemStack, powerStoneManager);
         if (success) {
-            player.sendMessage(ChatColor.GREEN + "Your item has been upgraded!");
+            player.sendMessage(Utils.getInstance().$("Your item has been upgraded!"));
         } else {
-            player.sendMessage(ChatColor.RED + "Failed to upgrade item.");
+            player.sendMessage(Utils.getInstance().$("Failed to upgrade item."));
         }
     }
 }

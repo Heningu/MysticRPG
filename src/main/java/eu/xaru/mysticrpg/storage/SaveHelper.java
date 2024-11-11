@@ -10,6 +10,7 @@ import com.mongodb.reactivestreams.client.*;
 import dev.jorel.commandapi.CommandAPICommand;
 import eu.xaru.mysticrpg.auctionhouse.Auction;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bson.UuidRepresentation;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
@@ -365,13 +366,13 @@ public class SaveHelper {
                             savePlayer(playerData, new Callback<Void>() {
                                 @Override
                                 public void onSuccess(Void result) {
-                                    player.sendMessage("Your data has been saved to the database.");
+                                    player.sendMessage(Utils.getInstance().$("Your data has been saved to the database."));
                                     logger.log(Level.INFO, "Data saved successfully for player: " + player.getName(), 0);
                                 }
 
                                 @Override
                                 public void onFailure(Throwable throwable) {
-                                    player.sendMessage("Failed to save your data. Please try again later.");
+                                    player.sendMessage(Utils.getInstance().$("Failed to save your data. Please try again later."));
                                     logger.error("Failed to save data for player: " + player.getName() + ". " + throwable.getMessage());
                                 }
                             });
@@ -379,7 +380,7 @@ public class SaveHelper {
 
                         @Override
                         public void onFailure(Throwable throwable) {
-                            player.sendMessage("Failed to load your data. Please try again later.");
+                            player.sendMessage(Utils.getInstance().$("Failed to load your data. Please try again later."));
                             logger.error("Failed to load data for player: " + player.getName() + ". " + throwable.getMessage());
                         }
                     });

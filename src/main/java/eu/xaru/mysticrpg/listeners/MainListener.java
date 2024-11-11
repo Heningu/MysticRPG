@@ -186,7 +186,7 @@
 //            } else {
 //                levelingManager.addXp(killer, xp);
 //            }
-//            killer.sendMessage("You have gained " + xp + " XP!");
+//            killer.sendMessage(Utils.getInstance().$("You have gained " + xp + " XP!");
 //            event.setDroppedExp(0); // Prevent double XP gain
 //        }
 //    }
@@ -198,7 +198,7 @@
 //            double damage = event.getDamage();
 //            customDamageHandler.handleDamage(damaged, damage);
 //            plugin.getActionBarManager().updateActionBar(damaged); // Update action bar after taking damage
-//            damaged.sendMessage("You took " + damage + " damage!");
+//            damaged.sendMessage(Utils.getInstance().$("You took " + damage + " damage!");
 //        }
 //    }
 //

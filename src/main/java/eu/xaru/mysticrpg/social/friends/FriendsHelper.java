@@ -3,6 +3,8 @@ package eu.xaru.mysticrpg.social.friends;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
+import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
@@ -43,7 +45,7 @@ public class FriendsHelper {
 
         // Prevent players from sending friend requests to themselves
         if (senderUUID.equals(receiverUUID)) {
-            sender.sendMessage(ChatColor.RED + "You cannot add yourself as a friend.");
+            sender.sendMessage(Utils.getInstance().$("You cannot add yourself as a friend."));
             return;
         }
 
@@ -52,34 +54,34 @@ public class FriendsHelper {
 
         // Check if player data is accessible
         if (senderData == null || receiverData == null) {
-            sender.sendMessage(ChatColor.RED + "An error occurred while accessing player data.");
+            sender.sendMessage(Utils.getInstance().$("An error occurred while accessing player data."));
             return;
         }
 
         // Check if the receiver has blocked the sender
         if (receiverData.getBlockedPlayers().contains(senderUUID.toString())) {
-            sender.sendMessage(ChatColor.RED + "You cannot send a friend request to this player.");
+            sender.sendMessage(Utils.getInstance().$("You cannot send a friend request to this player."));
             return;
         }
 
         // Check if the players are already friends
         if (receiverData.getFriends().contains(senderUUID.toString())) {
-            sender.sendMessage(ChatColor.RED + "You are already friends with this player.");
+            sender.sendMessage(Utils.getInstance().$("You are already friends with this player."));
             return;
         }
 
         // Check if a friend request has already been sent
         if (receiverData.getFriendRequests().contains(senderUUID.toString())) {
-            sender.sendMessage(ChatColor.RED + "You have already sent a friend request to this player.");
+            sender.sendMessage(Utils.getInstance().$("You have already sent a friend request to this player."));
             return;
         }
 
         // Add the friend request
         receiverData.getFriendRequests().add(senderUUID.toString());
-        sender.sendMessage(ChatColor.GREEN + "Friend request sent to " + receiver.getName() + ".");
+        sender.sendMessage(Utils.getInstance().$("Friend request sent to " + receiver.getName() + "."));
 
         // Notify the receiver of the incoming friend request
-        receiver.sendMessage(ChatColor.YELLOW + sender.getName() + " has sent you a friend request.");
+        receiver.sendMessage(Utils.getInstance().$(sender.getName() + " has sent you a friend request."));
 
         // Create clickable [Accept] and [Deny] buttons using TextComponent
         TextComponent acceptButton = new TextComponent("[Accept]");
@@ -98,7 +100,7 @@ public class FriendsHelper {
         message.addExtra(denyButton);
 
         // Send the clickable message to the receiver
-        receiver.spigot().sendMessage(message);
+        receiver.spigot().sendMessage(ChatMessageType.valueOf(Utils.getInstance().$(String.valueOf(message))));
 
         logger.log(sender.getName() + " sent a friend request to " + receiver.getName());
     }
@@ -112,7 +114,7 @@ public class FriendsHelper {
     public void acceptFriendRequest(Player receiver, String senderName) {
         OfflinePlayer sender = Bukkit.getOfflinePlayer(senderName);
         if (sender == null || sender.getUniqueId() == null) {
-            receiver.sendMessage(ChatColor.RED + "Player not found.");
+            receiver.sendMessage(Utils.getInstance().$("Player not found."));
             return;
         }
 
@@ -124,13 +126,13 @@ public class FriendsHelper {
 
         // Check if player data is accessible
         if (receiverData == null || senderData == null) {
-            receiver.sendMessage(ChatColor.RED + "An error occurred while accessing player data.");
+            receiver.sendMessage(Utils.getInstance().$("An error occurred while accessing player data."));
             return;
         }
 
         // Check if there is a pending friend request from the sender
         if (!receiverData.getFriendRequests().contains(senderUUID.toString())) {
-            receiver.sendMessage(ChatColor.RED + "You have no friend request from this player.");
+            receiver.sendMessage(Utils.getInstance().$("You have no friend request from this player."));
             return;
         }
 
@@ -141,13 +143,13 @@ public class FriendsHelper {
         receiverData.getFriends().add(senderUUID.toString());
         senderData.getFriends().add(receiverUUID.toString());
 
-        receiver.sendMessage(ChatColor.GREEN + "You are now friends with " + sender.getName() + ".");
+        receiver.sendMessage(Utils.getInstance().$("You are now friends with " + sender.getName() + "."));
 
         // Notify the sender if they are online
         if (sender.isOnline()) {
             Player senderPlayer = sender.getPlayer();
             if (senderPlayer != null) {
-                senderPlayer.sendMessage(ChatColor.GREEN + receiver.getName() + " has accepted your friend request.");
+                senderPlayer.sendMessage(Utils.getInstance().$(receiver.getName() + " has accepted your friend request."));
             }
         }
 
@@ -163,7 +165,7 @@ public class FriendsHelper {
     public void denyFriendRequest(Player receiver, String senderName) {
         OfflinePlayer sender = Bukkit.getOfflinePlayer(senderName);
         if (sender == null || sender.getUniqueId() == null) {
-            receiver.sendMessage(ChatColor.RED + "Player not found.");
+            receiver.sendMessage(Utils.getInstance().$("Player not found."));
             return;
         }
 
@@ -174,26 +176,26 @@ public class FriendsHelper {
 
         // Check if player data is accessible
         if (receiverData == null) {
-            receiver.sendMessage(ChatColor.RED + "An error occurred while accessing player data.");
+            receiver.sendMessage(Utils.getInstance().$("An error occurred while accessing player data."));
             return;
         }
 
         // Check if there is a pending friend request from the sender
         if (!receiverData.getFriendRequests().contains(senderUUID.toString())) {
-            receiver.sendMessage(ChatColor.RED + "You have no friend request from this player.");
+            receiver.sendMessage(Utils.getInstance().$("You have no friend request from this player."));
             return;
         }
 
         // Remove the friend request
         receiverData.getFriendRequests().remove(senderUUID.toString());
 
-        receiver.sendMessage(ChatColor.YELLOW + "You have denied the friend request from " + sender.getName() + ".");
+        receiver.sendMessage(Utils.getInstance().$("You have denied the friend request from " + sender.getName() + "."));
 
         // Notify the sender if they are online
         if (sender.isOnline()) {
             Player senderPlayer = sender.getPlayer();
             if (senderPlayer != null) {
-                senderPlayer.sendMessage(ChatColor.RED + receiver.getName() + " has denied your friend request.");
+                senderPlayer.sendMessage(Utils.getInstance().$(receiver.getName() + " has denied your friend request."));
             }
         }
 
@@ -215,13 +217,13 @@ public class FriendsHelper {
 
         // Check if player data is accessible
         if (playerData == null || targetData == null) {
-            player.sendMessage(ChatColor.RED + "An error occurred while accessing player data.");
+            player.sendMessage(Utils.getInstance().$("An error occurred while accessing player data."));
             return;
         }
 
         // Check if the target is actually a friend
         if (!playerData.getFriends().contains(targetUUID.toString())) {
-            player.sendMessage(ChatColor.RED + "This player is not in your friends list.");
+            player.sendMessage(Utils.getInstance().$("This player is not in your friends list."));
             return;
         }
 
@@ -229,13 +231,13 @@ public class FriendsHelper {
         playerData.getFriends().remove(targetUUID.toString());
         targetData.getFriends().remove(playerUUID.toString());
 
-        player.sendMessage(ChatColor.YELLOW + "You have removed " + target.getName() + " from your friends list.");
+        player.sendMessage(Utils.getInstance().$("You have removed " + target.getName() + " from your friends list."));
 
         // Notify the target player if they are online
         if (target.isOnline()) {
             Player targetPlayer = target.getPlayer();
             if (targetPlayer != null) {
-                targetPlayer.sendMessage(ChatColor.YELLOW + player.getName() + " has removed you from their friends list.");
+                targetPlayer.sendMessage(Utils.getInstance().$(player.getName() + " has removed you from their friends list."));
             }
         }
 

@@ -6,6 +6,7 @@ import eu.xaru.mysticrpg.customs.mobs.MobManager;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.player.stats.StatMenu;
 import eu.xaru.mysticrpg.utils.CustomInventoryManager;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -78,14 +79,14 @@ public class MobGUI {
             }
 
             // Set the display name of the head to the mob's name
-            CustomInventoryManager.setItemDisplayName(mobHead, ChatColor.YELLOW + customMob.getName());
+            CustomInventoryManager.setItemDisplayName(mobHead, Utils.getInstance().$(customMob.getName()));
 
             // Optionally, add lore or other metadata here
             /*
             List<String> lore = new ArrayList<>();
-            lore.add(ChatColor.GRAY + "Health: " + customMob.getHealth());
-            lore.add(ChatColor.GRAY + "Level: " + customMob.getLevel());
-            lore.add(ChatColor.GRAY + "Rewards: " + customMob.getExperienceReward() + " XP, " + customMob.getCurrencyReward() + " Coins");
+            lore.add(Utils.getInstance().$("Health: " + customMob.getHealth());
+            lore.add(Utils.getInstance().$("Level: " + customMob.getLevel());
+            lore.add(Utils.getInstance().$("Rewards: " + customMob.getExperienceReward() + " XP, " + customMob.getCurrencyReward() + " Coins");
             CustomInventoryManager.setItemLore(mobHead, lore);
             */
 
@@ -150,7 +151,7 @@ public class MobGUI {
                 mobManager.spawnMobAtLocation(selectedMob, player.getLocation());
 
                 // Provide feedback to the player
-                player.sendMessage(ChatColor.GREEN + "Spawned mob: " + selectedMob.getName());
+                player.sendMessage(Utils.getInstance().$("Spawned mob: " + selectedMob.getName()));
 
                 // Play a sound for feedback
                 player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
@@ -179,7 +180,7 @@ public class MobGUI {
                 Player player = event.getPlayer();
                 if (player.getOpenInventory() != null && player.getOpenInventory().getTopInventory().getHolder() instanceof StatMenu) {
                     event.setCancelled(true); // Prevent item dropping
-                    player.sendMessage(ChatColor.RED + "You cannot drop items from the Mob GUI.");
+                    player.sendMessage(Utils.getInstance().$("You cannot drop items from the Mob GUI."));
                 }
             }
         }, EventPriority.HIGH);

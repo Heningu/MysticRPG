@@ -1,6 +1,7 @@
 package eu.xaru.mysticrpg.social.party;
 
 import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -20,7 +21,7 @@ public class PartyGUI {
     private static final MysticCore plugin = JavaPlugin.getPlugin(MysticCore.class);
 
     public static void openPartyGUI(Player player, PartyHelper partyHelper) {
-        Inventory gui = Bukkit.createInventory(null, 45, ChatColor.DARK_BLUE + "Party Menu");
+        Inventory gui = Bukkit.createInventory(null, 45, "Party Menu");
 
         fillWithPlaceholders(gui);
 
@@ -35,7 +36,7 @@ public class PartyGUI {
         // Leader's head
         ItemStack leaderHead = getPlayerHead(player);
         ItemMeta leaderMeta = leaderHead.getItemMeta();
-        leaderMeta.setDisplayName(ChatColor.GREEN + player.getName());
+        leaderMeta.setDisplayName(Utils.getInstance().$( player.getName()));
         leaderHead.setItemMeta(leaderMeta);
 
         gui.setItem(headSlots[index], leaderHead);
@@ -55,7 +56,7 @@ public class PartyGUI {
 
                 ItemStack memberHead = getPlayerHead(member);
                 ItemMeta memberMeta = memberHead.getItemMeta();
-                memberMeta.setDisplayName(ChatColor.GREEN + member.getName());
+                memberMeta.setDisplayName(Utils.getInstance().$( member.getName()));
                 memberHead.setItemMeta(memberMeta);
 
                 gui.setItem(headSlots[index], memberHead);
@@ -66,7 +67,7 @@ public class PartyGUI {
                 if (party.getLeader().equals(player.getUniqueId())) {
                     ItemStack kickButton = new ItemStack(Material.REDSTONE_BLOCK);
                     ItemMeta kickMeta = kickButton.getItemMeta();
-                    kickMeta.setDisplayName(ChatColor.RED + "Kick " + member.getName());
+                    kickMeta.setDisplayName(Utils.getInstance().$( "Kick " + member.getName()));
                     kickButton.setItemMeta(kickMeta);
                     gui.setItem(kickSlot, kickButton);
 
@@ -84,7 +85,7 @@ public class PartyGUI {
         while (index < headSlots.length) {
             ItemStack skeletonSkull = new ItemStack(Material.SKELETON_SKULL);
             ItemMeta skullMeta = skeletonSkull.getItemMeta();
-            skullMeta.setDisplayName(ChatColor.GRAY + "Empty Slot");
+            skullMeta.setDisplayName(Utils.getInstance().$( "Empty Slot"));
             skeletonSkull.setItemMeta(skullMeta);
 
             gui.setItem(headSlots[index], skeletonSkull);
@@ -164,7 +165,7 @@ public class PartyGUI {
 
         if (kickSlotToMemberMap != null && kickSlotToMemberMap.containsKey(slot)) {
             if (!party.getLeader().equals(player.getUniqueId())) {
-                player.sendMessage(ChatColor.RED + "You are not the party leader.");
+                player.sendMessage(Utils.getInstance().$("You are not the party leader."));
                 return;
             }
 
@@ -174,7 +175,7 @@ public class PartyGUI {
                 partyHelper.kickPlayer(player, targetPlayer);
                 openPartyGUI(player, partyHelper);
             } else {
-                player.sendMessage(ChatColor.RED + "Player is offline or not found.");
+                player.sendMessage(Utils.getInstance().$("Player is offline or not found."));
             }
         }
     }

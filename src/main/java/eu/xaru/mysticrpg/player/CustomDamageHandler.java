@@ -1,15 +1,18 @@
 package eu.xaru.mysticrpg.player;
 
+import com.github.juliarn.npclib.api.protocol.enums.EntityAnimation;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
+import eu.xaru.mysticrpg.npc.NPCManager;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.ui.ActionBarManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -144,12 +147,11 @@ public class CustomDamageHandler implements IBaseModule {
 
         // Log the damage event
         logger.log("Player " + player.getName() + " took " + damage + " damage. Current HP: " + currentHp);
-
         if (currentHp <= 0) {
             // Handle player death
             Location spawnLocation = player.getWorld().getSpawnLocation();
             player.teleport(spawnLocation);
-            player.sendMessage(ChatColor.RED + "You Died");
+            player.sendMessage(Utils.getInstance().$("You Died"));
             logger.log("Player " + player.getName() + " died and was teleported to spawn.");
 
             // Reset player's health to max for respawn

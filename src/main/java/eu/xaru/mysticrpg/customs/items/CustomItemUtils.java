@@ -2,6 +2,7 @@ package eu.xaru.mysticrpg.customs.items;
 
 import eu.xaru.mysticrpg.customs.items.powerstones.PowerStone;
 import eu.xaru.mysticrpg.customs.items.powerstones.PowerStoneManager;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
@@ -217,14 +218,14 @@ public class CustomItemUtils {
         // Second line: Tier stars
         if (customItem.isUseTierSystem()) {
             String tierStars = getTierStars(currentTier, customItem.getItemMaxLevel());
-            finalLore.add(ChatColor.GOLD + tierStars);
+            finalLore.add(Utils.getInstance().$(tierStars));
         }
 
         // Add Free Powerstone Slots if applicable
         if (customItem.isUsePowerStones()) {
             int maxSlots = customItem.getPowerStoneSlots();
             int freeSlots = maxSlots - appliedPowerStones.size();
-            finalLore.add(ChatColor.GRAY + "Free Powerstone Slots: " + freeSlots);
+            finalLore.add(Utils.getInstance().$("Free Powerstone Slots: " + freeSlots));
         }
 
         // Add a blank line
@@ -233,18 +234,18 @@ public class CustomItemUtils {
         // Add the actual lore/description
         if (customItem.getLore() != null && !customItem.getLore().isEmpty()) {
             finalLore.addAll(customItem.getLore().stream()
-                    .map(line -> ChatColor.GRAY + ChatColor.translateAlternateColorCodes('&', line))
+                    .map(line -> Utils.getInstance().$(line))
                     .collect(Collectors.toList()));
         }
 
         // Add applied power stones
         if (!appliedPowerStones.isEmpty()) {
             finalLore.add("");
-            finalLore.add(ChatColor.AQUA + "Power Stones:");
+            finalLore.add(Utils.getInstance().$("Power Stones:"));
             for (String psId : appliedPowerStones) {
                 PowerStone ps = powerStoneManager.getPowerStone(psId);
                 if (ps != null) {
-                    finalLore.add(ChatColor.DARK_GRAY + "- " + ChatColor.translateAlternateColorCodes('&', ps.getName()));
+                    finalLore.add(Utils.getInstance().$("- " + Utils.getInstance().$(ps.getName())));
                 }
             }
         }

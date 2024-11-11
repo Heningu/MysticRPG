@@ -10,6 +10,7 @@ import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.*;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -110,8 +111,8 @@ public class LevelModule implements IBaseModule {
                             Player target = (Player) args.get("target");
                             int amount = (int) args.get("amount");
                             addXp(target, amount);
-                            sender.sendMessage(ChatColor.GREEN + "Gave " + amount + " XP to " + target.getName());
-                            target.sendMessage(ChatColor.GREEN + "You received " + amount + " XP.");
+                            sender.sendMessage(Utils.getInstance().$("Gave " + amount + " XP to " + target.getName()));
+                            target.sendMessage(Utils.getInstance().$("You received " + amount + " XP."));
                         }))
                 .withSubcommand(new CommandAPICommand("set")
                         .withPermission("mysticrpg.admin")
@@ -120,8 +121,8 @@ public class LevelModule implements IBaseModule {
                             Player target = (Player) args.get("target");
                             int amount = (int) args.get("amount");
                             setXp(target, amount);
-                            sender.sendMessage(ChatColor.GREEN + "Set " + target.getName() + "'s XP to " + amount);
-                            target.sendMessage(ChatColor.GREEN + "Your XP was set to " + amount);
+                            sender.sendMessage(Utils.getInstance().$("Set " + target.getName() + "'s XP to " + amount));
+                            target.sendMessage(Utils.getInstance().$("Your XP was set to " + amount));
                         }))
                 .register();
     }
@@ -144,7 +145,7 @@ public class LevelModule implements IBaseModule {
             playerData.setXp(newXp);
 
             // Send a message to the player with color codes
-            player.sendMessage(ChatColor.AQUA + "You gained " + ChatColor.GOLD + amount + " XP!");
+            player.sendMessage(Utils.getInstance().$("You gained " + + amount + " XP!"));
 
             while (playerData.getLevel() < maxLevel && newXp >= getLevelThreshold(playerData.getLevel() + 1)) {
                 newXp -= getLevelThreshold(playerData.getLevel() + 1);
@@ -152,7 +153,7 @@ public class LevelModule implements IBaseModule {
                 playerData.setXp(newXp);
 
                 // Send level-up message to the player
-                player.sendMessage(ChatColor.GREEN + "Congratulations! You reached level " + ChatColor.GOLD + playerData.getLevel() + ChatColor.GREEN + "!");
+                player.sendMessage(Utils.getInstance().$("Congratulations! You reached level "  + playerData.getLevel()  + "!"));
 
                 // Apply level up rewards
                 LevelData levelData = levelDataMap.get(playerData.getLevel());

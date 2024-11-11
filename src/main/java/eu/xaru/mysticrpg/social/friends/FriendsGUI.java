@@ -3,6 +3,7 @@ package eu.xaru.mysticrpg.social.friends;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.utils.CustomInventoryManager;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -80,14 +81,14 @@ public class FriendsGUI {
         PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
 
         if (playerData == null) {
-            player.sendMessage(ChatColor.RED + "An error occurred while accessing your friend data.");
+            player.sendMessage(Utils.getInstance().$("An error occurred while accessing your friend data."));
             return;
         }
 
         Set<String> friendsUUIDs = playerData.getFriends();
         if (friendsUUIDs.isEmpty()) {
             // Add an item indicating no friends
-            ItemStack noFriends = getDefaultHead(ChatColor.GRAY + "No Friends");
+            ItemStack noFriends = getDefaultHead("No Friends");
             // Place it in the center slot (e.g., slot 22)
             CustomInventoryManager.addItemToSlot(inventory, 22, noFriends);
             return;
@@ -154,7 +155,7 @@ public class FriendsGUI {
         SkullMeta meta = (SkullMeta) head.getItemMeta();
         if (meta != null) {
             meta.setOwningPlayer(player);
-            meta.setDisplayName(ChatColor.YELLOW + player.getName());
+            meta.setDisplayName(Utils.getInstance().$( player.getName()));
             meta.setLore(Collections.singletonList(friendUUID.toString())); // Embed UUID in lore
             head.setItemMeta(meta);
         }
@@ -172,7 +173,7 @@ public class FriendsGUI {
         ItemStack skeletonHead = new ItemStack(Material.SKELETON_SKULL);
         SkullMeta meta = (SkullMeta) skeletonHead.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ChatColor.YELLOW + "[Offline] " + (offlinePlayer.getName() != null ? offlinePlayer.getName() : "Unknown"));
+            meta.setDisplayName(Utils.getInstance().$( "[Offline] " + (offlinePlayer.getName() != null ? offlinePlayer.getName() : "Unknown")));
             meta.setLore(Collections.singletonList(friendUUID.toString())); // Embed UUID in lore
             skeletonHead.setItemMeta(meta);
         }
@@ -208,7 +209,7 @@ public class FriendsGUI {
         String friendName = (friend.getName() != null) ? friend.getName() : "Unknown";
 
         // Create an inventory with 9 slots (single row) titled "FRIENDNAME"
-        String inventoryTitle = ChatColor.translateAlternateColorCodes('&', friendName);
+        String inventoryTitle = friendName;
         Inventory friendOptionsInventory = CustomInventoryManager.createInventory(9, inventoryTitle);
 
         // Define placeholder for empty slots
@@ -224,7 +225,7 @@ public class FriendsGUI {
         SkullMeta meta = (SkullMeta) friendHead.getItemMeta();
         if (meta != null) {
             meta.setOwningPlayer(friend);
-            meta.setDisplayName(ChatColor.YELLOW + friendName);
+            meta.setDisplayName(Utils.getInstance().$( friendName));
             meta.setLore(Collections.singletonList(friendUUID.toString())); // Embed UUID in lore
             friendHead.setItemMeta(meta);
         }
@@ -233,22 +234,22 @@ public class FriendsGUI {
         // Define the buttons
         // Slot 2: Invite to Party (Cake)
         ItemStack inviteButton = new ItemStack(Material.CAKE);
-        CustomInventoryManager.setItemDisplayName(inviteButton, ChatColor.GREEN + "Invite to Party");
+        CustomInventoryManager.setItemDisplayName(inviteButton, "Invite to Party");
         CustomInventoryManager.addItemToSlot(friendOptionsInventory, 2, inviteButton);
 
         // Slot 4: Send a Message (Paper)
         ItemStack messageButton = new ItemStack(Material.PAPER);
-        CustomInventoryManager.setItemDisplayName(messageButton, ChatColor.BLUE + "Send a Message");
+        CustomInventoryManager.setItemDisplayName(messageButton, "Send a Message");
         CustomInventoryManager.addItemToSlot(friendOptionsInventory, 4, messageButton);
 
         // Slot 6: Remove Friend (Redstone Block)
         ItemStack removeButton = new ItemStack(Material.REDSTONE_BLOCK);
-        CustomInventoryManager.setItemDisplayName(removeButton, ChatColor.RED + "Remove Friend");
+        CustomInventoryManager.setItemDisplayName(removeButton, "Remove Friend");
         CustomInventoryManager.addItemToSlot(friendOptionsInventory, 6, removeButton);
 
         // Slot 8: Back (Arrow)
         ItemStack backButton = new ItemStack(Material.ARROW);
-        CustomInventoryManager.setItemDisplayName(backButton, ChatColor.GOLD + "Back");
+        CustomInventoryManager.setItemDisplayName(backButton, "Back");
         CustomInventoryManager.addItemToSlot(friendOptionsInventory, 8, backButton);
 
         // Open the inventory for the player
@@ -268,19 +269,19 @@ public class FriendsGUI {
 
         // Slot 47 (3rd slot): Book named "Friend Requests"
         ItemStack friendRequestsBook = new ItemStack(Material.BOOK);
-        CustomInventoryManager.setItemDisplayName(friendRequestsBook, ChatColor.AQUA + "Friend Requests");
+        CustomInventoryManager.setItemDisplayName(friendRequestsBook, "Friend Requests");
         inventory.setItem(47, friendRequestsBook);
 
         // Slot 49 (5th slot): Barrier named "Close"
         ItemStack closeBarrier = new ItemStack(Material.BARRIER);
-        CustomInventoryManager.setItemDisplayName(closeBarrier, ChatColor.RED + "Close");
+        CustomInventoryManager.setItemDisplayName(closeBarrier, "Close");
         inventory.setItem(49, closeBarrier);
 
         // Slot 51 (7th slot): Redstone torch named "Reminders: ON | OFF"
         ItemStack reminderTorch = new ItemStack(Material.REDSTONE_TORCH);
         boolean remindersEnabled = playerData != null && playerData.isRemindersEnabled();
         String reminderStatus = remindersEnabled ? "ON" : "OFF";
-        CustomInventoryManager.setItemDisplayName(reminderTorch, ChatColor.GOLD + "Reminders: " + reminderStatus);
+        CustomInventoryManager.setItemDisplayName(reminderTorch, "Reminders: " + reminderStatus);
         inventory.setItem(51, reminderTorch);
     }
 }

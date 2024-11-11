@@ -1,10 +1,20 @@
 package eu.xaru.mysticrpg.cores;
 
+import com.github.juliarn.npclib.api.Platform;
+import com.github.juliarn.npclib.bukkit.BukkitPlatform;
+import com.github.juliarn.npclib.bukkit.BukkitWorldAccessor;
+import com.github.juliarn.npclib.bukkit.protocol.BukkitProtocolAdapter;
+import com.github.retrooper.packetevents.PacketEvents;
 import dev.jorel.commandapi.CommandAPI;
 import dev.jorel.commandapi.CommandAPIBukkitConfig;
 import eu.xaru.mysticrpg.config.ConfigCreator;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder;
+import org.bukkit.World;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class MysticCore extends JavaPlugin {
@@ -12,6 +22,13 @@ public class MysticCore extends JavaPlugin {
     private ModuleManager moduleManager;
     private DebugLoggerModule logger;
     public static MysticCore instance = null;
+
+    private Platform<World, Player, ItemStack, Plugin> platform;
+
+    public Platform<World, Player, ItemStack, Plugin> getPlatform() {
+        return platform;
+    }
+
 
     public MysticCore() {
         if(instance == null) {
@@ -26,6 +43,9 @@ public class MysticCore extends JavaPlugin {
 
     @Override
     public void onLoad() {
+        PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this));
+
+        PacketEvents.getAPI().load();
         CommandAPI.onLoad(new CommandAPIBukkitConfig(this).silentLogs(true));
 
         // Initialize the module manager
@@ -34,6 +54,14 @@ public class MysticCore extends JavaPlugin {
 
     @Override
     public void onEnable() {
+
+        PacketEvents.getAPI().init();
+        platform = BukkitPlatform
+                .bukkitNpcPlatformBuilder()
+                .extension(this)
+                .packetFactory(BukkitProtocolAdapter.packetEvents())
+                .actionController(builder -> {}) // enable action controller without changing the default config
+                .build();
         try {
             // Load all modules (eagerly loaded modules)
             moduleManager.loadAllModules();
@@ -82,5 +110,6 @@ public class MysticCore extends JavaPlugin {
                 e.printStackTrace();
             }
         }
+        PacketEvents.getAPI().terminate();
     }
 }

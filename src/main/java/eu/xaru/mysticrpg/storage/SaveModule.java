@@ -10,6 +10,7 @@ import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.database.DatabaseManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -84,7 +85,7 @@ public class SaveModule implements IBaseModule {
                         double pendingBalance = playerData.getPendingBalance();
                         playerData.setBalance(playerData.getBalance() + pendingBalance);
                         playerData.setPendingBalance(0.0);
-                        player.sendMessage(ChatColor.GREEN + "You have received $" + economyHelper.formatBalance(pendingBalance) + " from your sold auctions.");
+                        player.sendMessage(Utils.getInstance().$("You have received $" + economyHelper.formatBalance(pendingBalance) + " from your sold auctions."));
                         logger.log(Level.INFO, "Applied pending balance for " + player.getName(), 0);
                     }
 
@@ -97,7 +98,7 @@ public class SaveModule implements IBaseModule {
                             }
                         }
                         playerData.getPendingItems().clear();
-                        player.sendMessage(ChatColor.GREEN + "You have received items from your expired auctions.");
+                        player.sendMessage(Utils.getInstance().$("You have received items from your expired auctions."));
                         logger.log(Level.INFO, "Applied pending items for " + player.getName(), 0);
                     }
 
@@ -105,13 +106,13 @@ public class SaveModule implements IBaseModule {
                     playerDataCache.savePlayerData(playerUUID, new Callback<Void>() {
                         @Override
                         public void onSuccess(Void result) {
-                            player.sendMessage("Your data has been saved to the database.");
+                            player.sendMessage(Utils.getInstance().$("Your data has been saved to the database."));
                             logger.log(Level.INFO, "SaveModule$1: Data saved successfully for player: " + player.getName(), 0);
                         }
 
                         @Override
                         public void onFailure(Throwable throwable) {
-                            player.sendMessage("Failed to save your data. Please try again later.");
+                            player.sendMessage(Utils.getInstance().$("Failed to save your data. Please try again later."));
                             logger.error("SaveModule$1: Failed to save data for player: " + player.getName() + ". " + throwable.getMessage());
                         }
                     });
@@ -119,7 +120,7 @@ public class SaveModule implements IBaseModule {
 
                 @Override
                 public void onFailure(Throwable throwable) {
-                    player.sendMessage("Failed to load your data. Please try again later.");
+                    player.sendMessage(Utils.getInstance().$("Failed to load your data. Please try again later."));
                     logger.error("SaveModule$1: Failed to load data for player: " + player.getName() + ". " + throwable.getMessage());
                 }
             });

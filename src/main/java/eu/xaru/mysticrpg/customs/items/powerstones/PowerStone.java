@@ -2,6 +2,7 @@ package eu.xaru.mysticrpg.customs.items.powerstones;
 
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.customs.items.Rarity;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -60,13 +61,13 @@ public class PowerStone {
         ItemMeta meta = itemStack.getItemMeta();
 
         if (meta != null) {
-            meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', name));
+            meta.setDisplayName(Utils.getInstance().$(name));
 
             // Lore
             List<String> loreList = new ArrayList<>();
             loreList.add(rarity.getColor() + rarity.name());
             loreList.add("");
-            loreList.add(ChatColor.GRAY + ChatColor.translateAlternateColorCodes('&', description));
+            loreList.add(Utils.getInstance().$( description));
 
             meta.setLore(loreList);
 

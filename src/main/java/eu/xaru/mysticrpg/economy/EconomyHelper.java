@@ -2,6 +2,7 @@ package eu.xaru.mysticrpg.economy;
 
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.entity.Player;
 
 public class EconomyHelper {
@@ -41,17 +42,17 @@ public class EconomyHelper {
         PlayerData receiverData = playerDataCache.getCachedPlayerData(receiver.getUniqueId());
 
         if (senderData == null || receiverData == null) {
-            sender.sendMessage("Failed to find data for either sender or receiver.");
+            sender.sendMessage(Utils.getInstance().$("Failed to find data for either sender or receiver."));
             return;
         }
 
         if (senderData.getBalance() >= amount) {
             senderData.setBalance(senderData.getBalance() - amount);
             receiverData.setBalance(receiverData.getBalance() + amount);
-            sender.sendMessage("You sent $" + formatBalance(amount) + " to " + receiver.getName());
-            receiver.sendMessage("You received $" + formatBalance(amount) + " from " + sender.getName());
+            sender.sendMessage(Utils.getInstance().$("You sent $" + formatBalance(amount) + " to " + receiver.getName()));
+            receiver.sendMessage(Utils.getInstance().$("You received $" + formatBalance(amount) + " from " + sender.getName()));
         } else {
-            sender.sendMessage("Insufficient funds.");
+            sender.sendMessage(Utils.getInstance().$("Insufficient funds."));
         }
     }
 

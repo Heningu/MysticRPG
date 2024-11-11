@@ -6,6 +6,7 @@ import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -44,7 +45,7 @@ public class StatMenu {
 
         if (data == null) {
             logger.error("No cached data found for player: " + player.getName());
-            player.sendMessage(ChatColor.RED + "Failed to open stat menu. No data found.");
+            player.sendMessage(Utils.getInstance().$("Failed to open stat menu. No data found."));
             return;
         }
 
@@ -55,14 +56,14 @@ public class StatMenu {
         ItemStack playerHead = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta headMeta = (SkullMeta) playerHead.getItemMeta();
         headMeta.setOwningPlayer(player);
-        headMeta.setDisplayName(ChatColor.GOLD + player.getName());
+        headMeta.setDisplayName(Utils.getInstance().$( player.getName()));
         headMeta.setLore(Arrays.asList(
-                ChatColor.WHITE + "Vitality: " + attributes.getOrDefault("Vitality", 0),
-                ChatColor.WHITE + "Intelligence: " + attributes.getOrDefault("Intelligence", 0),
-                ChatColor.WHITE + "Dexterity: " + attributes.getOrDefault("Dexterity", 0),
-                ChatColor.WHITE + "Strength: " + attributes.getOrDefault("Strength", 0),
-                ChatColor.WHITE + "HP: " + attributes.getOrDefault("HP", 0),
-                ChatColor.WHITE + "Mana: " + attributes.getOrDefault("MANA", 0)
+                Utils.getInstance().$("Vitality: " + attributes.getOrDefault("Vitality", 0)),
+                Utils.getInstance().$("Intelligence: " + attributes.getOrDefault("Intelligence", 0)),
+                Utils.getInstance().$("Dexterity: " + attributes.getOrDefault("Dexterity", 0)),
+                Utils.getInstance().$("Strength: " + attributes.getOrDefault("Strength", 0)),
+                Utils.getInstance().$("HP: " + attributes.getOrDefault("HP", 0)),
+                Utils.getInstance().$("Mana: " + attributes.getOrDefault("MANA", 0))
         ));
         playerHead.setItemMeta(headMeta);
         inventory.setItem(4, playerHead);
@@ -76,8 +77,8 @@ public class StatMenu {
         // Attribute points
         ItemStack attributePoints = new ItemStack(Material.NETHER_STAR);
         ItemMeta pointsMeta = attributePoints.getItemMeta();
-        pointsMeta.setDisplayName(ChatColor.GOLD + "Attribute Points");
-        pointsMeta.setLore(Arrays.asList(ChatColor.YELLOW + "Points: " + data.getAttributePoints()));
+        pointsMeta.setDisplayName(Utils.getInstance().$( "Attribute Points"));
+        pointsMeta.setLore(Collections.singletonList(Utils.getInstance().$("Points: " + data.getAttributePoints())));
         attributePoints.setItemMeta(pointsMeta);
         inventory.setItem(53, attributePoints);
 
@@ -98,15 +99,15 @@ public class StatMenu {
     private void addStatItem(Inventory inventory, int slot, Material material, String name, int attribute, int stat, int attributePoints) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.GREEN + name);
-        meta.setLore(Arrays.asList(ChatColor.WHITE + "Attribute: " + attribute, ChatColor.WHITE + "Stat: " + stat));
+        meta.setDisplayName(Utils.getInstance().$( name));
+        meta.setLore(Arrays.asList(Utils.getInstance().$( "Attribute: " + attribute),Utils.getInstance().$( "Stat: " + stat)));
         item.setItemMeta(meta);
         inventory.setItem(slot, item);
 
         Material buttonMaterial = attributePoints > 0 ? Material.SUNFLOWER : Material.BEDROCK;
         ItemStack button = new ItemStack(buttonMaterial);
         ItemMeta buttonMeta = button.getItemMeta();
-        buttonMeta.setDisplayName(attributePoints > 0 ? ChatColor.AQUA + "Increase " + name : ChatColor.RED + "[NO POINTS]");
+        buttonMeta.setDisplayName(attributePoints > 0 ? Utils.getInstance().$( "Increase " + name) : Utils.getInstance().$( "[NO POINTS]"));
         buttonMeta.setLore(Collections.emptyList()); // Clear lore
         button.setItemMeta(buttonMeta);
         inventory.setItem(slot + 9, button); // Assuming the button is placed in the row below the stat item

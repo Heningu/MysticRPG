@@ -3,6 +3,7 @@ package eu.xaru.mysticrpg.auctionhouse;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -48,7 +49,7 @@ public class AuctionsGUI {
      */
     public void openMainGUI(Player player) {
         Inventory gui = Bukkit.createInventory(null, 54,
-                ChatColor.DARK_BLUE + "Auction House");
+                Utils.getInstance().$("Auction House"));
 
         // Fill the GUI with placeholders
         fillWithPlaceholders(gui);
@@ -56,19 +57,19 @@ public class AuctionsGUI {
         // Create the "Buy Items" item
         ItemStack buyItems = new ItemStack(Material.EMERALD);
         ItemMeta buyMeta = buyItems.getItemMeta();
-        buyMeta.setDisplayName(ChatColor.GREEN + "Buy Items");
+        buyMeta.setDisplayName(Utils.getInstance().$("Buy Items"));
         buyItems.setItemMeta(buyMeta);
 
         // Create the "Sell Items" item
         ItemStack sellItems = new ItemStack(Material.CHEST);
         ItemMeta sellMeta = sellItems.getItemMeta();
-        sellMeta.setDisplayName(ChatColor.GREEN + "Sell Items");
+        sellMeta.setDisplayName(Utils.getInstance().$("Sell Items"));
         sellItems.setItemMeta(sellMeta);
 
         // Create the "My Auctions" item
         ItemStack myAuctions = new ItemStack(Material.BOOK);
         ItemMeta myAuctionsMeta = myAuctions.getItemMeta();
-        myAuctionsMeta.setDisplayName(ChatColor.GREEN + "My Auctions");
+        myAuctionsMeta.setDisplayName(Utils.getInstance().$("My Auctions"));
         myAuctions.setItemMeta(myAuctionsMeta);
 
         // Place the items in the GUI
@@ -86,7 +87,7 @@ public class AuctionsGUI {
      */
     public void openBuyGUI(Player player) {
         if (!auctionHouseHelper.areAuctionsLoaded()) {
-            player.sendMessage(ChatColor.RED + "Please wait, auctions are still loading.");
+            player.sendMessage(Utils.getInstance().$("Please wait, auctions are still loading."));
             return;
         }
 
@@ -96,12 +97,12 @@ public class AuctionsGUI {
                 auctions.size(), 0);
 
         if (auctions.isEmpty()) {
-            player.sendMessage(ChatColor.YELLOW + "There are currently no items for sale.");
+            player.sendMessage(Utils.getInstance().$("There are currently no items for sale."));
             return;
         }
 
         Inventory gui = Bukkit.createInventory(null, 54,
-                ChatColor.DARK_BLUE + "Auction House - Buy");
+                Utils.getInstance().$("Auction House - Buy"));
 
         // Add a back button
         addBackButton(gui);
@@ -118,19 +119,19 @@ public class AuctionsGUI {
                     : new ArrayList<>();
 
             if (auction.isBidItem()) {
-                lore.add(ChatColor.GOLD + "Current Bid: $" +
+                lore.add("Current Bid: $" +
                         economyHelper.formatBalance(auction.getCurrentBid()));
-                lore.add(ChatColor.YELLOW + "Right-click to place a bid");
+                lore.add(Utils.getInstance().$("Right-click to place a bid"));
             } else {
-                lore.add(ChatColor.GOLD + "Price: $" +
-                        economyHelper.formatBalance(auction.getStartingPrice()));
-                lore.add(ChatColor.GREEN + "Left-click to buy now");
+                lore.add(Utils.getInstance().$("Price: $" +
+                        economyHelper.formatBalance(auction.getStartingPrice())));
+                lore.add(Utils.getInstance().$("Left-click to buy now"));
             }
-            lore.add(ChatColor.GRAY + "Time Left: " +
+            lore.add(Utils.getInstance().$("Time Left: " +
                     formatTimeLeft(auction.getEndTime()
-                            - System.currentTimeMillis()));
-            lore.add(ChatColor.DARK_GRAY + "Auction ID: " +
-                    auction.getAuctionId());
+                            - System.currentTimeMillis())));
+            lore.add(Utils.getInstance().$("Auction ID: " +
+                    auction.getAuctionId()));
 
             meta.setLore(lore);
             item.setItemMeta(meta);
@@ -151,7 +152,7 @@ public class AuctionsGUI {
      */
     public void openSellGUI(Player player) {
         Inventory gui = Bukkit.createInventory(null, 54,
-                ChatColor.DARK_BLUE + "Auction House - Sell");
+                Utils.getInstance().$("Auction House - Sell"));
 
         // Fill the GUI with placeholders
         fillWithPlaceholders(gui);
@@ -164,40 +165,40 @@ public class AuctionsGUI {
         // Create buttons and placeholders
         ItemStack decreasePrice = new ItemStack(Material.REDSTONE_BLOCK);
         ItemMeta decreaseMeta = decreasePrice.getItemMeta();
-        decreaseMeta.setDisplayName(ChatColor.RED + "Decrease Price");
+        decreaseMeta.setDisplayName(Utils.getInstance().$( "Decrease Price"));
         decreasePrice.setItemMeta(decreaseMeta);
 
         ItemStack increasePrice = new ItemStack(Material.EMERALD_BLOCK);
         ItemMeta increaseMeta = increasePrice.getItemMeta();
-        increaseMeta.setDisplayName(ChatColor.GREEN + "Increase Price");
+        increaseMeta.setDisplayName(Utils.getInstance().$( "Increase Price"));
         increasePrice.setItemMeta(increaseMeta);
 
         ItemStack confirm = new ItemStack(Material.GREEN_WOOL);
         ItemMeta confirmMeta = confirm.getItemMeta();
         boolean isBidItem = bidMap.get(player.getUniqueId());
-        confirmMeta.setDisplayName(ChatColor.GREEN + "Confirm " + (isBidItem ? "Auction" : "Sale"));
+        confirmMeta.setDisplayName(Utils.getInstance().$( "Confirm " + (isBidItem ? "Auction" : "Sale")));
         confirm.setItemMeta(confirmMeta);
 
         ItemStack changeDuration = new ItemStack(Material.CLOCK);
         ItemMeta durationMeta = changeDuration.getItemMeta();
-        durationMeta.setDisplayName(ChatColor.YELLOW + "Change Duration");
-        durationMeta.setLore(List.of(ChatColor.GRAY + "Current Duration: " +
-                formatDuration(durationMap.get(player.getUniqueId()))));
+        durationMeta.setDisplayName(Utils.getInstance().$( "Change Duration"));
+        durationMeta.setLore(List.of(Utils.getInstance().$("Current Duration: " +
+                formatDuration(durationMap.get(player.getUniqueId())))));
         changeDuration.setItemMeta(durationMeta);
 
         // Create price display
         ItemStack priceDisplay = new ItemStack(Material.PAPER);
         ItemMeta priceMeta = priceDisplay.getItemMeta();
-        priceMeta.setDisplayName(ChatColor.AQUA + "Current Price: $" +
-                economyHelper.formatBalance(priceMap.get(player.getUniqueId())));
-        priceMeta.setLore(List.of(ChatColor.GRAY + "Right-click to set custom price"));
+        priceMeta.setDisplayName(Utils.getInstance().$( "Current Price: $" +
+                economyHelper.formatBalance(priceMap.get(player.getUniqueId()))));
+        priceMeta.setLore(List.of(Utils.getInstance().$("Right-click to set custom price")));
         priceDisplay.setItemMeta(priceMeta);
 
         // Create "Toggle Auction Type" button
         ItemStack toggleAuctionType = new ItemStack(Material.GOLDEN_HOE);
         ItemMeta toggleMeta = toggleAuctionType.getItemMeta();
-        toggleMeta.setDisplayName(ChatColor.AQUA + "Auction Type: " + (isBidItem ? "Bidding" : "Fixed Price"));
-        toggleMeta.setLore(List.of(ChatColor.GRAY + "Click to switch auction type"));
+        toggleMeta.setDisplayName(Utils.getInstance().$( "Auction Type: " + (isBidItem ? "Bidding" : "Fixed Price")));
+        toggleMeta.setLore(List.of(Utils.getInstance().$( "Click to switch auction type")));
         toggleAuctionType.setItemMeta(toggleMeta);
 
         // Add a back button
@@ -224,19 +225,19 @@ public class AuctionsGUI {
      */
     public void openPlayerAuctionsGUI(Player player) {
         if (!auctionHouseHelper.areAuctionsLoaded()) {
-            player.sendMessage(ChatColor.RED + "Please wait, auctions are still loading.");
+            player.sendMessage(Utils.getInstance().$("Please wait, auctions are still loading."));
             return;
         }
 
         List<Auction> playerAuctions = auctionHouseHelper.getPlayerAuctions(player.getUniqueId());
 
         if (playerAuctions.isEmpty()) {
-            player.sendMessage(ChatColor.YELLOW + "You have no active auctions.");
+            player.sendMessage(Utils.getInstance().$("You have no active auctions."));
             return;
         }
 
         Inventory gui = Bukkit.createInventory(null, 54,
-                ChatColor.DARK_BLUE + "Your Auctions");
+                Utils.getInstance().$("Your Auctions"));
 
         // Add a back button
         addBackButton(gui);
@@ -253,18 +254,18 @@ public class AuctionsGUI {
                     : new ArrayList<>();
 
             if (auction.isBidItem()) {
-                lore.add(ChatColor.GOLD + "Current Bid: $" +
-                        economyHelper.formatBalance(auction.getCurrentBid()));
+                lore.add(Utils.getInstance().$("Current Bid: $" +
+                        economyHelper.formatBalance(auction.getCurrentBid())));
             } else {
-                lore.add(ChatColor.GOLD + "Price: $" +
-                        economyHelper.formatBalance(auction.getStartingPrice()));
+                lore.add(Utils.getInstance().$("Price: $" +
+                        economyHelper.formatBalance(auction.getStartingPrice())));
             }
-            lore.add(ChatColor.GRAY + "Time Left: " +
+            lore.add(Utils.getInstance().$("Time Left: " +
                     formatTimeLeft(auction.getEndTime()
-                            - System.currentTimeMillis()));
-            lore.add(ChatColor.RED + "Click to cancel this auction");
-            lore.add(ChatColor.DARK_GRAY + "Auction ID: " +
-                    auction.getAuctionId());
+                            - System.currentTimeMillis())));
+            lore.add(Utils.getInstance().$("Click to cancel this auction"));
+            lore.add(Utils.getInstance().$("Auction ID: " +
+                    auction.getAuctionId()));
 
             meta.setLore(lore);
             item.setItemMeta(meta);
@@ -327,7 +328,7 @@ public class AuctionsGUI {
     private void addBackButton(Inventory inventory) {
         ItemStack backButton = new ItemStack(Material.ARROW);
         ItemMeta backMeta = backButton.getItemMeta();
-        backMeta.setDisplayName(ChatColor.YELLOW + "Back");
+        backMeta.setDisplayName(Utils.getInstance().$( "Back"));
         backButton.setItemMeta(backMeta);
 
         inventory.setItem(49, backButton); // Slot 49 is bottom center in a 54-slot inventory
@@ -454,7 +455,7 @@ public class AuctionsGUI {
                             }
                         }
                     } catch (IllegalArgumentException e) {
-                        player.sendMessage(ChatColor.RED + "Invalid auction ID.");
+                        player.sendMessage(Utils.getInstance().$("Invalid auction ID."));
                     }
                 }
             }
@@ -555,7 +556,7 @@ public class AuctionsGUI {
                         // Refresh the player's auctions GUI
                         Bukkit.getScheduler().runTask(plugin, () -> openPlayerAuctionsGUI(player));
                     } catch (IllegalArgumentException e) {
-                        player.sendMessage(ChatColor.RED + "Invalid auction ID.");
+                        player.sendMessage(Utils.getInstance().$("Invalid auction ID."));
                     }
                 }
             }
@@ -583,8 +584,8 @@ public class AuctionsGUI {
     private void updatePriceDisplay(Inventory sellGui, double currentPrice) {
         ItemStack priceDisplay = new ItemStack(Material.PAPER);
         ItemMeta priceMeta = priceDisplay.getItemMeta();
-        priceMeta.setDisplayName(ChatColor.AQUA + "Current Price: $" + economyHelper.formatBalance(currentPrice));
-        priceMeta.setLore(List.of(ChatColor.GRAY + "Right-click to set custom price"));
+        priceMeta.setDisplayName(Utils.getInstance().$( "Current Price: $" + economyHelper.formatBalance(currentPrice)));
+        priceMeta.setLore(List.of(Utils.getInstance().$("Right-click to set custom price")));
         priceDisplay.setItemMeta(priceMeta);
 
         sellGui.setItem(28, priceDisplay);
@@ -593,7 +594,7 @@ public class AuctionsGUI {
     private void confirmSale(Player player, Inventory sellGui) {
         ItemStack itemToSell = sellGui.getItem(22);
         if (itemToSell == null || itemToSell.getType() == Material.AIR) {
-            player.sendMessage(ChatColor.RED + "You must place an item in the center slot to sell.");
+            player.sendMessage(Utils.getInstance().$("You must place an item in the center slot to sell."));
             return;
         }
 
@@ -612,7 +613,7 @@ public class AuctionsGUI {
             auctionHouseHelper.addAuction(playerUUID, itemToSell, price, duration);
         }
 
-        player.sendMessage(ChatColor.GREEN + "Your item has been listed for " + (isBidItem ? "auction!" : "sale!"));
+        player.sendMessage(Utils.getInstance().$("Your item has been listed for " + (isBidItem ? "auction!" : "sale!")));
 
         // Close the GUI
         player.closeInventory();
@@ -640,7 +641,7 @@ public class AuctionsGUI {
         ItemStack changeDuration = sellGui.getItem(13);
         if (changeDuration != null) {
             ItemMeta durationMeta = changeDuration.getItemMeta();
-            durationMeta.setLore(List.of(ChatColor.GRAY + "Current Duration: " + formatDuration(currentDuration)));
+            durationMeta.setLore(List.of(Utils.getInstance().$("Current Duration: ") + formatDuration(currentDuration)));
             changeDuration.setItemMeta(durationMeta);
 
             sellGui.setItem(13, changeDuration);
@@ -661,8 +662,8 @@ public class AuctionsGUI {
         ItemStack toggleAuctionType = sellGui.getItem(16);
         if (toggleAuctionType != null) {
             ItemMeta toggleMeta = toggleAuctionType.getItemMeta();
-            toggleMeta.setDisplayName(ChatColor.AQUA + "Auction Type: " + (isBidItem ? "Bidding" : "Fixed Price"));
-            toggleMeta.setLore(List.of(ChatColor.GRAY + "Click to switch auction type"));
+            toggleMeta.setDisplayName(Utils.getInstance().$( "Auction Type: " + (isBidItem ? "Bidding" : "Fixed Price")));
+            toggleMeta.setLore(List.of(Utils.getInstance().$( "Click to switch auction type")));
             toggleAuctionType.setItemMeta(toggleMeta);
             sellGui.setItem(16, toggleAuctionType);
         }
@@ -671,7 +672,7 @@ public class AuctionsGUI {
         ItemStack confirm = sellGui.getItem(31);
         if (confirm != null) {
             ItemMeta confirmMeta = confirm.getItemMeta();
-            confirmMeta.setDisplayName(ChatColor.GREEN + "Confirm " + (isBidItem ? "Auction" : "Sale"));
+            confirmMeta.setDisplayName(Utils.getInstance().$( "Confirm " + (isBidItem ? "Auction" : "Sale")));
             confirm.setItemMeta(confirmMeta);
             sellGui.setItem(31, confirm);
         }
@@ -679,7 +680,7 @@ public class AuctionsGUI {
 
     private void promptBidAmount(Player player, UUID auctionId) {
         // Prompt the player to enter a bid amount via chat
-        player.sendMessage(ChatColor.YELLOW + "Enter your bid amount in chat:");
+        player.sendMessage(Utils.getInstance().$("Enter your bid amount in chat:"));
 
         // Add the player to a pending bids map
         pendingBids.put(player.getUniqueId(), auctionId);
@@ -689,7 +690,7 @@ public class AuctionsGUI {
 
     private void promptCustomPrice(Player player) {
         // Prompt the player to enter a custom price via chat
-        player.sendMessage(ChatColor.YELLOW + "Enter your custom price in chat:");
+        player.sendMessage(Utils.getInstance().$("Enter your custom price in chat:"));
 
         // Add the player to a pending price input set
         pendingPriceInput.add(player.getUniqueId());
@@ -715,7 +716,7 @@ public class AuctionsGUI {
                 // Reopen Buy GUI
                 Bukkit.getScheduler().runTask(plugin, () -> openBuyGUI(player));
             } catch (NumberFormatException e) {
-                player.sendMessage(ChatColor.RED + "Invalid bid amount. Please enter a number.");
+                player.sendMessage(Utils.getInstance().$("Invalid bid amount. Please enter a number."));
             }
         } else if (pendingPriceInput.contains(playerId)) {
             event.setCancelled(true);
@@ -725,15 +726,15 @@ public class AuctionsGUI {
             try {
                 double customPrice = Double.parseDouble(message);
                 if (customPrice < 0) {
-                    player.sendMessage(ChatColor.RED + "Price cannot be negative.");
+                    player.sendMessage(Utils.getInstance().$("Price cannot be negative."));
                     return;
                 }
                 priceMap.put(playerId, customPrice);
-                player.sendMessage(ChatColor.GREEN + "Custom price set to $" + economyHelper.formatBalance(customPrice));
+                player.sendMessage(Utils.getInstance().$("Custom price set to $" + economyHelper.formatBalance(customPrice)));
                 // Reopen Sell GUI
                 Bukkit.getScheduler().runTask(plugin, () -> openSellGUI(player));
             } catch (NumberFormatException e) {
-                player.sendMessage(ChatColor.RED + "Invalid price. Please enter a number.");
+                player.sendMessage(Utils.getInstance().$("Invalid price. Please enter a number."));
             }
         }
     }

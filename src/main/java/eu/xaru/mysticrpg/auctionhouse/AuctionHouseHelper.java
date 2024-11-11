@@ -5,6 +5,7 @@ import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.*;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -114,9 +115,9 @@ public class AuctionHouseHelper {
                     String itemName = item.getType().toString();
                     Player sellerPlayer = Bukkit.getPlayer(seller);
                     String sellerName = sellerPlayer != null ? sellerPlayer.getName() : "A player";
-                    Bukkit.broadcastMessage(ChatColor.GREEN + "[Auction House] " + ChatColor.YELLOW +
+                    Bukkit.broadcastMessage(Utils.getInstance().$("&a[Auction House] &e" +
                             sellerName + " has listed " + itemName + " for $" +
-                            economyHelper.formatBalance(price) + "!");
+                            economyHelper.formatBalance(price) + "!"));
                 });
             }
 
@@ -157,9 +158,9 @@ public class AuctionHouseHelper {
                     String itemName = item.getType().toString();
                     Player sellerPlayer = Bukkit.getPlayer(seller);
                     String sellerName = sellerPlayer != null ? sellerPlayer.getName() : "A player";
-                    Bukkit.broadcastMessage(ChatColor.GREEN + "[Auction House] " + ChatColor.YELLOW +
+                    Bukkit.broadcastMessage(Utils.getInstance().$("&a[Auction House] &e" +
                             sellerName + " has started an auction for " + itemName + " with a starting bid of $" +
-                            economyHelper.formatBalance(startingPrice) + "!");
+                            economyHelper.formatBalance(startingPrice) + "!"));
                 });
             }
 
@@ -257,21 +258,21 @@ public class AuctionHouseHelper {
                 @Override
                 public void onSuccess(Void result) {
                     // Auction deleted successfully
-                    player.sendMessage(ChatColor.GREEN + "Auction canceled. The item has been returned to your inventory.");
+                    player.sendMessage(Utils.getInstance().$("Auction canceled. The item has been returned to your inventory."));
                     logger.log(Level.INFO, "Auction " + auctionId + " canceled by player " + player.getName(), 0);
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
                     logger.error("Failed to delete auction from database: " + throwable.getMessage());
-                    player.sendMessage(ChatColor.RED + "An error occurred while canceling the auction.");
+                    player.sendMessage(Utils.getInstance().$("An error occurred while canceling the auction."));
                 }
             });
 
             // Return the item to the player
             player.getInventory().addItem(auction.getItem());
         } else {
-            player.sendMessage(ChatColor.RED + "You cannot cancel this auction.");
+            player.sendMessage(Utils.getInstance().$("You cannot cancel this auction."));
         }
     }
 
@@ -296,7 +297,7 @@ public class AuctionHouseHelper {
                 Player seller = Bukkit.getPlayer(sellerId);
                 if (seller != null && seller.isOnline()) {
                     economyHelper.addBalance(seller, price);
-                    seller.sendMessage(ChatColor.GREEN + "Your item has been sold to " + buyer.getName() + " for $" + economyHelper.formatBalance(price));
+                    seller.sendMessage(Utils.getInstance().$("Your item has been sold to " + buyer.getName() + " for $" + economyHelper.formatBalance(price)));
                 } else {
                     // Seller is offline, add to pending balance
                     PlayerData sellerData = playerDataCache.getCachedPlayerData(sellerId);
@@ -321,7 +322,7 @@ public class AuctionHouseHelper {
 
                 // Give item to buyer
                 buyer.getInventory().addItem(auction.getItem());
-                buyer.sendMessage(ChatColor.GREEN + "You have purchased " + auction.getItem().getType() + " for $" + economyHelper.formatBalance(price));
+                buyer.sendMessage(Utils.getInstance().$("You have purchased " + auction.getItem().getType() + " for $" + economyHelper.formatBalance(price)));
 
                 // Remove auction
                 activeAuctions.remove(auctionId);
@@ -340,10 +341,10 @@ public class AuctionHouseHelper {
                     }
                 });
             } else {
-                buyer.sendMessage(ChatColor.RED + "You do not have enough money to purchase this item.");
+                buyer.sendMessage(Utils.getInstance().$("You do not have enough money to purchase this item."));
             }
         } else {
-            buyer.sendMessage(ChatColor.RED + "This auction does not exist or cannot be bought directly.");
+            buyer.sendMessage(Utils.getInstance().$("This auction does not exist or cannot be bought directly."));
         }
     }
 
@@ -367,7 +368,7 @@ public class AuctionHouseHelper {
                             Player previousBidder = Bukkit.getPlayer(previousBidderId);
                             if (previousBidder != null && previousBidder.isOnline()) {
                                 economyHelper.addBalance(previousBidder, auction.getCurrentBid());
-                                previousBidder.sendMessage(ChatColor.YELLOW + "You have been outbid on auction " + auctionId);
+                                previousBidder.sendMessage(Utils.getInstance().$("You have been outbid on auction " + auctionId));
                             } else {
                                 // Add to pending balance for offline player
                                 PlayerData bidderData = playerDataCache.getCachedPlayerData(previousBidderId);
@@ -397,12 +398,12 @@ public class AuctionHouseHelper {
                     auction.setCurrentBid(bidAmount);
                     auction.setHighestBidder(bidder.getUniqueId());
 
-                    bidder.sendMessage(ChatColor.GREEN + "You are now the highest bidder on auction " + auctionId);
+                    bidder.sendMessage(Utils.getInstance().$("You are now the highest bidder on auction " + auctionId));
 
                     // Optionally notify seller
                     Player seller = Bukkit.getPlayer(auction.getSeller());
                     if (seller != null && seller.isOnline()) {
-                        seller.sendMessage(ChatColor.GREEN + bidder.getName() + " has placed a bid of $" + economyHelper.formatBalance(bidAmount) + " on your auction.");
+                        seller.sendMessage(Utils.getInstance().$(bidder.getName() + " has placed a bid of $" + economyHelper.formatBalance(bidAmount) + " on your auction."));
                     }
 
                     // Update auction in database
@@ -418,13 +419,13 @@ public class AuctionHouseHelper {
                         }
                     });
                 } else {
-                    bidder.sendMessage(ChatColor.RED + "You do not have enough money to place this bid.");
+                    bidder.sendMessage(Utils.getInstance().$("You do not have enough money to place this bid."));
                 }
             } else {
-                bidder.sendMessage(ChatColor.RED + "Your bid must be higher than the current bid.");
+                bidder.sendMessage(Utils.getInstance().$("Your bid must be higher than the current bid."));
             }
         } else {
-            bidder.sendMessage(ChatColor.RED + "This auction does not exist or does not accept bids.");
+            bidder.sendMessage(Utils.getInstance().$("This auction does not exist or does not accept bids."));
         }
     }
 
@@ -449,9 +450,9 @@ public class AuctionHouseHelper {
                     // Transfer money to seller
                     if (seller != null && seller.isOnline()) {
                         economyHelper.addBalance(seller, auction.getCurrentBid());
-                        seller.sendMessage(ChatColor.GREEN + "Your auction has ended. " +
+                        seller.sendMessage(Utils.getInstance().$("Your auction has ended. " +
                                 "You sold " + auction.getItem().getType() + " for $" +
-                                economyHelper.formatBalance(auction.getCurrentBid()) + ".");
+                                economyHelper.formatBalance(auction.getCurrentBid()) + "."));
                     } else {
                         // Seller is offline, add to pending balance
                         PlayerData sellerData = playerDataCache.getCachedPlayerData(sellerId);
@@ -475,9 +476,9 @@ public class AuctionHouseHelper {
                     // Give item to winner
                     if (winner != null && winner.isOnline()) {
                         winner.getInventory().addItem(auction.getItem());
-                        winner.sendMessage(ChatColor.GREEN + "You have won the auction for " +
+                        winner.sendMessage(Utils.getInstance().$("You have won the auction for " +
                                 auction.getItem().getType() + " with a bid of $" +
-                                economyHelper.formatBalance(auction.getCurrentBid()) + ".");
+                                economyHelper.formatBalance(auction.getCurrentBid()) + "."));
                     } else {
                         // Winner is offline, add item to pending items
                         PlayerData winnerData = playerDataCache.getCachedPlayerData(winnerId);
@@ -504,8 +505,8 @@ public class AuctionHouseHelper {
                     // No bids, return item to seller
                     if (seller != null && seller.isOnline()) {
                         seller.getInventory().addItem(auction.getItem());
-                        seller.sendMessage(ChatColor.GREEN + "Your auction for " +
-                                auction.getItem().getType() + " has expired and has been returned to you.");
+                        seller.sendMessage(Utils.getInstance().$("Your auction for " +
+                                auction.getItem().getType() + " has expired and has been returned to you."));
                     } else {
                         // Seller is offline, add item to pending items
                         PlayerData sellerData = playerDataCache.getCachedPlayerData(sellerId);

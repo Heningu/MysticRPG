@@ -3,6 +3,7 @@ package eu.xaru.mysticrpg.ui;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
+import eu.xaru.mysticrpg.utils.Utils;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
@@ -32,7 +33,7 @@ public class ActionBarManager {
         int mana = data.getAttributes().getOrDefault("MANA", 20);
 
         String actionBarText = "§c❤ " + currentHp + "/" + maxHp + " §b❀ " + mana;
-        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(actionBarText));
+        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(Utils.getInstance().$(actionBarText))) ;
 
         // Logging for debugging
         // Bukkit.getLogger().info("ActionBar updated for player " + player.getName() + ". Displayed HP: " + currentHp + "/" + maxHp);

@@ -2,6 +2,7 @@ package eu.xaru.mysticrpg.quests;
 
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -50,7 +51,7 @@ public class QuestGUI {
     public void open() {
         PlayerData data = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (data == null) {
-            player.sendMessage(ChatColor.RED + "No player data found.");
+            player.sendMessage(Utils.getInstance().$("No player data found."));
             return;
         }
 
@@ -72,8 +73,8 @@ public class QuestGUI {
         // Place header item
         ItemStack questBook = new ItemStack(Material.WRITABLE_BOOK);
         ItemMeta questBookMeta = questBook.getItemMeta();
-        questBookMeta.setDisplayName(ChatColor.GOLD + "Quests");
-        questBookMeta.setLore(Arrays.asList(ChatColor.GRAY + "Here you can find all your completed and ongoing quests."));
+        questBookMeta.setDisplayName(Utils.getInstance().$( "Quests"));
+        questBookMeta.setLore(Arrays.asList("Here you can find all your completed and ongoing quests."));
         questBook.setItemMeta(questBookMeta);
         inventory.setItem(4, questBook); // Slot 5 (index 4)
 
@@ -86,10 +87,10 @@ public class QuestGUI {
         // Slot 3 (index 47): Dye named "Quest Progress" with lore
         ItemStack completedQuestsItem = new ItemStack(dyeMaterial);
         ItemMeta completedQuestsMeta = completedQuestsItem.getItemMeta();
-        completedQuestsMeta.setDisplayName(ChatColor.WHITE + "Quest Progress");
+        completedQuestsMeta.setDisplayName(Utils.getInstance().$( "Quest Progress"));
 
         completedQuestsMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "You have completed " + ChatColor.GREEN + completed + ChatColor.GRAY + " / " + ChatColor.GREEN + totalQuests + ChatColor.GRAY + " quests."
+                 "You have completed "  + completed + " / " + totalQuests + " quests."
         ));
         completedQuestsItem.setItemMeta(completedQuestsMeta);
         inventory.setItem(47, completedQuestsItem); // Slot 3 in row 6 (index 47)
@@ -97,9 +98,9 @@ public class QuestGUI {
         // Slot 4 (index 48): Paper named "Useful Tips" with lore
         ItemStack usefulTipsItem = new ItemStack(Material.PAPER);
         ItemMeta usefulTipsMeta = usefulTipsItem.getItemMeta();
-        usefulTipsMeta.setDisplayName(ChatColor.YELLOW + "Useful Tips");
+        usefulTipsMeta.setDisplayName(Utils.getInstance().$( "Useful Tips"));
         usefulTipsMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Click on a quest to pin the progress to the scoreboard."
+                "Click on a quest to pin the progress to the scoreboard."
         ));
         usefulTipsItem.setItemMeta(usefulTipsMeta);
         inventory.setItem(48, usefulTipsItem); // Slot 4 in row 6 (index 48)
@@ -107,9 +108,9 @@ public class QuestGUI {
         // Slot 5 (index 49): Barrier named "Close" with lore
         ItemStack closeItem = new ItemStack(Material.BARRIER);
         ItemMeta closeMeta = closeItem.getItemMeta();
-        closeMeta.setDisplayName(ChatColor.RED + "Close");
+        closeMeta.setDisplayName(Utils.getInstance().$( "Close"));
         closeMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Click to close the menu"
+                "Click to close the menu"
         ));
         closeItem.setItemMeta(closeMeta);
         inventory.setItem(49, closeItem); // Slot 5 in row 6 (index 49)
@@ -117,9 +118,9 @@ public class QuestGUI {
         // Slot 6 (index 50): Hopper Minecart named "Active Quests" with lore
         ItemStack activeQuestsItem = new ItemStack(Material.HOPPER_MINECART);
         ItemMeta activeQuestsMeta = activeQuestsItem.getItemMeta();
-        activeQuestsMeta.setDisplayName(ChatColor.GREEN + "Active Quests");
+        activeQuestsMeta.setDisplayName(Utils.getInstance().$( "Active Quests"));
         activeQuestsMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Click to see all your ongoing quests"
+                "Click to see all your ongoing quests"
         ));
         activeQuestsItem.setItemMeta(activeQuestsMeta);
         inventory.setItem(50, activeQuestsItem); // Slot 6 in row 6 (index 50)
@@ -127,9 +128,9 @@ public class QuestGUI {
         // Slot 7 (index 51): Chest Minecart named "Completed Quests" with lore
         ItemStack completedQuestsMenuItem = new ItemStack(Material.CHEST_MINECART);
         ItemMeta completedQuestsMenuMeta = completedQuestsMenuItem.getItemMeta();
-        completedQuestsMenuMeta.setDisplayName(ChatColor.AQUA + "Completed Quests");
+        completedQuestsMenuMeta.setDisplayName(Utils.getInstance().$( "Completed Quests"));
         completedQuestsMenuMeta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Click to see all your completed quests"
+                "Click to see all your completed quests"
         ));
         completedQuestsMenuItem.setItemMeta(completedQuestsMenuMeta);
         inventory.setItem(51, completedQuestsMenuItem); // Slot 7 in row 6 (index 51)
@@ -146,10 +147,10 @@ public class QuestGUI {
 
             ItemStack questItem = new ItemStack(Material.WRITTEN_BOOK);
             ItemMeta meta = questItem.getItemMeta();
-            meta.setDisplayName(ChatColor.GOLD + quest.getName());
+            meta.setDisplayName(Utils.getInstance().$( quest.getName()));
 
             List<String> lore = new ArrayList<>();
-            lore.add(ChatColor.GRAY + quest.getDetails());
+            lore.add(Utils.getInstance().$(quest.getDetails()));
             lore.add("");
 
             if (showingActiveQuests) {
@@ -172,20 +173,20 @@ public class QuestGUI {
 
                     String progressBar = getProgressBar(percent);
 
-                    lore.add(ChatColor.AQUA + formattedObjective + ": " + ChatColor.GREEN + current + "/" + required);
+                    lore.add(Utils.getInstance().$(formattedObjective + ": " + current + "/" + required));
                     lore.add(progressBar);
                 }
 
                 // Indicate if this quest is pinned
                 if (questId.equals(data.getPinnedQuest())) {
                     lore.add("");
-                    lore.add(ChatColor.YELLOW + "This quest is pinned to your scoreboard.");
+                    lore.add(Utils.getInstance().$("This quest is pinned to your scoreboard."));
                 } else {
                     lore.add("");
-                    lore.add(ChatColor.GRAY + "Click to pin this quest to your scoreboard.");
+                    lore.add(Utils.getInstance().$("Click to pin this quest to your scoreboard."));
                 }
             } else {
-                lore.add(ChatColor.GREEN + "Quest Completed!");
+                lore.add(Utils.getInstance().$("Quest Completed!"));
             }
 
             meta.setLore(lore);
@@ -218,7 +219,7 @@ public class QuestGUI {
         for (int i = progressBars; i < totalBars; i++) {
             sb.append("|");
         }
-        sb.append(ChatColor.YELLOW + " " + String.format("%.1f", percent) + "%");
+        sb.append(" " + String.format("%.1f", percent) + "%");
         return sb.toString();
     }
 
@@ -253,7 +254,7 @@ public class QuestGUI {
             long currentTime = System.currentTimeMillis();
             long lastPinTime = pinCooldowns.getOrDefault(player.getUniqueId(), 0L);
             if (currentTime - lastPinTime < 2000) { // 2 seconds cooldown
-                player.sendMessage(ChatColor.RED + "Please wait before pinning or unpinning another quest.");
+                player.sendMessage(Utils.getInstance().$("Please wait before pinning or unpinning another quest."));
                 return;
             }
             pinCooldowns.put(player.getUniqueId(), currentTime);
@@ -261,11 +262,11 @@ public class QuestGUI {
             if (quest.getId().equals(data.getPinnedQuest())) {
                 // Unpin the quest
                 data.setPinnedQuest(null);
-                player.sendMessage(ChatColor.YELLOW + "You have unpinned the quest: " + quest.getName());
+                player.sendMessage(Utils.getInstance().$("You have unpinned the quest: " + quest.getName()));
             } else {
                 // Pin the quest
                 data.setPinnedQuest(quest.getId());
-                player.sendMessage(ChatColor.GREEN + "You have pinned the quest: " + quest.getName());
+                player.sendMessage(Utils.getInstance().$("You have pinned the quest: " + quest.getName()));
             }
 
             // Refresh the GUI to update lore

@@ -41,7 +41,7 @@
 //    public static void openFriendsGUI(Player player, PlayerDataCache playerDataCache, boolean showRequests, int page) {
 //        PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
 //        if (playerData == null) {
-//            player.sendMessage(ChatColor.RED + "An error occurred while accessing your data.");
+//            player.sendMessage(Utils.getInstance().$("An error occurred while accessing your data.");
 //            return;
 //        }
 //
@@ -56,10 +56,10 @@
 //        // Determine which list to display and set the inventory title accordingly
 //        if (showRequests) {
 //            displayList = playerData.getFriendRequests();
-//            title = ChatColor.DARK_BLUE + "Pending Friend Requests";
+//            title = + "Pending Friend Requests";
 //        } else {
 //            displayList = playerData.getFriends();
-//            title = ChatColor.DARK_BLUE + "Friends List";
+//            title = + "Friends List";
 //        }
 //
 //        List<String> uuids = new ArrayList<>(displayList);
@@ -82,8 +82,8 @@
 //
 //        // Add pagination buttons if multiple pages exist
 //        if (maxPage > 1) {
-//            ItemStack previousPage = createGuiItem(Material.ARROW, ChatColor.GREEN + "Previous Page");
-//            ItemStack nextPage = createGuiItem(Material.ARROW, ChatColor.GREEN + "Next Page");
+//            ItemStack previousPage = createGuiItem(Material.ARROW, + "Previous Page");
+//            ItemStack nextPage = createGuiItem(Material.ARROW, + "Next Page");
 //            gui.setItem(45, previousPage);
 //            gui.setItem(53, nextPage);
 //        } else {
@@ -94,15 +94,15 @@
 //        }
 //
 //        // Add Close button in the center of the bottom row
-//        ItemStack closeButton = createGuiItem(Material.BARRIER, ChatColor.RED + "Close");
+//        ItemStack closeButton = createGuiItem(Material.BARRIER, + "Close");
 //        gui.setItem(49, closeButton);
 //
 //        // Add Toggle View button to switch between friends list and friend requests
-//        ItemStack toggleViewButton = createGuiItem(Material.BOOK, showRequests ? ChatColor.AQUA + "View Friends List" : ChatColor.AQUA + "View Friend Requests");
+//        ItemStack toggleViewButton = createGuiItem(Material.BOOK, showRequests ? + "View Friends List" : + "View Friend Requests");
 //        gui.setItem(47, toggleViewButton);
 //
 //        // Add Reminders toggle button
-//        ItemStack remindersButton = createGuiItem(Material.REDSTONE_TORCH, playerData.isRemindersEnabled() ? ChatColor.GREEN + "Reminders: ON" : ChatColor.RED + "Reminders: OFF");
+//        ItemStack remindersButton = createGuiItem(Material.REDSTONE_TORCH, playerData.isRemindersEnabled() ? + "Reminders: ON" : + "Reminders: OFF");
 //        gui.setItem(51, remindersButton);
 //
 //        // Determine the subset of friends/friend requests to display on the current page
@@ -124,12 +124,12 @@
 //            if (targetPlayer.isOnline()) {
 //                headItem = getPlayerHead(targetPlayer.getPlayer());
 //                ItemMeta meta = headItem.getItemMeta();
-//                meta.setDisplayName(ChatColor.GREEN + targetPlayer.getName());
+//                meta.setDisplayName(Utils.getInstance().$( targetPlayer.getName());
 //                headItem.setItemMeta(meta);
 //            } else {
 //                headItem = new ItemStack(Material.SKELETON_SKULL);
 //                ItemMeta meta = headItem.getItemMeta();
-//                meta.setDisplayName(ChatColor.GRAY + "[Offline] " + targetPlayer.getName());
+//                meta.setDisplayName(Utils.getInstance().$( "[Offline] " + targetPlayer.getName());
 //                headItem.setItemMeta(meta);
 //            }
 //
@@ -137,8 +137,8 @@
 //            if (showRequests) {
 //                ItemMeta meta = headItem.getItemMeta();
 //                List<String> lore = new ArrayList<>();
-//                lore.add(ChatColor.YELLOW + "Left click to accept");
-//                lore.add(ChatColor.YELLOW + "Right click to deny");
+//                lore.add(Utils.getInstance().$("Left click to accept");
+//                lore.add(Utils.getInstance().$("Right click to deny");
 //                meta.setLore(lore);
 //                headItem.setItemMeta(meta);
 //            }
@@ -320,7 +320,7 @@
 //        else if (clickedItem.getType() == Material.REDSTONE_TORCH) {
 //            PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
 //            playerData.setRemindersEnabled(!playerData.isRemindersEnabled());
-//            player.sendMessage(ChatColor.YELLOW + "Reminders are now " + (playerData.isRemindersEnabled() ? "enabled." : "disabled."));
+//            player.sendMessage(Utils.getInstance().$("Reminders are now " + (playerData.isRemindersEnabled() ? "enabled." : "disabled."));
 //            openFriendsGUI(player, playerDataCache, showRequests, currentPage);
 //        }
 //        // Handle Friend Entries
@@ -373,27 +373,27 @@
 //     */
 //    private static void openFriendOptionsGUI(Player player, OfflinePlayer targetPlayer, PartyHelper partyHelper, FriendsHelper friendsHelper) {
 //        // Create a new inventory with 27 slots (triple chest size)
-//        Inventory gui = Bukkit.createInventory(null, 27, ChatColor.DARK_BLUE + targetPlayer.getName());
+//        Inventory gui = Bukkit.createInventory(null, 27, + targetPlayer.getName());
 //
 //        // Fill non-content slots with placeholders
 //        fillWithPlaceholders(gui);
 //
 //        // Add Invite to Party button
-//        ItemStack cakeItem = createGuiItem(Material.CAKE, ChatColor.GREEN + "Invite to Party");
+//        ItemStack cakeItem = createGuiItem(Material.CAKE, + "Invite to Party");
 //        ItemMeta cakeMeta = cakeItem.getItemMeta();
-//        cakeMeta.setLore(Arrays.asList(ChatColor.GRAY + "Click to invite " + targetPlayer.getName() + " to your party."));
+//        cakeMeta.setLore(Arrays.asList(+ "Click to invite " + targetPlayer.getName() + " to your party."));
 //        cakeItem.setItemMeta(cakeMeta);
 //        gui.setItem(11, cakeItem);
 //
 //        // Add Remove Friend button
-//        ItemStack removeItem = createGuiItem(Material.REDSTONE_BLOCK, ChatColor.RED + "Remove Friend");
+//        ItemStack removeItem = createGuiItem(Material.REDSTONE_BLOCK, + "Remove Friend");
 //        ItemMeta removeMeta = removeItem.getItemMeta();
-//        removeMeta.setLore(Arrays.asList(ChatColor.GRAY + "Click to remove " + targetPlayer.getName() + " from your friends list."));
+//        removeMeta.setLore(Arrays.asList(+ "Click to remove " + targetPlayer.getName() + " from your friends list."));
 //        removeItem.setItemMeta(removeMeta);
 //        gui.setItem(15, removeItem);
 //
 //        // Add Back button to return to the main Friends GUI
-//        ItemStack backButton = createGuiItem(Material.ARROW, ChatColor.YELLOW + "Back");
+//        ItemStack backButton = createGuiItem(Material.ARROW, + "Back");
 //        gui.setItem(22, backButton);
 //
 //        // Track the current GUI state for the player
@@ -426,7 +426,7 @@
 //                partyHelper.invitePlayer(player, onlineTarget);
 //                player.closeInventory();
 //            } else {
-//                player.sendMessage(ChatColor.RED + "Player is not online.");
+//                player.sendMessage(Utils.getInstance().$("Player is not online.");
 //            }
 //        }
 //        // Handle Remove Friend button

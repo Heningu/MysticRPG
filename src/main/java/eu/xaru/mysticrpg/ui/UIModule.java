@@ -4,6 +4,7 @@ import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.ModuleManager;
+import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
@@ -27,8 +28,9 @@ public class UIModule implements IBaseModule {
     public void initialize() {
         logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
+        LevelModule levelModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
 
-        if (saveModule != null) {
+        if (saveModule != null && levelModule != null) {
             PlayerDataCache playerDataCache = saveModule.getPlayerDataCache();
             this.actionBarManager = new ActionBarManager((MysticCore) plugin, playerDataCache);
             this.scoreboardManager = new ScoreboardManager();
@@ -55,7 +57,7 @@ public class UIModule implements IBaseModule {
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(SaveModule.class, DebugLoggerModule.class);  // Depend on SaveModule and DebugLoggerModule
+        return List.of(SaveModule.class, LevelModule.class, DebugLoggerModule.class);  // Depend on SaveModule and DebugLoggerModule
     }
 
     @Override

@@ -3,6 +3,7 @@ package eu.xaru.mysticrpg.storage;
 import eu.xaru.mysticrpg.storage.database.DatabaseManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import dev.jorel.commandapi.CommandAPICommand;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.entity.Player;
 
 import java.util.*;
@@ -172,22 +173,22 @@ public class PlayerDataCache {
                     PlayerData playerData = getCachedPlayerData(playerUUID);
 
                     if (playerData != null) {
-                        player.sendMessage("Your cached data:");
-                        player.sendMessage("Balance: " + playerData.getBalance());
-                        player.sendMessage("XP: " + playerData.getXp());
-                        player.sendMessage("Level: " + playerData.getLevel());
-                        player.sendMessage("Next Level XP: " + playerData.getNextLevelXP());
-                        player.sendMessage("Current HP: " + playerData.getCurrentHp());
-                        player.sendMessage("Attributes: " + playerData.getAttributes().toString());
-                        player.sendMessage("Attribute Points: " + playerData.getAttributePoints());
-                        player.sendMessage("Unlocked Recipes: " + playerData.getUnlockedRecipes().toString());
-                        player.sendMessage("Friend Requests: " + playerData.getFriendRequests().toString());
-                        player.sendMessage("Friends: " + playerData.getFriends().toString());
-                        player.sendMessage("Blocked Players: " + playerData.getBlockedPlayers().toString());
-                        player.sendMessage("Blocking Requests: " + playerData.isBlockingRequests());
+                        player.sendMessage(Utils.getInstance().$("Your cached data:"));
+                        player.sendMessage(Utils.getInstance().$("Balance: " + playerData.getBalance()));
+                        player.sendMessage(Utils.getInstance().$("XP: " + playerData.getXp()));
+                        player.sendMessage(Utils.getInstance().$("Level: " + playerData.getLevel()));
+                        player.sendMessage(Utils.getInstance().$("Next Level XP: " + playerData.getNextLevelXP()));
+                        player.sendMessage(Utils.getInstance().$("Current HP: " + playerData.getCurrentHp()));
+                        player.sendMessage(Utils.getInstance().$("Attributes: " + playerData.getAttributes().toString()));
+                        player.sendMessage(Utils.getInstance().$("Attribute Points: " + playerData.getAttributePoints()));
+                        player.sendMessage(Utils.getInstance().$("Unlocked Recipes: " + playerData.getUnlockedRecipes().toString()));
+                        player.sendMessage(Utils.getInstance().$("Friend Requests: " + playerData.getFriendRequests().toString()));
+                        player.sendMessage(Utils.getInstance().$("Friends: " + playerData.getFriends().toString()));
+                        player.sendMessage(Utils.getInstance().$("Blocked Players: " + playerData.getBlockedPlayers().toString()));
+                        player.sendMessage(Utils.getInstance().$("Blocking Requests: " + playerData.isBlockingRequests()));
                         logger.log(Level.INFO, "Displayed cached data for player UUID: " + playerUUID, 0);
                     } else {
-                        player.sendMessage("No cached data found for you.");
+                        player.sendMessage(Utils.getInstance().$("No cached data found for you."));
                         logger.error("No cached data found for player: " + playerUUID);
                     }
                 })

@@ -11,6 +11,7 @@ import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -91,20 +92,20 @@ public class PowerStoneModule implements IBaseModule {
 
                             PowerStone powerStone = powerStoneManager.getPowerStone(powerStoneId);
                             if (powerStone == null) {
-                                player.sendMessage(ChatColor.RED + "Power stone not found: " + powerStoneId);
+                                player.sendMessage(Utils.getInstance().$("Power stone not found: " + powerStoneId));
                                 return;
                             }
 
                             ItemStack powerStoneItem = powerStone.toItemStack();
                             powerStoneItem.setAmount(1);
                             player.getInventory().addItem(powerStoneItem);
-                            player.sendMessage(ChatColor.GREEN + "You have received " + ChatColor.translateAlternateColorCodes('&', powerStone.getName()));
+                            player.sendMessage(Utils.getInstance().$("You have received " + powerStone.getName()));
                         }))
                 .withSubcommand(new CommandAPICommand("list")
-                        .executesPlayer((player, args) -> {
-                            player.sendMessage(ChatColor.GOLD + "Available Power Stones:");
+                        .executes((player, args) -> {
+                            player.sendMessage(Utils.getInstance().$("Available Power Stones:"));
                             for (PowerStone ps : powerStoneManager.getAllPowerStones().values()) {
-                                player.sendMessage(ChatColor.DARK_GRAY + "- " + ChatColor.translateAlternateColorCodes('&', ps.getName()) + ChatColor.GRAY + " (" + ps.getId() + ")");
+                                player.sendMessage(Utils.getInstance().$("- " + (ps.getName() + " (" + ps.getId() + ")")));
                             }
                         }))
                 .register();
@@ -136,7 +137,7 @@ public class PowerStoneModule implements IBaseModule {
                         event.setCancelled(true);
                         boolean success = CustomItemUtils.deconstructItem(clickedItem, powerStoneManager);
                         if (success) {
-                            player.sendMessage(ChatColor.GREEN + "All power stones have been removed from your item.");
+                            player.sendMessage(Utils.getInstance().$("All power stones have been removed from your item."));
                             // Remove one deconstruct stone from cursor
                             if (cursorItem.getAmount() > 1) {
                                 cursorItem.setAmount(cursorItem.getAmount() - 1);
@@ -145,7 +146,7 @@ public class PowerStoneModule implements IBaseModule {
                             }
                             player.updateInventory();
                         } else {
-                            player.sendMessage(ChatColor.RED + "Failed to deconstruct item.");
+                            player.sendMessage(Utils.getInstance().$("Failed to deconstruct item."));
                         }
                     }
                 } else {
@@ -194,7 +195,7 @@ public class PowerStoneModule implements IBaseModule {
                             event.setCancelled(true);
                             boolean success = CustomItemUtils.deconstructItem(targetItem, powerStoneManager);
                             if (success) {
-                                player.sendMessage(ChatColor.GREEN + "All power stones have been removed from your item.");
+                                player.sendMessage(Utils.getInstance().$("All power stones have been removed from your item."));
                                 // Remove one deconstruct stone from cursor
                                 if (cursorItem.getAmount() > 1) {
                                     cursorItem.setAmount(cursorItem.getAmount() - 1);
@@ -204,7 +205,7 @@ public class PowerStoneModule implements IBaseModule {
                                 player.updateInventory();
                                 break;
                             } else {
-                                player.sendMessage(ChatColor.RED + "Failed to deconstruct item.");
+                                player.sendMessage(Utils.getInstance().$("Failed to deconstruct item."));
                             }
                         }
                     }
@@ -284,9 +285,9 @@ public class PowerStoneModule implements IBaseModule {
     private void applyPowerStone(Player player, ItemStack itemStack, PowerStone powerStone) {
         boolean success = CustomItemUtils.applyPowerStoneToItem(itemStack, powerStone, powerStoneManager);
         if (success) {
-            player.sendMessage(ChatColor.GREEN + "Applied " + ChatColor.translateAlternateColorCodes('&', powerStone.getName()) + ChatColor.GREEN + " to your item.");
+            player.sendMessage(Utils.getInstance().$("Applied " + powerStone.getName()) + " to your item.");
         } else {
-            player.sendMessage(ChatColor.RED + "Failed to apply power stone.");
+            player.sendMessage(Utils.getInstance().$("Failed to apply power stone."));
         }
     }
 }

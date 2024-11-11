@@ -14,6 +14,7 @@ import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.utils.CustomInventoryManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -138,7 +139,7 @@ public class FriendsModule implements IBaseModule {
                                 Player target = (Player) args.get("player");
                                 friendsHelper.sendFriendRequest(player, target);
                             } catch (Exception e) {
-                                player.sendMessage(ChatColor.RED + "An error occurred while processing your request.");
+                                player.sendMessage(Utils.getInstance().$("An error occurred while processing your request."));
                                 logger.error("Error executing /friends add command: " + e.getMessage());
                                 e.printStackTrace();
                             }
@@ -151,7 +152,7 @@ public class FriendsModule implements IBaseModule {
                                 Player target = (Player) args.get("player");
                                 friendsHelper.removeFriend(player, target);
                             } catch (Exception e) {
-                                player.sendMessage(ChatColor.RED + "An error occurred while processing your request.");
+                                player.sendMessage(Utils.getInstance().$("An error occurred while processing your request."));
                                 logger.error("Error executing /friends remove command: " + e.getMessage());
                                 e.printStackTrace();
                             }
@@ -164,7 +165,7 @@ public class FriendsModule implements IBaseModule {
                                 String senderName = (String) args.get("playerName");
                                 friendsHelper.acceptFriendRequest(player, senderName);
                             } catch (Exception e) {
-                                player.sendMessage(ChatColor.RED + "An error occurred while processing your request.");
+                                player.sendMessage(Utils.getInstance().$("An error occurred while processing your request."));
                                 logger.error("Error executing /friends accept command: " + e.getMessage());
                                 e.printStackTrace();
                             }
@@ -177,7 +178,7 @@ public class FriendsModule implements IBaseModule {
                                 String senderName = (String) args.get("playerName");
                                 friendsHelper.denyFriendRequest(player, senderName);
                             } catch (Exception e) {
-                                player.sendMessage(ChatColor.RED + "An error occurred while processing your request.");
+                                player.sendMessage(Utils.getInstance().$("An error occurred while processing your request."));
                                 logger.error("Error executing /friends deny command: " + e.getMessage());
                                 e.printStackTrace();
                             }
@@ -205,7 +206,7 @@ public class FriendsModule implements IBaseModule {
             if (playerData != null && playerData.isRemindersEnabled()) {
                 int pendingRequests = playerData.getFriendRequests().size();
                 if (pendingRequests > 0) {
-                    player.sendMessage(ChatColor.YELLOW + "You have " + pendingRequests + " pending friend request(s).");
+                    player.sendMessage(Utils.getInstance().$("You have " + pendingRequests + " pending friend request(s)."));
                 }
             }
         });
@@ -247,7 +248,7 @@ public class FriendsModule implements IBaseModule {
             if ("Friends".equalsIgnoreCase(inventoryTitle) || "Friend Requests".equalsIgnoreCase(inventoryTitle)) {
                 event.setCancelled(true); // Prevent item dragging
                 Player player = (Player) event.getWhoClicked();
-                player.sendMessage(ChatColor.RED + "You cannot move items in this GUI.");
+                player.sendMessage(Utils.getInstance().$("You cannot move items in this GUI."));
             } else {
                 // Check if the inventory title matches any friend's name the player has open
                 Player player = (Player) event.getWhoClicked();
@@ -256,7 +257,7 @@ public class FriendsModule implements IBaseModule {
                     String friendName = Bukkit.getOfflinePlayer(friendUUID).getName();
                     if (inventoryTitle.equalsIgnoreCase(friendName)) {
                         event.setCancelled(true); // Prevent item dragging
-                        player.sendMessage(ChatColor.RED + "You cannot move items in this GUI.");
+                        player.sendMessage(Utils.getInstance().$("You cannot move items in this GUI."));
                     }
                 }
             }
@@ -369,13 +370,13 @@ public class FriendsModule implements IBaseModule {
                 // Get the sender's UUID from the item's lore
                 SkullMeta meta = (SkullMeta) clickedItem.getItemMeta();
                 if (meta == null || !meta.hasLore()) {
-                    player.sendMessage(ChatColor.RED + "Unable to retrieve friend request information.");
+                    player.sendMessage(Utils.getInstance().$("Unable to retrieve friend request information."));
                     return;
                 }
 
                 List<String> lore = meta.getLore();
                 if (lore == null || lore.isEmpty()) {
-                    player.sendMessage(ChatColor.RED + "Unable to retrieve friend request information.");
+                    player.sendMessage(Utils.getInstance().$("Unable to retrieve friend request information."));
                     return;
                 }
 
@@ -384,7 +385,7 @@ public class FriendsModule implements IBaseModule {
                 try {
                     senderUUID = UUID.fromString(senderUUIDString);
                 } catch (IllegalArgumentException e) {
-                    player.sendMessage(ChatColor.RED + "Invalid friend request data.");
+                    player.sendMessage(Utils.getInstance().$("Invalid friend request data."));
                     return;
                 }
 
@@ -438,7 +439,7 @@ public class FriendsModule implements IBaseModule {
 
             case "Send a Message":
                 // Placeholder: Implement send message logic
-                player.sendMessage(ChatColor.YELLOW + "Send a Message clicked. (Not implemented yet)");
+                player.sendMessage(Utils.getInstance().$("Send a Message clicked. (Not implemented yet)"));
                 break;
 
             case "Remove Friend":
@@ -448,7 +449,7 @@ public class FriendsModule implements IBaseModule {
                 openFriendOptions.remove(player.getUniqueId());
                 FriendsGUI.openFriendsGUI(player, playerDataCache, false, 1);
                 // Optionally, notify the player
-                player.sendMessage(ChatColor.GREEN + "Removed " + friendName + " from your friends list.");
+                player.sendMessage(Utils.getInstance().$("Removed " + friendName + " from your friends list."));
                 break;
 
             case "Back":
@@ -471,7 +472,7 @@ public class FriendsModule implements IBaseModule {
      */
     private void inviteFriendToParty(Player inviter, OfflinePlayer invitee) {
         if (invitee == null || invitee.getUniqueId() == null) {
-            inviter.sendMessage(ChatColor.RED + "Unable to find the player to invite.");
+            inviter.sendMessage(Utils.getInstance().$("Unable to find the player to invite."));
             return;
         }
 
@@ -480,13 +481,13 @@ public class FriendsModule implements IBaseModule {
 
         // Ensure that the invitee is online to receive the invitation
         if (!invitee.isOnline()) {
-            inviter.sendMessage(ChatColor.RED + invitee.getName() + " is not online.");
+            inviter.sendMessage(Utils.getInstance().$(invitee.getName() + " is not online."));
             return;
         }
 
         Player inviteePlayer = invitee.getPlayer();
         if (inviteePlayer == null) {
-            inviter.sendMessage(ChatColor.RED + "Unable to find the player to invite.");
+            inviter.sendMessage(Utils.getInstance().$("Unable to find the player to invite."));
             return;
         }
 
@@ -494,7 +495,7 @@ public class FriendsModule implements IBaseModule {
         partyHelper.invitePlayer(inviter, inviteePlayer);
 
         // Optionally, you can add feedback to the inviter
-        inviter.sendMessage(ChatColor.GREEN + "You have invited " + invitee.getName() + " to your party.");
+        inviter.sendMessage(Utils.getInstance().$("You have invited " + invitee.getName() + " to your party."));
     }
 
     /**
@@ -508,13 +509,13 @@ public class FriendsModule implements IBaseModule {
         // Get the friend's UUID from the item's lore
         SkullMeta meta = (SkullMeta) clickedItem.getItemMeta();
         if (meta == null || !meta.hasLore()) {
-            player.sendMessage(ChatColor.RED + "Unable to retrieve friend information.");
+            player.sendMessage(Utils.getInstance().$("Unable to retrieve friend information."));
             return;
         }
 
         List<String> lore = meta.getLore();
         if (lore == null || lore.isEmpty()) {
-            player.sendMessage(ChatColor.RED + "Unable to retrieve friend information.");
+            player.sendMessage(Utils.getInstance().$("Unable to retrieve friend information."));
             return;
         }
 
@@ -523,7 +524,7 @@ public class FriendsModule implements IBaseModule {
         try {
             friendUUID = UUID.fromString(friendUUIDString);
         } catch (IllegalArgumentException e) {
-            player.sendMessage(ChatColor.RED + "Invalid friend data.");
+            player.sendMessage(Utils.getInstance().$("Invalid friend data."));
             return;
         }
 
@@ -553,11 +554,11 @@ public class FriendsModule implements IBaseModule {
                 Inventory inventory = player.getOpenInventory().getTopInventory();
                 ItemStack reminderTorch = inventory.getItem(51); // Slot 51
                 if (reminderTorch != null) {
-                    CustomInventoryManager.setItemDisplayName(reminderTorch, ChatColor.GOLD + "Reminders: " + newStatus);
+                    CustomInventoryManager.setItemDisplayName(reminderTorch, Utils.getInstance().$("Reminders: " + newStatus));
                 }
             }
 
-            player.sendMessage(ChatColor.GREEN + "Reminders have been turned " + newStatus + ".");
+            player.sendMessage(Utils.getInstance().$("Reminders have been turned " + newStatus + "."));
         }
     }
 
@@ -583,7 +584,7 @@ public class FriendsModule implements IBaseModule {
 
         if (newPage == currentPage) {
             // Already at the boundary; do nothing or notify the player
-            player.sendMessage(ChatColor.RED + "No more pages in that direction.");
+            player.sendMessage(Utils.getInstance().$("No more pages in that direction."));
             return;
         }
 

@@ -35,12 +35,12 @@ public class HeadUtils {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD, 1);
         SkullMeta skullMeta = (SkullMeta) head.getItemMeta();
         if (skullMeta != null) {
-            skullMeta.setDisplayName(ChatColor.YELLOW + displayName);
+            skullMeta.setDisplayName(Utils.getInstance().$( displayName));
             PlayerProfile profile = getProfileFromBase64(base64);
             if (profile != null) {
                 skullMeta.setOwnerProfile(profile);
             } else {
-                skullMeta.setDisplayName(ChatColor.RED + "Invalid Texture");
+                skullMeta.setDisplayName(Utils.getInstance().$( "Invalid Texture"));
             }
             head.setItemMeta(skullMeta);
         }
@@ -62,7 +62,7 @@ public class HeadUtils {
             ItemStack defaultHead = new ItemStack(Material.PLAYER_HEAD, 1);
             SkullMeta meta = (SkullMeta) defaultHead.getItemMeta();
             if (meta != null) {
-                meta.setDisplayName(ChatColor.RED + "Unknown Mob");
+                meta.setDisplayName(Utils.getInstance().$( "Unknown Mob"));
                 defaultHead.setItemMeta(meta);
             }
             return defaultHead;

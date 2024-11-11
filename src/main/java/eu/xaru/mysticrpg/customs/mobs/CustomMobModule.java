@@ -12,6 +12,7 @@ import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.social.party.PartyModule;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -210,10 +211,10 @@ public class CustomMobModule implements IBaseModule, Listener {
                 .withSubcommand(new CommandAPICommand("list")
                         .executesPlayer((player, args) -> {
                             if (mobConfigurations.isEmpty()) {
-                                player.sendMessage("No mobs are loaded.");
+                                player.sendMessage(Utils.getInstance().$("No mobs are loaded."));
                             } else {
-                                player.sendMessage("Loaded Mobs:");
-                                mobConfigurations.keySet().forEach(mobId -> player.sendMessage("- " + mobId));
+                                player.sendMessage(Utils.getInstance().$("Loaded Mobs:"));
+                                mobConfigurations.keySet().forEach(mobId -> player.sendMessage(Utils.getInstance().$("- " + mobId)));
                             }
                         }))
                 .withSubcommand(new CommandAPICommand("spawn")
@@ -223,14 +224,14 @@ public class CustomMobModule implements IBaseModule, Listener {
                             CustomMob customMob = mobConfigurations.get(mobId);
 
                             if (customMob == null) {
-                                player.sendMessage("Mob not found: " + mobId);
+                                player.sendMessage(Utils.getInstance().$("Mob not found: " + mobId));
                                 return;
                             }
 
                             Location location = player.getLocation();
                             mobManager.spawnMobAtLocation(customMob, location);
 
-                            player.sendMessage("Spawned mob: " + customMob.getName() + " at your location.");
+                            player.sendMessage(Utils.getInstance().$("Spawned mob: " + customMob.getName() + " at your location."));
                         }))
                 .withSubcommand(new CommandAPICommand("gui")
                         .withPermission("mysticcore.mobgui") // [ADDED] Permission requirement

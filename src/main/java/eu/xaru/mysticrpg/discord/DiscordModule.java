@@ -10,6 +10,7 @@ import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.storage.Callback;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
@@ -124,11 +125,11 @@ public class DiscordModule implements IBaseModule, Listener {
                         .executesPlayer((player, args) -> {
                             String code = discordHelper.generateUniqueCode(player.getUniqueId());
                             if (code != null) {
-                                player.sendMessage("Use this code to link your Discord account: " + code);
+                                player.sendMessage(Utils.getInstance().$("Use this code to link your Discord account: " + code));
                                 // Optionally, send the code via other means (e.g., GUI)
                                 logger.log(Level.INFO, "Generated linking code for player " + player.getName() + ": " + code, 0);
                             } else {
-                                player.sendMessage("Failed to generate a linking code. Please try again later.");
+                                player.sendMessage(Utils.getInstance().$("Failed to generate a linking code. Please try again later."));
                                 logger.error("Failed to generate linking code for player " + player.getName());
                             }
                         }))
@@ -142,18 +143,18 @@ public class DiscordModule implements IBaseModule, Listener {
                                 playerDataCache.savePlayerData(playerUUID, new Callback<Void>() {
                                     @Override
                                     public void onSuccess(Void result) {
-                                        player.sendMessage("Your Discord account has been unlinked.");
+                                        player.sendMessage(Utils.getInstance().$("Your Discord account has been unlinked."));
                                         logger.log(Level.INFO, "Unlinked Discord ID for player " + player.getName(), 0);
                                     }
 
                                     @Override
                                     public void onFailure(Throwable throwable) {
-                                        player.sendMessage("Failed to unlink your Discord account. Please try again later.");
+                                        player.sendMessage(Utils.getInstance().$("Failed to unlink your Discord account. Please try again later."));
                                         logger.error("Failed to unlink Discord ID for player " + player.getName() + ": " + throwable.getMessage());
                                     }
                                 });
                             } else {
-                                player.sendMessage("You do not have a Discord account linked.");
+                                player.sendMessage(Utils.getInstance().$("You do not have a Discord account linked."));
                             }
                         }))
                 // Subcommand: /discord unlink <username> (unlink others)
@@ -162,7 +163,7 @@ public class DiscordModule implements IBaseModule, Listener {
                         .executesPlayer((player, args) -> {
                             String targetUsername = (String) args.get("username");
                             if (targetUsername == null || targetUsername.trim().isEmpty()) {
-                                player.sendMessage("Please provide a valid username.");
+                                player.sendMessage(Utils.getInstance().$("Please provide a valid username."));
                                 return;
                             }
                             final String finalTargetUsername = targetUsername.trim();
@@ -171,7 +172,7 @@ public class DiscordModule implements IBaseModule, Listener {
                             if (player.hasPermission("mysticrpg.discord.unlink.others")) {
                                 OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(finalTargetUsername);
                                 if (!offlinePlayer.hasPlayedBefore() && !offlinePlayer.isOnline()) {
-                                    player.sendMessage("User \"" + finalTargetUsername + "\" does not exist.");
+                                    player.sendMessage(Utils.getInstance().$("User \"" + finalTargetUsername + "\" does not exist."));
                                     return;
                                 }
                                 UUID targetUUID = offlinePlayer.getUniqueId();
@@ -181,26 +182,26 @@ public class DiscordModule implements IBaseModule, Listener {
                                     playerDataCache.savePlayerData(targetUUID, new Callback<Void>() {
                                         @Override
                                         public void onSuccess(Void result) {
-                                            player.sendMessage("Discord account for user \"" + finalTargetUsername + "\" has been unlinked.");
+                                            player.sendMessage(Utils.getInstance().$("Discord account for user \"" + finalTargetUsername + "\" has been unlinked."));
                                             logger.log(Level.INFO, "Unlinked Discord ID for player " + finalTargetUsername + " by admin " + player.getName(), 0);
                                             // Notify the target player if online
                                             Player targetPlayer = Bukkit.getPlayer(targetUUID);
                                             if (targetPlayer != null && targetPlayer.isOnline()) {
-                                                targetPlayer.sendMessage("Your Discord account has been unlinked by an administrator.");
+                                                targetPlayer.sendMessage(Utils.getInstance().$("Your Discord account has been unlinked by an administrator."));
                                             }
                                         }
 
                                         @Override
                                         public void onFailure(Throwable throwable) {
-                                            player.sendMessage("Failed to unlink Discord account for user \"" + finalTargetUsername + "\". Please try again later.");
+                                            player.sendMessage(Utils.getInstance().$("Failed to unlink Discord account for user \"" + finalTargetUsername + "\". Please try again later."));
                                             logger.error("Failed to unlink Discord ID for player " + finalTargetUsername + ": " + throwable.getMessage());
                                         }
                                     });
                                 } else {
-                                    player.sendMessage("User \"" + finalTargetUsername + "\" does not have a Discord account linked.");
+                                    player.sendMessage(Utils.getInstance().$("User \"" + finalTargetUsername + "\" does not have a Discord account linked."));
                                 }
                             } else {
-                                player.sendMessage("You do not have permission to unlink other players.");
+                                player.sendMessage(Utils.getInstance().$("You do not have permission to unlink other players."));
                                 logger.log(Level.WARNING, "Player " + player.getName() + " attempted to unlink other players without permission.", 0);
                             }
                         }))
@@ -210,7 +211,7 @@ public class DiscordModule implements IBaseModule, Listener {
                         .executesPlayer((player, args) -> {
                             String username = (String) args.get("username");
                             if (username == null || username.trim().isEmpty()) {
-                                player.sendMessage("Please provide a valid username.");
+                                player.sendMessage(Utils.getInstance().$("Please provide a valid username."));
                                 return;
                             }
                             username = username.trim();
@@ -220,7 +221,7 @@ public class DiscordModule implements IBaseModule, Listener {
 
                             // Check if the player has played before or is online
                             if (!offlinePlayer.hasPlayedBefore() && !offlinePlayer.isOnline()) {
-                                player.sendMessage("User \"" + username + "\" does not exist.");
+                                player.sendMessage(Utils.getInstance().$("User \"" + username + "\" does not exist."));
                                 return;
                             }
 
@@ -228,11 +229,11 @@ public class DiscordModule implements IBaseModule, Listener {
 
                             PlayerData playerData = playerDataCache.getCachedPlayerData(uuid);
                             if (playerData != null && playerData.getDiscordId() != null) {
-                                player.sendMessage("USERNAME: \"" + username + "\"");
-                                player.sendMessage("UUID: \"" + uuid.toString() + "\"");
-                                player.sendMessage("DISCORD_ID: \"" + playerData.getDiscordId() + "\"");
+                                player.sendMessage(Utils.getInstance().$("USERNAME: \"" + username + "\""));
+                                player.sendMessage(Utils.getInstance().$("UUID: \"" + uuid.toString() + "\""));
+                                player.sendMessage(Utils.getInstance().$("DISCORD_ID: \"" + playerData.getDiscordId() + "\""));
                             } else {
-                                player.sendMessage("User \"" + username + "\" is not linked with Discord.");
+                                player.sendMessage(Utils.getInstance().$("User \"" + username + "\" is not linked with Discord."));
                             }
                         }))
                 .register();
@@ -269,7 +270,7 @@ public class DiscordModule implements IBaseModule, Listener {
                     public void onSuccess(Void result) {
                         Player player = Bukkit.getPlayer(playerUUID);
                         if (player != null && player.isOnline()) {
-                            player.sendMessage("Your Discord account has been successfully linked!");
+                            player.sendMessage(Utils.getInstance().$("Your Discord account has been successfully linked!"));
                         }
                         // Update discordIdToUUIDMap
                         discordHelper.getDiscordIdToUUIDMap().put(discordId, playerUUID);

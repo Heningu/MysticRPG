@@ -1,6 +1,7 @@
 package eu.xaru.mysticrpg.customs.items;
 
 import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -140,7 +141,7 @@ public class CustomItem {
 
         if (meta != null) {
             // Set display name to just the item name
-            String displayName = ChatColor.translateAlternateColorCodes('&', name);
+            String displayName = Utils.getInstance().$( name);
             meta.setDisplayName(displayName);
 
             // Set lore
@@ -152,13 +153,13 @@ public class CustomItem {
             // Second line: Tier stars (if applicable)
             if (useTierSystem) {
                 String tierStars = getTierStars(currentTier, itemMaxLevel);
-                finalLore.add(ChatColor.GOLD + tierStars);
+                finalLore.add(Utils.getInstance().$(tierStars));
             }
 
             // Add Free Powerstone Slots if applicable
             if (usePowerStones) {
                 int freeSlots = powerStoneSlots; // Initially, all slots are free
-                finalLore.add(ChatColor.GRAY + "Free Powerstone Slots: " + freeSlots);
+                finalLore.add(Utils.getInstance().$("Free Powerstone Slots: " + freeSlots));
             }
 
             // Add a blank line
@@ -167,8 +168,8 @@ public class CustomItem {
             // Add the actual lore/description
             if (lore != null && !lore.isEmpty()) {
                 finalLore.addAll(lore.stream()
-                        .map(line -> ChatColor.GRAY + ChatColor.translateAlternateColorCodes('&', line))
-                        .collect(Collectors.toList()));
+                        .map(line -> Utils.getInstance().$(line))
+                        .toList());
             }
 
             meta.setLore(finalLore);

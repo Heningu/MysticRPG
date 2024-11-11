@@ -65,7 +65,7 @@ public class DebugLoggerModule implements IBaseModule {
         if (debuggingEnabled) {
             String className = getCallerClassName(depth);
             String formattedMessage = formatLogMessage(level, className, message);
-            Bukkit.getConsoleSender().sendMessage(ChatColor.translateAlternateColorCodes('&', formattedMessage));
+            Bukkit.getConsoleSender().sendMessage(Utils.getInstance().$(formattedMessage));
         }
     }
 
@@ -210,18 +210,17 @@ public class DebugLoggerModule implements IBaseModule {
     }
 
     /**
-     * Retrieves the caller's class name based on the stack trace depth.
+     * Retrieves the caller's class name based on the stack trace depth using StackWalker.
      *
      * @param stackTraceDepth The depth in the stack trace.
      * @return The caller's class name.
      */
     private String getCallerClassName(int stackTraceDepth) {
-        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-        int index = 3 + stackTraceDepth;
-        if (index >= stackTrace.length) {
-            index = stackTrace.length - 1;
-        }
-        String fullClassName = stackTrace[index].getClassName();
-        return fullClassName.substring(fullClassName.lastIndexOf(".") + 1);
+        return StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
+                .walk(stream -> stream.skip(3 + stackTraceDepth).findFirst())
+                .map(StackWalker.StackFrame::getClassName)
+                .map(fullClassName -> fullClassName.substring(fullClassName.lastIndexOf(".") + 1))
+                .orElse("UnknownClass");
     }
+
 }

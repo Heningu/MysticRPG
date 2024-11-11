@@ -3,6 +3,7 @@ package eu.xaru.mysticrpg.social.friends;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.utils.CustomInventoryManager;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -42,7 +43,7 @@ public class FriendRequestsGUI {
 
         // Add the back button (arrow) in slot 53
         ItemStack backButton = new ItemStack(Material.ARROW);
-        CustomInventoryManager.setItemDisplayName(backButton, ChatColor.GOLD + "Back");
+        CustomInventoryManager.setItemDisplayName(backButton, Utils.getInstance().$("Back"));
         CustomInventoryManager.addItemToSlot(friendRequestsInventory, 53, backButton);
 
         // Populate the middle slots with incoming friend requests
@@ -81,14 +82,14 @@ public class FriendRequestsGUI {
         PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
 
         if (playerData == null) {
-            player.sendMessage(ChatColor.RED + "An error occurred while accessing your friend data.");
+            player.sendMessage(Utils.getInstance().$("An error occurred while accessing your friend data."));
             return;
         }
 
         Set<String> incomingRequests = playerData.getFriendRequests();
         if (incomingRequests.isEmpty()) {
             // Add an item indicating no friend requests
-            ItemStack noRequests = getDefaultHead(ChatColor.GRAY + "No Friend Requests");
+            ItemStack noRequests = getDefaultHead(Utils.getInstance().$( "No Friend Requests"));
             // Place it in the center slot (e.g., slot 22)
             CustomInventoryManager.addItemToSlot(inventory, 22, noRequests);
             return;
@@ -153,15 +154,15 @@ public class FriendRequestsGUI {
         if (meta != null) {
             if (sender.isOnline() && sender.getPlayer() != null) {
                 meta.setOwningPlayer(sender.getPlayer());
-                meta.setDisplayName(ChatColor.YELLOW + sender.getName());
+                meta.setDisplayName(Utils.getInstance().$( sender.getName()));
             } else {
-                meta.setDisplayName(ChatColor.YELLOW + "[Offline] " + (sender.getName() != null ? sender.getName() : "Unknown"));
+                meta.setDisplayName(Utils.getInstance().$( "[Offline] " + (sender.getName() != null ? sender.getName() : "Unknown")));
             }
             // Add lore: First line is UUID, followed by interaction hints
             List<String> lore = new ArrayList<>();
             lore.add(senderUUID.toString()); // For identification
-            lore.add(ChatColor.GRAY + "Left-click to accept");
-            lore.add(ChatColor.GRAY + "Right-click to deny");
+            lore.add(Utils.getInstance().$("Left-click to accept"));
+            lore.add(Utils.getInstance().$("Right-click to deny"));
             meta.setLore(lore);
             head.setItemMeta(meta);
         }

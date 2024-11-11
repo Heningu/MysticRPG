@@ -10,6 +10,7 @@ import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -76,7 +77,7 @@ public class EconomyModule implements IBaseModule {
                 .withSubcommand(new CommandAPICommand("balance")
                         .executesPlayer((player, args) -> {
                             double balance = economyHelper.getBalance(player);
-                            player.sendMessage("Your balance: $" + economyHelper.formatBalance(balance));
+                            player.sendMessage(Utils.getInstance().$("Your balance: $" + economyHelper.formatBalance(balance)));
                             logger.log("Displayed balance for player: " + player.getName());
                         }))
                 .withSubcommand(new CommandAPICommand("send")
@@ -90,7 +91,7 @@ public class EconomyModule implements IBaseModule {
                                 logger.log("Player " + player.getName() + " attempted to send $" + amount + " to " + target.getName());
                             } else {
                                 logger.warn("Target player not found for sending money command.");
-                                player.sendMessage(ChatColor.RED + "Target player not found.");
+                                player.sendMessage(Utils.getInstance().$("Target player not found."));
                             }
                         }))
                 .register();

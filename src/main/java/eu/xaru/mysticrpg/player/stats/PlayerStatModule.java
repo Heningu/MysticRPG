@@ -13,6 +13,7 @@ import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -180,13 +181,13 @@ public class PlayerStatModule implements IBaseModule {
                             PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
 
                             if (playerData == null) {
-                                player.sendMessage(ChatColor.RED + "No cached data found for you.");
+                                player.sendMessage(Utils.getInstance().$("No cached data found for you."));
                                 logger.error("No cached data found for player: " + player.getName());
                                 return;
                             }
 
                             resetStats(playerData);
-                            player.sendMessage(ChatColor.GREEN + "Your stats have been reset.");
+                            player.sendMessage(Utils.getInstance().$("Your stats have been reset."));
                             logger.log("Player " + player.getName() + "'s stats have been reset.");
                         }))
                 .executesPlayer((player, args) -> {

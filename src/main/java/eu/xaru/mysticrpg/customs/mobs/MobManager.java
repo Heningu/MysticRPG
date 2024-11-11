@@ -10,6 +10,7 @@ import eu.xaru.mysticrpg.quests.QuestModule;
 import eu.xaru.mysticrpg.social.party.Party;
 import eu.xaru.mysticrpg.social.party.PartyHelper;
 import eu.xaru.mysticrpg.social.party.PartyModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -175,8 +176,7 @@ public class MobManager implements Listener {
      * @return The formatted name tag.
      */
     private String createMobNameTag(CustomMob customMob, double currentHealth) {
-        return ChatColor.translateAlternateColorCodes('&',
-                String.format("[LVL%d] %s [%.1f❤]", customMob.getLevel(), customMob.getName(), currentHealth));
+        return Utils.getInstance().$(String.format("[LVL%d] %s [%.1f❤]", customMob.getLevel(), customMob.getName(), currentHealth));
     }
 
     public Map<String, CustomMob> getMobConfigurations() {
@@ -323,10 +323,10 @@ public class MobManager implements Listener {
                         levelModule.addXp(member, xpPerPlayer);
                         // Show XP indicator at the mob's death location
 
-                        member.sendMessage(ChatColor.GREEN + "You received " + xpPerPlayer + " XP from killing " + mobInstance.getCustomMob().getName() + ".");
+                        member.sendMessage(Utils.getInstance().$("You received " + xpPerPlayer + " XP from killing " + mobInstance.getCustomMob().getName() + "."));
                     }
                 } else {
-                    killer.sendMessage(ChatColor.RED + "Unable to add XP. LevelModule is not available.");
+                    killer.sendMessage(Utils.getInstance().$("Unable to add XP. LevelModule is not available."));
                     Bukkit.getLogger().severe("LevelModule is not available. Cannot add XP to player.");
                 }
 
@@ -339,9 +339,9 @@ public class MobManager implements Listener {
                 if (random.nextDouble() <= currencyChance) {
                     if (economyHelper != null) {
                         economyHelper.addBalance(killer, currencyReward);
-                        killer.sendMessage(ChatColor.GOLD + "You have received $" + currencyReward + " for killing " + mobInstance.getCustomMob().getName() + "!");
+                        killer.sendMessage(Utils.getInstance().$("You have received $" + currencyReward + " for killing " + mobInstance.getCustomMob().getName() + "!"));
                     } else {
-                        killer.sendMessage(ChatColor.RED + "Economy system is not available. Cannot reward currency.");
+                        killer.sendMessage(Utils.getInstance().$("Economy system is not available. Cannot reward currency."));
                     }
                 }
 

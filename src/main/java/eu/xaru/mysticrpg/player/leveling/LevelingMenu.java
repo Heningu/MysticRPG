@@ -7,6 +7,7 @@ import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -49,7 +50,7 @@ public class LevelingMenu {
         PlayerData playerData = playerDataCache.getCachedPlayerData(playerUUID);
         if (playerData == null) {
             logger.error("No cached data found for player: " + player.getName());
-            player.sendMessage(ChatColor.RED + "Failed to open leveling menu. No data found.");
+            player.sendMessage(Utils.getInstance().$("Failed to open leveling menu. No data found."));
             return;
         }
 
@@ -59,7 +60,7 @@ public class LevelingMenu {
         ItemStack playerHead = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta headMeta = (SkullMeta) playerHead.getItemMeta();
         headMeta.setOwningPlayer(player);
-        headMeta.setDisplayName(ChatColor.GOLD + player.getName() + " - Level: " + playerData.getLevel());
+        headMeta.setDisplayName(Utils.getInstance().$( player.getName() + " - Level: " + playerData.getLevel()));
         playerHead.setItemMeta(headMeta);
         inventory.setItem(0, playerHead);
 
@@ -109,13 +110,13 @@ public class LevelingMenu {
 
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.YELLOW + "Level: " + level);
+        meta.setDisplayName(Utils.getInstance().$( "Level: " + level));
 
         List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.WHITE + "Required XP: " + levelData.getXpRequired());
-        lore.add(ChatColor.WHITE + "Rewards:");
+        lore.add(Utils.getInstance().$("Required XP: " + levelData.getXpRequired()));
+        lore.add(Utils.getInstance().$("Rewards:"));
         levelData.getRewards().forEach((reward, value) -> {
-            lore.add(ChatColor.GRAY + reward + ": " + value);
+            lore.add(Utils.getInstance().$(reward + ": " + value));
         });
 
         meta.setLore(lore);

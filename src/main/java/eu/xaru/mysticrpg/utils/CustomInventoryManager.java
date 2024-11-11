@@ -28,7 +28,7 @@ public class CustomInventoryManager {
         if (size < 9 || size > 54 || size % 9 != 0) {
             throw new IllegalArgumentException("Inventory size must be a multiple of 9 and between 9 and 54.");
         }
-        return Bukkit.createInventory(null, size, ChatColor.translateAlternateColorCodes('&', title));
+        return Bukkit.createInventory(null, size, Utils.getInstance().$(title));
     }
 
     /**
@@ -72,8 +72,8 @@ public class CustomInventoryManager {
         ItemStack placeholder = new ItemStack(material);
         ItemMeta meta = placeholder.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ChatColor.GRAY + name);
-            meta.setLore(Arrays.asList(ChatColor.DARK_GRAY + " "));
+            meta.setDisplayName(Utils.getInstance().$(name));
+            meta.setLore(List.of(" "));
             placeholder.setItemMeta(meta);
         }
         return placeholder;
