@@ -159,7 +159,7 @@ public class SaveModule implements IBaseModule {
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(DebugLoggerModule.class, EconomyModule.class);  // Depend on DebugLoggerModule and EconomyModule
+        return List.of(DebugLoggerModule.class);
     }
 
     @Override

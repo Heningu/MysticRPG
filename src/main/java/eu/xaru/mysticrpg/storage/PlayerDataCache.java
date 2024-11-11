@@ -194,4 +194,17 @@ public class PlayerDataCache {
                 })
                 .register();
     }
+    /**
+     * Retrieves the player's current level.
+     *
+     * @param uuid The UUID of the player.
+     * @return The level of the player, or 1 if not found.
+     */
+    public int getPlayerLevel(UUID uuid) {
+        PlayerData playerData = getCachedPlayerData(uuid);
+        if (playerData != null) {
+            return playerData.getLevel();
+        }
+        return 1; // Default level
+    }
 }

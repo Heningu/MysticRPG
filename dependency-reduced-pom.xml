@@ -29,6 +29,10 @@
           <minimizeJar>true</minimizeJar>
           <relocations>
             <relocation>
+              <pattern>eu.decentsoftware.holograms</pattern>
+              <shadedPattern>eu.xaru.mysticrpg.shaded.decentsoftware</shadedPattern>
+            </relocation>
+            <relocation>
               <pattern>net.kyori.adventure</pattern>
               <shadedPattern>eu.xaru.mysticrpg.shaded.net.kyori.adventure</shadedPattern>
             </relocation>

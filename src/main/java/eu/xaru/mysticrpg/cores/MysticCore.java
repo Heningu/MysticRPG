@@ -7,6 +7,8 @@ import com.github.juliarn.npclib.bukkit.protocol.BukkitProtocolAdapter;
 import com.github.retrooper.packetevents.PacketEvents;
 import dev.jorel.commandapi.CommandAPI;
 import dev.jorel.commandapi.CommandAPIBukkitConfig;
+import eu.decentsoftware.holograms.api.DHAPI;
+import eu.decentsoftware.holograms.api.DecentHologramsAPI;
 import eu.xaru.mysticrpg.config.ConfigCreator;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
@@ -50,6 +52,7 @@ public class MysticCore extends JavaPlugin {
 
         // Initialize the module manager
         moduleManager = ModuleManager.getInstance();
+        DecentHologramsAPI.onLoad(this);
     }
 
     @Override
@@ -66,6 +69,7 @@ public class MysticCore extends JavaPlugin {
             // Load all modules (eagerly loaded modules)
             moduleManager.loadAllModules();
             CommandAPI.onEnable();
+            DecentHologramsAPI.onEnable();
 
             // Retrieve DebugLoggerModule instance after loading modules
             logger = moduleManager.getModuleInstance(DebugLoggerModule.class);
@@ -96,6 +100,7 @@ public class MysticCore extends JavaPlugin {
         // Shutdown the plugin, unload modules, and clean up resources
 
         CommandAPI.onDisable();
+        DecentHologramsAPI.onDisable();
 
         try {
             moduleManager.shutdown();

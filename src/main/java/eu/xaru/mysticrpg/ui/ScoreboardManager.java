@@ -20,6 +20,13 @@ import org.bukkit.scoreboard.*;
 
 import java.util.*;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+
+/**
+ * Custom ScoreboardManager to handle player scoreboards.
+ */
 public class ScoreboardManager {
 
     private final JavaPlugin plugin;
@@ -30,6 +37,9 @@ public class ScoreboardManager {
     private final Map<UUID, Scoreboard> playerScoreboards = new HashMap<>();
     private final Map<UUID, Set<String>> playerEntries = new HashMap<>();
 
+    /**
+     * Constructs a new ScoreboardManager instance.
+     */
     public ScoreboardManager() {
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
         this.levelModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
@@ -38,23 +48,29 @@ public class ScoreboardManager {
             this.economyHelper = economyModule.getEconomyHelper();
         } else {
             this.economyHelper = null;
+            Bukkit.getLogger().warning("[MysticRPG] EconomyModule not found. Balance display will be disabled.");
         }
         QuestModule questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
         if (questModule != null) {
             this.questManager = questModule.getQuestManager();
         } else {
             this.questManager = null;
+            Bukkit.getLogger().warning("[MysticRPG] QuestModule not found. Quest display will be disabled.");
         }
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         if (saveModule != null) {
             this.playerDataCache = saveModule.getPlayerDataCache();
         } else {
             this.playerDataCache = null;
+            Bukkit.getLogger().warning("[MysticRPG] SaveModule not found. Player data will not be loaded.");
         }
 
         startScoreboardUpdater();
     }
 
+    /**
+     * Starts a repeating task to update all players' scoreboards.
+     */
     private void startScoreboardUpdater() {
         new BukkitRunnable() {
             @Override
@@ -66,7 +82,14 @@ public class ScoreboardManager {
         }.runTaskTimer(plugin, 0L, 20L); // Update every second (20 ticks)
     }
 
-    private void updatePlayerScoreboard(Player player) {
+    /**
+     * Updates the scoreboard for a specific player.
+     *
+     * @param player The player whose scoreboard to update.
+     */
+    public void updatePlayerScoreboard(Player player) {
+        if (playerDataCache == null) return;
+
         PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (playerData == null) return;
 
@@ -76,6 +99,7 @@ public class ScoreboardManager {
             playerScoreboards.put(player.getUniqueId(), scoreboard);
         }
 
+        // Ensure the main sidebar objective is set up
         Objective objective = scoreboard.getObjective("mysticSidebar");
         if (objective == null) {
             objective = scoreboard.registerNewObjective("mysticSidebar", "dummy",
@@ -93,6 +117,7 @@ public class ScoreboardManager {
 
         Set<String> newEntries = new HashSet<>();
 
+        // Populate scoreboard with player stats
         // Unique separator lines
         String separatorLine1 = "------------------------------" + ChatColor.RESET;
         objective.getScore(separatorLine1).setScore(15);
@@ -111,7 +136,7 @@ public class ScoreboardManager {
 
         // XP Needed
         int currentXp = playerData.getXp();
-        int xpNeeded = levelModule.getLevelThreshold(level + 1);
+        int xpNeeded = levelModule != null ? levelModule.getLevelThreshold(level + 1) : 0;
         String xpEntry = "» " +  "XP: " + currentXp + "/" + xpNeeded;
         objective.getScore(xpEntry).setScore(12);
         newEntries.add(xpEntry);
@@ -143,22 +168,14 @@ public class ScoreboardManager {
                 newEntries.add(questNameEntry);
 
                 // Objective and Progress
-                Map<String, Integer> objectives = pinnedQuest.getObjectives();
-                Map<String, Integer> progress = playerData.getQuestProgress().getOrDefault(pinnedQuestId, new HashMap<>());
-
-//                Map<String, Integer> objectives = quest.getObjectives();
-//                Map<String, Integer> progress = data.getQuestProgress().getOrDefault(questId, new HashMap<>());
-//
-//                for (Map.Entry<String, Integer> entry : objectives.entrySet()) {
-//                    String objective = entry.getKey();
-//                    int required = entry.getValue();
-//                    int current = progress.getOrDefault(objective, 0);
+                Map<String, Integer> objectivesMap = pinnedQuest.getObjectives();
+                Map<String, Integer> progressMap = playerData.getQuestProgress().getOrDefault(pinnedQuestId, new HashMap<>());
 
                 int scoreIndex = 7;
-                for (Map.Entry<String, Integer> entry : objectives.entrySet()) {
+                for (Map.Entry<String, Integer> entry : objectivesMap.entrySet()) {
                     String objectiveKey = entry.getKey();
                     int required = entry.getValue();
-                    int currentProgress = progress.getOrDefault(objectiveKey, 0);
+                    int currentProgress = progressMap.getOrDefault(objectiveKey, 0);
 
                     // Cap currentProgress at required
                     currentProgress = Math.min(currentProgress, required);
@@ -199,6 +216,12 @@ public class ScoreboardManager {
         player.setScoreboard(scoreboard);
     }
 
+    /**
+     * Formats the objective key to a readable format.
+     *
+     * @param objectiveKey The raw objective key.
+     * @return The formatted objective key.
+     */
     private String formatObjectiveKey(String objectiveKey) {
         if (objectiveKey.startsWith("collect_")) {
             String itemName = objectiveKey.substring("collect_".length());
@@ -213,6 +236,12 @@ public class ScoreboardManager {
         return capitalizeWords(objectiveKey.replace("_", " "));
     }
 
+    /**
+     * Capitalizes the first letter of each word.
+     *
+     * @param str The input string.
+     * @return The capitalized string.
+     */
     private String capitalizeWords(String str) {
         String[] words = str.split(" ");
         StringBuilder sb = new StringBuilder();
@@ -222,5 +251,68 @@ public class ScoreboardManager {
             }
         }
         return sb.toString().trim();
+    }
+
+    /**
+     * Retrieves the PlayerDataCache instance from the SaveModule.
+     *
+     * @return The PlayerDataCache instance, or null if not available.
+     */
+    private PlayerDataCache getPlayerDataCache() {
+        SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
+        if (saveModule != null) {
+            return saveModule.getPlayerDataCache();
+        }
+        return null;
+    }
+
+    /**
+     * Retrieves a player's specific Scoreboard.
+     *
+     * @param uuid The UUID of the player.
+     * @return The player's Scoreboard, or null if not found.
+     */
+    public Scoreboard getPlayerScoreboard(UUID uuid) {
+        return playerScoreboards.get(uuid);
+    }
+
+    /**
+     * Retrieves a player's specific Scoreboard.
+     *
+     * @param player The player.
+     * @return The player's Scoreboard, or null if not found.
+     */
+    public Scoreboard getPlayerScoreboard(Player player) {
+        return getPlayerScoreboard(player.getUniqueId());
+    }
+
+    /**
+     * Cleans up all Scoreboard Teams managed by this ScoreboardManager.
+     * This should be called during module unload to prevent memory leaks.
+     */
+    public void cleanup() {
+        for (Scoreboard scoreboard : playerScoreboards.values()) {
+            if (scoreboard != null) {
+                for (Team team : scoreboard.getTeams()) {
+                    team.unregister();
+                }
+            }
+        }
+        playerScoreboards.clear();
+        playerEntries.clear();
+    }
+
+    /**
+     * Creates a scoreboard for the player if it doesn't already exist.
+     *
+     * @param player The player to create a scoreboard for.
+     */
+    public void createScoreboardForPlayer(Player player) {
+        UUID uuid = player.getUniqueId();
+        if (!playerScoreboards.containsKey(uuid)) {
+            Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
+            playerScoreboards.put(uuid, scoreboard);
+            Bukkit.getLogger().info("[MysticRPG] Created scoreboard for player " + player.getName());
+        }
     }
 }

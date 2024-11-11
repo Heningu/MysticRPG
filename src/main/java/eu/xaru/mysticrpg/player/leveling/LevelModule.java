@@ -25,6 +25,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+/**
+ * LevelModule handles player leveling up, XP management, and level-up rewards.
+ */
 public class LevelModule implements IBaseModule {
 
     private PlayerDataCache playerDataCache;
@@ -34,6 +37,7 @@ public class LevelModule implements IBaseModule {
     private DebugLoggerModule debugLogger;
     private LevelingMenu levelingMenu;
     private final EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
+    private LevelUpListener levelUpListener;
 
     @Override
     public void initialize() {
@@ -75,7 +79,6 @@ public class LevelModule implements IBaseModule {
                 event.setCancelled(true); // Prevent item movement
             }
         });
-
     }
 
     @Override
@@ -98,6 +101,9 @@ public class LevelModule implements IBaseModule {
         return EModulePriority.NORMAL; // Standard priority
     }
 
+    /**
+     * Registers the /levels commands using CommandAPI.
+     */
     private void registerLevelsCommand() {
         new CommandAPICommand("levels")
                 .withPermission("mysticrpg.levels")
@@ -166,17 +172,22 @@ public class LevelModule implements IBaseModule {
                         Bukkit.getServer().dispatchCommand(Bukkit.getServer().getConsoleSender(), command.replace("{player}", player.getName()));
                     }
                 }
+
+                // Notify listeners about the level up
+                if (levelUpListener != null) {
+                    levelUpListener.onPlayerLevelUp(player);
+                }
             }
 
             playerDataCache.savePlayerData(player.getUniqueId(), new Callback<>() {
                 @Override
                 public void onSuccess(Void result) {
-                    logger.log(Level.INFO, "saved");
+                    logger.log(Level.INFO, "Saved XP for player " + player.getName());
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
-                    logger.log(Level.SEVERE, "failed to save", throwable);
+                    logger.log(Level.SEVERE, "Failed to save XP for player " + player.getName(), throwable);
                 }
             });
         }
@@ -233,6 +244,22 @@ public class LevelModule implements IBaseModule {
     public Map<String, Integer> getLevelRewards(int level) {
         LevelData levelData = levelDataMap.get(level);
         return levelData != null ? levelData.getRewards() : Collections.emptyMap();
+    }
+
+    /**
+     * Sets the LevelUpListener.
+     *
+     * @param listener The listener to set.
+     */
+    public void setLevelUpListener(LevelUpListener listener) {
+        this.levelUpListener = listener;
+    }
+
+    /**
+     * Interface for listening to player level-up events.
+     */
+    public interface LevelUpListener {
+        void onPlayerLevelUp(Player player);
     }
 
     // Helper method to load levels from a local JSON file (Levels.json)
