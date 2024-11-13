@@ -18,10 +18,13 @@ public class TradeMenu {
     final protected static Set<Integer> rightSet = Set.of(14,15,16,23,24,25,32,33,34,41,42,43);
 
     public static void createTradingGUI(Player pPlayer1, Player pPlayer2){
-        inv = Bukkit.createInventory(null, 6*9, pPlayer1.getName() + " - " + pPlayer2.getName());
-        setupTradingInventory();
-        TradingHandler.inventoryHandler.put(inv, new Trade(pPlayer1, pPlayer2, inv));
-        pPlayer1.openInventory(inv); pPlayer2.openInventory(inv);
+        if(pPlayer1 != pPlayer2) {
+            inv = Bukkit.createInventory(null, 6 * 9, pPlayer1.getName() + " - " + pPlayer2.getName());
+            setupTradingInventory();
+            TradingHandler.inventoryHandler.put(inv, new Trade(pPlayer1, pPlayer2, inv));
+            pPlayer1.openInventory(inv);
+            pPlayer2.openInventory(inv);
+        }
     }
 
     private static void setupTradingInventory(){

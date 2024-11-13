@@ -126,8 +126,10 @@ public class TradingHandler implements IBaseModule {
                     if(player instanceof Player) {
                         Player p = (Player) player;
                         Player target = (Player) args.get("target");
-                        if (target != null) {
-                            Trade.sendTradeInvite(p, target);
+                        if(p != target) {
+                            if (target != null) {
+                                Trade.sendTradeInvite(p, target);
+                            }
                         }
                     }
         }).register();
