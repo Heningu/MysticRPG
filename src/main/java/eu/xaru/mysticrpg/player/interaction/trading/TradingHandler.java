@@ -25,7 +25,7 @@ public class TradingHandler implements IBaseModule {
     private final EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
 
     public static Map<Inventory, Trade> inventoryHandler = new WeakHashMap<>();
-    protected static Map<Player, Player> trades = new WeakHashMap<Player, Player>();
+    protected static Map<Player, Player> trades = new WeakHashMap<>();
 
     @Override
     public void initialize() throws Exception {

@@ -14,8 +14,6 @@ import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.HashMap;
-
 public class Trade {
     private final static MysticCore plugin = MysticCore.getPlugin(MysticCore.class);
     
