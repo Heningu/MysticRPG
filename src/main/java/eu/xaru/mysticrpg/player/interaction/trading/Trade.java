@@ -19,11 +19,12 @@ import java.util.HashMap;
 public class Trade {
     private final static MysticCore plugin = MysticCore.getPlugin(MysticCore.class);
     
-    final Player player1;
-    final Player player2;
+    Player player1;
+    Player player2;
     boolean player1Ready = false;
     boolean player2Ready = false;
     final private Inventory inv;
+    boolean tradeCompleted = false;
 
     public Trade(Player pPlayer1, Player pPlayer2, Inventory pInv){
         this.player1 = pPlayer1;
@@ -71,8 +72,10 @@ public class Trade {
     public void modifySlotReadyCheck(Inventory inv){
         if(player1Ready){
             inv.setItem(45, CustomInventoryManager.createPlaceholder(Material.RED_WOOL, "§cNOT READY"));
+            player1Ready = false;
         }else if(player2Ready){
             inv.setItem(53, CustomInventoryManager.createPlaceholder(Material.RED_WOOL, "§cNOT READY"));
+            player2Ready = false;
         }
     }
     public void checkReady(){
@@ -82,6 +85,7 @@ public class Trade {
     }
 
     public void completeTrade(){
+        tradeCompleted = true;
         for(int i = 0; i < TradeMenu.left.length; i++){
             if(inv.getItem(TradeMenu.left[i]) != null){
                 player1.getInventory().setItem(getItemSlot(inv.getItem(TradeMenu.left[i]), inv), null);
@@ -105,9 +109,24 @@ public class Trade {
         }
         clearData();
     }
-    private void clearData(){
+    protected void clearData(){
         TradingHandler.trades.remove(player1);
+        TradingHandler.trades.remove(player2);
         TradingHandler.inventoryHandler.remove(inv);
+
+        if (player1.getOpenInventory().getTopInventory().equals(inv)) {
+            player1.closeInventory();
+        }
+        if (player2.getOpenInventory().getTopInventory().equals(inv)) {
+            player2.closeInventory();
+        }
+
+        player1Ready = false;
+        player2Ready = false;
+
+        player1 = null;
+        player2 = null;
+        inv.clear();
     }
 
     private static int getItemSlot(ItemStack item, Inventory inv){
