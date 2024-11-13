@@ -130,7 +130,7 @@ public class FriendsModule implements IBaseModule {
      */
     private void registerCommands() {
         new CommandAPICommand("friends")
-                .withAliases("friend", "f")
+                .withAliases("f")
                 // /friends add <player>
                 .withSubcommand(new CommandAPICommand("add")
                         .withArguments(new PlayerArgument("player"))

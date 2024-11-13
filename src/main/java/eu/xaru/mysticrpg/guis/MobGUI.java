@@ -5,6 +5,7 @@ import eu.xaru.mysticrpg.customs.mobs.CustomMob;
 import eu.xaru.mysticrpg.customs.mobs.MobManager;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.player.stats.StatMenu;
+import eu.xaru.mysticrpg.quests.QuestGUI;
 import eu.xaru.mysticrpg.utils.CustomInventoryManager;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
@@ -40,7 +41,6 @@ public class MobGUI {
         this.mobManager = mobManager;
         this.plugin = JavaPlugin.getPlugin(MysticCore.class); // Ensure MysticCore is your main class
     }
-
     /**
      * Opens the Mob GUI for the specified player.
      *
@@ -100,6 +100,39 @@ public class MobGUI {
         // Open the inventory for the player
         CustomInventoryManager.openInventory(player, mobInventory);
     }
+
+    //    // Register InventoryClickEvent for QuestGUI
+//        eventManager.registerEvent(InventoryClickEvent.class, event -> {
+//        if (!(event.getWhoClicked() instanceof Player)) return;
+//
+//        Inventory clickedInventory = event.getClickedInventory();
+//        if (clickedInventory == null) return;
+//
+//        String inventoryTitle = event.getView().getTitle();
+//        Player player = (Player) event.getWhoClicked();
+//        ItemStack clickedItem = event.getCurrentItem();
+//
+//        if (clickedItem == null || !clickedItem.hasItemMeta()) {
+//            return;
+//        }
+//
+//        // Handle clicks in the Quests menu
+//        if ("Quests".equals(inventoryTitle)) {
+//            logger.log("Player " + player.getName() + " clicked in the Quests menu.");
+//
+//            // Create the QuestGUI with the correct state (active or completed quests)
+//            boolean showingActiveQuests = QuestGUI.isShowingActiveQuests(player);
+//            QuestGUI questGUI = new QuestGUI(player, questManager, playerDataCache, showingActiveQuests);
+//
+//            // Handle the click within the QuestGUI
+//            questGUI.onInventoryClick(event);
+//
+//            // Now cancel the event to prevent item movement
+//            event.setCancelled(true);
+//        }
+//    });
+
+
 
     /**
      * Registers event handlers related to the Mob GUI using the provided EventManager.

@@ -94,6 +94,10 @@ public class DatabaseManager {
         repository.deleteAuction(auctionId, callback);
     }
 
+    public void loadAllPlayers(Callback<List<PlayerData>> callback) {
+        repository.loadAllPlayers(callback);
+    }
+
     // Implement this method to fetch your plugin's config
     private FileConfiguration getConfig() {
         // Assuming you have access to your main plugin instance

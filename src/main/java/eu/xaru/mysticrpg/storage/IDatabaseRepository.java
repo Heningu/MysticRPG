@@ -20,4 +20,5 @@ public interface IDatabaseRepository {
     void deleteAuction(UUID auctionId, Callback<Void> callback);
 
     // Additional methods can be added as needed
+    void loadAllPlayers(Callback<List<PlayerData>> callback);
 }

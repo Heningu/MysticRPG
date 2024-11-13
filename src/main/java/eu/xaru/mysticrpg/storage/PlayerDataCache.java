@@ -167,7 +167,7 @@ public class PlayerDataCache {
     private void registerCheckCachedDataCommand() {
         new CommandAPICommand("checkCachedData")
                 .withAliases("checkCache")
-                .withPermission("mysticrpg.checkCachedData")
+                .withPermission("mysticrpg.debug")
                 .executesPlayer((player, args) -> {
                     UUID playerUUID = player.getUniqueId();
                     PlayerData playerData = getCachedPlayerData(playerUUID);

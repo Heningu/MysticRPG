@@ -115,6 +115,11 @@ public class CustomItemModule implements IBaseModule {
                                 player.sendMessage(Utils.getInstance().$("- " + item.getId()));
                             }
                         }))
+                .withSubcommand(new CommandAPICommand("reload")
+                        .executes((sender, args) -> {
+                            itemManager.loadCustomItems(); // Reload custom items
+                            sender.sendMessage(Utils.getInstance().$("Custom items reloaded successfully."));
+                        }))
                 .register();
     }
 

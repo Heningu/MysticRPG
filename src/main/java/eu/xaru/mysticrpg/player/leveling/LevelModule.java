@@ -105,13 +105,14 @@ public class LevelModule implements IBaseModule {
      * Registers the /levels commands using CommandAPI.
      */
     private void registerLevelsCommand() {
-        new CommandAPICommand("levels")
-                .withPermission("mysticrpg.levels")
-                .executesPlayer((player, args) -> {
-                    levelingMenu.openLevelingMenu(player, 1);
-                })
+        new CommandAPICommand("leveling")
+                .withSubcommand(new CommandAPICommand("gui")
+                        .executesPlayer((player, args) -> {
+                            levelingMenu.openLevelingMenu(player, 1);
+                        })
+                )
                 .withSubcommand(new CommandAPICommand("give")
-                        .withPermission("mysticrpg.admin")
+                        .withPermission("mysticrpg.adminlevels")
                         .withArguments(new PlayerArgument("target"), new IntegerArgument("amount"))
                         .executes((sender, args) -> {
                             Player target = (Player) args.get("target");
@@ -121,7 +122,7 @@ public class LevelModule implements IBaseModule {
                             target.sendMessage(Utils.getInstance().$("You received " + amount + " XP."));
                         }))
                 .withSubcommand(new CommandAPICommand("set")
-                        .withPermission("mysticrpg.admin")
+                        .withPermission("mysticrpg.adminlevels")
                         .withArguments(new PlayerArgument("target"), new IntegerArgument("amount"))
                         .executes((sender, args) -> {
                             Player target = (Player) args.get("target");

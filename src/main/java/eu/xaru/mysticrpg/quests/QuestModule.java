@@ -133,10 +133,10 @@ public class QuestModule implements IBaseModule {
                             npcManager
                                     .createNPC(npcLocation, npcName)
                                     .exceptionally(throwable -> {
-                                // Handle any exceptions during NPC creation
-                                plugin.getLogger().severe("Failed to create NPC: " + throwable.getMessage());
-                                return null;
-                            });
+                                        // Handle any exceptions during NPC creation
+                                        plugin.getLogger().severe("Failed to create NPC: " + throwable.getMessage());
+                                        return null;
+                                    });
                             var eventManager = MysticCore.getInstance().getPlatform().eventManager();
                             eventManager.registerEventHandler(AttackNpcEvent.class, attackEvent -> {
                                 var npc = attackEvent.npc();
@@ -147,7 +147,7 @@ public class QuestModule implements IBaseModule {
                             eventManager.registerEventHandler(InteractNpcEvent.class, interactEvent -> {
                                 var npc = interactEvent.npc();
                                 Player player3 = interactEvent.player();
-                                if(interactEvent.hand() == InteractNpcEvent.Hand.MAIN_HAND) {
+                                if (interactEvent.hand() == InteractNpcEvent.Hand.MAIN_HAND) {
                                     player3.sendMessage("You interacted with NPC " + npc.profile().name() + " with your main hand!");
                                 } else {
                                     player3.sendMessage("You interacted with NPC " + npc.profile().name() + " with your off hand!");
@@ -159,6 +159,7 @@ public class QuestModule implements IBaseModule {
 
         new CommandAPICommand("quests")
                 .withSubcommand(new CommandAPICommand("list")
+                        .withPermission("mysticrpg.questadmin")
                         .executesPlayer((player, args) -> {
                             player.sendMessage(Utils.getInstance().$("Available Quests:"));
                             for (Quest quest : questManager.getAllQuests()) {
@@ -166,6 +167,7 @@ public class QuestModule implements IBaseModule {
                             }
                         }))
                 .withSubcommand(new CommandAPICommand("check")
+                        .withPermission("mysticrpg.questadmin")
                         .withArguments(new PlayerArgument("player"))
                         .executes((sender, args) -> {
                             Player target = (Player) args.get("player");
@@ -205,10 +207,8 @@ public class QuestModule implements IBaseModule {
                             QuestGUI questGUI = new QuestGUI(player, questManager, playerDataCache, true);
                             questGUI.open();
                         }))
-                .register();
-
-        new CommandAPICommand("quest")
                 .withSubcommand(new CommandAPICommand("give")
+                        .withPermission("mysticrpg.questadmin")
                         .withArguments(
                                 new PlayerArgument("player"),
                                 new StringArgument("questId").replaceSuggestions(ArgumentSuggestions.strings(info ->
@@ -242,6 +242,7 @@ public class QuestModule implements IBaseModule {
                             target.sendMessage(Utils.getInstance().$("You have received a new quest: " + quest.getName()));
                         }))
                 .withSubcommand(new CommandAPICommand("reset")
+                        .withPermission("mysticrpg.questadmin")
                         .withArguments(
                                 new PlayerArgument("player"),
                                 new StringArgument("questId").replaceSuggestions(ArgumentSuggestions.strings(info ->
@@ -276,6 +277,7 @@ public class QuestModule implements IBaseModule {
                         }))
                 .register();
     }
+
 
     public void updateQuestProgressOnMobDeath(Player player, CustomMob customMob) {
         PlayerData data = playerDataCache.getCachedPlayerData(player.getUniqueId());

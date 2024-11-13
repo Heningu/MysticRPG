@@ -22,7 +22,7 @@ public class ItemManager {
         loadCustomItems();
     }
 
-    private void loadCustomItems() {
+    void loadCustomItems() {
         File itemsFolder = new File(plugin.getDataFolder(), "custom/items");
         if (!itemsFolder.exists() && !itemsFolder.mkdirs()) {
             Bukkit.getLogger().severe("Failed to create items folder.");

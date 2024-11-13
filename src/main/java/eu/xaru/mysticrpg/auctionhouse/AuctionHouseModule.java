@@ -97,7 +97,6 @@ public class AuctionHouseModule implements IBaseModule {
     private void registerCommands() {
         new CommandAPICommand("auctionhouse")
                 .withAliases("ah")
-                .withPermission("mysticrpg.auctionhouse")
                 .executesPlayer((player, args) -> {
                     if (auctionHouseHelper.areAuctionsLoaded()) {
                         auctionsGUI.openMainGUI(player);

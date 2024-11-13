@@ -112,7 +112,7 @@ public class UIModule implements IBaseModule {
     private void registerCommands() {
         // Parent /name command
         new CommandAPICommand("name")
-                .withPermission("mysticrpg.name")
+                .withPermission("mysticrpg.debug")
                 .executes((sender, args) -> {
                     sender.sendMessage(ChatColor.RED + "Prefixes are managed through LuckPerms.");
                 })
@@ -120,7 +120,7 @@ public class UIModule implements IBaseModule {
 
         // Optional: /refreshname <player> command for manual updates
         new CommandAPICommand("refreshname")
-                .withPermission("mysticrpg.admin")
+                .withPermission("mysticrpg.debug")
                 .withArguments(new dev.jorel.commandapi.arguments.PlayerArgument("target"))
                 .executes((sender, args) -> {
                     Player target = (Player) args.get("target");

@@ -122,9 +122,6 @@ public class TitleManager implements Listener {
         int level = playerDataCache.getPlayerLevel(uuid);
         String suffix = ChatColor.BLACK + " [" + ChatColor.GREEN + "LVL" + ChatColor.RED + level + ChatColor.BLACK + "]";
 
-        // Logging for debugging
-        Bukkit.getLogger().info("[MysticRPG] Updating display name for " + player.getName() + ": Prefix='" + prefix + "', Suffix='" + suffix + "'");
-
         // Update display name and player list name via scoreboard team
         Scoreboard scoreboard = scoreboardManager.getPlayerScoreboard(player);
         if (scoreboard == null) {
@@ -169,8 +166,6 @@ public class TitleManager implements Listener {
         // Update player list name (tab list)
         String displayName = prefix.isEmpty() ? (player.getName() + " " + suffix) : (prefix + " " + player.getName() + " " + suffix);
         player.setPlayerListName(displayName);
-
-        Bukkit.getLogger().info("[MysticRPG] Set display name for " + player.getName() + " to '" + displayName + "'");
     }
 
     /**

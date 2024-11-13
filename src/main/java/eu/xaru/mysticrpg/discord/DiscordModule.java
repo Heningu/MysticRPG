@@ -135,6 +135,7 @@ public class DiscordModule implements IBaseModule, Listener {
                         }))
                 // Subcommand: /discord unlink (unlink self)
                 .withSubcommand(new CommandAPICommand("unlink")
+                        .withPermission("mysticrpg.discord.unlink")
                         .executesPlayer((player, args) -> {
                             UUID playerUUID = player.getUniqueId();
                             PlayerData playerData = playerDataCache.getCachedPlayerData(playerUUID);
@@ -159,6 +160,7 @@ public class DiscordModule implements IBaseModule, Listener {
                         }))
                 // Subcommand: /discord unlink <username> (unlink others)
                 .withSubcommand(new CommandAPICommand("unlink")
+                        .withPermission("mysticrpg.discord.unlink")
                         .withArguments(new dev.jorel.commandapi.arguments.StringArgument("username"))
                         .executesPlayer((player, args) -> {
                             String targetUsername = (String) args.get("username");
@@ -207,6 +209,7 @@ public class DiscordModule implements IBaseModule, Listener {
                         }))
                 // Subcommand: /discord check "USERNAME"
                 .withSubcommand(new CommandAPICommand("check")
+                        .withPermission("mysticrpg.discord.check")
                         .withArguments(new dev.jorel.commandapi.arguments.StringArgument("username"))
                         .executesPlayer((player, args) -> {
                             String username = (String) args.get("username");

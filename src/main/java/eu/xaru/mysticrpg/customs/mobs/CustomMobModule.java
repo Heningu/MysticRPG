@@ -207,7 +207,8 @@ public class CustomMobModule implements IBaseModule, Listener {
     }
 
     private void registerCommands() {
-        new CommandAPICommand("mob")
+        new CommandAPICommand("custommob")
+                .withPermission("mysticcore.custommob")
                 .withSubcommand(new CommandAPICommand("list")
                         .executesPlayer((player, args) -> {
                             if (mobConfigurations.isEmpty()) {
@@ -234,10 +235,14 @@ public class CustomMobModule implements IBaseModule, Listener {
                             player.sendMessage(Utils.getInstance().$("Spawned mob: " + customMob.getName() + " at your location."));
                         }))
                 .withSubcommand(new CommandAPICommand("gui")
-                        .withPermission("mysticcore.mobgui") // [ADDED] Permission requirement
                         .executesPlayer((player, args) -> {
                             MobGUI mobGUI = new MobGUI(mobManager);
                             mobGUI.openMobGUI(player);
+                        })).
+                withSubcommand(new CommandAPICommand("reload")
+                        .executes((sender, args) -> {
+                            loadMobConfigurations(); // Reload the mob configurations from YAML files
+                            sender.sendMessage(Utils.getInstance().$("Mob configurations reloaded successfully."));
                         }))
                 .register();
     }

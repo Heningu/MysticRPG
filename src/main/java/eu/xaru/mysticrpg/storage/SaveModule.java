@@ -32,6 +32,7 @@ public class SaveModule implements IBaseModule {
     private PlayerDataCache playerDataCache;
     private DebugLoggerModule logger;
     private EconomyHelper economyHelper;
+    private SaveHelper saveHelper;
 
     // EventManager to handle player join and quit events
     private final EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
@@ -197,6 +198,15 @@ public class SaveModule implements IBaseModule {
     public void deleteAuction(UUID auctionId, Callback<Void> callback) {
         databaseManager.deleteAuction(auctionId, callback);
     }
+
+    public SaveHelper getSaveHelper() {
+        return saveHelper;
+    }
+
+    public DatabaseManager getDatabaseManager() {
+        return databaseManager;
+    }
+
 
     // ---------------------- End of Auction Methods -----------------------
 }

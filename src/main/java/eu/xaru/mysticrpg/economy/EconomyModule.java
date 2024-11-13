@@ -73,7 +73,7 @@ public class EconomyModule implements IBaseModule {
     }
 
     private void registerEconomyCommand() {
-        new CommandAPICommand("economy")
+        new CommandAPICommand("money")
                 .withSubcommand(new CommandAPICommand("balance")
                         .executesPlayer((player, args) -> {
                             double balance = economyHelper.getBalance(player);

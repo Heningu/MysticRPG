@@ -251,4 +251,29 @@ public class MongoRepository implements eu.xaru.mysticrpg.storage.database.IData
             }
         });
     }
+    public void loadAllPlayers(Callback<List<PlayerData>> callback) {
+        List<PlayerData> allPlayers = new ArrayList<>();
+        playerCollection.find().subscribe(new Subscriber<PlayerData>() {
+            @Override
+            public void onSubscribe(Subscription s) {
+                s.request(Long.MAX_VALUE);
+            }
+
+            @Override
+            public void onNext(PlayerData playerData) {
+                allPlayers.add(playerData);
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                logger.error("Error loading all player data: " + t.getMessage());
+                callback.onFailure(t);
+            }
+
+            @Override
+            public void onComplete() {
+                callback.onSuccess(allPlayers);
+            }
+        });
+    }
 }

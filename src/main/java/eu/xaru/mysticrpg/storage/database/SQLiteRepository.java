@@ -4,6 +4,8 @@ import eu.xaru.mysticrpg.auctionhouse.Auction;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.Callback;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.sql.*;
 import java.util.*;
@@ -254,18 +256,61 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
         }
     }
 
+    // New Method: Load All Players
+
+    @Override
+    public void loadAllPlayers(Callback<List<PlayerData>> callback) {
+        logger.log(Level.INFO, "Loading all player data from SQLite", 0);
+        List<PlayerData> allPlayers = new ArrayList<>();
+        String sql = "SELECT * FROM playerData;";
+        try (Statement stmt = connection.createStatement()) {
+            ResultSet rs = stmt.executeQuery(sql);
+            while (rs.next()) {
+                PlayerData playerData = new PlayerData();
+                playerData.setUuid(rs.getString("uuid"));
+                playerData.setBalance(rs.getDouble("balance"));
+                playerData.setXp(rs.getInt("xp"));
+                playerData.setLevel(rs.getInt("level"));
+                playerData.setNextLevelXP(rs.getInt("nextLevelXP"));
+                playerData.setCurrentHp(rs.getInt("currentHp"));
+                playerData.setAttributes(deserializeMap(rs.getString("attributes")));
+                playerData.setUnlockedRecipes(deserializeMapBoolean(rs.getString("unlockedRecipes")));
+                playerData.setFriendRequests(deserializeSet(rs.getString("friendRequests")));
+                playerData.setFriends(deserializeSet(rs.getString("friends")));
+                playerData.setBlockedPlayers(deserializeSet(rs.getString("blockedPlayers")));
+                playerData.setBlockingRequests(rs.getInt("blockingRequests") == 1);
+                playerData.setAttributePoints(rs.getInt("attributePoints"));
+                playerData.setActiveQuests(deserializeList(rs.getString("activeQuests")));
+                playerData.setQuestProgress(deserializeQuestProgress(rs.getString("questProgress")));
+                playerData.setCompletedQuests(deserializeList(rs.getString("completedQuests")));
+                playerData.setPinnedQuest(rs.getString("pinnedQuest"));
+                playerData.setPendingBalance(rs.getDouble("pendingBalance"));
+                playerData.setPendingItems(deserializeList(rs.getString("pendingItems")));
+                playerData.setRemindersEnabled(rs.getInt("remindersEnabled") == 1);
+
+                allPlayers.add(playerData);
+            }
+            callback.onSuccess(allPlayers);
+            logger.log(Level.INFO, "Successfully loaded all player data. Total players: " + allPlayers.size(), 0);
+        } catch (SQLException e) {
+            logger.error("Error loading all player data from SQLite: " + e.getMessage());
+            callback.onFailure(e);
+        }
+    }
+
+
+
     // Utility serialization/deserialization methods
     // Implement these methods based on your serialization preference (e.g., JSON)
 
     private String serializeMap(Map<String, Integer> map) {
-        // Implement JSON serialization or other
-        return new org.json.JSONObject(map).toString();
+        return new JSONObject(map).toString();
     }
 
     private Map<String, Integer> deserializeMap(String data) {
-        // Implement JSON deserialization or other
         Map<String, Integer> map = new HashMap<>();
-        org.json.JSONObject json = new org.json.JSONObject(data);
+        if (data == null || data.isEmpty()) return map;
+        JSONObject json = new JSONObject(data);
         for (String key : json.keySet()) {
             map.put(key, json.getInt(key));
         }
@@ -273,12 +318,13 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
     }
 
     private String serializeMapBoolean(Map<String, Boolean> map) {
-        return new org.json.JSONObject(map).toString();
+        return new JSONObject(map).toString();
     }
 
     private Map<String, Boolean> deserializeMapBoolean(String data) {
         Map<String, Boolean> map = new HashMap<>();
-        org.json.JSONObject json = new org.json.JSONObject(data);
+        if (data == null || data.isEmpty()) return map;
+        JSONObject json = new JSONObject(data);
         for (String key : json.keySet()) {
             map.put(key, json.getBoolean(key));
         }
@@ -286,12 +332,13 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
     }
 
     private String serializeSet(Set<String> set) {
-        return new org.json.JSONArray(set).toString();
+        return new JSONArray(set).toString();
     }
 
     private Set<String> deserializeSet(String data) {
         Set<String> set = new HashSet<>();
-        org.json.JSONArray json = new org.json.JSONArray(data);
+        if (data == null || data.isEmpty()) return set;
+        JSONArray json = new JSONArray(data);
         for (int i = 0; i < json.length(); i++) {
             set.add(json.getString(i));
         }
@@ -299,12 +346,13 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
     }
 
     private String serializeList(List<String> list) {
-        return new org.json.JSONArray(list).toString();
+        return new JSONArray(list).toString();
     }
 
     private List<String> deserializeList(String data) {
         List<String> list = new ArrayList<>();
-        org.json.JSONArray json = new org.json.JSONArray(data);
+        if (data == null || data.isEmpty()) return list;
+        JSONArray json = new JSONArray(data);
         for (int i = 0; i < json.length(); i++) {
             list.add(json.getString(i));
         }
@@ -312,15 +360,15 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
     }
 
     private String serializeQuestProgress(Map<String, Map<String, Integer>> questProgress) {
-        // Implement serialization
-        return new org.json.JSONObject(questProgress).toString();
+        return new JSONObject(questProgress).toString();
     }
 
     private Map<String, Map<String, Integer>> deserializeQuestProgress(String data) {
         Map<String, Map<String, Integer>> questProgress = new HashMap<>();
-        org.json.JSONObject json = new org.json.JSONObject(data);
+        if (data == null || data.isEmpty()) return questProgress;
+        JSONObject json = new JSONObject(data);
         for (String key : json.keySet()) {
-            org.json.JSONObject inner = json.getJSONObject(key);
+            JSONObject inner = json.getJSONObject(key);
             Map<String, Integer> innerMap = new HashMap<>();
             for (String innerKey : inner.keySet()) {
                 innerMap.put(innerKey, inner.getInt(innerKey));
