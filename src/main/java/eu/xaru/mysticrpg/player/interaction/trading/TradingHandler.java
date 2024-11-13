@@ -6,7 +6,9 @@ import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
+import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.CustomInventoryManager;
+import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -18,17 +20,20 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.logging.Level;
 
 public class TradingHandler implements IBaseModule {
 
 
     private final EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
-
+    private DebugLoggerModule debugLogger;
     public static Map<Inventory, Trade> inventoryHandler = new WeakHashMap<>();
     protected static Map<Player, Player> trades = new WeakHashMap<>();
 
     @Override
     public void initialize() throws Exception {
+        debugLogger.log(Level.INFO, "TradeModule initialization", 0);
+        debugLogger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
         registerTradeCommand();
         eventManager.registerEvent(InventoryClickEvent.class, event -> {
             if (TradingHandler.inventoryHandler.containsKey(event.getInventory())) {
@@ -116,6 +121,7 @@ public class TradingHandler implements IBaseModule {
                 }
             }
         });
+        debugLogger.log(Level.INFO, "TradeModule init finished", 0);
     }
 
     private void registerTradeCommand() {
@@ -137,17 +143,17 @@ public class TradingHandler implements IBaseModule {
 
     @Override
     public void start() throws Exception {
-
+        debugLogger.log(Level.INFO, "TradeModule started", 0);
     }
 
     @Override
     public void stop() throws Exception {
-
+        debugLogger.log(Level.INFO, "TradeModule stopped", 0);
     }
 
     @Override
     public void unload() throws Exception {
-
+        debugLogger.log(Level.INFO, "TradeModule unloaded", 0);
     }
 
     @Override
@@ -157,6 +163,6 @@ public class TradingHandler implements IBaseModule {
 
     @Override
     public EModulePriority getPriority() {
-        return null;
+        return EModulePriority.NORMAL;
     }
 }
