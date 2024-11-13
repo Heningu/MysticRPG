@@ -1,35 +1,123 @@
 package eu.xaru.mysticrpg.player.interaction.trading;
 
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.utils.CustomInventoryManager;
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.ComponentBuilder;
+import net.md_5.bungee.api.chat.HoverEvent;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+
+import java.util.HashMap;
 
 public class Trade {
+    private final static MysticCore plugin = MysticCore.getPlugin(MysticCore.class);
+    
+    final Player player1;
+    final Player player2;
+    boolean player1Ready = false;
+    boolean player2Ready = false;
+    final private Inventory inv;
 
-    Inventory inv;
-    Inventory pInv;
-    Inventory tInv;
-    Player player;
-    Player target;
-
-    public int[] right = {14,15,16,23,24,25,32,33,34,41,42,43};
-    public int[] left = {10,11,12,19,20,21,28,29,30,37,38,39};
-
-    public Trade(Player pPlayer, Player pTarget){
-        player = pPlayer;
-        target = pTarget;
-        inv = Bukkit.createInventory(null, 6*9, pPlayer.getName() + " - " + pTarget.getName());
-        setupTradingInventory();
-        pInv = inv;tInv = inv;
-
+    public Trade(Player pPlayer1, Player pPlayer2, Inventory pInv){
+        this.player1 = pPlayer1;
+        this.player2 = pPlayer2;
+        this.inv = pInv;
     }
 
-    private void setupTradingInventory(){
-        int[] placeholders = {0,1,2,3,4,5,6,7,8,9,13,17,18,22,26,27,31,35,36,40,44,45,46,47,48,49,50,51,52,53};
-        for(int i = placeholders.length; i < 54;i++){
-            inv.setItem(placeholders[i], CustomInventoryManager.createPlaceholder(Material.WHITE_STAINED_GLASS_PANE, " "));
+    public static void sendTradeInvite(Player player, Player target){
+        if(TradingHandler.trades.containsKey(target) && TradingHandler.trades.containsValue(player)){
+            acceptTradeRequest(player, target);
+        }else if(TradingHandler.trades.containsKey(player)){
+            player.sendMessage(ChatColor.RED + "You already have an outgoing Trade request!");return;
+        }else if(TradingHandler.trades.containsKey(target)){
+            player.sendMessage(ChatColor.RED + "This player already has an outgoing Trade request!");return;
+        }else if(TradingHandler.trades.containsValue(player)){
+            player.sendMessage(ChatColor.RED + "You already have an incoming Trade Request!");return;
+        }else if(TradingHandler.trades.containsValue(target)){
+            player.sendMessage(ChatColor.RED + "This Player already has an incoming Trade request!");return;
+        }else{
+            TradingHandler.trades.put(player, target);
+            String messageTo = ChatColor.GREEN + "Trade request sent to " + ChatColor.RESET + target.getName();
+
+            player.sendMessage(messageTo);
+            TextComponent messageFrom = new TextComponent(ChatColor.GREEN + "Trade request from " + ChatColor.RESET + player.getName());
+            messageFrom.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/trade " + player.getName()));
+            messageFrom.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder("Click here accept trading request").color(net.md_5.bungee.api.ChatColor.WHITE).create()));
+            target.spigot().sendMessage(messageFrom);
+            Bukkit.getScheduler().runTaskLater(plugin, () -> removeTradeRequest(player, target), 200L);
+
         }
     }
+    private static void removeTradeRequest(Player player, Player target) {
+        if (TradingHandler.trades.containsKey(player) && TradingHandler.trades.get(player).equals(target)) {
+            TradingHandler.trades.remove(player);
+            player.sendMessage(ChatColor.RED + "Trade request to " + target.getName() + " has expired.");
+            target.sendMessage(ChatColor.RED + "Trade request from " + player.getName() + " has expired.");
+        }
+    }
+
+    public static void acceptTradeRequest(Player player, Player target){
+        TradingHandler.trades.remove(player);TradingHandler.trades.remove(target);
+        TradeMenu.createTradingGUI(player, target);
+
+    }
+    public void modifySlotReadyCheck(Inventory inv){
+        if(player1Ready){
+            inv.setItem(45, CustomInventoryManager.createPlaceholder(Material.RED_WOOL, "§cNOT READY"));
+        }else if(player2Ready){
+            inv.setItem(53, CustomInventoryManager.createPlaceholder(Material.RED_WOOL, "§cNOT READY"));
+        }
+    }
+    public void checkReady(){
+        if(player1Ready && player2Ready){
+            completeTrade();
+        }
+    }
+
+    public void completeTrade(){
+        for(int i = 0; i < TradeMenu.left.length; i++){
+            if(inv.getItem(TradeMenu.left[i]) != null){
+                player1.getInventory().setItem(getItemSlot(inv.getItem(TradeMenu.left[i]), inv), null);
+            }
+        }
+        for(int i = 0; i < TradeMenu.right.length; i++){
+            if(inv.getItem(TradeMenu.right[i]) != null){
+                player2.getInventory().setItem(getItemSlot(inv.getItem(TradeMenu.right[i]), inv), null);
+            }
+        }
+
+        for(int i = 0; i < TradeMenu.left.length; i++){
+            if(inv.getItem(TradeMenu.left[i]) != null){
+                player2.getInventory().addItem(inv.getItem(TradeMenu.left[i]));
+            }
+        }
+        for(int i = 0; i < TradeMenu.right.length; i++){
+            if(inv.getItem(TradeMenu.right[i]) != null){
+                player1.getInventory().addItem(inv.getItem(TradeMenu.right[i]));
+            }
+        }
+        clearData();
+    }
+    private void clearData(){
+        TradingHandler.trades.remove(player1);
+        TradingHandler.inventoryHandler.remove(inv);
+    }
+
+    private static int getItemSlot(ItemStack item, Inventory inv){
+        for(int i = 0; i < inv.getSize(); i++){
+            if(inv.getItem(i) == item){
+                return i;
+            }
+        }
+        return 0;
+    }
+
+
 }
