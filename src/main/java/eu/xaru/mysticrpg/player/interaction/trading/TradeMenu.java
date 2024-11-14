@@ -12,10 +12,10 @@ public class TradeMenu {
 
     public static Inventory inv;
 
-    public static int[] right = {14,15,16,23,24,25,32,33,34,41,42,43};
-    public static int[] left = {10,11,12,19,20,21,28,29,30,37,38,39};
-    final protected static Set<Integer> leftSet = Set.of(10,11,12,19,20,21,28,29,30,37,38,39);
-    final protected static Set<Integer> rightSet = Set.of(14,15,16,23,24,25,32,33,34,41,42,43);
+    public static int[] right = {5, 6, 7, 8, 14, 15, 16, 17, 23, 24, 25, 26, 32, 33, 34, 35, 41, 42, 43, 44};
+    public static int[] left = {0, 1, 2, 3, 9, 10, 11, 12, 18, 19, 20, 21, 27, 28, 29, 30, 36, 37, 38, 39};
+    final protected static Set<Integer> leftSet = Set.of(0, 1, 2, 3, 9, 10, 11, 12, 18, 19, 20, 21, 27, 28, 29, 30, 36, 37, 38, 39);
+    final protected static Set<Integer> rightSet = Set.of(5, 6, 7, 8, 14, 15, 16, 17, 23, 24, 25, 26, 32, 33, 34, 35, 41, 42, 43, 44);
 
     public static void createTradingGUI(Player pPlayer1, Player pPlayer2){
         if(pPlayer1 != pPlayer2) {
@@ -28,7 +28,7 @@ public class TradeMenu {
     }
 
     private static void setupTradingInventory(){
-        int[] placeholders = {0,1,2,3,4,5,6,7,8,9,13,17,18,22,26,27,31,35,36,40,44,45,46,47,48,49,50,51,52,53};
+        int[] placeholders = {4, 13, 22, 31, 40, 49, 46, 47, 48, 50, 51, 52};
         for(int i = 0; i < placeholders.length;i++){
             inv.setItem(placeholders[i], CustomInventoryManager.createPlaceholder(Material.WHITE_STAINED_GLASS_PANE, " "));
         }
@@ -40,17 +40,17 @@ public class TradeMenu {
         if(side.equals("left")){
             for(int i = 0; i < left.length; i++){
                 if(pInv.getItem(left[i]) == null){
-                    return i;
+                    return left[i];
                 }
             }
         }else{
             for(int i = 0; i < right.length; i++){
                 if(pInv.getItem(right[i]) == null){
-                    return i;
+                    return right[i];
                 }
             }
         }
-        return 0;
+        return -1;
     }
 
     public static boolean isAllowedSlot(int clickedSlot, Set<Integer> allowedSlots) {

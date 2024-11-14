@@ -14,20 +14,28 @@ import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.Arrays;
+import java.util.Map;
+import java.util.WeakHashMap;
+
 public class Trade {
     private final static MysticCore plugin = MysticCore.getPlugin(MysticCore.class);
-    
+
+    Map<Integer, Integer> player1UsedItems = new WeakHashMap<>();
+    Map<Integer, Integer> player2UsedItems = new WeakHashMap<>();
     Player player1;
     Player player2;
     boolean player1Ready = false;
     boolean player2Ready = false;
     final private Inventory inv;
     boolean tradeCompleted = false;
+    boolean cancelled = false;
 
     public Trade(Player pPlayer1, Player pPlayer2, Inventory pInv){
         this.player1 = pPlayer1;
         this.player2 = pPlayer2;
         this.inv = pInv;
+
     }
 
     public static void sendTradeInvite(Player player, Player target){
@@ -63,7 +71,8 @@ public class Trade {
     }
 
     public static void acceptTradeRequest(Player player, Player target){
-        TradingHandler.trades.remove(player);TradingHandler.trades.remove(target);
+        TradingHandler.trades.remove(player);
+        TradingHandler.trades.remove(target);
         TradeMenu.createTradingGUI(player, target);
 
     }
@@ -86,12 +95,12 @@ public class Trade {
         tradeCompleted = true;
         for(int i = 0; i < TradeMenu.left.length; i++){
             if(inv.getItem(TradeMenu.left[i]) != null){
-                player1.getInventory().setItem(getItemSlot(inv.getItem(TradeMenu.left[i]), inv), null);
+                player1.getInventory().setItem(player1UsedItems.get(TradeMenu.left[i]), null);
             }
         }
         for(int i = 0; i < TradeMenu.right.length; i++){
             if(inv.getItem(TradeMenu.right[i]) != null){
-                player2.getInventory().setItem(getItemSlot(inv.getItem(TradeMenu.right[i]), inv), null);
+                player2.getInventory().setItem(player2UsedItems.get(TradeMenu.right[i]), null);
             }
         }
 
@@ -118,7 +127,8 @@ public class Trade {
         if (player2.getOpenInventory().getTopInventory().equals(inv)) {
             player2.closeInventory();
         }
-
+        player1UsedItems.clear();
+        player2UsedItems.clear();
         player1Ready = false;
         player2Ready = false;
 

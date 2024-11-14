@@ -32,16 +32,17 @@ public class TradingHandler implements IBaseModule {
 
     @Override
     public void initialize() throws Exception {
-        debugLogger.log(Level.INFO, "TradeModule initialization", 0);
         debugLogger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
+        debugLogger.log(Level.INFO, "TradeModule initialization", 0);
+
         registerTradeCommand();
         eventManager.registerEvent(InventoryClickEvent.class, event -> {
-            if (TradingHandler.inventoryHandler.containsKey(event.getInventory())) {
+            if (inventoryHandler.containsKey(event.getInventory())) {
 
                 event.setCancelled(true);
 
                 Inventory inv = event.getInventory();
-                Trade trade = TradingHandler.inventoryHandler.get(inv);
+                Trade trade = inventoryHandler.get(inv);
 
                 if (event.getClickedInventory() != null) {
 
@@ -50,7 +51,7 @@ public class TradingHandler implements IBaseModule {
 
                             if (TradeMenu.isAllowedSlot(event.getSlot(), TradeMenu.leftSet)) {
                                 inv.setItem(event.getSlot(), null);
-
+                                trade.player1UsedItems.remove(event.getSlot());
                             } else if (event.getSlot() == 45) {
                                 if (!trade.player1Ready) {
                                     trade.player1Ready = true;
@@ -63,7 +64,7 @@ public class TradingHandler implements IBaseModule {
 
                             if (TradeMenu.isAllowedSlot(event.getSlot(), TradeMenu.rightSet)) {
                                 inv.setItem(event.getSlot(), null);
-
+                                trade.player2UsedItems.remove(event.getSlot());
                             } else if (event.getSlot() == 53) {
                                 if (!trade.player2Ready) {
                                     trade.player2Ready = true;
@@ -77,15 +78,14 @@ public class TradingHandler implements IBaseModule {
                     } else if (event.getClickedInventory().equals(trade.player1.getInventory())) {
                         ItemStack clickedItem = event.getClickedInventory().getItem(event.getSlot());
 
-
                         if (clickedItem != null) {
-                            int slot = TradeMenu.getNextFreeSlot("left", inv);
-
-
-                            if (slot != 0) {
-                                inv.setItem(TradeMenu.left[slot], clickedItem.clone());
-                                trade.modifySlotReadyCheck(inv);
-                                event.getClickedInventory().setItem(event.getSlot(), null);
+                            if (!trade.player1UsedItems.containsValue(event.getSlot())) {
+                                int slot = TradeMenu.getNextFreeSlot("left", inv);
+                                if (slot != -1) {
+                                    inv.setItem(slot, clickedItem);
+                                    trade.modifySlotReadyCheck(inv);
+                                    trade.player1UsedItems.put(slot, event.getSlot());
+                                }
                             }
                         }
 
@@ -94,12 +94,13 @@ public class TradingHandler implements IBaseModule {
                         ItemStack clickedItem = event.getClickedInventory().getItem(event.getSlot());
 
                         if (clickedItem != null) {
-                            int slot = TradeMenu.getNextFreeSlot("right", inv);
-
-                            if (slot != 0) {
-                                inv.setItem(TradeMenu.right[slot], clickedItem.clone());
-                                trade.modifySlotReadyCheck(inv);
-                                event.getClickedInventory().setItem(event.getSlot(), null);
+                            if (!trade.player2UsedItems.containsKey(event.getSlot())) {
+                                int slot = TradeMenu.getNextFreeSlot("right", inv);
+                                if (slot != -1) {
+                                    inv.setItem(slot, clickedItem);
+                                    trade.modifySlotReadyCheck(inv);
+                                    trade.player2UsedItems.put(slot, event.getSlot());
+                                }
                             }
                         }
                     }
@@ -111,13 +112,16 @@ public class TradingHandler implements IBaseModule {
 
             if(inventoryHandler.containsKey(event.getInventory())){
                 Trade trade = TradingHandler.inventoryHandler.get(event.getInventory());
-                if(!trade.tradeCompleted) {
-                    trade.player1.sendMessage("§cTrade cancelled");
-                    trade.player2.sendMessage("§cTrade cancelled");
-                    trade.player1.closeInventory();
-                    trade.player2.closeInventory();
-                    trade.clearData();
+                if(!trade.cancelled){
+                    if(!trade.tradeCompleted) {
+                        trade.cancelled = true;
+                        trade.player1.sendMessage("§cTrade cancelled");
+                        trade.player2.sendMessage("§cTrade cancelled");
+                        trade.player1.closeInventory();
+                        trade.player2.closeInventory();
 
+                        trade.clearData();
+                    }
                 }
             }
         });
