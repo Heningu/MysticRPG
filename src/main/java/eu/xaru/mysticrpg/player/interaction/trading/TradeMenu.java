@@ -57,4 +57,3 @@ public class TradeMenu {
         return allowedSlots.contains(clickedSlot);
     }
 
-}
