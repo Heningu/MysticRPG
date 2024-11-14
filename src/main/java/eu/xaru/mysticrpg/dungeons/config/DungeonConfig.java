@@ -14,10 +14,11 @@ public class DungeonConfig {
     private String name;
     private int minPlayers;
     private int maxPlayers;
-    private int difficultyLevel;
+    private String difficulty;
     private Location spawnLocation;
     private List<MobSpawnPoint> mobSpawnPoints = new ArrayList<>();
     private List<ChestLocation> chestLocations = new ArrayList<>();
+    private String worldName;
 
     // Getters and Setters for all fields
 
@@ -29,7 +30,18 @@ public class DungeonConfig {
         this.id = id;
     }
 
+    public String getWorldName() {
+        return worldName;
+    }
+
+    public void setWorldName(String worldName) {
+        this.worldName = worldName;
+    }
+
     public String getName() {
+        if (name == null || name.isEmpty()) {
+            return "Unnamed Dungeon";
+        }
         return name;
     }
 
@@ -53,12 +65,15 @@ public class DungeonConfig {
         this.maxPlayers = maxPlayers;
     }
 
-    public int getDifficultyLevel() {
-        return difficultyLevel;
+    public String getDifficulty() {
+        if (difficulty == null || difficulty.isEmpty()) {
+            return "Normal";
+        }
+        return difficulty;
     }
 
-    public void setDifficultyLevel(int difficultyLevel) {
-        this.difficultyLevel = difficultyLevel;
+    public void setDifficulty(String difficulty) {
+        this.difficulty = difficulty;
     }
 
     public Location getSpawnLocation() {
@@ -138,5 +153,6 @@ public class DungeonConfig {
         public void setLootTableId(String lootTableId) {
             this.lootTableId = lootTableId;
         }
+
     }
 }

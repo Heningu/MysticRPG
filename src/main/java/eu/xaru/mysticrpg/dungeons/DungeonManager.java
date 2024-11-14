@@ -6,11 +6,13 @@ import eu.xaru.mysticrpg.dungeons.commands.DungeonCommand;
 import eu.xaru.mysticrpg.dungeons.commands.DungeonSetupCommand;
 import eu.xaru.mysticrpg.dungeons.commands.DungeonSetupCommands;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfigManager;
+import eu.xaru.mysticrpg.dungeons.gui.DungeonLobbyGUI;
 import eu.xaru.mysticrpg.dungeons.instance.DungeonInstance;
 import eu.xaru.mysticrpg.dungeons.lobby.LobbyManager;
-import eu.xaru.mysticrpg.dungeons.setup.DungeonSetupManager;
 import eu.xaru.mysticrpg.dungeons.setup.DungeonSetupListener;
+import eu.xaru.mysticrpg.dungeons.setup.DungeonSetupManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import org.bukkit.World;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
@@ -26,6 +28,7 @@ public class DungeonManager {
     private final DungeonConfigManager configManager;
     private final DungeonSetupManager setupManager;
     private final DungeonModule dungeonModule;
+    private final DungeonLobbyGUI lobbyGUI; // Singleton instance
 
     public DungeonManager(JavaPlugin plugin, DebugLoggerModule logger, DungeonModule dungeonModule) {
         this.plugin = plugin;
@@ -35,15 +38,17 @@ public class DungeonManager {
         this.configManager = new DungeonConfigManager(plugin, logger);
         this.lobbyManager = new LobbyManager(this, logger);
         this.setupManager = new DungeonSetupManager(plugin, logger, configManager);
+        this.lobbyGUI = new DungeonLobbyGUI(lobbyManager, plugin); // Initialize singleton GUI
 
         // Register commands
         new DungeonCommand(this);
         new DungeonSetupCommand(this, setupManager);
-        new DungeonSetupCommands(setupManager);
 
         // Register event listeners
         new DungeonSetupListener(setupManager, plugin);
         new DungeonEventHandler(plugin, this);
+        // Register the lobby GUI event listener
+        plugin.getServer().getPluginManager().registerEvents(lobbyGUI, plugin);
     }
 
     public void start() {
@@ -77,6 +82,10 @@ public class DungeonManager {
         return dungeonModule;
     }
 
+    public DungeonLobbyGUI getLobbyGUI() {
+        return lobbyGUI;
+    }
+
     public void createInstance(String dungeonId, List<UUID> playerUUIDs) {
         DungeonInstance instance = new DungeonInstance(plugin, logger, dungeonId, playerUUIDs, configManager, this);
         activeInstances.put(instance.getInstanceId(), instance);
@@ -106,7 +115,7 @@ public class DungeonManager {
         }
     }
 
-    public DungeonInstance getInstanceByWorld(org.bukkit.World world) {
+    public DungeonInstance getInstanceByWorld(World world) {
         for (DungeonInstance instance : activeInstances.values()) {
             if (instance.getInstanceWorld().equals(world)) {
                 return instance;

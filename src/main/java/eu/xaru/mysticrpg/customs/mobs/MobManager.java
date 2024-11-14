@@ -66,7 +66,13 @@ public class MobManager implements Listener {
      * @param location  The location where the mob will spawn.
      */
     public CustomMobInstance spawnMobAtLocation(CustomMob customMob, Location location) {
+        if (location.getWorld() == null) {
+            Bukkit.getLogger().log(Level.SEVERE, "Cannot spawn mob '" + customMob + "' because location world is null.", 0);
+            return null;
+        }
+
         if (customMob == null) {
+
             Bukkit.getLogger().log(Level.WARNING, "CustomMob is null.");
             return null;
         }

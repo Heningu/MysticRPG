@@ -22,19 +22,37 @@ public class LobbyManager {
         this.activeLobbies = new HashMap<>();
     }
 
-    public DungeonLobby createLobby(String dungeonId, Player player) {
-        DungeonLobby lobby = new DungeonLobby(dungeonId, dungeonManager, this);
-        lobby.addPlayer(player);
-        activeLobbies.put(lobby.getLobbyId(), lobby);
-        logger.log(Level.INFO, "Lobby " + lobby.getLobbyId() + " created for dungeon " + dungeonId, 0);
+    public DungeonLobby getOrCreateLobby(String dungeonId, Player player) {
+        DungeonLobby lobby = findAvailableLobby(dungeonId);
+        if (lobby != null) {
+            lobby.addPlayer(player);
+            logger.log(Level.INFO, "Player " + player.getName() + " added to existing lobby " + lobby.getLobbyId(), 0);
+        } else {
+            lobby = new DungeonLobby(dungeonId, dungeonManager, this);
+            lobby.addPlayer(player);
+            activeLobbies.put(lobby.getLobbyId(), lobby);
+            logger.log(Level.INFO, "Lobby " + lobby.getLobbyId() + " created for dungeon " + dungeonId, 0);
+        }
         return lobby;
     }
 
     public void removeLobby(String lobbyId) {
-        activeLobbies.remove(lobbyId);
+        DungeonLobby removedLobby = activeLobbies.remove(lobbyId);
+        if (removedLobby != null) {
+            System.out.println("Lobby " + lobbyId + " has been removed from active lobbies.");
+        }
     }
 
     public DungeonLobby getLobby(String lobbyId) {
         return activeLobbies.get(lobbyId);
+    }
+
+    public DungeonLobby findAvailableLobby(String dungeonId) {
+        for (DungeonLobby lobby : activeLobbies.values()) {
+            if (lobby.getDungeonId().equals(dungeonId) && lobby.getPlayers().size() < lobby.getMaxPlayers()) {
+                return lobby;
+            }
+        }
+        return null;
     }
 }

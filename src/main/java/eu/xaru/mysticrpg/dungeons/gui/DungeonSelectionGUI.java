@@ -4,7 +4,6 @@ package eu.xaru.mysticrpg.dungeons.gui;
 
 import eu.xaru.mysticrpg.dungeons.DungeonManager;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfig;
-import eu.xaru.mysticrpg.dungeons.lobby.LobbyManager;
 import eu.xaru.mysticrpg.dungeons.lobby.DungeonLobby;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -51,7 +50,7 @@ public class DungeonSelectionGUI implements Listener {
         List<String> lore = new ArrayList<>();
         lore.add(ChatColor.GRAY + "Min Players: " + config.getMinPlayers());
         lore.add(ChatColor.GRAY + "Max Players: " + config.getMaxPlayers());
-        lore.add(ChatColor.GRAY + "Difficulty: " + config.getDifficultyLevel());
+        lore.add(ChatColor.GRAY + "Difficulty: " + config.getDifficulty());
         meta.setLore(lore);
         NamespacedKey key = new NamespacedKey(plugin, "dungeon_id");
         meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, config.getId());
@@ -74,10 +73,8 @@ public class DungeonSelectionGUI implements Listener {
         if (dungeonId == null) return;
 
         Player player = (Player) event.getWhoClicked();
-        // Create a lobby and open the lobby GUI
-        DungeonLobby lobby = dungeonManager.getLobbyManager().createLobby(dungeonId, player);
+        // Create or get the lobby and add the player
+        DungeonLobby lobby = dungeonManager.getLobbyManager().getOrCreateLobby(dungeonId, player);
         player.closeInventory();
-        DungeonLobbyGUI lobbyGUI = new DungeonLobbyGUI(dungeonManager.getLobbyManager());
-        lobbyGUI.open(player, lobby);
     }
 }

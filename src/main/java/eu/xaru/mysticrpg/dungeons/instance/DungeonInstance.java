@@ -12,6 +12,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -89,11 +92,26 @@ public class DungeonInstance {
     }
 
     private void createInstanceWorld() {
-        // Implement your own logic for world creation
-        String templateWorldName = "dungeon_template_" + config.getId();
+        String templateWorldName = config.getWorldName(); // Use the world name from the config
+        if (templateWorldName == null) {
+            logger.log(Level.SEVERE, "Dungeon configuration does not contain a world name for dungeon ID: " + config.getId(), 0);
+            return;
+        }
         String instanceWorldName = "dungeon_instance_" + instanceId;
 
-        File templateWorldFolder = new File(Bukkit.getWorldContainer(), templateWorldName);
+        // Ensure the template world is loaded
+        World templateWorld = Bukkit.getWorld(templateWorldName);
+        if (templateWorld == null) {
+            // Try to load the world
+            WorldCreator creator = new WorldCreator(templateWorldName);
+            templateWorld = creator.createWorld();
+            if (templateWorld == null) {
+                logger.log(Level.SEVERE, "Template world '" + templateWorldName + "' could not be loaded.", 0);
+                return;
+            }
+        }
+
+        File templateWorldFolder = templateWorld.getWorldFolder();
         File instanceWorldFolder = new File(Bukkit.getWorldContainer(), instanceWorldName);
 
         try {
@@ -101,8 +119,14 @@ public class DungeonInstance {
             WorldCreator worldCreator = new WorldCreator(instanceWorldName);
             instanceWorld = worldCreator.createWorld();
             instanceWorld.setAutoSave(false);
+            instanceWorld.setDifficulty(Difficulty.NORMAL);
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Failed to create instance world: " + e.getMessage(), 0);
+        }
+
+        // Verify that instanceWorld is not null
+        if (instanceWorld == null) {
+            logger.log(Level.SEVERE, "Instance world '" + instanceWorldName + "' could not be loaded.", 0);
         }
     }
 
@@ -115,8 +139,8 @@ public class DungeonInstance {
 
     private void teleportPlayersToInstance() {
         Location configSpawnLocation = config.getSpawnLocation();
-        if (configSpawnLocation == null) {
-            logger.log(Level.SEVERE, "Spawn location is not set in the dungeon configuration.", 0);
+        if (configSpawnLocation == null || instanceWorld == null) {
+            logger.log(Level.SEVERE, "Spawn location is not set or instance world is null in the dungeon configuration.", 0);
             // Stop the dungeon instance since it cannot proceed without a spawn location
             stop();
             return;
@@ -129,6 +153,8 @@ public class DungeonInstance {
                 playersInInstance.add(player);
                 player.teleport(spawnLocation);
                 hideOtherPlayers(player);
+            } else {
+                logger.log(Level.WARNING, "Player with UUID " + uuid + " is not online. Skipping...", 0);
             }
         }
     }
@@ -182,14 +208,38 @@ public class DungeonInstance {
         }
     }
 
-    private void copyWorld(File source, File target) throws Exception {
-        // Implement file copy logic
-        // For brevity, the implementation is omitted
+    private void copyWorld(File source, File target) throws IOException {
+        if (source.isDirectory()) {
+            if (!target.exists()) {
+                target.mkdirs();
+            }
+            String[] files = source.list();
+            if (files != null) {
+                for (String file : files) {
+                    // Skip copying session.lock and uid.dat files
+                    if (file.equals("session.lock") || file.equals("uid.dat")) {
+                        continue;
+                    }
+                    File srcFile = new File(source, file);
+                    File destFile = new File(target, file);
+                    copyWorld(srcFile, destFile);
+                }
+            }
+        } else {
+            Files.copy(source.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
     }
 
     private void deleteWorld(File path) {
-        // Implement file deletion logic
-        // For brevity, the implementation is omitted
+        if (path.exists()) {
+            File[] files = path.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    deleteWorld(file);
+                }
+            }
+            path.delete();
+        }
     }
 
     public DungeonManager getDungeonManager() {
