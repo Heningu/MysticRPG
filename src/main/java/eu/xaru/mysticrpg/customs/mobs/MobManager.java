@@ -65,10 +65,10 @@ public class MobManager implements Listener {
      * @param customMob The custom mob configuration.
      * @param location  The location where the mob will spawn.
      */
-    public void spawnMobAtLocation(CustomMob customMob, Location location) {
+    public CustomMobInstance spawnMobAtLocation(CustomMob customMob, Location location) {
         if (customMob == null) {
             Bukkit.getLogger().log(Level.WARNING, "CustomMob is null.");
-            return;
+            return null;
         }
         LivingEntity mob = (LivingEntity) location.getWorld().spawnEntity(location, customMob.getEntityType());
 
@@ -88,7 +88,11 @@ public class MobManager implements Listener {
         activeMobs.put(mob.getUniqueId(), mobInstance);
 
         Bukkit.getLogger().log(Level.INFO, "Spawned mob: " + customMob.getName() + " at location: " + location);
+
+        return mobInstance;
     }
+
+
 
     /**
      * Applies custom attributes to the mob.

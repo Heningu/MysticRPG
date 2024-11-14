@@ -11,6 +11,7 @@ import org.bukkit.profile.PlayerProfile;
 import org.bukkit.profile.PlayerTextures.*;
 import org.bukkit.profile.PlayerProfile.*;
 
+import javax.annotation.Nullable;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Base64;
@@ -46,6 +47,26 @@ public class HeadUtils {
         }
         return head;
     }
+
+    public static ItemStack getPlayerHead(Player p, @Nullable String itemName) {
+        ItemStack head = new ItemStack(Material.PLAYER_HEAD, 1);
+        SkullMeta skullMeta = (SkullMeta) head.getItemMeta();
+
+        if (skullMeta != null) {
+            if(p.isOnline()) {
+                skullMeta.setOwningPlayer(Bukkit.getPlayer(p.getName()));
+                if(itemName == null) {
+                    skullMeta.setDisplayName(p.getName());
+                }else{
+                    skullMeta.setDisplayName(itemName);
+                }
+                head.setItemMeta(skullMeta);
+            }
+        }
+
+        return head;
+    }
+
 
     /**
      * Creates a player head based on the EntityType.
