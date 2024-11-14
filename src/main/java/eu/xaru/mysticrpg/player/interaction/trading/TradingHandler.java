@@ -167,6 +167,6 @@ public class TradingHandler implements IBaseModule {
 
     @Override
     public EModulePriority getPriority() {
-        return EModulePriority.NORMAL;
+        return EModulePriority.LOW;
     }
 }
