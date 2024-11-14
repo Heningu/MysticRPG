@@ -110,10 +110,10 @@ public class TradingHandler implements IBaseModule {
 
         eventManager.registerEvent(InventoryCloseEvent.class, event -> {
 
-            if(inventoryHandler.containsKey(event.getInventory())){
+            if (inventoryHandler.containsKey(event.getInventory())) {
                 Trade trade = TradingHandler.inventoryHandler.get(event.getInventory());
-                if(!trade.cancelled){
-                    if(!trade.tradeCompleted) {
+                if (!trade.cancelled) {
+                    if (!trade.tradeCompleted) {
                         trade.cancelled = true;
                         trade.player1.sendMessage("§cTrade cancelled");
                         trade.player2.sendMessage("§cTrade cancelled");
@@ -133,16 +133,16 @@ public class TradingHandler implements IBaseModule {
                 .withPermission("mysticrpg.trade")
                 .withArguments(new PlayerArgument("target"))
                 .executes((player, args) -> {
-                    if(player instanceof Player) {
+                    if (player instanceof Player) {
                         Player p = (Player) player;
                         Player target = (Player) args.get("target");
-                        if(p != target) {
+                        if (p != target) {
                             if (target != null) {
                                 Trade.sendTradeInvite(p, target);
                             }
                         }
                     }
-        }).register();
+                }).register();
     }
 
     @Override

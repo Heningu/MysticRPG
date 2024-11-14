@@ -31,25 +31,29 @@ public class Trade {
     boolean tradeCompleted = false;
     boolean cancelled = false;
 
-    public Trade(Player pPlayer1, Player pPlayer2, Inventory pInv){
+    public Trade(Player pPlayer1, Player pPlayer2, Inventory pInv) {
         this.player1 = pPlayer1;
         this.player2 = pPlayer2;
         this.inv = pInv;
 
     }
 
-    public static void sendTradeInvite(Player player, Player target){
-        if(TradingHandler.trades.containsKey(target) && TradingHandler.trades.containsValue(player)){
+    public static void sendTradeInvite(Player player, Player target) {
+        if (TradingHandler.trades.containsKey(target) && TradingHandler.trades.containsValue(player)) {
             acceptTradeRequest(player, target);
-        }else if(TradingHandler.trades.containsKey(player)){
-            player.sendMessage(ChatColor.RED + "You already have an outgoing Trade request!");return;
-        }else if(TradingHandler.trades.containsKey(target)){
-            player.sendMessage(ChatColor.RED + "This player already has an outgoing Trade request!");return;
-        }else if(TradingHandler.trades.containsValue(player)){
-            player.sendMessage(ChatColor.RED + "You already have an incoming Trade Request!");return;
-        }else if(TradingHandler.trades.containsValue(target)){
-            player.sendMessage(ChatColor.RED + "This Player already has an incoming Trade request!");return;
-        }else{
+        } else if (TradingHandler.trades.containsKey(player)) {
+            player.sendMessage(ChatColor.RED + "You already have an outgoing Trade request!");
+            return;
+        } else if (TradingHandler.trades.containsKey(target)) {
+            player.sendMessage(ChatColor.RED + "This player already has an outgoing Trade request!");
+            return;
+        } else if (TradingHandler.trades.containsValue(player)) {
+            player.sendMessage(ChatColor.RED + "You already have an incoming Trade Request!");
+            return;
+        } else if (TradingHandler.trades.containsValue(target)) {
+            player.sendMessage(ChatColor.RED + "This Player already has an incoming Trade request!");
+            return;
+        } else {
             TradingHandler.trades.put(player, target);
             String messageTo = ChatColor.GREEN + "Trade request sent to " + ChatColor.RESET + target.getName();
 
@@ -62,6 +66,7 @@ public class Trade {
 
         }
     }
+
     private static void removeTradeRequest(Player player, Player target) {
         if (TradingHandler.trades.containsKey(player) && TradingHandler.trades.get(player).equals(target)) {
             TradingHandler.trades.remove(player);
@@ -70,53 +75,56 @@ public class Trade {
         }
     }
 
-    public static void acceptTradeRequest(Player player, Player target){
+    public static void acceptTradeRequest(Player player, Player target) {
         TradingHandler.trades.remove(player);
         TradingHandler.trades.remove(target);
         TradeMenu.createTradingGUI(player, target);
 
     }
-    public void modifySlotReadyCheck(Inventory inv){
-        if(player1Ready){
+
+    public void modifySlotReadyCheck(Inventory inv) {
+        if (player1Ready) {
             inv.setItem(45, CustomInventoryManager.createPlaceholder(Material.RED_WOOL, "§cNOT READY"));
             player1Ready = false;
-        }else if(player2Ready){
+        } else if (player2Ready) {
             inv.setItem(53, CustomInventoryManager.createPlaceholder(Material.RED_WOOL, "§cNOT READY"));
             player2Ready = false;
         }
     }
-    public void checkReady(){
-        if(player1Ready && player2Ready){
+
+    public void checkReady() {
+        if (player1Ready && player2Ready) {
             completeTrade();
         }
     }
 
-    public void completeTrade(){
+    public void completeTrade() {
         tradeCompleted = true;
-        for(int i = 0; i < TradeMenu.left.length; i++){
-            if(inv.getItem(TradeMenu.left[i]) != null){
+        for (int i = 0; i < TradeMenu.left.length; i++) {
+            if (inv.getItem(TradeMenu.left[i]) != null) {
                 player1.getInventory().setItem(player1UsedItems.get(TradeMenu.left[i]), null);
             }
         }
-        for(int i = 0; i < TradeMenu.right.length; i++){
-            if(inv.getItem(TradeMenu.right[i]) != null){
+        for (int i = 0; i < TradeMenu.right.length; i++) {
+            if (inv.getItem(TradeMenu.right[i]) != null) {
                 player2.getInventory().setItem(player2UsedItems.get(TradeMenu.right[i]), null);
             }
         }
 
-        for(int i = 0; i < TradeMenu.left.length; i++){
-            if(inv.getItem(TradeMenu.left[i]) != null){
+        for (int i = 0; i < TradeMenu.left.length; i++) {
+            if (inv.getItem(TradeMenu.left[i]) != null) {
                 player2.getInventory().addItem(inv.getItem(TradeMenu.left[i]));
             }
         }
-        for(int i = 0; i < TradeMenu.right.length; i++){
-            if(inv.getItem(TradeMenu.right[i]) != null){
+        for (int i = 0; i < TradeMenu.right.length; i++) {
+            if (inv.getItem(TradeMenu.right[i]) != null) {
                 player1.getInventory().addItem(inv.getItem(TradeMenu.right[i]));
             }
         }
         clearData();
     }
-    protected void clearData(){
+
+    protected void clearData() {
         TradingHandler.trades.remove(player1);
         TradingHandler.trades.remove(player2);
         TradingHandler.inventoryHandler.remove(inv);
@@ -137,9 +145,9 @@ public class Trade {
         inv.clear();
     }
 
-    private static int getItemSlot(ItemStack item, Inventory inv){
-        for(int i = 0; i < inv.getSize(); i++){
-            if(inv.getItem(i) == item){
+    private static int getItemSlot(ItemStack item, Inventory inv) {
+        for (int i = 0; i < inv.getSize(); i++) {
+            if (inv.getItem(i) == item) {
                 return i;
             }
         }
