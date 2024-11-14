@@ -170,3 +170,4 @@ public class TradingHandler implements IBaseModule {
         return EModulePriority.NORMAL;
     }
 }
+
