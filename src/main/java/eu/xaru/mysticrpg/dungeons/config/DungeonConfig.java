@@ -19,8 +19,7 @@ public class DungeonConfig {
     private List<MobSpawnPoint> mobSpawnPoints = new ArrayList<>();
     private List<ChestLocation> chestLocations = new ArrayList<>();
     private String worldName;
-
-    // Getters and Setters for all fields
+    private Location portalPos1;
 
     public String getId() {
         return id;
@@ -104,8 +103,6 @@ public class DungeonConfig {
         private Location location;
         private String mobId;
 
-        // Getters and Setters
-
         public Location getLocation() {
             return location;
         }
@@ -127,8 +124,6 @@ public class DungeonConfig {
         private Location location;
         private Material type;
         private String lootTableId;
-
-        // Getters and Setters
 
         public Location getLocation() {
             return location;
@@ -154,5 +149,13 @@ public class DungeonConfig {
             this.lootTableId = lootTableId;
         }
 
+    }
+
+    public Location getPortalPos1() {
+        return portalPos1;
+    }
+
+    public void setPortalPos1(Location portalPos1) {
+        this.portalPos1 = portalPos1;
     }
 }

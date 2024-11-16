@@ -56,4 +56,5 @@ public class TradeMenu {
     public static boolean isAllowedSlot(int clickedSlot, Set<Integer> allowedSlots) {
         return allowedSlots.contains(clickedSlot);
     }
+}
 

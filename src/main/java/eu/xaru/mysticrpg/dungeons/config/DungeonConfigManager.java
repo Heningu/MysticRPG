@@ -5,11 +5,7 @@ package eu.xaru.mysticrpg.dungeons.config;
 import eu.xaru.mysticrpg.dungeons.loot.LootTable;
 import eu.xaru.mysticrpg.dungeons.loot.LootTableManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.World;
-import org.bukkit.WorldCreator;
+import org.bukkit.*;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -54,7 +50,7 @@ public class DungeonConfigManager {
     }
 
     private void createDefaultDungeonConfigs(File configDir) {
-        // Implementation for creating default dungeon configs (if needed)
+        // Implement this method to create default dungeon configs if needed
     }
 
     private DungeonConfig parseConfig(FileConfiguration config) {
@@ -168,6 +164,19 @@ public class DungeonConfigManager {
         }
         dungeonConfig.setChestLocations(chestLocations);
 
+        // Parse portal position
+        if (config.contains("portalPos1")) {
+            double portalX = config.getDouble("portalPos1.x");
+            double portalY = config.getDouble("portalPos1.y");
+            double portalZ = config.getDouble("portalPos1.z");
+            float portalYaw = (float) config.getDouble("portalPos1.yaw", 0);
+            float portalPitch = (float) config.getDouble("portalPos1.pitch", 0);
+            Location portalLocation = new Location(world, portalX, portalY, portalZ, portalYaw, portalPitch);
+            dungeonConfig.setPortalPos1(portalLocation);
+        } else {
+            logger.log(Level.WARNING, "Dungeon config '" + dungeonConfig.getId() + "' is missing a portal position.", 0);
+        }
+
         return dungeonConfig;
     }
 
@@ -198,7 +207,7 @@ public class DungeonConfigManager {
         fileConfig.set("minPlayers", config.getMinPlayers());
         fileConfig.set("maxPlayers", config.getMaxPlayers());
         fileConfig.set("difficulty", config.getDifficulty());
-        fileConfig.set("worldName", config.getWorldName()); // Added line to save worldName
+        fileConfig.set("worldName", config.getWorldName());
 
         if (config.getSpawnLocation() != null) {
             fileConfig.set("spawnLocation.x", config.getSpawnLocation().getX());
@@ -244,6 +253,17 @@ public class DungeonConfigManager {
             chestSection.set("pitch", chestLocation.getLocation().getPitch());
             chestSection.set("type", chestLocation.getType().toString());
             chestSection.set("loot_table", chestLocation.getLootTableId());
+        }
+
+        // Save portal position
+        if (config.getPortalPos1() != null) {
+            fileConfig.set("portalPos1.x", config.getPortalPos1().getX());
+            fileConfig.set("portalPos1.y", config.getPortalPos1().getY());
+            fileConfig.set("portalPos1.z", config.getPortalPos1().getZ());
+            fileConfig.set("portalPos1.yaw", config.getPortalPos1().getYaw());
+            fileConfig.set("portalPos1.pitch", config.getPortalPos1().getPitch());
+        } else {
+            logger.log(Level.WARNING, "Portal position is null for dungeon: " + config.getId(), 0);
         }
 
         try {

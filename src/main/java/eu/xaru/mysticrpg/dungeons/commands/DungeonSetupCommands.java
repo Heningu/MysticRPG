@@ -63,6 +63,16 @@ public class DungeonSetupCommands {
                             }
                         })
                 )
+                .withSubcommand(new CommandAPICommand("setfinishportal")
+                        .executesPlayer((player, args) -> {
+                            if (setupManager.isInSetup(player)) {
+                                DungeonSetupSession session = setupManager.getSession(player);
+                                session.startPortalSetup();
+                            } else {
+                                player.sendMessage("You are not in a setup session.");
+                            }
+                        })
+                )
                 .register();
     }
 }

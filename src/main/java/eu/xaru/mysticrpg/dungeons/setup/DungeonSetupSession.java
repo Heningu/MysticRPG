@@ -11,12 +11,13 @@ public class DungeonSetupSession {
 
     private final Player player;
     private final DungeonConfig config;
+    private boolean isSettingPortal;
+    private Location portalPos1;
 
     public DungeonSetupSession(Player player, String dungeonId) {
         this.player = player;
         this.config = new DungeonConfig();
         this.config.setId(dungeonId);
-        // Initialize other default values as needed
     }
 
     public Player getPlayer() {
@@ -72,5 +73,28 @@ public class DungeonSetupSession {
         } else {
             player.sendMessage("Chest of type '" + material.toString() + "' added with loot table: " + lootTableId);
         }
+    }
+
+    // Portal Setup Methods
+    public void startPortalSetup() {
+        isSettingPortal = true;
+        portalPos1 = null;
+        player.sendMessage("Portal setup started. Please click on the portal location.");
+    }
+
+    public boolean isSettingPortal() {
+        return isSettingPortal;
+    }
+
+    public void setPortalPos1(Location location) {
+        portalPos1 = location;
+        config.setPortalPos1(location);
+        isSettingPortal = false;
+        player.sendMessage("Portal position set at: " + location.getBlockX() + ", " + location.getBlockY() + ", " + location.getBlockZ());
+        player.sendMessage("Portal setup complete. Remember to save the dungeon configuration.");
+    }
+
+    public Location getPortalPos1() {
+        return portalPos1;
     }
 }

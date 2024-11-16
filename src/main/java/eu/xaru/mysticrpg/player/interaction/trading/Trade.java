@@ -153,5 +153,6 @@ public class Trade {
         }
         return 0;
     }
+}
 
 

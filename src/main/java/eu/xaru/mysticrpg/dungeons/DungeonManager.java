@@ -28,7 +28,7 @@ public class DungeonManager {
     private final DungeonConfigManager configManager;
     private final DungeonSetupManager setupManager;
     private final DungeonModule dungeonModule;
-    private final DungeonLobbyGUI lobbyGUI; // Singleton instance
+    private final DungeonLobbyGUI lobbyGUI;
 
     public DungeonManager(JavaPlugin plugin, DebugLoggerModule logger, DungeonModule dungeonModule) {
         this.plugin = plugin;
@@ -38,16 +38,16 @@ public class DungeonManager {
         this.configManager = new DungeonConfigManager(plugin, logger);
         this.lobbyManager = new LobbyManager(this, logger);
         this.setupManager = new DungeonSetupManager(plugin, logger, configManager);
-        this.lobbyGUI = new DungeonLobbyGUI(lobbyManager, plugin); // Initialize singleton GUI
+        this.lobbyGUI = new DungeonLobbyGUI(lobbyManager, plugin);
 
         // Register commands
         new DungeonCommand(this);
         new DungeonSetupCommand(this, setupManager);
+        new DungeonSetupCommands(setupManager);
 
         // Register event listeners
         new DungeonSetupListener(setupManager, plugin);
-        new DungeonEventHandler(plugin, this);
-        // Register the lobby GUI event listener
+        new DungeonEventHandler(plugin,this);
         plugin.getServer().getPluginManager().registerEvents(lobbyGUI, plugin);
     }
 
