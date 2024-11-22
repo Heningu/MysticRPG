@@ -1,9 +1,5 @@
 package eu.xaru.mysticrpg.cores;
 
-import com.github.juliarn.npclib.api.Platform;
-import com.github.juliarn.npclib.bukkit.BukkitPlatform;
-import com.github.juliarn.npclib.bukkit.BukkitWorldAccessor;
-import com.github.juliarn.npclib.bukkit.protocol.BukkitProtocolAdapter;
 import com.github.retrooper.packetevents.PacketEvents;
 import dev.jorel.commandapi.CommandAPI;
 import dev.jorel.commandapi.CommandAPIBukkitConfig;
@@ -25,11 +21,6 @@ public class MysticCore extends JavaPlugin {
     private DebugLoggerModule logger;
     public static MysticCore instance = null;
 
-    private Platform<World, Player, ItemStack, Plugin> platform;
-
-    public Platform<World, Player, ItemStack, Plugin> getPlatform() {
-        return platform;
-    }
 
 
     public MysticCore() {
@@ -59,12 +50,6 @@ public class MysticCore extends JavaPlugin {
     public void onEnable() {
 
         PacketEvents.getAPI().init();
-        platform = BukkitPlatform
-                .bukkitNpcPlatformBuilder()
-                .extension(this)
-                .packetFactory(BukkitProtocolAdapter.packetEvents())
-                .actionController(builder -> {}) // enable action controller without changing the default config
-                .build();
         try {
             // Load all modules (eagerly loaded modules)
             moduleManager.loadAllModules();

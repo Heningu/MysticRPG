@@ -24,12 +24,14 @@ public class PlayerData {
     private double pendingBalance;
     private List<String> pendingItems;
 
-    // New field for Discord User ID (nullable)
+
+    private List<String> completedDialogues;
     private Long discordId;
 
     public PlayerData() {
         // Default constructor for MongoDB POJO codec
     }
+
 
     public PlayerData(String uuid, double balance, int xp, int level, int nextLevelXP, int currentHp,
                       Map<String, Integer> attributes, Map<String, Boolean> unlockedRecipes,
@@ -37,7 +39,7 @@ public class PlayerData {
                       boolean blockingRequests, int attributePoints, List<String> activeQuests,
                       Map<String, Map<String, Integer>> questProgress, List<String> completedQuests,
                       String pinnedQuest, double pendingBalance, List<String> pendingItems,
-                      boolean remindersEnabled, Long discordId) { // Updated constructor
+                      boolean remindersEnabled, Long discordId, List<String> completedDialogues) {
         this.uuid = uuid;
         this.balance = balance;
         this.xp = xp;
@@ -59,6 +61,7 @@ public class PlayerData {
         this.pendingItems = pendingItems;
         this.remindersEnabled = remindersEnabled;
         this.discordId = discordId;
+        this.completedDialogues = completedDialogues;
     }
 
     public static PlayerData defaultData(String uuid) {
@@ -83,7 +86,8 @@ public class PlayerData {
                 0.0,
                 new ArrayList<>(),
                 true, // Reminders enabled by default
-                null  // Discord ID initially null
+                null,  // Discord ID initially null
+                new ArrayList<>() // Initialize completedDialogues
         );
     }
 
@@ -117,6 +121,10 @@ public class PlayerData {
         }
         if (!(pendingItems instanceof ArrayList)) {
             pendingItems = new ArrayList<>(pendingItems);
+        }
+
+        if (!(completedDialogues instanceof ArrayList)) {
+            completedDialogues = new ArrayList<>(completedDialogues);
         }
     }
 
@@ -291,4 +299,14 @@ public class PlayerData {
     public void setDiscordId(Long discordId) {
         this.discordId = discordId;
     }
+
+
+    public List<String> getCompletedDialogues() {
+        return completedDialogues;
+    }
+
+    public void setCompletedDialogues(List<String> completedDialogues) {
+        this.completedDialogues = completedDialogues;
+    }
+
 }

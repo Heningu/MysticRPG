@@ -1,8 +1,5 @@
 package eu.xaru.mysticrpg.quests;
 
-import com.github.juliarn.npclib.api.event.AttackNpcEvent;
-import com.github.juliarn.npclib.api.event.InteractNpcEvent;
-import com.github.juliarn.npclib.api.protocol.enums.EntityAnimation;
 import dev.jorel.commandapi.CommandAPICommand;
 import dev.jorel.commandapi.arguments.ArgumentSuggestions;
 import dev.jorel.commandapi.arguments.PlayerArgument;
@@ -128,31 +125,10 @@ public class QuestModule implements IBaseModule {
                             player.sendMessage(Utils.getInstance().$("&7 npc &#6600ffdebug command"));
                             Location npcLocation = player.getLocation();
                             String npcName = "Bob";
-                            NPCManager npcManager = new NPCManager(MysticCore.getInstance().getPlatform());
+                            NPCManager npcManager = new NPCManager();
 
-                            npcManager
-                                    .createNPC(npcLocation, npcName)
-                                    .exceptionally(throwable -> {
-                                        // Handle any exceptions during NPC creation
-                                        plugin.getLogger().severe("Failed to create NPC: " + throwable.getMessage());
-                                        return null;
-                                    });
-                            var eventManager = MysticCore.getInstance().getPlatform().eventManager();
-                            eventManager.registerEventHandler(AttackNpcEvent.class, attackEvent -> {
-                                var npc = attackEvent.npc();
-                                Player player2 = attackEvent.player();
-                                npc.platform().packetFactory().createAnimationPacket(EntityAnimation.TAKE_DAMAGE).schedule(player2, npc);
-                                player2.sendMessage("You attacked NPC " + npc.profile().name() + "! That's not nice!");
-                            });
-                            eventManager.registerEventHandler(InteractNpcEvent.class, interactEvent -> {
-                                var npc = interactEvent.npc();
-                                Player player3 = interactEvent.player();
-                                if (interactEvent.hand() == InteractNpcEvent.Hand.MAIN_HAND) {
-                                    player3.sendMessage("You interacted with NPC " + npc.profile().name() + " with your main hand!");
-                                } else {
-                                    player3.sendMessage("You interacted with NPC " + npc.profile().name() + " with your off hand!");
-                                }
-                            });
+                            npcManager.createNPC(npcLocation, npcName);
+
                         }))
                 .register();
 

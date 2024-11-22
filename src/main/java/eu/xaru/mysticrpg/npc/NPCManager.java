@@ -1,94 +1,67 @@
 package eu.xaru.mysticrpg.npc;
 
-import com.github.juliarn.npclib.api.Npc;
-import com.github.juliarn.npclib.api.Platform;
-import com.github.juliarn.npclib.api.profile.Profile;
-import com.github.juliarn.npclib.bukkit.util.BukkitPlatformUtil;
+import net.citizensnpcs.api.CitizensAPI;
+import net.citizensnpcs.api.npc.NPCRegistry;
 import org.bukkit.Location;
-import org.bukkit.World;
-import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.Plugin;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 public class NPCManager {
 
-    private final Platform<World, Player, ItemStack, Plugin> npcPlatform;
-    private final HashMap<String, Npc<World, Player, ItemStack, Plugin>> npcs = new HashMap<>();
+    private final Map<String, NPC> npcs = new HashMap<>();
 
-    public NPCManager(Platform<World, Player, ItemStack, Plugin> npcPlatform) {
-        this.npcPlatform = npcPlatform;
+    public NPCManager() {
+        // Constructor
     }
 
     /**
-     * Creates an NPC asynchronously and returns a CompletableFuture.
+     * Creates an NPC at the given location with the specified name.
      *
      * @param location The location where the NPC will spawn.
      * @param name     The name of the NPC.
-     * @return A CompletableFuture that will complete with the created Npc instance.
      */
-    public CompletableFuture<Npc<World, Player, ItemStack, Plugin>> createNPC(Location location, String name) {
-        Profile profile = Profile.unresolved(name);
-        CompletableFuture<Npc<World, Player, ItemStack, Plugin>> future = new CompletableFuture<>();
-
-        npcPlatform.newNpcBuilder()
-                .position(BukkitPlatformUtil.positionFromBukkitModern(location))
-                .flag(Npc.LOOK_AT_PLAYER, true)
-                .flag(Npc.HIT_WHEN_PLAYER_HITS, true)
-                .profile(profile)
-                .thenAccept(npcBuilder -> {
-                    Npc<World, Player, ItemStack, Plugin> npc = npcBuilder.buildAndTrack();
-                    npcs.put(name, npc);
-                    future.complete(npc);
-                })
-                .exceptionally(throwable -> {
-                    future.completeExceptionally(throwable);
-                    return null;
-                });
-
-        return future;
+    public void createNPC(Location location, String name) {
+        NPC npc = new NPC(name, location);
+        npcs.put(name, npc);
     }
 
-
-
-
     /**
-     * Deletes an NPC synchronously.
+     * Deletes an NPC by name.
      *
      * @param name The name of the NPC to delete.
      * @return True if the NPC was found and deleted, false otherwise.
      */
-    public CompletableFuture<Boolean> deleteNPC(String name) {
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
-        Npc<World, Player, ItemStack, Plugin> npc = npcs.remove(name);
+    public boolean deleteNPC(String name) {
+        NPC npc = npcs.remove(name);
         if (npc != null) {
-            npc.unlink();
-            future.complete(true);
-        } else {
-            future.complete(false);
+            npc.despawn();
+            NPCRegistry registry = CitizensAPI.getNPCRegistry();
+            net.citizensnpcs.api.npc.NPC npcEntity = npc.npcEntity;
+            if (npcEntity != null) {
+                registry.deregister(npcEntity);
+            }
+            return true;
         }
-        return future;
+        return false;
     }
 
     /**
      * Retrieves an NPC by name.
      *
      * @param name The name of the NPC.
-     * @return The Npc instance if found, null otherwise.
+     * @return The NPC instance if found, null otherwise.
      */
-    public Npc<World, Player, ItemStack, Plugin> getNPC(String name) {
+    public NPC getNPC(String name) {
         return npcs.get(name);
     }
 
     /**
      * Retrieves all managed NPCs.
      *
-     * @return A map of NPC names to their corresponding Npc instances.
+     * @return A map of NPC names to their corresponding NPC instances.
      */
-    public Map<String, Npc<World, Player, ItemStack, Plugin>> getAllNPCs() {
+    public Map<String, NPC> getAllNPCs() {
         return new HashMap<>(npcs);
     }
 

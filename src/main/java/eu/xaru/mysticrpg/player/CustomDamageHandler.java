@@ -1,6 +1,5 @@
 package eu.xaru.mysticrpg.player;
 
-import com.github.juliarn.npclib.api.protocol.enums.EntityAnimation;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
