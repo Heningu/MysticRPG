@@ -7,12 +7,15 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.configuration.InvalidConfigurationException;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -90,6 +93,21 @@ public class Utils {
         }
         return message;
     }
+
+    // Serialization methods
+    public String itemStackToBase64(ItemStack item) throws IOException {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("item", item);
+        return Base64.getEncoder().encodeToString(config.saveToString().getBytes());
+    }
+
+    public ItemStack itemStackFromBase64(String data) throws IOException, InvalidConfigurationException {
+        YamlConfiguration config = new YamlConfiguration();
+        byte[] decodedData = Base64.getDecoder().decode(data);
+        config.loadFromString(new String(decodedData));
+        return config.getItemStack("item");
+    }
+
 
     // Combined hexColor method with full color formatting
     public String hexColor(String textInput) {

@@ -23,6 +23,8 @@ public class PlayerData {
     private boolean remindersEnabled;
     private double pendingBalance;
     private List<String> pendingItems;
+    private Map<String, String> equipment;
+
 
 
     private List<String> completedDialogues;
@@ -39,7 +41,7 @@ public class PlayerData {
                       boolean blockingRequests, int attributePoints, List<String> activeQuests,
                       Map<String, Map<String, Integer>> questProgress, List<String> completedQuests,
                       String pinnedQuest, double pendingBalance, List<String> pendingItems,
-                      boolean remindersEnabled, Long discordId, List<String> completedDialogues) {
+                      boolean remindersEnabled, Long discordId, List<String> completedDialogues, Map<String, String> equipment) {
         this.uuid = uuid;
         this.balance = balance;
         this.xp = xp;
@@ -62,6 +64,7 @@ public class PlayerData {
         this.remindersEnabled = remindersEnabled;
         this.discordId = discordId;
         this.completedDialogues = completedDialogues;
+        this.equipment = equipment;
     }
 
     public static PlayerData defaultData(String uuid) {
@@ -87,7 +90,8 @@ public class PlayerData {
                 new ArrayList<>(),
                 true, // Reminders enabled by default
                 null,  // Discord ID initially null
-                new ArrayList<>() // Initialize completedDialogues
+                new ArrayList<>(), // Initialize completedDialogues
+                new HashMap<>()
         );
     }
 
@@ -126,9 +130,21 @@ public class PlayerData {
         if (!(completedDialogues instanceof ArrayList)) {
             completedDialogues = new ArrayList<>(completedDialogues);
         }
+        if (!(equipment instanceof HashMap)) {
+            equipment = new HashMap<>(equipment);
+        }
     }
 
     // Getters and setters for all fields
+
+    public Map<String, String> getEquipment() {
+        return equipment;
+    }
+
+    public void setEquipment(Map<String, String> equipment) {
+        this.equipment = equipment;
+    }
+
 
     public String getUuid() {
         return uuid;

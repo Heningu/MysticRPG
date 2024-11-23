@@ -145,9 +145,12 @@ public class ItemManager {
                         itemMaxLevel = 1;
                     }
 
+                    // Read armor_type
+                    String armorType = config.getString("armor_type", null);
+
                     CustomItem customItem = new CustomItem(id, name, material, rarity, customModelData, lore,
                             attributes, enchantments, enchantedEffect, useTierSystem, itemLevel, itemMaxLevel, tierAttributes,
-                            usePowerStones, powerStoneSlots);
+                            usePowerStones, powerStoneSlots, armorType);
 
                     customItems.put(id, customItem);
                     Bukkit.getLogger().log(Level.INFO, "Loaded custom item: " + id);

@@ -28,6 +28,7 @@ public class CustomItem {
     private final Map<String, AttributeData> attributes;
     private final Map<String, Integer> enchantments;
     private final boolean enchantedEffect;
+    private final String armorType;
 
     // Fields for tier system
     private final boolean useTierSystem;
@@ -43,7 +44,7 @@ public class CustomItem {
                       List<String> lore, Map<String, AttributeData> attributes, Map<String, Integer> enchantments,
                       boolean enchantedEffect, boolean useTierSystem, int itemLevel, int itemMaxLevel,
                       Map<Integer, Map<String, AttributeData>> tierAttributes,
-                      boolean usePowerStones, int powerStoneSlots) {
+                      boolean usePowerStones, int powerStoneSlots, String armorType) {
         this.id = id;
         this.name = name;
         this.material = material;
@@ -59,6 +60,7 @@ public class CustomItem {
         this.tierAttributes = tierAttributes;
         this.usePowerStones = usePowerStones;
         this.powerStoneSlots = powerStoneSlots;
+        this.armorType = armorType;
     }
 
     public String getId() {
@@ -84,6 +86,8 @@ public class CustomItem {
     public int getItemMaxLevel() {
         return itemMaxLevel;
     }
+
+    public String getArmorType() { return armorType; }
 
     public Map<Integer, Map<String, AttributeData>> getTierAttributes() {
         return tierAttributes;
