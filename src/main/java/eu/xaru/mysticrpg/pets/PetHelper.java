@@ -158,8 +158,9 @@ public class PetHelper implements Listener {
                 // Calculate the desired position for the pet
                 Location playerLoc = player.getLocation().clone();
 
-                // Offset the pet's position to be behind the player
-                Vector offset = playerLoc.getDirection().normalize().multiply(-1.5);
+                // Offset the pet's position to be next to the player
+                Vector right = getRightDirection(playerLoc.getYaw());
+                Vector offset = right.multiply(1.5); // Pet is 1.5 blocks to the right
                 Location petLoc = playerLoc.clone().add(offset);
                 petLoc.setY(playerLoc.getY() + 0.5); // Adjust height as needed
 
@@ -183,9 +184,8 @@ public class PetHelper implements Listener {
                 petEntity.teleport(petEntity.getLocation().add(0, deltaY, 0));
                 petInstance.setAnimationPhase(animationPhase + 0.1); // Adjust increment for speed
 
-                // Rotate the ArmorStand
-                float yaw = petEntity.getLocation().getYaw() + 5; // Rotate by 5 degrees each tick
-                petEntity.setRotation(yaw, petEntity.getLocation().getPitch());
+                // Rotate the ArmorStand to face the same direction as the player
+                petEntity.setRotation(playerLoc.getYaw(), petEntity.getLocation().getPitch());
 
                 // Optional: Tilt the head slightly
                 petEntity.setHeadPose(new EulerAngle(0, 0, 0));
@@ -197,6 +197,12 @@ public class PetHelper implements Listener {
                 }
             }
         }
+    }
+
+    private Vector getRightDirection(float yaw) {
+        // Convert yaw to radians and adjust
+        double yawRad = Math.toRadians(-yaw);
+        return new Vector(Math.cos(yawRad), 0, Math.sin(yawRad));
     }
 
     public String[] getAvailablePetIds() {
