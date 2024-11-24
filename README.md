@@ -1,1 +1,1 @@
-Minecraft RPG Plugin by XARU
+MMORPG Core Plugin of MysticRPG by Xaru
