@@ -106,11 +106,6 @@ public class LevelModule implements IBaseModule {
      */
     private void registerLevelsCommand() {
         new CommandAPICommand("leveling")
-                .withSubcommand(new CommandAPICommand("gui")
-                        .executesPlayer((player, args) -> {
-                            levelingMenu.openLevelingMenu(player, 1);
-                        })
-                )
                 .withSubcommand(new CommandAPICommand("give")
                         .withPermission("mysticrpg.adminlevels")
                         .withArguments(new PlayerArgument("target"), new IntegerArgument("amount"))

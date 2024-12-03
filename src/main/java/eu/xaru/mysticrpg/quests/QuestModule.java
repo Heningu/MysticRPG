@@ -178,11 +178,6 @@ public class QuestModule implements IBaseModule {
                                 }
                             }
                         }))
-                .withSubcommand(new CommandAPICommand("gui")
-                        .executesPlayer((player, args) -> {
-                            QuestGUI questGUI = new QuestGUI(player, questManager, playerDataCache, true);
-                            questGUI.open();
-                        }))
                 .withSubcommand(new CommandAPICommand("give")
                         .withPermission("mysticrpg.questadmin")
                         .withArguments(

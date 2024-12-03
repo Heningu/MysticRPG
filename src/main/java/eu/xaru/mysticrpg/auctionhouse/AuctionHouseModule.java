@@ -68,8 +68,6 @@ public class AuctionHouseModule implements IBaseModule {
     public void start() {
         logger.log(Level.INFO, "AuctionHouseModule started", 0);
 
-        // Register commands and events
-        registerCommands();
         registerEvents();
     }
 
@@ -92,20 +90,6 @@ public class AuctionHouseModule implements IBaseModule {
     @Override
     public EModulePriority getPriority() {
         return EModulePriority.NORMAL;
-    }
-
-    private void registerCommands() {
-        new CommandAPICommand("auctionhouse")
-                .withAliases("ah")
-                .executesPlayer((player, args) -> {
-                    if (auctionHouseHelper.areAuctionsLoaded()) {
-                        auctionsGUI.openMainGUI(player);
-                    } else {
-                        player.sendMessage(Utils.getInstance().$("Please wait, " +
-                                "auctions are still loading."));
-                    }
-                })
-                .register();
     }
 
     public void openAuctionGUI(Player player) {

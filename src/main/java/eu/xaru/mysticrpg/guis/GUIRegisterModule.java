@@ -12,20 +12,32 @@ import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.player.stats.PlayerStatModule;
 import eu.xaru.mysticrpg.quests.QuestModule;
 import eu.xaru.mysticrpg.social.friends.FriendsModule;
-import eu.xaru.mysticrpg.social.party.PartyModule; // Import PartyModule
+import eu.xaru.mysticrpg.social.party.PartyModule;
 import eu.xaru.mysticrpg.utils.CustomInventoryManager;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
-import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Material;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryAction;
+import org.bukkit.event.inventory.InventoryType.SlotType;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.inventory.ItemFlag;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 
@@ -37,13 +49,13 @@ public class GUIRegisterModule implements IBaseModule, Listener {
     private MysticCore plugin;
     private EventManager eventManager;
     private DebugLoggerModule debugLogger;
-    private PlayerStatModule playerStat; // Renamed for clarity
+    private PlayerStatModule playerStat;
     private AuctionHouseModule auctionHouse;
     private EquipmentModule equipmentModule;
     private LevelModule levelingModule;
-    private QuestModule questModule; // New field for QuestModule
-    private FriendsModule friendsModule; // New field for FriendsModule
-    private PartyModule partyModule; // New field for PartyModule
+    private QuestModule questModule;
+    private FriendsModule friendsModule;
+    private PartyModule partyModule;
     private MainMenu mainMenu;
 
     /**
@@ -162,7 +174,7 @@ public class GUIRegisterModule implements IBaseModule, Listener {
                 PlayerStatModule.class,
                 QuestModule.class,
                 FriendsModule.class,
-                PartyModule.class // Add PartyModule to dependencies
+                PartyModule.class
         );
     }
 
@@ -183,14 +195,7 @@ public class GUIRegisterModule implements IBaseModule, Listener {
         new CommandAPICommand("mainmenu")
                 .withPermission("mysticrpg.mainmenu.use") // Permission check
                 .executesPlayer((player, args) -> {
-                    Inventory mainMenuInventory = mainMenu.getInventory(player); // Pass the player
-                    if (mainMenuInventory != null) {
-                        CustomInventoryManager.openInventory(player, mainMenuInventory);
-                        debugLogger.log(Level.INFO, player.getName() + " opened the Main Menu.", 0);
-                    } else {
-                        player.sendMessage(ChatColor.RED + "Main Menu is currently unavailable.");
-                        debugLogger.error("Main Menu inventory is null.");
-                    }
+                    openMainMenu(player);
                 })
                 .register();
 
@@ -206,7 +211,8 @@ public class GUIRegisterModule implements IBaseModule, Listener {
     }
 
     /**
-     * Handles inventory click events to manage interactions within the main menu GUI.
+     * Handles inventory click events to manage interactions within the main menu GUI
+     * and prevent movement of the main menu item.
      *
      * @param event The InventoryClickEvent triggered when a player clicks in an inventory.
      */
@@ -223,8 +229,8 @@ public class GUIRegisterModule implements IBaseModule, Listener {
         // Strip color codes to get the plain title
         String strippedTitle = ChatColor.stripColor(inventoryTitle);
 
-        // Check if the clicked inventory is the Main Menu
         if ("Main Menu".equals(strippedTitle)) {
+            // Handle interactions within the Main Menu GUI
             event.setCancelled(true); // Prevent taking or moving items in the GUI
 
             ItemStack clickedItem = event.getCurrentItem();
@@ -284,20 +290,141 @@ public class GUIRegisterModule implements IBaseModule, Listener {
                     debugLogger.log(Level.INFO, player.getName() + " opened the Party GUI from Main Menu.", 0);
                     break;
 
-                // Add additional case statements for other GUI items here
-                // Example:
-                // case "Leaderboards":
-                //     player.closeInventory();
-                //     leaderBoardsGUI.openMainGUI(player);
-                //     debugLogger.log(Level.INFO, player.getName() + " opened the Leaderboards GUI from Main Menu.", 0);
-                //     break;
-
                 default:
                     // Optional: Handle clicks on unknown items or provide feedback
                     player.sendMessage(ChatColor.YELLOW + "This feature is not yet implemented.");
                     debugLogger.log(Level.WARNING, player.getName() + " clicked an unknown item in the Main Menu: " + displayName, 0);
                     break;
             }
+        } else {
+            // Not the Main Menu GUI
+            ItemStack currentItem = event.getCurrentItem();
+            if (currentItem == null) return;
+
+            if (isMainMenuItem(currentItem)) {
+                // Cancel the event to prevent moving the item
+                event.setCancelled(true);
+
+                // If the item is clicked in the player's inventory, open the main menu
+                if (event.getClickedInventory() != null && event.getClickedInventory().getType() == InventoryType.PLAYER) {
+                    openMainMenu(player);
+                }
+            }
+        }
+    }
+
+    /**
+     * Prevents the main menu item from being dropped.
+     *
+     * @param event The PlayerDropItemEvent triggered when a player drops an item.
+     */
+    @EventHandler
+    public void onPlayerDropItem(PlayerDropItemEvent event) {
+        ItemStack droppedItem = event.getItemDrop().getItemStack();
+        if (isMainMenuItem(droppedItem)) {
+            event.setCancelled(true);
+        }
+    }
+
+    /**
+     * Handles player interaction with the main menu item in hand.
+     *
+     * @param event The PlayerInteractEvent triggered when a player interacts.
+     */
+    @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        Player player = event.getPlayer();
+        ItemStack itemInHand = event.getItem();
+        if (itemInHand == null) return;
+
+        if (isMainMenuItem(itemInHand)) {
+            // Open the main menu
+            event.setCancelled(true);
+            openMainMenu(player);
+        }
+    }
+
+    /**
+     * Prevents the main menu item from being moved via dragging.
+     *
+     * @param event The InventoryDragEvent triggered when a player drags items in inventory.
+     */
+    @EventHandler
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player)) return;
+
+        ItemStack oldCursor = event.getOldCursor();
+        if (isMainMenuItem(oldCursor)) {
+            event.setCancelled(true);
+        }
+
+        // Check if the main menu item is being dragged
+        for (ItemStack item : event.getNewItems().values()) {
+            if (isMainMenuItem(item)) {
+                event.setCancelled(true);
+                break;
+            }
+        }
+    }
+
+    /**
+     * Gives the main menu item to the player upon joining.
+     *
+     * @param event The PlayerJoinEvent triggered when a player joins.
+     */
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        ItemStack mainMenuItem = createMainMenuItem();
+        player.getInventory().setItem(8, mainMenuItem);
+    }
+
+    /**
+     * Creates the main menu item to be placed in the player's hotbar.
+     *
+     * @return The ItemStack representing the main menu item.
+     */
+    private ItemStack createMainMenuItem() {
+        ItemStack item = new ItemStack(Material.COMPASS);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(ChatColor.GREEN + "Main Menu");
+        meta.setLore(Arrays.asList(ChatColor.GRAY + "Click to open the main menu."));
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        meta.setUnbreakable(true);
+        // Mark the item with a custom key to identify it later
+        NamespacedKey key = new NamespacedKey(plugin, "main_menu_item");
+        meta.getPersistentDataContainer().set(key, PersistentDataType.BYTE, (byte) 1);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    /**
+     * Checks if the given item is the main menu item.
+     *
+     * @param item The ItemStack to check.
+     * @return True if the item is the main menu item, false otherwise.
+     */
+    private boolean isMainMenuItem(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return false;
+        ItemMeta meta = item.getItemMeta();
+        NamespacedKey key = new NamespacedKey(plugin, "main_menu_item");
+        Byte result = meta.getPersistentDataContainer().get(key, PersistentDataType.BYTE);
+        return result != null && result == (byte) 1;
+    }
+
+    /**
+     * Opens the main menu for the player.
+     *
+     * @param player The player for whom to open the main menu.
+     */
+    private void openMainMenu(Player player) {
+        Inventory mainMenuInventory = mainMenu.getInventory(player); // Pass the player
+        if (mainMenuInventory != null) {
+            CustomInventoryManager.openInventory(player, mainMenuInventory);
+            debugLogger.log(Level.INFO, player.getName() + " opened the Main Menu via item.", 0);
+        } else {
+            player.sendMessage(ChatColor.RED + "Main Menu is currently unavailable.");
+            debugLogger.error("Main Menu inventory is null.");
         }
     }
 }

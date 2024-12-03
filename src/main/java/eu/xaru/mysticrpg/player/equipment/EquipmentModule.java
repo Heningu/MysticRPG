@@ -45,9 +45,6 @@ public class EquipmentModule implements IBaseModule, Listener {
         // Initialize EquipmentManager
         equipmentManager = new EquipmentManager(plugin, logger);
 
-        // Register commands
-        registerEquipmentCommand();
-
         logger.log(Level.INFO, "EquipmentModule initialized successfully.", 0);
     }
 
@@ -78,18 +75,5 @@ public class EquipmentModule implements IBaseModule, Listener {
     @Override
     public EModulePriority getPriority() {
         return EModulePriority.NORMAL;
-    }
-
-    /**
-     * Registers the equipment-related commands using CommandAPI.
-     */
-    private void registerEquipmentCommand() {
-        new CommandAPICommand("equipment")
-                .withAliases("equip")
-                .withPermission("mysticrpg.equipment")
-                .executesPlayer((player, args) -> {
-                    equipmentManager.getEquipmentGUI().openEquipmentGUI(player);
-                })
-                .register();
     }
 }

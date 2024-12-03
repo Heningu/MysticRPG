@@ -183,12 +183,6 @@ public class FriendsModule implements IBaseModule {
                                 e.printStackTrace();
                             }
                         }))
-                // /friends (opens the Friends GUI)
-                .executesPlayer((player, args) -> {
-                    FriendsGUI.openFriendsGUI(player, playerDataCache, false, 1);
-                    // Track the current page for the player
-                    playerPages.put(player.getUniqueId(), 1);
-                })
                 .register();
     }
 

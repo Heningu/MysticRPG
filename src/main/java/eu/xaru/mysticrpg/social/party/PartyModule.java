@@ -90,9 +90,6 @@ public class PartyModule implements IBaseModule {
                         .executesPlayer((player, args) -> {
                             partyHelper.declineInvitation(player);
                         }))
-                .executesPlayer((player, args) -> {
-                    partyHelper.openPartyGUI(player);
-                })
                 .register();
     }
 

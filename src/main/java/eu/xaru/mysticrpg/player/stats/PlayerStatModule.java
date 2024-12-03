@@ -192,9 +192,6 @@ public class PlayerStatModule implements IBaseModule {
                             player.sendMessage(Utils.getInstance().$("Your stats have been reset."));
                             logger.log("Player " + player.getName() + "'s stats have been reset.");
                         }))
-                .executesPlayer((player, args) -> {
-                    statMenu.openStatMenu(player); // Open the stats menu for the player
-                })
                 .register();
     }
 
