@@ -256,6 +256,10 @@ public class LevelModule implements IBaseModule {
         this.levelUpListener = listener;
     }
 
+    public LevelingMenu getLevelingMenu() {
+        return levelingMenu;
+    }
+
     /**
      * Interface for listening to player level-up events.
      */

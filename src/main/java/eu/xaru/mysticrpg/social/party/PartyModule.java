@@ -96,6 +96,16 @@ public class PartyModule implements IBaseModule {
                 .register();
     }
 
+    /**
+     * Public method to open the Party GUI for a player.
+     *
+     * @param player The player for whom the Party GUI should be opened.
+     */
+    public void openPartyGUI(Player player) {
+        PartyGUI.openPartyGUI(player, partyHelper);
+    }
+
+
     private void registerEvents() {
         // Handle player disconnect
         eventManager.registerEvent(org.bukkit.event.player.PlayerQuitEvent.class, event -> {

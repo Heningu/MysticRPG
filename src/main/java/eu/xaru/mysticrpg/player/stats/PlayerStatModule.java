@@ -122,6 +122,8 @@ public class PlayerStatModule implements IBaseModule {
         return EModulePriority.NORMAL;
     }
 
+
+
     // Increase player attribute
     public void increaseAttribute(Player player, String attributeName) {
         UUID playerUUID = player.getUniqueId();
@@ -206,5 +208,9 @@ public class PlayerStatModule implements IBaseModule {
         attributes.put("MANA", 20);
         data.setAttributes(attributes);
         data.setAttributePoints(1);
+    }
+
+    public StatMenu getPlayerStatMenu() {
+        return statMenu;
     }
 }

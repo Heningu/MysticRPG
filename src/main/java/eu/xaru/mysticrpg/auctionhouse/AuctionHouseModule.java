@@ -108,6 +108,10 @@ public class AuctionHouseModule implements IBaseModule {
                 .register();
     }
 
+    public void openAuctionGUI(Player player) {
+        auctionsGUI.openMainGUI(player);
+    }
+
     private void registerEvents() {
         // Register InventoryClickEvent for AuctionsGUI
         eventManager.registerEvent(InventoryClickEvent.class, event -> {

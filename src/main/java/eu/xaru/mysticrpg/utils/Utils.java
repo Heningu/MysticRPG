@@ -1,10 +1,8 @@
 package eu.xaru.mysticrpg.utils;
 
 import eu.xaru.mysticrpg.cores.MysticCore;
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.World;
+import org.bukkit.*;
+
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.InvalidConfigurationException;
@@ -14,23 +12,32 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.Plugin;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
+
 import java.util.regex.Pattern;
 
 /**
  * Utility class with thread-safe Singleton implementation.
  */
 public class Utils {
+
+    private final Plugin plugin;
+
     private static final boolean DEBUGGING_ENABLED = true;
 
     // Using cache only for config values
     private final Map<String, String> configCache = new ConcurrentHashMap<>();
     private final Map<String, String> placeholders = new ConcurrentHashMap<>();
+
+
+
     private final Map<Class<?>, Map<String, String>> classPlaceholders = new ConcurrentHashMap<>();
+
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{([A-Za-z0-9_-]+)}");
     private static final Pattern CONFIG_PATTERN = Pattern.compile("config:([A-Za-z0-9._-]+)");
     private static final Pattern HEX_PATTERN = Pattern.compile("#[0-9a-fA-F]{6}");
@@ -40,6 +47,8 @@ public class Utils {
     private static final Pattern GRADIENT2_PATTERN = Pattern.compile("\\{#[0-9a-fA-F]{6}>}[^{]*\\{#[0-9a-fA-F]{6}<}");
 
     private Utils() {
+        this.plugin = Bukkit.getPluginManager().getPlugin("MysticCore"); // Replace with your plugin's name
+
         if (InstanceHolder.instance != null) {
             throw new IllegalStateException("Instance already created!");
         }
@@ -64,6 +73,17 @@ public class Utils {
     public String $(String message) {
         return translateMessage(message);
     }
+
+
+    /**
+     * Returns the NamespacedKey for the MainMenu item.
+     *
+     * @return The NamespacedKey.
+     */
+    public NamespacedKey getMainMenuKey() {
+        return new NamespacedKey(plugin, "mainmenu");
+    }
+
 
     // Updated translateMessage method to use the optimized caching
     public String translateMessage(String message) {

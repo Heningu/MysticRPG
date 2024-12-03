@@ -254,6 +254,11 @@ public class QuestModule implements IBaseModule {
                 .register();
     }
 
+    public void openQuestGUI(Player player) {
+        QuestGUI questGUI = new QuestGUI(player, questManager, playerDataCache, true); // 'true' for active quests
+        questGUI.open();
+    }
+
 
     public void updateQuestProgressOnMobDeath(Player player, CustomMob customMob) {
         PlayerData data = playerDataCache.getCachedPlayerData(player.getUniqueId());

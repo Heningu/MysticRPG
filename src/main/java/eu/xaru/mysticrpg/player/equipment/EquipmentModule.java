@@ -71,6 +71,10 @@ public class EquipmentModule implements IBaseModule, Listener {
         return List.of(DebugLoggerModule.class, SaveModule.class);
     }
 
+    public EquipmentManager getEquipmentManager() {
+        return equipmentManager;
+    }
+
     @Override
     public EModulePriority getPriority() {
         return EModulePriority.NORMAL;

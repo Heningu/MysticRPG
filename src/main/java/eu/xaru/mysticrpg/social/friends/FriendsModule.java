@@ -193,6 +193,17 @@ public class FriendsModule implements IBaseModule {
     }
 
     /**
+     * Opens the Friends GUI for the specified player.
+     *
+     * @param player The player for whom the Friends GUI should be opened.
+     */
+    public void openFriendsGUI(Player player) {
+        FriendsGUI.openFriendsGUI(player, playerDataCache, false, 1); // 'false' and '1' are placeholders for additional parameters
+    }
+
+
+
+    /**
      * Registers event handlers related to the Friends system.
      * This includes handling inventory clicks and inventory closures.
      */
