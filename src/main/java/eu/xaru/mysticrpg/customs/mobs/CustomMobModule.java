@@ -41,7 +41,6 @@ public class CustomMobModule implements IBaseModule, Listener {
     @Override
     public void initialize() {
         logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
-        // [ADDED] Ensure PartyModule is initialized before proceeding
         PartyModule partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
         if (partyModule == null) {
             logger.error("PartyModule is not loaded. CustomMobModule requires PartyModule as a dependency.");
@@ -188,9 +187,13 @@ public class CustomMobModule implements IBaseModule, Listener {
                         equipment = new CustomMob.Equipment(helmet, chestplate, leggings, boots, weapon);
                     }
 
+                    // Read the model ID from the config
+                    String modelId = config.getString("model_id");
+
                     CustomMob customMob = new CustomMob(
                             mobId, mobName, entityType, health, level, experienceReward, currencyReward, customAttributes,
-                            assignedAreas, areaSettingsMap, drops, baseDamage, baseArmor, movementSpeed, equipment
+                            assignedAreas, areaSettingsMap, drops, baseDamage, baseArmor, movementSpeed, equipment,
+                            modelId // Pass the modelId to the constructor
                     );
 
                     mobConfigurations.put(mobId, customMob);
@@ -202,7 +205,7 @@ public class CustomMobModule implements IBaseModule, Listener {
         }
     }
 
-    public MobManager getMobManager(){
+    public MobManager getMobManager() {
         return mobManager;
     }
 
@@ -238,13 +241,12 @@ public class CustomMobModule implements IBaseModule, Listener {
                         .executesPlayer((player, args) -> {
                             MobGUI mobGUI = new MobGUI(mobManager);
                             mobGUI.openMobGUI(player);
-                        })).
-                withSubcommand(new CommandAPICommand("reload")
+                        }))
+                .withSubcommand(new CommandAPICommand("reload")
                         .executes((sender, args) -> {
                             loadMobConfigurations(); // Reload the mob configurations from YAML files
                             sender.sendMessage(Utils.getInstance().$("Mob configurations reloaded successfully."));
                         }))
                 .register();
     }
-
 }

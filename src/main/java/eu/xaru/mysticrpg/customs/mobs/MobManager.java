@@ -1,5 +1,6 @@
 package eu.xaru.mysticrpg.customs.mobs;
 
+import com.ticxo.modelengine.api.model.ModeledEntity;
 import eu.xaru.mysticrpg.customs.items.CustomItem;
 import eu.xaru.mysticrpg.customs.items.CustomItemModule;
 import eu.xaru.mysticrpg.customs.items.ItemManager;
@@ -12,7 +13,6 @@ import eu.xaru.mysticrpg.social.party.PartyHelper;
 import eu.xaru.mysticrpg.social.party.PartyModule;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.attribute.Attribute;
@@ -36,7 +36,7 @@ public class MobManager implements Listener {
     private final Map<UUID, CustomMobInstance> activeMobs = new HashMap<>();
     private final Random random = new Random();
     private final ItemManager itemManager;
-    
+
     private final EconomyHelper economyHelper;
     private final PartyHelper partyHelper;
 
@@ -45,7 +45,6 @@ public class MobManager implements Listener {
         this.economyHelper = economyHelper;
         this.mobConfigurations = mobConfigurations;
         this.itemManager = ModuleManager.getInstance().getModuleInstance(CustomItemModule.class).getItemManager();
-        
 
         // Get PartyHelper instance
         PartyModule partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
@@ -72,10 +71,10 @@ public class MobManager implements Listener {
         }
 
         if (customMob == null) {
-
             Bukkit.getLogger().log(Level.WARNING, "CustomMob is null.");
             return null;
         }
+
         LivingEntity mob = (LivingEntity) location.getWorld().spawnEntity(location, customMob.getEntityType());
 
         // Set custom attributes
@@ -90,15 +89,29 @@ public class MobManager implements Listener {
         }
         mob.setHealth(customMob.getHealth());
 
-        CustomMobInstance mobInstance = new CustomMobInstance(customMob, location, mob);
+        // Apply the model using ModelHandler
+        String modelId = customMob.getModelId();
+        ModeledEntity modeledEntity = null;
+
+        if (modelId != null && !modelId.isEmpty()) {
+            modeledEntity = ModelHandler.applyModel(mob, modelId);
+
+            // Hide the base entity
+            if (modeledEntity != null) {
+                modeledEntity.setBaseEntityVisible(false);
+            }
+        } else {
+            // Ensure the base entity is visible if no model is applied
+            mob.setInvisible(false);
+        }
+
+        CustomMobInstance mobInstance = new CustomMobInstance(customMob, location, mob, modeledEntity);
         activeMobs.put(mob.getUniqueId(), mobInstance);
 
         Bukkit.getLogger().log(Level.INFO, "Spawned mob: " + customMob.getName() + " at location: " + location);
 
         return mobInstance;
     }
-
-
 
     /**
      * Applies custom attributes to the mob.
@@ -239,7 +252,6 @@ public class MobManager implements Listener {
         // Update name tag
         livingEntity.setCustomName(createMobNameTag(customMob, currentHp));
 
-
         // Check if mob is dead
         if (currentHp <= 0) {
             // Mob dies
@@ -260,6 +272,12 @@ public class MobManager implements Listener {
                 Vector direction = livingEntity.getLocation().toVector().subtract(playerAttacker.getLocation().toVector()).normalize();
                 livingEntity.setVelocity(direction.multiply(0.4));
             }
+        }
+
+        // Play hurt animation if applicable
+        String modelId = mobInstance.getCustomMob().getModelId();
+        if (modelId != null && !modelId.isEmpty()) {
+            ModelHandler.playAnimation(livingEntity, modelId, "hurt", 0.3, 0.3, 1.0, false);
         }
     }
 
@@ -390,6 +408,11 @@ public class MobManager implements Listener {
                     mobInstance.getEntity().getWorld().dropItemNaturally(mobInstance.getEntity().getLocation(), drop);
                 }
             }
+        }
+
+        // Destroy the modeled entity if it exists
+        if (mobInstance.getModeledEntity() != null) {
+            mobInstance.getModeledEntity().destroy();
         }
     }
 }

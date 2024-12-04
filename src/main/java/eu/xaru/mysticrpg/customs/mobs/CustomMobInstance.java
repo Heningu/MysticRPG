@@ -1,5 +1,6 @@
 package eu.xaru.mysticrpg.customs.mobs;
 
+import com.ticxo.modelengine.api.model.ModeledEntity;
 import org.bukkit.Location;
 import org.bukkit.entity.LivingEntity;
 
@@ -17,15 +18,17 @@ public class CustomMobInstance {
     // Custom HP tracking
     private double currentHp;
 
-    public CustomMobInstance(CustomMob customMob, Location spawnLocation, LivingEntity entity) {
+    // New field to store the modeled entity
+    private final ModeledEntity modeledEntity;
+
+    public CustomMobInstance(CustomMob customMob, Location spawnLocation, LivingEntity entity, ModeledEntity modeledEntity) {
         this.customMob = customMob;
         this.spawnLocation = spawnLocation;
         this.entity = entity;
         this.mobUUID = entity.getUniqueId();
         this.assignedArea = null;  // Assigned area is optional
-
-        // Initialize current HP to max HP
         this.currentHp = customMob.getHealth();
+        this.modeledEntity = modeledEntity;
     }
 
     // Getters and setters
@@ -63,5 +66,9 @@ public class CustomMobInstance {
 
     public void setLastDamager(UUID lastDamager) {
         this.lastDamager = lastDamager;
+    }
+
+    public ModeledEntity getModeledEntity() {
+        return modeledEntity;
     }
 }

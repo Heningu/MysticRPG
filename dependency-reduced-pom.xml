@@ -63,6 +63,11 @@
   </build>
   <repositories>
     <repository>
+      <id>nexus</id>
+      <name>Lumine Public</name>
+      <url>https://mvn.lumine.io/repository/maven-public/</url>
+    </repository>
+    <repository>
       <id>jitpack.io</id>
       <url>https://jitpack.io</url>
     </repository>
@@ -88,6 +93,12 @@
     </repository>
   </repositories>
   <dependencies>
+    <dependency>
+      <groupId>com.ticxo.modelengine</groupId>
+      <artifactId>ModelEngine</artifactId>
+      <version>R4.0.4</version>
+      <scope>provided</scope>
+    </dependency>
     <dependency>
       <groupId>net.citizensnpcs</groupId>
       <artifactId>citizens-main</artifactId>

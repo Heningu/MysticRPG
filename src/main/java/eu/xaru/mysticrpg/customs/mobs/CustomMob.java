@@ -28,10 +28,14 @@ public class CustomMob {
     // Equipment
     private final Equipment equipment;
 
+    // New field for model ID
+    private final String modelId;
+
     public CustomMob(String id, String name, EntityType entityType, double health, int level, int experienceReward,
                      double currencyReward, Map<String, Integer> customAttributes, List<String> assignedAreas,
                      Map<String, AreaSettings> areaSettingsMap, List<DropItem> drops,
-                     double baseDamage, double baseArmor, double movementSpeed, Equipment equipment) {
+                     double baseDamage, double baseArmor, double movementSpeed, Equipment equipment,
+                     String modelId) {
         this.id = id;
         this.name = name;
         this.entityType = entityType;
@@ -47,6 +51,7 @@ public class CustomMob {
         this.baseArmor = baseArmor;
         this.movementSpeed = movementSpeed;
         this.equipment = equipment;
+        this.modelId = modelId;
     }
 
     // Getters
@@ -108,6 +113,10 @@ public class CustomMob {
 
     public Equipment getEquipment() {
         return equipment;
+    }
+
+    public String getModelId() {
+        return modelId;
     }
 
     // Nested classes

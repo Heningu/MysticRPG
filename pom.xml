@@ -16,6 +16,18 @@
 
     <!-- Repositories where Maven should look for dependencies -->
     <repositories>
+
+        <!-- ModelEngine Repo -->
+
+
+        <repository>
+            <id>nexus</id>
+            <name>Lumine Public</name>
+            <url>https://mvn.lumine.io/repository/maven-public/</url>
+        </repository>
+
+
+
         <repository>
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
@@ -43,6 +55,18 @@
     </repositories>
 
     <dependencies>
+
+        <!-- ModelEngine Dependency -->
+
+
+        <dependency>
+            <groupId>com.ticxo.modelengine</groupId>
+            <artifactId>ModelEngine</artifactId>
+            <version>R4.0.4</version>
+            <scope>provided</scope>
+        </dependency>
+
+
 
         <dependency>
             <groupId>net.citizensnpcs</groupId>
