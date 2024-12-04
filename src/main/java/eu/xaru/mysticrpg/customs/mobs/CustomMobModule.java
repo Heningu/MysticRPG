@@ -20,6 +20,8 @@ import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -201,10 +203,31 @@ public class CustomMobModule implements IBaseModule, Listener {
                     // Load actions
                     Map<String, List<Action>> actions = loadActions(config, animationConfig);
 
+                    // Load BossBar configuration
+                    CustomMob.BossBarConfig bossBarConfig = null;
+                    if (config.contains("BossBar")) {
+                        ConfigurationSection bossBarSection = config.getConfigurationSection("BossBar");
+                        if (bossBarSection != null) {
+                            boolean enabled = bossBarSection.getBoolean("Enabled", false);
+                            String title = bossBarSection.getString("Title", mobName);
+                            String colorName = bossBarSection.getString("Color", "RED");
+                            BarColor color = BarColor.valueOf(colorName.toUpperCase());
+                            double range = bossBarSection.getDouble("Range", 64.0);
+                            String styleName = bossBarSection.getString("Style", "SEGMENTED_20");
+                            BarStyle style = BarStyle.valueOf(styleName.toUpperCase());
+
+                            // Append level to title
+                            title = title + " [LVL " + level + "]";
+
+                            bossBarConfig = new CustomMob.BossBarConfig(enabled, title, color, range, style);
+                        }
+                    }
+
+                    // Create CustomMob instance with bossBarConfig
                     CustomMob customMob = new CustomMob(
                             mobId, mobName, entityType, health, level, experienceReward, currencyReward, customAttributes,
                             assignedAreas, areaSettingsMap, drops, baseDamage, baseArmor, movementSpeed, equipment,
-                            modelId, actions, animationConfig
+                            modelId, actions, animationConfig, bossBarConfig
                     );
 
                     mobConfigurations.put(mobId, customMob);

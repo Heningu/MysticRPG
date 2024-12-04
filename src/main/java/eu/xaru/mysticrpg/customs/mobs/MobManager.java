@@ -8,6 +8,7 @@ import eu.xaru.mysticrpg.customs.mobs.actions.Action;
 import eu.xaru.mysticrpg.customs.mobs.actions.ActionStep;
 import eu.xaru.mysticrpg.customs.mobs.actions.Condition;
 import eu.xaru.mysticrpg.customs.mobs.actions.steps.DelayActionStep;
+import eu.xaru.mysticrpg.customs.mobs.bossbar.MobBossBarHandler;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
@@ -61,19 +62,12 @@ public class MobManager implements Listener {
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
 
-        // Schedule a task to update mob animations
+        // Schedule tasks
         Bukkit.getScheduler().runTaskTimer(plugin, this::updateMobAnimations, 0L, 5L); // Runs every 5 ticks
-
-        // Schedule a task to check combat status
         Bukkit.getScheduler().runTaskTimer(plugin, this::checkCombatStatus, 0L, 20L); // Runs every second
+        Bukkit.getScheduler().runTaskTimer(plugin, this::updateBossBars, 0L, 10L); // Adjust interval as needed
     }
 
-    /**
-     * Spawns a custom mob at the specified location.
-     *
-     * @param customMob The custom mob configuration.
-     * @param location  The location where the mob will spawn.
-     */
     public CustomMobInstance spawnMobAtLocation(CustomMob customMob, Location location) {
         if (location.getWorld() == null) {
             Bukkit.getLogger().log(Level.SEVERE, "Cannot spawn mob '" + customMob + "' because location world is null.", 0);
@@ -126,12 +120,6 @@ public class MobManager implements Listener {
         return mobInstance;
     }
 
-    /**
-     * Applies custom attributes to the mob.
-     *
-     * @param mob       The mob entity.
-     * @param customMob The custom mob configuration.
-     */
     private void applyCustomAttributes(LivingEntity mob, CustomMob customMob) {
         // Apply movement speed
         AttributeInstance speedAttribute = mob.getAttribute(Attribute.MOVEMENT_SPEED);
@@ -182,12 +170,6 @@ public class MobManager implements Listener {
         }
     }
 
-    /**
-     * Retrieves a custom ItemStack from the ItemManager.
-     *
-     * @param customItemId The ID of the custom item.
-     * @return The ItemStack if found; otherwise, null.
-     */
     private ItemStack getCustomItemStack(String customItemId) {
         CustomItem customItem = itemManager.getCustomItem(customItemId);
         if (customItem != null) {
@@ -204,13 +186,6 @@ public class MobManager implements Listener {
         return null;
     }
 
-    /**
-     * Creates a formatted name tag for the mob.
-     *
-     * @param customMob     The custom mob configuration.
-     * @param currentHealth The current health of the mob.
-     * @return The formatted name tag.
-     */
     private String createMobNameTag(CustomMob customMob, double currentHealth) {
         return Utils.getInstance().$(String.format("[LVL%d] %s [%.1f❤]", customMob.getLevel(), customMob.getName(), currentHealth));
     }
@@ -219,21 +194,10 @@ public class MobManager implements Listener {
         return mobConfigurations;
     }
 
-    /**
-     * Finds the CustomMobInstance associated with the given entity.
-     *
-     * @param entity The entity to search for.
-     * @return The CustomMobInstance if found; otherwise, null.
-     */
     public CustomMobInstance findMobInstance(LivingEntity entity) {
         return activeMobs.get(entity.getUniqueId());
     }
 
-    /**
-     * Handles damage events for mobs.
-     *
-     * @param event The damage event.
-     */
     @EventHandler
     public void onMobDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof LivingEntity livingEntity)) return;
@@ -274,6 +238,11 @@ public class MobManager implements Listener {
         // Trigger onDamaged actions
         executeActions(mobInstance, ActionTriggers.ON_DAMAGED);
 
+        // Update boss bar
+        if (mobInstance.getBossBarHandler() != null) {
+            mobInstance.getBossBarHandler().updateBossBar();
+        }
+
         // Check if mob is dead
         if (currentHp <= 0) {
             // Mob dies
@@ -303,11 +272,6 @@ public class MobManager implements Listener {
         }
     }
 
-    /**
-     * Handles the death of a mob, awarding XP and dropping items.
-     *
-     * @param mobInstance The instance of the dead mob.
-     */
     public void handleMobDeath(CustomMobInstance mobInstance) {
         // Log mob death
         Bukkit.getLogger().log(Level.INFO, "Mob died: " + mobInstance.getCustomMob().getName());
@@ -432,18 +396,17 @@ public class MobManager implements Listener {
             }
         }
 
+        // Remove boss bar if present
+        if (mobInstance.getBossBarHandler() != null) {
+            mobInstance.getBossBarHandler().removeAllPlayers();
+        }
+
         // Destroy the modeled entity if it exists
         if (mobInstance.getModeledEntity() != null) {
             mobInstance.getModeledEntity().destroy();
         }
     }
 
-    /**
-     * Executes actions based on the trigger.
-     *
-     * @param mobInstance The mob instance.
-     * @param trigger     The trigger string.
-     */
     private void executeActions(CustomMobInstance mobInstance, String trigger) {
         List<Action> actions = mobInstance.getCustomMob().getActions().get(trigger);
         if (actions != null) {
@@ -504,11 +467,6 @@ public class MobManager implements Listener {
         }
     }
 
-    /**
-     * Handles when the mob attacks an entity.
-     *
-     * @param event The event.
-     */
     @EventHandler
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof LivingEntity livingEntity)) return;
@@ -537,11 +495,6 @@ public class MobManager implements Listener {
         }
     }
 
-    /**
-     * Handles when the mob targets an entity (entering or leaving combat).
-     *
-     * @param event The event.
-     */
     @EventHandler
     public void onEntityTarget(EntityTargetEvent event) {
         if (!(event.getEntity() instanceof LivingEntity livingEntity)) return;
@@ -562,9 +515,6 @@ public class MobManager implements Listener {
         }
     }
 
-    /**
-     * Checks the combat status of all active mobs based on player proximity.
-     */
     private void checkCombatStatus() {
         for (CustomMobInstance mobInstance : activeMobs.values()) {
             boolean hasNearbyPlayer = hasNearbyPlayer(mobInstance);
@@ -577,12 +527,6 @@ public class MobManager implements Listener {
         }
     }
 
-    /**
-     * Checks if there are any players within the detection range of the mob.
-     *
-     * @param mobInstance The mob instance.
-     * @return True if a player is nearby; otherwise, false.
-     */
     private boolean hasNearbyPlayer(CustomMobInstance mobInstance) {
         double detectionRange = 20.0; // Adjust this range as needed
         for (Player player : mobInstance.getEntity().getWorld().getPlayers()) {
@@ -639,10 +583,40 @@ public class MobManager implements Listener {
         }
     }
 
+    private void updateBossBars() {
+        for (CustomMobInstance mobInstance : activeMobs.values()) {
+            MobBossBarHandler bossBarHandler = mobInstance.getBossBarHandler();
+            if (bossBarHandler != null) {
+                bossBarHandler.updateBossBar();
 
-    /**
-     * Inner class to hold action triggers.
-     */
+                // Update players in range
+                double rangeSquared = bossBarHandler.getRange() * bossBarHandler.getRange();
+                Set<Player> playersInRange = new HashSet<>();
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    if (player.getWorld().equals(mobInstance.getEntity().getWorld())) {
+                        if (player.getLocation().distanceSquared(mobInstance.getEntity().getLocation()) <= rangeSquared) {
+                            playersInRange.add(player);
+                        }
+                    }
+                }
+
+                // Add new players
+                for (Player player : playersInRange) {
+                    if (!bossBarHandler.getPlayersInRange().contains(player)) {
+                        bossBarHandler.addPlayer(player);
+                    }
+                }
+
+                // Remove players who are no longer in range
+                for (Player player : new HashSet<>(bossBarHandler.getPlayersInRange())) {
+                    if (!playersInRange.contains(player)) {
+                        bossBarHandler.removePlayer(player);
+                    }
+                }
+            }
+        }
+    }
+
     public static class ActionTriggers {
         public static final String ON_ATTACK = "onAttack";
         public static final String ON_SPAWN = "onSpawn";

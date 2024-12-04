@@ -1,6 +1,8 @@
 package eu.xaru.mysticrpg.customs.mobs;
 
 import eu.xaru.mysticrpg.customs.mobs.actions.Action;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
 import org.bukkit.entity.EntityType;
 
 import java.util.List;
@@ -21,6 +23,8 @@ public class CustomMob {
     private final Map<String, AreaSettings> areaSettingsMap;
     private final List<DropItem> drops;
     private AnimationConfig animationConfig;
+    private BossBarConfig bossBarConfig;
+
 
 
     // New fields for base attributes
@@ -41,7 +45,7 @@ public class CustomMob {
                      double currencyReward, Map<String, Integer> customAttributes, List<String> assignedAreas,
                      Map<String, AreaSettings> areaSettingsMap, List<DropItem> drops,
                      double baseDamage, double baseArmor, double movementSpeed, Equipment equipment,
-                     String modelId, Map<String, List<Action>> actions, AnimationConfig animationConfig) {
+                     String modelId, Map<String, List<Action>> actions, AnimationConfig animationConfig, BossBarConfig bossBarConfig) {
         this.id = id;
         this.name = name;
         this.entityType = entityType;
@@ -60,7 +64,18 @@ public class CustomMob {
         this.modelId = modelId;
         this.actions = actions;
         this.animationConfig = animationConfig != null ? animationConfig : new AnimationConfig();
+        this.bossBarConfig = bossBarConfig;
 
+
+    }
+
+    // Getter and Setter for bossBarConfig
+    public BossBarConfig getBossBarConfig() {
+        return bossBarConfig;
+    }
+
+    public void setBossBarConfig(BossBarConfig bossBarConfig) {
+        this.bossBarConfig = bossBarConfig;
     }
 
     public AnimationConfig getAnimationConfig() {
@@ -140,6 +155,48 @@ public class CustomMob {
     public Map<String, List<Action>> getActions() {
         return actions;
     }
+
+    // Inner class for BossBar configuration
+    public static class BossBarConfig {
+        private boolean enabled;
+        private String title;
+        private BarColor color;
+        private double range;
+        private BarStyle style;
+
+        public BossBarConfig(boolean enabled, String title, BarColor color, double range, BarStyle style) {
+            this.enabled = enabled;
+            this.title = title;
+            this.color = color;
+            this.range = range;
+            this.style = style;
+        }
+
+        // Getters and Setters
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public String getTitle() {
+            return title;
+        }
+
+        public BarColor getColor() {
+            return color;
+        }
+
+        public double getRange() {
+            return range;
+        }
+
+        public BarStyle getStyle() {
+            return style;
+        }
+    }
+
+
+
+
 
     // Nested classes
     public static class AreaSettings {
