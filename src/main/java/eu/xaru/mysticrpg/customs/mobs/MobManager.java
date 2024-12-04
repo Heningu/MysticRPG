@@ -4,6 +4,10 @@ import com.ticxo.modelengine.api.model.ModeledEntity;
 import eu.xaru.mysticrpg.customs.items.CustomItem;
 import eu.xaru.mysticrpg.customs.items.CustomItemModule;
 import eu.xaru.mysticrpg.customs.items.ItemManager;
+import eu.xaru.mysticrpg.customs.mobs.actions.Action;
+import eu.xaru.mysticrpg.customs.mobs.actions.ActionStep;
+import eu.xaru.mysticrpg.customs.mobs.actions.Condition;
+import eu.xaru.mysticrpg.customs.mobs.actions.steps.DelayActionStep;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
@@ -56,6 +60,12 @@ public class MobManager implements Listener {
         }
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
+
+        // Schedule a task to update mob animations
+        Bukkit.getScheduler().runTaskTimer(plugin, this::updateMobAnimations, 0L, 5L); // Runs every 5 ticks
+
+        // Schedule a task to check combat status
+        Bukkit.getScheduler().runTaskTimer(plugin, this::checkCombatStatus, 0L, 20L); // Runs every second
     }
 
     /**
@@ -108,6 +118,9 @@ public class MobManager implements Listener {
         CustomMobInstance mobInstance = new CustomMobInstance(customMob, location, mob, modeledEntity);
         activeMobs.put(mob.getUniqueId(), mobInstance);
 
+        // Trigger onSpawn actions
+        executeActions(mobInstance, ActionTriggers.ON_SPAWN);
+
         Bukkit.getLogger().log(Level.INFO, "Spawned mob: " + customMob.getName() + " at location: " + location);
 
         return mobInstance;
@@ -132,10 +145,10 @@ public class MobManager implements Listener {
             armorAttribute.setBaseValue(customMob.getBaseArmor());
         }
 
-        // Apply base damage
+        // Disable default attack damage
         AttributeInstance damageAttribute = mob.getAttribute(Attribute.ATTACK_DAMAGE);
         if (damageAttribute != null) {
-            damageAttribute.setBaseValue(customMob.getBaseDamage());
+            damageAttribute.setBaseValue(0.0); // Set attack damage to zero
         }
 
         // Set equipment if any
@@ -233,14 +246,20 @@ public class MobManager implements Listener {
         // Capture the damage before modifying it
         double damage = event.getFinalDamage();
 
-        // Record the last damager if applicable
+        // Record the last damager and set target if applicable
         if (event instanceof EntityDamageByEntityEvent edbe) {
             Entity damager = edbe.getDamager();
             if (damager instanceof Player playerDamager) {
                 mobInstance.setLastDamager(playerDamager.getUniqueId());
+                mobInstance.setTarget(playerDamager);
+                mobInstance.setInCombat(true);
+                Bukkit.getLogger().info("Mob " + mobInstance.getCustomMob().getName() + " was damaged by player " + playerDamager.getName());
             } else if (damager instanceof Projectile projectile) {
                 if (projectile.getShooter() instanceof Player playerShooter) {
                     mobInstance.setLastDamager(playerShooter.getUniqueId());
+                    mobInstance.setTarget(playerShooter);
+                    mobInstance.setInCombat(true);
+                    Bukkit.getLogger().info("Mob " + mobInstance.getCustomMob().getName() + " was shot by player " + playerShooter.getName());
                 }
             }
         }
@@ -251,6 +270,9 @@ public class MobManager implements Listener {
 
         // Update name tag
         livingEntity.setCustomName(createMobNameTag(customMob, currentHp));
+
+        // Trigger onDamaged actions
+        executeActions(mobInstance, ActionTriggers.ON_DAMAGED);
 
         // Check if mob is dead
         if (currentHp <= 0) {
@@ -277,7 +299,7 @@ public class MobManager implements Listener {
         // Play hurt animation if applicable
         String modelId = mobInstance.getCustomMob().getModelId();
         if (modelId != null && !modelId.isEmpty()) {
-            ModelHandler.playAnimation(livingEntity, modelId, "hurt", 0.3, 0.3, 1.0, false);
+            ModelHandler.playAnimation(livingEntity, modelId, "hurt", 0.0, 0.0, 1.0, false);
         }
     }
 
@@ -414,5 +436,218 @@ public class MobManager implements Listener {
         if (mobInstance.getModeledEntity() != null) {
             mobInstance.getModeledEntity().destroy();
         }
+    }
+
+    /**
+     * Executes actions based on the trigger.
+     *
+     * @param mobInstance The mob instance.
+     * @param trigger     The trigger string.
+     */
+    private void executeActions(CustomMobInstance mobInstance, String trigger) {
+        List<Action> actions = mobInstance.getCustomMob().getActions().get(trigger);
+        if (actions != null) {
+            for (Action action : actions) {
+                long currentTime = System.currentTimeMillis();
+                long cooldownMillis = (long) (action.getCooldown() * 1000);
+                if (currentTime - action.getLastExecutionTime() >= cooldownMillis) {
+                    // Check if mob is already performing an action
+                    if (mobInstance.isPerformingAction()) {
+                        Bukkit.getLogger().info("Mob is already performing an action, skipping.");
+                        continue;
+                    }
+                    // Check target conditions
+                    boolean conditionsMet = true;
+                    for (Condition condition : action.getTargetConditions()) {
+                        boolean result = condition.evaluate(mobInstance.getEntity(), mobInstance.getTarget());
+                        Bukkit.getLogger().info("Evaluating condition: " + condition + " Result: " + result);
+                        if (!result) {
+                            conditionsMet = false;
+                            break;
+                        }
+                    }
+                    if (conditionsMet) {
+                        Bukkit.getLogger().info("Conditions met for action on trigger " + trigger);
+                        action.setLastExecutionTime(currentTime);
+                        mobInstance.setPerformingAction(true);
+                        executeActionSteps(mobInstance, action.getSteps(), 0);
+                    } else {
+                        Bukkit.getLogger().info("Conditions not met for action on trigger " + trigger);
+                    }
+                } else {
+                    Bukkit.getLogger().info("Action on trigger " + trigger + " is on cooldown.");
+                }
+            }
+        } else {
+            Bukkit.getLogger().info("No actions found for trigger " + trigger);
+        }
+    }
+
+    private void executeActionSteps(CustomMobInstance mobInstance, List<ActionStep> steps, int index) {
+        if (index >= steps.size()) {
+            // Action steps completed
+            mobInstance.setPerformingAction(false);
+            return;
+        }
+
+        ActionStep step = steps.get(index);
+
+        if (step instanceof DelayActionStep) {
+            DelayActionStep delayStep = (DelayActionStep) step;
+            long delayTicks = (long) (delayStep.getDelaySeconds() * 20);
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                executeActionSteps(mobInstance, steps, index + 1);
+            }, delayTicks);
+        } else {
+            step.execute(mobInstance);
+            executeActionSteps(mobInstance, steps, index + 1);
+        }
+    }
+
+    /**
+     * Handles when the mob attacks an entity.
+     *
+     * @param event The event.
+     */
+    @EventHandler
+    public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof LivingEntity livingEntity)) return;
+
+        CustomMobInstance mobInstance = findMobInstance(livingEntity);
+        if (mobInstance == null) return;
+
+        // If mob is performing an action, cancel the event
+        if (mobInstance.isPerformingAction()) {
+            event.setCancelled(true);
+            return;
+        }
+
+        // Cancel the event to prevent default damage and knockback
+        event.setCancelled(true);
+
+        Bukkit.getLogger().info("Mob " + mobInstance.getCustomMob().getName() + " attempted to attack " + event.getEntity().getName());
+
+        // Only set target if the entity is a valid target
+        if (event.getEntity() instanceof LivingEntity targetEntity && !targetEntity.equals(mobInstance.getEntity())) {
+            mobInstance.setTarget(targetEntity);
+            mobInstance.setInCombat(true);
+            executeActions(mobInstance, ActionTriggers.ON_ATTACK);
+        } else {
+            Bukkit.getLogger().warning("Invalid attack target. Skipping action.");
+        }
+    }
+
+    /**
+     * Handles when the mob targets an entity (entering or leaving combat).
+     *
+     * @param event The event.
+     */
+    @EventHandler
+    public void onEntityTarget(EntityTargetEvent event) {
+        if (!(event.getEntity() instanceof LivingEntity livingEntity)) return;
+
+        CustomMobInstance mobInstance = findMobInstance(livingEntity);
+        if (mobInstance == null) return;
+
+        if (event.getTarget() != null && event.getReason() == EntityTargetEvent.TargetReason.CLOSEST_PLAYER) {
+            if (!mobInstance.isInCombat()) {
+                mobInstance.setInCombat(true);
+                executeActions(mobInstance, ActionTriggers.ON_ENTER_COMBAT);
+            }
+            mobInstance.setTarget(event.getTarget());
+        } else if (event.getTarget() == null) {
+            mobInstance.setTarget(null);
+            mobInstance.setInCombat(false);
+            executeActions(mobInstance, ActionTriggers.ON_LEAVE_COMBAT);
+        }
+    }
+
+    /**
+     * Checks the combat status of all active mobs based on player proximity.
+     */
+    private void checkCombatStatus() {
+        for (CustomMobInstance mobInstance : activeMobs.values()) {
+            boolean hasNearbyPlayer = hasNearbyPlayer(mobInstance);
+            if (mobInstance.isInCombat() && !hasNearbyPlayer) {
+                mobInstance.setInCombat(false);
+                mobInstance.setTarget(null);
+                executeActions(mobInstance, ActionTriggers.ON_LEAVE_COMBAT);
+                Bukkit.getLogger().info("Mob " + mobInstance.getCustomMob().getName() + " has left combat.");
+            }
+        }
+    }
+
+    /**
+     * Checks if there are any players within the detection range of the mob.
+     *
+     * @param mobInstance The mob instance.
+     * @return True if a player is nearby; otherwise, false.
+     */
+    private boolean hasNearbyPlayer(CustomMobInstance mobInstance) {
+        double detectionRange = 20.0; // Adjust this range as needed
+        for (Player player : mobInstance.getEntity().getWorld().getPlayers()) {
+            if (player.getLocation().distanceSquared(mobInstance.getEntity().getLocation()) <= detectionRange * detectionRange) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void updateMobAnimations() {
+        for (CustomMobInstance mobInstance : activeMobs.values()) {
+            updateMobAnimation(mobInstance);
+        }
+    }
+
+    public void updateMobAnimation(CustomMobInstance mobInstance) {
+        LivingEntity entity = mobInstance.getEntity();
+        if (entity.isDead()) return;
+
+        String animationName = null;
+
+        // Check if mob is moving
+        boolean isMoving = entity.getVelocity().lengthSquared() > 0.02;
+
+        // Get AnimationConfig
+        AnimationConfig animationConfig = mobInstance.getCustomMob().getAnimationConfig();
+
+        if (mobInstance.isPerformingAction()) {
+            // If performing an action, keep the current animation
+            Bukkit.getLogger().info("Mob is performing an action. Skipping animation update.");
+            return;
+        }
+
+        // Use the standard idle and walk animations
+        if (isMoving) {
+            animationName = animationConfig.getWalkAnimation();
+        } else {
+            animationName = animationConfig.getIdleAnimation();
+        }
+
+        Bukkit.getLogger().info("Determined animation: " + animationName + " for mob: " + mobInstance.getCustomMob().getName());
+
+        // Play the animation if not already playing
+        if (animationName != null && !animationName.equals(mobInstance.getCurrentAnimation())) {
+            Bukkit.getLogger().info("Playing animation: " + animationName + " for mob: " + mobInstance.getCustomMob().getName());
+            mobInstance.setCurrentAnimation(animationName);
+            String modelId = mobInstance.getCustomMob().getModelId();
+            if (modelId != null && !modelId.isEmpty()) {
+                ModelHandler.playAnimation(entity, modelId, animationName, 0.0, 0.0, 1.0, true);
+            }
+        } else {
+            Bukkit.getLogger().info("Animation '" + animationName + "' is already playing for mob: " + mobInstance.getCustomMob().getName());
+        }
+    }
+
+
+    /**
+     * Inner class to hold action triggers.
+     */
+    public static class ActionTriggers {
+        public static final String ON_ATTACK = "onAttack";
+        public static final String ON_SPAWN = "onSpawn";
+        public static final String ON_ENTER_COMBAT = "onEnterCombat";
+        public static final String ON_LEAVE_COMBAT = "onLeaveCombat";
+        public static final String ON_DAMAGED = "onDamaged";
     }
 }

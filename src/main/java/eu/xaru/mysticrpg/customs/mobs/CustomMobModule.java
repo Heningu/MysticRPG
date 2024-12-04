@@ -4,6 +4,11 @@ import dev.jorel.commandapi.CommandAPICommand;
 import dev.jorel.commandapi.arguments.ArgumentSuggestions;
 import dev.jorel.commandapi.arguments.StringArgument;
 import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.customs.mobs.actions.Action;
+import eu.xaru.mysticrpg.customs.mobs.actions.ActionStep;
+import eu.xaru.mysticrpg.customs.mobs.actions.Condition;
+import eu.xaru.mysticrpg.customs.mobs.actions.conditions.DistanceCondition;
+import eu.xaru.mysticrpg.customs.mobs.actions.steps.*;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.guis.MobGUI;
@@ -15,6 +20,7 @@ import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.EntityType;
@@ -31,7 +37,7 @@ public class CustomMobModule implements IBaseModule, Listener {
     private final JavaPlugin plugin;
     private DebugLoggerModule logger;
     private final Map<String, CustomMob> mobConfigurations = new HashMap<>();
-    public MobManager mobManager;
+    private MobManager mobManager;
     private MobGUI mobGUI;
 
     public CustomMobModule() {
@@ -68,7 +74,6 @@ public class CustomMobModule implements IBaseModule, Listener {
 
         // Register event listeners
         Bukkit.getPluginManager().registerEvents(this, plugin);
-        Bukkit.getPluginManager().registerEvents(new CustomMobDamageHandler(mobManager), plugin);
 
         logger.log(Level.INFO, "CustomMobModule initialized successfully.", 0);
     }
@@ -190,10 +195,16 @@ public class CustomMobModule implements IBaseModule, Listener {
                     // Read the model ID from the config
                     String modelId = config.getString("model_id");
 
+                    // Load animations
+                    AnimationConfig animationConfig = loadAnimations(config);
+
+                    // Load actions
+                    Map<String, List<Action>> actions = loadActions(config, animationConfig);
+
                     CustomMob customMob = new CustomMob(
                             mobId, mobName, entityType, health, level, experienceReward, currencyReward, customAttributes,
                             assignedAreas, areaSettingsMap, drops, baseDamage, baseArmor, movementSpeed, equipment,
-                            modelId // Pass the modelId to the constructor
+                            modelId, actions, animationConfig
                     );
 
                     mobConfigurations.put(mobId, customMob);
@@ -203,6 +214,200 @@ public class CustomMobModule implements IBaseModule, Listener {
                 }
             }
         }
+    }
+
+    private AnimationConfig loadAnimations(FileConfiguration config) {
+        AnimationConfig animationConfig = new AnimationConfig();
+
+        if (config.contains("animations")) {
+            ConfigurationSection animationsSection = config.getConfigurationSection("animations");
+            if (animationsSection != null) {
+                if (animationsSection.contains("idle")) {
+                    animationConfig.setIdleAnimation(animationsSection.getString("idle"));
+                }
+                if (animationsSection.contains("walk")) {
+                    animationConfig.setWalkAnimation(animationsSection.getString("walk"));
+                }
+                if (animationsSection.contains("attack")) {
+                    animationConfig.setAttackAnimation(animationsSection.getString("attack"));
+                }
+                // Add more animations as needed
+            }
+        }
+
+        return animationConfig;
+    }
+
+    private Map<String, List<Action>> loadActions(FileConfiguration config, AnimationConfig animationConfig) {
+        Map<String, List<Action>> actions = new HashMap<>();
+
+        if (config.contains("actions")) {
+            List<String> actionEntries = config.getStringList("actions");
+            for (String actionEntry : actionEntries) {
+                // The format is: path ~ trigger
+                String[] parts = actionEntry.split("~");
+                if (parts.length == 2) {
+                    String actionPath = parts[0].trim();
+                    String trigger = parts[1].trim();
+
+                    // Load the action file
+                    Action action = loadActionFromFile(actionPath, animationConfig);
+                    if (action != null) {
+                        actions.computeIfAbsent(trigger, k -> new ArrayList<>()).add(action);
+                    }
+                } else {
+                    logger.error("Invalid action entry: " + actionEntry);
+                }
+            }
+        }
+
+        return actions;
+    }
+
+    private Action loadActionFromFile(String actionPath, AnimationConfig animationConfig) {
+        File actionFile = new File(plugin.getDataFolder(), "custom/mobs/" + actionPath + ".yml");
+        if (!actionFile.exists()) {
+            logger.error("Action file not found: " + actionFile.getPath());
+            return null;
+        }
+        try {
+            FileConfiguration actionConfig = YamlConfiguration.loadConfiguration(actionFile);
+            ConfigurationSection actionSection = actionConfig.getConfigurationSection("action");
+            if (actionSection == null) {
+                logger.error("Action section missing in file: " + actionFile.getPath());
+                return null;
+            }
+            double cooldown = actionSection.getDouble("Cooldown", 0.0);
+            List<String> targetConditionStrings = actionSection.getStringList("TargetConditions");
+            List<String> doActionsStrings = actionSection.getStringList("do");
+
+            // Parse target conditions
+            List<Condition> targetConditions = new ArrayList<>();
+            for (String conditionString : targetConditionStrings) {
+                Condition condition = parseCondition(conditionString);
+                if (condition != null) {
+                    targetConditions.add(condition);
+                }
+            }
+
+            // Parse action steps
+            List<ActionStep> actionSteps = new ArrayList<>();
+            for (String actionString : doActionsStrings) {
+                ActionStep step = parseActionStep(actionString, animationConfig);
+                if (step != null) {
+                    actionSteps.add(step);
+                }
+            }
+
+            return new Action(cooldown, targetConditions, actionSteps);
+        } catch (Exception e) {
+            logger.error("Failed to load action from file " + actionFile.getPath() + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    private Condition parseCondition(String conditionString) {
+        String[] parts = conditionString.trim().split("\\s+", 2);
+        if (parts.length != 2) {
+            logger.error("Invalid condition format: " + conditionString);
+            return null;
+        }
+        String conditionType = parts[0].trim();
+        String conditionParam = parts[1].trim();
+
+        switch (conditionType.toLowerCase()) {
+            case "distance":
+                return new DistanceCondition(conditionParam);
+            // Add more conditions here
+            default:
+                logger.error("Unknown condition type: " + conditionType);
+                return null;
+        }
+    }
+
+    private ActionStep parseActionStep(String actionString, AnimationConfig animationConfig) {
+        String[] parts = actionString.split(":", 2);
+        String command = parts[0].trim();
+        String parameter = parts.length > 1 ? parts[1].trim() : null;
+
+        // Replace placeholders
+        if (parameter != null) {
+            parameter = replacePlaceholders(parameter, animationConfig);
+        }
+
+        switch (command.toLowerCase()) {
+            case "animation":
+                if (parameter == null) {
+                    logger.error("Missing parameter for animation action.");
+                    return null;
+                }
+                String animationName = parameter.replace("\"", "");
+                return new AnimationActionStep(animationName);
+            case "delay":
+                if (parameter == null) {
+                    logger.error("Missing parameter for delay action.");
+                    return null;
+                }
+                double delaySeconds;
+                try {
+                    delaySeconds = Double.parseDouble(parameter);
+                } catch (NumberFormatException e) {
+                    logger.error("Invalid number format for delay action: " + parameter);
+                    return null;
+                }
+                return new DelayActionStep(delaySeconds);
+            case "sound":
+                if (parameter == null) {
+                    logger.error("Missing parameter for sound action.");
+                    return null;
+                }
+                return new SoundActionStep(parameter);
+            case "damage":
+                if (parameter == null) {
+                    logger.error("Missing parameter for damage action.");
+                    return null;
+                }
+                double damageAmount;
+                try {
+                    damageAmount = Double.parseDouble(parameter);
+                } catch (NumberFormatException e) {
+                    logger.error("Invalid number format for damage action: " + parameter);
+                    return null;
+                }
+                return new DamageActionStep(damageAmount);
+            case "particles":
+                if (parameter == null) {
+                    logger.error("Missing parameter for particles action.");
+                    return null;
+                }
+                String[] params = parameter.split("\\s+");
+                if (params.length == 2) {
+                    String particleName = params[0];
+                    int count;
+                    try {
+                        count = Integer.parseInt(params[1]);
+                    } catch (NumberFormatException e) {
+                        logger.error("Invalid particle count: " + params[1]);
+                        return null;
+                    }
+                    return new ParticleActionStep(particleName, count);
+                } else {
+                    logger.error("Invalid parameters for particles action.");
+                    return null;
+                }
+            case "reset_to_default_animation":
+                return new ResetAnimationActionStep(mobManager);
+            default:
+                logger.error("Unknown action command: " + command);
+                return null;
+        }
+    }
+
+    private String replacePlaceholders(String input, AnimationConfig animationConfig) {
+        return input
+                .replace("%idle_animation%", animationConfig.getIdleAnimation())
+                .replace("%walk_animation%", animationConfig.getWalkAnimation())
+                .replace("%attack_animation%", animationConfig.getAttackAnimation());
     }
 
     public MobManager getMobManager() {

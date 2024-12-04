@@ -74,6 +74,7 @@ public class ModelHandler {
         if (modeledEntity != null) {
             ActiveModel activeModel = modeledEntity.getModel(modelId).orElse(null);
             if (activeModel != null) {
+                stopAllAnimations(entity, modelId);
                 activeModel.getAnimationHandler().playAnimation(animationName, transitionIn, transitionOut, speed, shouldLoop);
             }
         }
@@ -92,6 +93,22 @@ public class ModelHandler {
             ActiveModel activeModel = modeledEntity.getModel(modelId).orElse(null);
             if (activeModel != null) {
                 activeModel.getAnimationHandler().stopAnimation(animationName);
+            }
+        }
+    }
+
+    /**
+     * Stops all animations on the entity's model.
+     *
+     * @param entity  The entity whose model will stop all animations.
+     * @param modelId The ID of the model.
+     */
+    public static void stopAllAnimations(Entity entity, String modelId) {
+        ModeledEntity modeledEntity = ModelEngineAPI.getModeledEntity(entity);
+        if (modeledEntity != null) {
+            ActiveModel activeModel = modeledEntity.getModel(modelId).orElse(null);
+            if (activeModel != null) {
+                activeModel.getAnimationHandler().forceStopAllAnimations();
             }
         }
     }

@@ -1,5 +1,6 @@
 package eu.xaru.mysticrpg.customs.mobs;
 
+import eu.xaru.mysticrpg.customs.mobs.actions.Action;
 import org.bukkit.entity.EntityType;
 
 import java.util.List;
@@ -19,6 +20,8 @@ public class CustomMob {
     private final List<String> assignedAreas;
     private final Map<String, AreaSettings> areaSettingsMap;
     private final List<DropItem> drops;
+    private AnimationConfig animationConfig;
+
 
     // New fields for base attributes
     private final double baseDamage;
@@ -31,11 +34,14 @@ public class CustomMob {
     // New field for model ID
     private final String modelId;
 
+    // New field for actions
+    private final Map<String, List<Action>> actions;
+
     public CustomMob(String id, String name, EntityType entityType, double health, int level, int experienceReward,
                      double currencyReward, Map<String, Integer> customAttributes, List<String> assignedAreas,
                      Map<String, AreaSettings> areaSettingsMap, List<DropItem> drops,
                      double baseDamage, double baseArmor, double movementSpeed, Equipment equipment,
-                     String modelId) {
+                     String modelId, Map<String, List<Action>> actions, AnimationConfig animationConfig) {
         this.id = id;
         this.name = name;
         this.entityType = entityType;
@@ -52,7 +58,19 @@ public class CustomMob {
         this.movementSpeed = movementSpeed;
         this.equipment = equipment;
         this.modelId = modelId;
+        this.actions = actions;
+        this.animationConfig = animationConfig != null ? animationConfig : new AnimationConfig();
+
     }
+
+    public AnimationConfig getAnimationConfig() {
+        return animationConfig;
+    }
+
+    public void setAnimationConfig(AnimationConfig animationConfig) {
+        this.animationConfig = animationConfig;
+    }
+
 
     // Getters
     public String getId() {
@@ -117,6 +135,10 @@ public class CustomMob {
 
     public String getModelId() {
         return modelId;
+    }
+
+    public Map<String, List<Action>> getActions() {
+        return actions;
     }
 
     // Nested classes

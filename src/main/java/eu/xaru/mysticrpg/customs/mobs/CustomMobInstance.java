@@ -1,7 +1,9 @@
 package eu.xaru.mysticrpg.customs.mobs;
 
 import com.ticxo.modelengine.api.model.ModeledEntity;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 
 import java.util.UUID;
@@ -10,28 +12,23 @@ public class CustomMobInstance {
 
     private final CustomMob customMob;
     private final Location spawnLocation;
-    private final String assignedArea;
-    private final UUID mobUUID;
     private final LivingEntity entity;
-    private UUID lastDamager;
-
-    // Custom HP tracking
-    private double currentHp;
-
-    // New field to store the modeled entity
     private final ModeledEntity modeledEntity;
+    private UUID lastDamager;
+    private Entity target;
+    private boolean isPerformingAction = false;
+    private boolean inCombat = false;
+    private String currentAnimation;
+    private double currentHp;
 
     public CustomMobInstance(CustomMob customMob, Location spawnLocation, LivingEntity entity, ModeledEntity modeledEntity) {
         this.customMob = customMob;
         this.spawnLocation = spawnLocation;
         this.entity = entity;
-        this.mobUUID = entity.getUniqueId();
-        this.assignedArea = null;  // Assigned area is optional
-        this.currentHp = customMob.getHealth();
         this.modeledEntity = modeledEntity;
+        this.currentHp = customMob.getHealth();
     }
 
-    // Getters and setters
     public CustomMob getCustomMob() {
         return customMob;
     }
@@ -40,24 +37,12 @@ public class CustomMobInstance {
         return spawnLocation;
     }
 
-    public String getAssignedArea() {
-        return assignedArea;
-    }
-
-    public UUID getMobUUID() {
-        return mobUUID;
-    }
-
     public LivingEntity getEntity() {
         return entity;
     }
 
-    public double getCurrentHp() {
-        return currentHp;
-    }
-
-    public void setCurrentHp(double currentHp) {
-        this.currentHp = currentHp;
+    public ModeledEntity getModeledEntity() {
+        return modeledEntity;
     }
 
     public UUID getLastDamager() {
@@ -68,7 +53,44 @@ public class CustomMobInstance {
         this.lastDamager = lastDamager;
     }
 
-    public ModeledEntity getModeledEntity() {
-        return modeledEntity;
+    public Entity getTarget() {
+        return target;
+    }
+
+    public void setTarget(Entity target) {
+        this.target = target;
+        Bukkit.getLogger().info("Mob " + customMob.getName() + " set target to " + (target != null ? target.getName() : "null"));
+    }
+
+    public boolean isPerformingAction() {
+        return isPerformingAction;
+    }
+
+    public void setPerformingAction(boolean isPerformingAction) {
+        this.isPerformingAction = isPerformingAction;
+    }
+
+    public boolean isInCombat() {
+        return inCombat;
+    }
+
+    public void setInCombat(boolean inCombat) {
+        this.inCombat = inCombat;
+    }
+
+    public String getCurrentAnimation() {
+        return currentAnimation;
+    }
+
+    public void setCurrentAnimation(String currentAnimation) {
+        this.currentAnimation = currentAnimation;
+    }
+
+    public double getCurrentHp() {
+        return currentHp;
+    }
+
+    public void setCurrentHp(double currentHp) {
+        this.currentHp = currentHp;
     }
 }

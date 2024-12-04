@@ -180,6 +180,47 @@ public class CustomDamageHandler implements IBaseModule {
         }
     }
 
+    public void applyCustomDamage(Player player, double damage) {
+        UUID playerUUID = player.getUniqueId();
+        PlayerData playerData = playerDataCache.getCachedPlayerData(playerUUID);
+
+        if (playerData == null) {
+            logger.error("No cached data found for player: " + player.getName());
+            return;
+        }
+
+        // Deduct custom HP based on the actual damage
+        int currentHp = playerData.getCurrentHp();
+        int customDamage = (int) Math.round(damage);
+
+        // Adjust custom HP
+        currentHp -= customDamage;
+        if (currentHp < 0) currentHp = 0;
+        playerData.setCurrentHp(currentHp);
+
+        // Update the action bar after taking damage
+        actionBarManager.updateActionBar(player);
+
+        // Log the damage event
+        logger.log("Player " + player.getName() + " took " + damage + " damage. Current HP: " + currentHp);
+        if (currentHp <= 0) {
+            // Handle player death
+            Location spawnLocation = player.getWorld().getSpawnLocation();
+            player.teleport(spawnLocation);
+            player.sendMessage(Utils.getInstance().$("You Died"));
+            logger.log("Player " + player.getName() + " died and was teleported to spawn.");
+
+            // Reset player's health to max for respawn
+            int maxHp = playerData.getAttributes().getOrDefault("HP", 20);
+            playerData.setCurrentHp(maxHp);
+        }
+
+        // Record last damage time for regeneration purposes
+        lastDamageTime.put(playerUUID, System.currentTimeMillis());
+    }
+
+
+
 
     private void regenerateHealth() {
         Set<UUID> playerUUIDs = playerDataCache.getAllCachedPlayerUUIDs();
