@@ -14,6 +14,5 @@ public class ResetAnimationActionStep implements ActionStep {
 
     @Override
     public void execute(CustomMobInstance mobInstance) {
-        mobManager.updateMobAnimation(mobInstance);
     }
 }

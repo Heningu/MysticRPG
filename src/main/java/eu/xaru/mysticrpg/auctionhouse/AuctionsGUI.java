@@ -1,6 +1,5 @@
 package eu.xaru.mysticrpg.auctionhouse;
 
-import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import eu.xaru.mysticrpg.utils.PaginationHelper;
@@ -20,12 +19,38 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.*;
 import java.util.logging.Level;
 
-public class AuctionsGUI {
+/**
+ * Manages the Auction House GUI, including displaying available auctions,
+ * allowing players to buy, sell, and manage their own auctions with pagination support.
+ */
+public class AuctionsGUI implements Listener {
 
     private final AuctionHouseHelper auctionHouseHelper;
     private final EconomyHelper economyHelper;
     private final DebugLoggerModule logger;
-    private MysticCore plugin;
+    private final JavaPlugin plugin;
+
+    // Constants for GUI slot indices
+    private static final int MAIN_GUI_BUY_SLOT = 20;
+    private static final int MAIN_GUI_SELL_SLOT = 22;
+    private static final int MAIN_GUI_MY_AUCTIONS_SLOT = 24;
+
+    private static final int BUY_GUI_BACK_SLOT = 49;
+    private static final int BUY_GUI_PAGE_INDICATOR_SLOT = 50;
+    private static final int BUY_GUI_NEXT_PAGE_SLOT = 53;
+
+    private static final int SELL_GUI_BACK_SLOT = 49;
+    private static final int SELL_GUI_DECREASE_PRICE_SLOT = 19;
+    private static final int SELL_GUI_INCREASE_PRICE_SLOT = 25;
+    private static final int SELL_GUI_CONFIRM_SLOT = 31;
+    private static final int SELL_GUI_CHANGE_DURATION_SLOT = 13;
+    private static final int SELL_GUI_PRICE_DISPLAY_SLOT = 28;
+    private static final int SELL_GUI_TOGGLE_AUCTION_TYPE_SLOT = 16;
+    private static final int SELL_GUI_ITEM_SLOT = 22;
+
+    private static final int YOUR_AUCTIONS_BACK_SLOT = 49;
+    private static final int YOUR_AUCTIONS_PAGE_INDICATOR_SLOT = 50;
+    private static final int YOUR_AUCTIONS_NEXT_PAGE_SLOT = 53;
 
     // Temporary storage for price and duration settings per player
     private final Map<UUID, Double> priceMap = new HashMap<>();
@@ -40,57 +65,55 @@ public class AuctionsGUI {
     private final Map<UUID, ItemStack> sellingItems = new HashMap<>();
 
     // Map to store PaginationHelpers per player for Buy GUI
-    private final Map<UUID, PaginationHelper> buyPaginationMap = new HashMap<>();
+    private final Map<UUID, PaginationHelper<ItemStack>> buyPaginationMap = new HashMap<>();
 
     // Map to store PaginationHelpers per player for Your Auctions GUI
-    private final Map<UUID, PaginationHelper> yourAuctionsPaginationMap = new HashMap<>();
+    private final Map<UUID, PaginationHelper<ItemStack>> yourAuctionsPaginationMap = new HashMap<>();
 
+    /**
+     * Constructs the AuctionsGUI with necessary dependencies.
+     *
+     * @param auctionHouseHelper The AuctionHouseHelper instance.
+     * @param economyHelper      The EconomyHelper instance.
+     * @param logger             The DebugLoggerModule instance.
+     * @param plugin             The main plugin instance.
+     */
     public AuctionsGUI(AuctionHouseHelper auctionHouseHelper,
                        EconomyHelper economyHelper,
-                       DebugLoggerModule logger) {
+                       DebugLoggerModule logger,
+                       JavaPlugin plugin) {
         this.auctionHouseHelper = auctionHouseHelper;
         this.economyHelper = economyHelper;
         this.logger = logger;
-    }
-
-    public void setPlugin(MysticCore plugin) {
         this.plugin = plugin;
+        // Register event listeners
+        Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
     /**
-     * Opens the main Auction House GUI.
+     * Opens the main Auction House GUI for the player.
      *
      * @param player The player to open the GUI for.
      */
     public void openMainGUI(Player player) {
-        Inventory gui = Bukkit.createInventory(null, 54,
-                Utils.getInstance().$("Auction House"));
+        Inventory gui = Bukkit.createInventory(null, 54, Utils.getInstance().$("Auction House"));
 
         // Fill the GUI with placeholders on **all** slots
         fillAllWithPlaceholders(gui);
 
         // Create the "Buy Items" item
-        ItemStack buyItems = new ItemStack(Material.EMERALD);
-        ItemMeta buyMeta = buyItems.getItemMeta();
-        buyMeta.setDisplayName(Utils.getInstance().$("Buy Items"));
-        buyItems.setItemMeta(buyMeta);
+        ItemStack buyItems = createGuiItem(Material.EMERALD, Utils.getInstance().$("Buy Items"), null);
 
         // Create the "Sell Items" item
-        ItemStack sellItems = new ItemStack(Material.CHEST);
-        ItemMeta sellMeta = sellItems.getItemMeta();
-        sellMeta.setDisplayName(Utils.getInstance().$("Sell Items"));
-        sellItems.setItemMeta(sellMeta);
+        ItemStack sellItems = createGuiItem(Material.CHEST, Utils.getInstance().$("Sell Items"), null);
 
         // Create the "My Auctions" item
-        ItemStack myAuctions = new ItemStack(Material.BOOK);
-        ItemMeta myAuctionsMeta = myAuctions.getItemMeta();
-        myAuctionsMeta.setDisplayName(Utils.getInstance().$("My Auctions"));
-        myAuctions.setItemMeta(myAuctionsMeta);
+        ItemStack myAuctions = createGuiItem(Material.BOOK, Utils.getInstance().$("My Auctions"), null);
 
         // Place the items in the GUI
-        gui.setItem(20, buyItems);
-        gui.setItem(22, sellItems);
-        gui.setItem(24, myAuctions);
+        gui.setItem(MAIN_GUI_BUY_SLOT, buyItems);
+        gui.setItem(MAIN_GUI_SELL_SLOT, sellItems);
+        gui.setItem(MAIN_GUI_MY_AUCTIONS_SLOT, myAuctions);
 
         // Remove PaginationHelpers when opening Main GUI
         removePagination(player.getUniqueId());
@@ -119,16 +142,17 @@ public class AuctionsGUI {
             return;
         }
 
+
+
         // Convert auctions into ItemStacks
         List<ItemStack> auctionItems = new ArrayList<>();
         for (Auction auction : auctions) {
             ItemStack item = auction.getItem().clone();
             ItemMeta meta = item.getItemMeta();
-            List<String> lore = meta.hasLore() ? meta.getLore()
-                    : new ArrayList<>();
+            List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
 
             if (auction.isBidItem()) {
-                lore.add("Current Bid: $" +
+                lore.add(ChatColor.GRAY + "Current Bid: $" +
                         economyHelper.formatBalance(auction.getCurrentBid()));
                 lore.add(Utils.getInstance().$("Right-click to place a bid"));
             } else {
@@ -148,25 +172,33 @@ public class AuctionsGUI {
             auctionItems.add(item);
         }
 
+
         // Get or create the PaginationHelper for the player
-        PaginationHelper paginationHelper = buyPaginationMap.get(player.getUniqueId());
-        if (paginationHelper == null) {
-            paginationHelper = new PaginationHelper(auctionItems, 28);
+        PaginationHelper<ItemStack> paginationHelper = buyPaginationMap.get(player.getUniqueId());
+        if (buyPaginationMap.containsKey(player.getUniqueId())) {
+            logger.log("Creating new PaginationHelper for player IZSBDFOIUHBNSDFIUNSDFIUSBDF" + player.getName());
+            paginationHelper = new PaginationHelper<>(auctionItems, 28);
             buyPaginationMap.put(player.getUniqueId(), paginationHelper);
         } else {
             // Update the items in the pagination helper in case the auctions have changed
             paginationHelper.updateItems(auctionItems);
         }
 
+        // dump paginationHelper and everythinjg
+        logger.log("PaginationHelper: " + paginationHelper.toString());
+        logger.log("PaginationHelper: " + paginationHelper.getCurrentPageItems().toString());
+        logger.log("PaginationHelper: " + paginationHelper.getTotalPages());
+        logger.log("PaginationHelper: " + paginationHelper.getCurrentPage());
+
+
         // Create the inventory
-        Inventory gui = Bukkit.createInventory(null, 54,
-                Utils.getInstance().$("Auction House - Buy"));
+        Inventory gui = Bukkit.createInventory(null, 54, Utils.getInstance().$("Auction House - Buy"));
 
         // Fill the GUI with placeholders only on the outer border, excluding slot 49 for back button
-        fillWithPlaceholdersBorderOnly(gui, Collections.singleton(49));
+        fillWithPlaceholdersBorderOnly(gui, Collections.singleton(BUY_GUI_BACK_SLOT));
 
         // Get items for the current page
-        List<ItemStack> pageItems = paginationHelper.getPageItems();
+        List<ItemStack> pageItems = paginationHelper.getCurrentPageItems();
 
         // Define the inner slots where items will be placed
         int[] slots = {
@@ -183,18 +215,17 @@ public class AuctionsGUI {
         }
 
         // Create the page indicator with lore instructions
-        ItemStack pageIndicator = new ItemStack(Material.PAPER);
-        ItemMeta pageMeta = pageIndicator.getItemMeta();
-        pageMeta.setDisplayName(Utils.getInstance().$("Page " + (paginationHelper.getCurrentPage() + 1) + " of " + paginationHelper.getTotalPages()));
-        pageMeta.setLore(Arrays.asList(
-                Utils.getInstance().$("Left-click to go to the previous page"),
-                Utils.getInstance().$("Right-click to go to the next page")
-        ));
-        pageIndicator.setItemMeta(pageMeta);
-        gui.setItem(50, pageIndicator); // Placed in slot 50
+        ItemStack pageIndicator = createGuiItem(Material.PAPER,
+                ChatColor.GREEN + "Page " + paginationHelper.getCurrentPage() + " of " + paginationHelper.getTotalPages(),
+                Arrays.asList(
+                        ChatColor.GRAY + "Left-click to go to the previous page",
+                        ChatColor.GRAY + "Right-click to go to the next page"
+                ));
+        gui.setItem(BUY_GUI_PAGE_INDICATOR_SLOT, pageIndicator); // Placed in slot 50
 
         // Add a back button in slot 49
-        addBackButton(gui);
+        ItemStack backButton = createGuiItem(Material.ARROW, ChatColor.YELLOW + "Back", null);
+        gui.setItem(BUY_GUI_BACK_SLOT, backButton);
 
         player.openInventory(gui);
     }
@@ -205,11 +236,10 @@ public class AuctionsGUI {
      * @param player The player to open the GUI for.
      */
     public void openSellGUI(Player player) {
-        Inventory gui = Bukkit.createInventory(null, 54,
-                Utils.getInstance().$("Auction House - Sell"));
+        Inventory gui = Bukkit.createInventory(null, 54, Utils.getInstance().$("Auction House - Sell"));
 
         // Fill the GUI with placeholders only on the outer border, excluding slot 22 for the item to sell
-        fillWithPlaceholdersBorderOnly(gui, Collections.singleton(22));
+        fillWithPlaceholdersBorderOnly(gui, Collections.singleton(SELL_GUI_ITEM_SLOT));
 
         // Set default price and duration if not set
         priceMap.putIfAbsent(player.getUniqueId(), 100.0); // Default price
@@ -217,64 +247,44 @@ public class AuctionsGUI {
         bidMap.putIfAbsent(player.getUniqueId(), false); // Default to fixed price
 
         // Create buttons and placeholders
-        ItemStack decreasePrice = new ItemStack(Material.REDSTONE_BLOCK);
-        ItemMeta decreaseMeta = decreasePrice.getItemMeta();
-        decreaseMeta.setDisplayName(Utils.getInstance().$("Decrease Price"));
-        decreasePrice.setItemMeta(decreaseMeta);
-
-        ItemStack increasePrice = new ItemStack(Material.EMERALD_BLOCK);
-        ItemMeta increaseMeta = increasePrice.getItemMeta();
-        increaseMeta.setDisplayName(Utils.getInstance().$("Increase Price"));
-        increasePrice.setItemMeta(increaseMeta);
-
-        ItemStack confirm = new ItemStack(Material.GREEN_WOOL);
-        ItemMeta confirmMeta = confirm.getItemMeta();
+        ItemStack decreasePrice = createGuiItem(Material.REDSTONE_BLOCK, Utils.getInstance().$("Decrease Price"), null);
+        ItemStack increasePrice = createGuiItem(Material.EMERALD_BLOCK, Utils.getInstance().$("Increase Price"), null);
         boolean isBidItem = bidMap.get(player.getUniqueId());
-        confirmMeta.setDisplayName(Utils.getInstance().$("Confirm " + (isBidItem ? "Auction" : "Sale")));
-        confirm.setItemMeta(confirmMeta);
-
-        ItemStack changeDuration = new ItemStack(Material.CLOCK);
-        ItemMeta durationMeta = changeDuration.getItemMeta();
-        durationMeta.setDisplayName(Utils.getInstance().$("Change Duration"));
-        durationMeta.setLore(List.of(Utils.getInstance().$("Current Duration: " +
-                formatDuration(durationMap.get(player.getUniqueId())))));
-        changeDuration.setItemMeta(durationMeta);
-
-        // Create price display
-        ItemStack priceDisplay = new ItemStack(Material.PAPER);
-        ItemMeta priceMeta = priceDisplay.getItemMeta();
-        priceMeta.setDisplayName(Utils.getInstance().$("Current Price: $" +
-                economyHelper.formatBalance(priceMap.get(player.getUniqueId()))));
-        priceMeta.setLore(List.of(Utils.getInstance().$("Right-click to set custom price")));
-        priceDisplay.setItemMeta(priceMeta);
-
-        // Create "Toggle Auction Type" button
-        ItemStack toggleAuctionType = new ItemStack(Material.GOLDEN_HOE);
-        ItemMeta toggleMeta = toggleAuctionType.getItemMeta();
-        toggleMeta.setDisplayName(Utils.getInstance().$("Auction Type: " + (isBidItem ? "Bidding" : "Fixed Price")));
-        toggleMeta.setLore(List.of(Utils.getInstance().$("Click to switch auction type")));
-        toggleAuctionType.setItemMeta(toggleMeta);
+        ItemStack confirm = createGuiItem(Material.GREEN_WOOL, Utils.getInstance().$("Confirm " + (isBidItem ? "Auction" : "Sale")), null);
+        ItemStack changeDuration = createGuiItem(Material.CLOCK, Utils.getInstance().$("Change Duration"),
+                Collections.singletonList(Utils.getInstance().$("Current Duration: " +
+                        formatDuration(durationMap.get(player.getUniqueId())))));
+        ItemStack priceDisplay = createGuiItem(Material.PAPER, Utils.getInstance().$("Current Price: $" +
+                        economyHelper.formatBalance(priceMap.get(player.getUniqueId()))),
+                Collections.singletonList(Utils.getInstance().$("Right-click to set custom price")));
+        ItemStack toggleAuctionType = createGuiItem(Material.GOLDEN_HOE, Utils.getInstance().$("Auction Type: " + (isBidItem ? "Bidding" : "Fixed Price")),
+                Collections.singletonList(Utils.getInstance().$("Click to switch auction type")));
 
         // Add a back button
-        addBackButton(gui);
+        ItemStack backButton = createGuiItem(Material.ARROW, ChatColor.YELLOW + "Back", null);
 
         // Place items
-        gui.setItem(19, decreasePrice);
-        gui.setItem(25, increasePrice);
-        gui.setItem(31, confirm);
-        gui.setItem(13, changeDuration);
-        gui.setItem(28, priceDisplay);
-        gui.setItem(16, toggleAuctionType);
+        gui.setItem(SELL_GUI_DECREASE_PRICE_SLOT, decreasePrice);
+        gui.setItem(SELL_GUI_INCREASE_PRICE_SLOT, increasePrice);
+        gui.setItem(SELL_GUI_CONFIRM_SLOT, confirm);
+        gui.setItem(SELL_GUI_CHANGE_DURATION_SLOT, changeDuration);
+        gui.setItem(SELL_GUI_PRICE_DISPLAY_SLOT, priceDisplay);
+        gui.setItem(SELL_GUI_TOGGLE_AUCTION_TYPE_SLOT, toggleAuctionType);
+        gui.setItem(SELL_GUI_BACK_SLOT, backButton);
 
         // Place the stored item back into slot 22 if present
         ItemStack itemToSell = sellingItems.get(player.getUniqueId());
         if (itemToSell != null) {
-            gui.setItem(22, itemToSell);
+            gui.setItem(SELL_GUI_ITEM_SLOT, itemToSell);
         }
+
         // Fill the inner slots (excluding slot 22) with placeholders if they are empty
         fillInnerPlaceholders(gui, Arrays.asList(
-                19, 25, 31, 13, 28, 16, 49 // Slots occupied by buttons and back button
-        ), 22);
+                SELL_GUI_DECREASE_PRICE_SLOT, SELL_GUI_INCREASE_PRICE_SLOT,
+                SELL_GUI_CONFIRM_SLOT, SELL_GUI_CHANGE_DURATION_SLOT,
+                SELL_GUI_PRICE_DISPLAY_SLOT, SELL_GUI_TOGGLE_AUCTION_TYPE_SLOT,
+                SELL_GUI_BACK_SLOT
+        ), SELL_GUI_ITEM_SLOT);
 
         player.openInventory(gui);
     }
@@ -302,12 +312,11 @@ public class AuctionsGUI {
         for (Auction auction : playerAuctions) {
             ItemStack item = auction.getItem().clone();
             ItemMeta meta = item.getItemMeta();
-            List<String> lore = meta.hasLore() ? meta.getLore()
-                    : new ArrayList<>();
+            List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
 
             if (auction.isBidItem()) {
-                lore.add(Utils.getInstance().$("Current Bid: $" +
-                        economyHelper.formatBalance(auction.getCurrentBid())));
+                lore.add(ChatColor.GRAY + "Current Bid: $" +
+                        economyHelper.formatBalance(auction.getCurrentBid()));
             } else {
                 lore.add(Utils.getInstance().$("Price: $" +
                         economyHelper.formatBalance(auction.getStartingPrice())));
@@ -315,9 +324,9 @@ public class AuctionsGUI {
             lore.add(Utils.getInstance().$("Time Left: " +
                     formatTimeLeft(auction.getEndTime()
                             - System.currentTimeMillis())));
-            lore.add(Utils.getInstance().$("Click to cancel this auction"));
             lore.add(Utils.getInstance().$("Auction ID: " +
                     auction.getAuctionId()));
+            lore.add(Utils.getInstance().$("Click to cancel this auction"));
 
             meta.setLore(lore);
             item.setItemMeta(meta);
@@ -326,9 +335,9 @@ public class AuctionsGUI {
         }
 
         // Get or create the PaginationHelper for the player
-        PaginationHelper paginationHelper = yourAuctionsPaginationMap.get(player.getUniqueId());
+        PaginationHelper<ItemStack> paginationHelper = yourAuctionsPaginationMap.get(player.getUniqueId());
         if (paginationHelper == null) {
-            paginationHelper = new PaginationHelper(auctionItems, 28);
+            paginationHelper = new PaginationHelper<>(auctionItems, 28);
             yourAuctionsPaginationMap.put(player.getUniqueId(), paginationHelper);
         } else {
             // Update the items in the pagination helper in case the auctions have changed
@@ -336,14 +345,13 @@ public class AuctionsGUI {
         }
 
         // Create the inventory
-        Inventory gui = Bukkit.createInventory(null, 54,
-                Utils.getInstance().$("Your Auctions"));
+        Inventory gui = Bukkit.createInventory(null, 54, Utils.getInstance().$("Your Auctions"));
 
         // Fill the GUI with placeholders only on the outer border, excluding slot 49 for back button
-        fillWithPlaceholdersBorderOnly(gui, Collections.singleton(49));
+        fillWithPlaceholdersBorderOnly(gui, Collections.singleton(YOUR_AUCTIONS_BACK_SLOT));
 
         // Get items for the current page
-        List<ItemStack> pageItems = paginationHelper.getPageItems();
+        List<ItemStack> pageItems = paginationHelper.getCurrentPageItems();
 
         // Define the inner slots where items will be placed
         int[] slots = {
@@ -360,143 +368,19 @@ public class AuctionsGUI {
         }
 
         // Create the page indicator with lore instructions
-        ItemStack pageIndicator = new ItemStack(Material.PAPER);
-        ItemMeta pageMeta = pageIndicator.getItemMeta();
-        pageMeta.setDisplayName(Utils.getInstance().$("Page " + (paginationHelper.getCurrentPage() + 1) + " of " + paginationHelper.getTotalPages()));
-        pageMeta.setLore(Arrays.asList(
-                Utils.getInstance().$("Left-click to go to the previous page"),
-                Utils.getInstance().$("Right-click to go to the next page")
-        ));
-        pageIndicator.setItemMeta(pageMeta);
-        gui.setItem(50, pageIndicator); // Placed in slot 50
+        ItemStack pageIndicator = createGuiItem(Material.PAPER,
+                ChatColor.GREEN + "Page " + paginationHelper.getCurrentPage() + " of " + paginationHelper.getTotalPages(),
+                Arrays.asList(
+                        ChatColor.GRAY + "Left-click to go to the previous page",
+                        ChatColor.GRAY + "Right-click to go to the next page"
+                ));
+        gui.setItem(YOUR_AUCTIONS_PAGE_INDICATOR_SLOT, pageIndicator); // Placed in slot 50
 
         // Add a back button in slot 49
-        addBackButton(gui);
+        ItemStack backButton = createGuiItem(Material.ARROW, ChatColor.YELLOW + "Back", null);
+        gui.setItem(YOUR_AUCTIONS_BACK_SLOT, backButton);
 
         player.openInventory(gui);
-    }
-
-    /**
-     * Formats the remaining time into a human-readable string.
-     *
-     * @param millis The time in milliseconds.
-     * @return A formatted string representing the time left.
-     */
-    private String formatTimeLeft(long millis) {
-        if (millis < 0) {
-            return "Expired";
-        }
-        long seconds = millis / 1000 % 60;
-        long minutes = millis / (1000 * 60) % 60;
-        long hours = millis / (1000 * 60 * 60) % 24;
-        long days = millis / (1000 * 60 * 60 * 24);
-
-        StringBuilder sb = new StringBuilder();
-        if (days > 0) sb.append(days).append("d ");
-        if (hours > 0 || days > 0) sb.append(hours).append("h ");
-        if (minutes > 0 || hours > 0 || days > 0) sb.append(minutes).append("m ");
-        sb.append(seconds).append("s");
-        return sb.toString();
-    }
-
-    /**
-     * Fills the entire inventory with black stained glass panes as placeholders.
-     * Use this for the Main GUI where all inner slots should have placeholders.
-     *
-     * @param inventory The inventory to fill.
-     */
-    private void fillAllWithPlaceholders(Inventory inventory) {
-        ItemStack placeholder = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
-        ItemMeta meta = placeholder.getItemMeta();
-        meta.setDisplayName(" ");
-        placeholder.setItemMeta(meta);
-
-        for (int i = 0; i < inventory.getSize(); i++) {
-            // Avoid overwriting special buttons/items by checking if the slot is already occupied
-            if (inventory.getItem(i) == null || inventory.getItem(i).getType().isAir()) {
-                inventory.setItem(i, placeholder);
-            }
-        }
-    }
-
-    /**
-     * Fills the empty slots of the inventory with black stained glass panes only on the outer border.
-     * Use this for Buy, Sell, and Your Auctions GUIs where inner slots are meant for dynamic content.
-     * Optionally excludes specific slots from being filled with placeholders.
-     *
-     * @param inventory    The inventory to fill.
-     * @param excludeSlots Set of slot indices to exclude from being filled with placeholders.
-     */
-    private void fillWithPlaceholdersBorderOnly(Inventory inventory, Set<Integer> excludeSlots) {
-        ItemStack placeholder = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
-        ItemMeta meta = placeholder.getItemMeta();
-        meta.setDisplayName(" ");
-        placeholder.setItemMeta(meta);
-
-        // Define border slots
-        Set<Integer> borderSlots = new HashSet<>();
-
-        // Top and Bottom rows
-        for (int i = 0; i < 9; i++) {
-            borderSlots.add(i); // Top row
-            borderSlots.add(45 + i); // Bottom row
-        }
-
-        // Left and Right columns for middle rows
-        for (int row = 1; row <= 4; row++) {
-            borderSlots.add(row * 9); // Left column
-            borderSlots.add(row * 9 + 8); // Right column
-        }
-
-        for (int i = 0; i < inventory.getSize(); i++) {
-            if (borderSlots.contains(i) && !excludeSlots.contains(i) && (inventory.getItem(i) == null || inventory.getItem(i).getType().isAir())) {
-                inventory.setItem(i, placeholder);
-            }
-        }
-    }
-
-    /**
-     * Fills the inner non-button slots with placeholders, excluding specified slots.
-     *
-     * @param inventory        The inventory to fill.
-     * @param occupiedSlots    List of slot indices that are occupied by interactive buttons.
-     * @param itemSlotExcluded Slot index that should remain free (e.g., slot 22 in Sell GUI).
-     */
-    private void fillInnerPlaceholders(Inventory inventory, List<Integer> occupiedSlots, int itemSlotExcluded) {
-        ItemStack placeholder = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
-        ItemMeta meta = placeholder.getItemMeta();
-        meta.setDisplayName(" ");
-        placeholder.setItemMeta(meta);
-
-        // Define inner slots (excluding border)
-        List<Integer> innerSlots = new ArrayList<>();
-        for (int i = 9; i < 45; i++) { // Middle 4 rows
-            if ((i % 9 != 0) && (i % 9 != 8)) { // Exclude left and right borders
-                innerSlots.add(i);
-            }
-        }
-
-        for (int slot : innerSlots) {
-            if (slot != itemSlotExcluded && !occupiedSlots.contains(slot)) {
-                if (inventory.getItem(slot) == null || inventory.getItem(slot).getType().isAir()) {
-                    inventory.setItem(slot, placeholder);
-                }
-            }
-        }
-    }
-
-    /**
-     * Adds a back button to the inventory.
-     *
-     * @param inventory The inventory to add the back button to.
-     */
-    private void addBackButton(Inventory inventory) {
-        ItemStack backButton = new ItemStack(Material.ARROW);
-        ItemMeta backMeta = backButton.getItemMeta();
-        backMeta.setDisplayName(Utils.getInstance().$("Back"));
-        backButton.setItemMeta(backMeta);
-
-        inventory.setItem(49, backButton); // Slot 49 is bottom center in a 54-slot inventory
     }
 
     /**
@@ -504,7 +388,8 @@ public class AuctionsGUI {
      *
      * @param event The InventoryClickEvent.
      */
-    public void onInventoryClick(InventoryClickEvent event) {
+    @EventHandler
+    public void onInventoryClickEvent(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
 
         Player player = (Player) event.getWhoClicked();
@@ -533,7 +418,6 @@ public class AuctionsGUI {
                 break;
             case "Auction House - Sell":
                 logger.log("Player " + player.getName() + " clicked in the Auction House - Sell menu.");
-
                 handleSellGUIClick(event, player);
                 break;
             case "Your Auctions":
@@ -554,14 +438,15 @@ public class AuctionsGUI {
      *
      * @param event The InventoryDragEvent.
      */
-    public void onInventoryDrag(InventoryDragEvent event) {
+    @EventHandler
+    public void onInventoryDragEvent(InventoryDragEvent event) {
         String inventoryTitle = ChatColor.stripColor(event.getView().getTitle());
         if ("Auction House - Sell".equals(inventoryTitle)) {
             // Allow dragging only if the drag involves slot 22
-            if (event.getRawSlots().contains(22)) {
+            if (event.getRawSlots().contains(SELL_GUI_ITEM_SLOT)) {
                 // Update the sellingItems map after the event has processed
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    ItemStack item = event.getView().getTopInventory().getItem(22);
+                    ItemStack item = event.getView().getTopInventory().getItem(SELL_GUI_ITEM_SLOT);
                     if (item != null && item.getType() != Material.AIR) {
                         sellingItems.put(event.getWhoClicked().getUniqueId(), item.clone());
                     } else {
@@ -577,6 +462,57 @@ public class AuctionsGUI {
         }
     }
 
+    /**
+     * Handles player chat input for bidding and custom price setting.
+     *
+     * @param event The AsyncPlayerChatEvent.
+     */
+    @EventHandler
+    public void onPlayerChatEvent(AsyncPlayerChatEvent event) {
+        Player player = event.getPlayer();
+        UUID playerId = player.getUniqueId();
+
+        if (pendingBids.containsKey(playerId)) {
+            event.setCancelled(true);
+            String message = event.getMessage();
+            UUID auctionId = pendingBids.remove(playerId);
+
+            try {
+                double bidAmount = Double.parseDouble(message);
+                auctionHouseHelper.placeBid(player, auctionId, bidAmount);
+                // Reopen Buy GUI
+                Bukkit.getScheduler().runTask(plugin, () -> openBuyGUI(player));
+            } catch (NumberFormatException e) {
+                player.sendMessage(Utils.getInstance().$("Invalid bid amount. Please enter a number."));
+            }
+        } else if (pendingPriceInput.contains(playerId)) {
+            event.setCancelled(true);
+            String message = event.getMessage();
+            pendingPriceInput.remove(playerId);
+
+            try {
+                double customPrice = Double.parseDouble(message);
+                if (customPrice < 0) {
+                    player.sendMessage(Utils.getInstance().$("Price cannot be negative."));
+                    return;
+                }
+                priceMap.put(playerId, customPrice);
+                player.sendMessage(Utils.getInstance().$("Custom price set to $" + economyHelper.formatBalance(customPrice)));
+                // Reopen Sell GUI
+                Bukkit.getScheduler().runTask(plugin, () -> openSellGUI(player));
+            } catch (NumberFormatException e) {
+                player.sendMessage(Utils.getInstance().$("Invalid price. Please enter a number."));
+            }
+        }
+    }
+
+    /**
+     * Handles clicks on the main Auction House GUI.
+     *
+     * @param event       The InventoryClickEvent.
+     * @param player      The player who clicked.
+     * @param clickedItem The item that was clicked.
+     */
     private void handleMainGUIClick(InventoryClickEvent event, Player player, ItemStack clickedItem) {
         String displayName = ChatColor.stripColor(clickedItem.getItemMeta().getDisplayName());
         if ("Buy Items".equalsIgnoreCase(displayName)) {
@@ -588,10 +524,16 @@ public class AuctionsGUI {
         }
     }
 
+    /**
+     * Handles clicks on the Buy GUI.
+     *
+     * @param event       The InventoryClickEvent.
+     * @param player      The player who clicked.
+     * @param clickedItem The item that was clicked.
+     */
     private void handleBuyGUIClick(InventoryClickEvent event, Player player, ItemStack clickedItem) {
         // Handle the back button click
         if (clickedItem.getType() == Material.ARROW && ChatColor.stripColor(clickedItem.getItemMeta().getDisplayName()).equals("Back")) {
-            logger.log("Player " + player.getName() + " clicked the Back button in Buy GUI.");
             openMainGUI(player);
             return;
         }
@@ -601,22 +543,23 @@ public class AuctionsGUI {
             int clickedSlot = event.getRawSlot();
             ClickType clickType = event.getClick();
 
-            if (clickedSlot == 50) { // Page Indicator slot
-                PaginationHelper paginationHelper = buyPaginationMap.get(player.getUniqueId());
+            if (clickedSlot == BUY_GUI_PAGE_INDICATOR_SLOT) { // Page Indicator slot
+                PaginationHelper<ItemStack> paginationHelper = buyPaginationMap.get(player.getUniqueId());
                 if (paginationHelper == null) {
-                    logger.log("PaginationHelper is null for player " + player.getName() + " in Buy GUI.");
-                    player.sendMessage(Utils.getInstance().$("An error occurred while handling pagination. Please try again."));
+                    logger.log("Player " + player.getName() + " clicked on Buy GUI pagination without a PaginationHelper.");
+                    player.sendMessage(Utils.getInstance().$("An error occurred. Please try again."));
+
                     return;
                 }
 
                 // **Debug Logging for Click Types**
-                logger.log("Player " + player.getName() + " clicked on Buy GUI pagination in slot 50 with ClickType: " + clickType.name());
+                logger.log("Player " + player.getName() + " clicked on Buy GUI pagination with ClickType: " + clickType.name());
 
                 if (clickType.isLeftClick()) {
                     logger.log("Handling LEFT click for pagination in Buy GUI.");
                     if (paginationHelper.hasPreviousPage()) {
                         paginationHelper.previousPage();
-                        logger.log("PaginationHelper updated to previous page: " + (paginationHelper.getCurrentPage() + 1));
+                        logger.log("PaginationHelper updated to previous page: " + paginationHelper.getCurrentPage());
                         openBuyGUI(player);
                     } else {
                         logger.log("Player " + player.getName() + " is already on the first page in Buy GUI.");
@@ -626,7 +569,7 @@ public class AuctionsGUI {
                     logger.log("Handling RIGHT click for pagination in Buy GUI.");
                     if (paginationHelper.hasNextPage()) {
                         paginationHelper.nextPage();
-                        logger.log("PaginationHelper updated to next page: " + (paginationHelper.getCurrentPage() + 1));
+                        logger.log("PaginationHelper updated to next page: " + paginationHelper.getCurrentPage());
                         openBuyGUI(player);
                     } else {
                         logger.log("Player " + player.getName() + " is already on the last page in Buy GUI.");
@@ -690,97 +633,110 @@ public class AuctionsGUI {
         }
     }
 
-
+    /**
+     * Handles clicks on the Sell GUI.
+     *
+     * @param event  The InventoryClickEvent.
+     * @param player The player who clicked.
+     */
     private void handleSellGUIClick(InventoryClickEvent event, Player player) {
         Inventory clickedInventory = event.getClickedInventory();
         ItemStack clickedItem = event.getCurrentItem();
         int slot = event.getRawSlot();
         ClickType clickType = event.getClick();
 
-        if (event.isShiftClick()) {
-            // Handle shift-clicks
-            if (event.getClickedInventory().equals(player.getInventory())) {
-                // Shift-clicking from player inventory to GUI
-                Inventory sellGui = event.getView().getTopInventory();
-                if (sellGui.getItem(22) == null || sellGui.getItem(22).getType() == Material.AIR) {
-                    // Place the item into slot 22
-                    sellGui.setItem(22, event.getCurrentItem().clone());
-                    event.getClickedInventory().setItem(event.getSlot(), null);
+        // Prevent interacting with the GUI if it's not the top inventory
+        if (!event.getView().getTopInventory().equals(clickedInventory)) return;
 
-                    // Update the sellingItems map
-                    sellingItems.put(player.getUniqueId(), event.getCurrentItem().clone());
-                }
-                event.setCancelled(true);
-            } else {
-                // Prevent shift-clicking in the GUI
-                event.setCancelled(true);
-            }
-        } else if (slot == 22) {
-            // Allow normal clicking in slot 22
+        if (slot == SELL_GUI_ITEM_SLOT) {
+            // Allow normal clicking in slot 22 (item to sell)
             event.setCancelled(false);
             // Update the sellingItems map after the event has processed
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                ItemStack item = event.getInventory().getItem(22);
+                ItemStack item = event.getView().getTopInventory().getItem(SELL_GUI_ITEM_SLOT);
                 if (item != null && item.getType() != Material.AIR) {
                     sellingItems.put(player.getUniqueId(), item.clone());
                 } else {
                     sellingItems.remove(player.getUniqueId());
                 }
             }, 1L); // Delay by 1 tick to ensure the event has processed
-        } else if (event.getClickedInventory().equals(player.getInventory())) {
-            // Allow normal interaction with player inventory
-            event.setCancelled(false);
-        } else {
-            // Handle clicks on GUI items
-            event.setCancelled(true);
-            if (clickedItem == null || !clickedItem.hasItemMeta()) {
-                return;
-            }
-            String displayName = ChatColor.stripColor(clickedItem.getItemMeta().getDisplayName());
-            if (displayName == null) return;
+            return;
+        }
 
-            // Check for dynamic display names
-            if (displayName.startsWith("Current Price: $")) {
-                if (clickType == ClickType.RIGHT) {
-                    // Store the item in slot 22
-                    ItemStack itemToSell = event.getInventory().getItem(22);
-                    if (itemToSell != null && itemToSell.getType() != Material.AIR) {
-                        sellingItems.put(player.getUniqueId(), itemToSell.clone());
-                    }
-                    // Add to pendingPriceInput before closing inventory
-                    pendingPriceInput.add(player.getUniqueId());
-                    player.closeInventory();
-                    promptCustomPrice(player);
+        // Handle shift-clicks from player inventory to GUI
+        if (event.isShiftClick() && clickedInventory.equals(player.getInventory())) {
+            ItemStack itemToSell = event.getCurrentItem();
+            if (itemToSell != null && itemToSell.getType() != Material.AIR) {
+                // Place the item into slot 22
+                event.getView().getTopInventory().setItem(SELL_GUI_ITEM_SLOT, itemToSell.clone());
+                player.getInventory().removeItem(itemToSell.clone());
+
+                // Update the sellingItems map
+                sellingItems.put(player.getUniqueId(), itemToSell.clone());
+            }
+            event.setCancelled(true);
+            return;
+        }
+
+        // Handle clicks on GUI items
+        if (clickedItem == null || !clickedItem.hasItemMeta()) {
+            event.setCancelled(true);
+            return;
+        }
+
+        String displayName = ChatColor.stripColor(clickedItem.getItemMeta().getDisplayName());
+        if (displayName == null) return;
+
+        // Check for dynamic display names
+        if (displayName.startsWith("Current Price: $")) {
+            if (clickType == ClickType.RIGHT) {
+                // Store the item in slot 22
+                ItemStack itemToSell = event.getView().getTopInventory().getItem(SELL_GUI_ITEM_SLOT);
+                if (itemToSell != null && itemToSell.getType() != Material.AIR) {
+                    sellingItems.put(player.getUniqueId(), itemToSell.clone());
                 }
-            } else {
-                switch (displayName) {
-                    case "Decrease Price":
-                        decreasePrice(player, event.getInventory());
-                        break;
-                    case "Increase Price":
-                        increasePrice(player, event.getInventory());
-                        break;
-                    case "Confirm Sale":
-                    case "Confirm Auction":
-                        confirmSale(player, event.getInventory());
-                        break;
-                    case "Change Duration":
-                        changeDuration(player, event.getInventory());
-                        break;
-                    case "Auction Type: Fixed Price":
-                    case "Auction Type: Bidding":
-                        toggleAuctionType(player, event.getInventory());
-                        break;
-                    case "Back":
-                        openMainGUI(player);
-                        break;
-                    default:
-                        break;
-                }
+                // Add to pendingPriceInput before closing inventory
+                pendingPriceInput.add(player.getUniqueId());
+                player.closeInventory();
+                promptCustomPrice(player);
+            }
+        } else {
+            switch (displayName) {
+                case "Decrease Price":
+                    decreasePrice(player, event.getView().getTopInventory());
+                    break;
+                case "Increase Price":
+                    increasePrice(player, event.getView().getTopInventory());
+                    break;
+                case "Confirm Sale":
+                case "Confirm Auction":
+                    confirmSale(player, event.getView().getTopInventory());
+                    break;
+                case "Change Duration":
+                    changeDuration(player, event.getView().getTopInventory());
+                    break;
+                case "Auction Type: Fixed Price":
+                case "Auction Type: Bidding":
+                    toggleAuctionType(player, event.getView().getTopInventory());
+                    break;
+                case "Back":
+                    openMainGUI(player);
+                    break;
+                default:
+                    break;
             }
         }
+
+        event.setCancelled(true);
     }
 
+    /**
+     * Handles clicks on the Player's Auctions GUI.
+     *
+     * @param event       The InventoryClickEvent.
+     * @param player      The player who clicked.
+     * @param clickedItem The item that was clicked.
+     */
     private void handlePlayerAuctionsGUIClick(InventoryClickEvent event, Player player, ItemStack clickedItem) {
         // Handle the back button click
         if (clickedItem.getType() == Material.ARROW && ChatColor.stripColor(clickedItem.getItemMeta().getDisplayName()).equals("Back")) {
@@ -793,8 +749,8 @@ public class AuctionsGUI {
             int clickedSlot = event.getRawSlot();
             ClickType clickType = event.getClick();
 
-            if (clickedSlot == 50) { // Page Indicator slot
-                PaginationHelper paginationHelper = yourAuctionsPaginationMap.get(player.getUniqueId());
+            if (clickedSlot == YOUR_AUCTIONS_PAGE_INDICATOR_SLOT) { // Page Indicator slot
+                PaginationHelper<ItemStack> paginationHelper = yourAuctionsPaginationMap.get(player.getUniqueId());
                 if (paginationHelper == null) return;
 
                 if (clickType.isLeftClick()) {
@@ -816,7 +772,7 @@ public class AuctionsGUI {
             }
         }
 
-        // Handle clicks on auction items
+        // Handle clicks on auction items to cancel them
         ItemMeta meta = clickedItem.getItemMeta();
         if (meta != null && meta.hasLore()) {
             List<String> lore = meta.getLore();
@@ -842,6 +798,12 @@ public class AuctionsGUI {
         }
     }
 
+    /**
+     * Decreases the current price in the Sell GUI.
+     *
+     * @param player  The player who initiated the action.
+     * @param sellGui The Sell GUI inventory.
+     */
     private void decreasePrice(Player player, Inventory sellGui) {
         UUID playerUUID = player.getUniqueId();
         double currentPrice = priceMap.getOrDefault(playerUUID, 100.0);
@@ -851,6 +813,12 @@ public class AuctionsGUI {
         updatePriceDisplay(sellGui, currentPrice);
     }
 
+    /**
+     * Increases the current price in the Sell GUI.
+     *
+     * @param player  The player who initiated the action.
+     * @param sellGui The Sell GUI inventory.
+     */
     private void increasePrice(Player player, Inventory sellGui) {
         UUID playerUUID = player.getUniqueId();
         double currentPrice = priceMap.getOrDefault(playerUUID, 100.0);
@@ -860,18 +828,28 @@ public class AuctionsGUI {
         updatePriceDisplay(sellGui, currentPrice);
     }
 
+    /**
+     * Updates the price display in the Sell GUI.
+     *
+     * @param sellGui      The Sell GUI inventory.
+     * @param currentPrice The current price to display.
+     */
     private void updatePriceDisplay(Inventory sellGui, double currentPrice) {
-        ItemStack priceDisplay = new ItemStack(Material.PAPER);
-        ItemMeta priceMeta = priceDisplay.getItemMeta();
-        priceMeta.setDisplayName(Utils.getInstance().$("Current Price: $" + economyHelper.formatBalance(currentPrice)));
-        priceMeta.setLore(List.of(Utils.getInstance().$("Right-click to set custom price")));
-        priceDisplay.setItemMeta(priceMeta);
+        ItemStack priceDisplay = createGuiItem(Material.PAPER, Utils.getInstance().$("Current Price: $" +
+                        economyHelper.formatBalance(currentPrice)),
+                Collections.singletonList(Utils.getInstance().$("Right-click to set custom price")));
 
-        sellGui.setItem(28, priceDisplay);
+        sellGui.setItem(SELL_GUI_PRICE_DISPLAY_SLOT, priceDisplay);
     }
 
+    /**
+     * Confirms the sale or auction in the Sell GUI.
+     *
+     * @param player  The player who initiated the action.
+     * @param sellGui The Sell GUI inventory.
+     */
     private void confirmSale(Player player, Inventory sellGui) {
-        ItemStack itemToSell = sellGui.getItem(22);
+        ItemStack itemToSell = sellGui.getItem(SELL_GUI_ITEM_SLOT);
         if (itemToSell == null || itemToSell.getType() == Material.AIR) {
             player.sendMessage(Utils.getInstance().$("You must place an item in the center slot to sell."));
             return;
@@ -883,10 +861,10 @@ public class AuctionsGUI {
         boolean isBidItem = bidMap.getOrDefault(playerUUID, false);
 
         // Remove the item from the GUI
-        sellGui.setItem(22, null);
+        sellGui.setItem(SELL_GUI_ITEM_SLOT, null);
 
         // Remove the item from the sellingItems map
-        sellingItems.remove(player.getUniqueId());
+        sellingItems.remove(playerUUID);
 
         // Add the auction
         if (isBidItem) {
@@ -904,6 +882,12 @@ public class AuctionsGUI {
         Bukkit.getScheduler().runTask(plugin, () -> openPlayerAuctionsGUI(player));
     }
 
+    /**
+     * Changes the duration of the auction in the Sell GUI.
+     *
+     * @param player  The player who initiated the action.
+     * @param sellGui The Sell GUI inventory.
+     */
     private void changeDuration(Player player, Inventory sellGui) {
         UUID playerUUID = player.getUniqueId();
         long currentDuration = durationMap.getOrDefault(playerUUID, 86400000L);
@@ -920,52 +904,76 @@ public class AuctionsGUI {
         durationMap.put(playerUUID, currentDuration);
 
         // Update the duration display
-        ItemStack changeDuration = sellGui.getItem(13);
-        if (changeDuration != null) {
-            ItemMeta durationMeta = changeDuration.getItemMeta();
-            List<String> newLore = new ArrayList<>();
-            if (durationMeta.hasLore()) {
-                newLore.add(Utils.getInstance().$("Current Duration: ") + formatDuration(currentDuration));
-            } else {
-                newLore.add(Utils.getInstance().$("Current Duration: ") + formatDuration(currentDuration));
-            }
-            durationMeta.setLore(newLore);
-            changeDuration.setItemMeta(durationMeta);
+        ItemStack changeDuration = createGuiItem(Material.CLOCK, Utils.getInstance().$("Change Duration"),
+                Collections.singletonList(Utils.getInstance().$("Current Duration: " + formatDuration(currentDuration))));
 
-            sellGui.setItem(13, changeDuration);
-        }
+        sellGui.setItem(SELL_GUI_CHANGE_DURATION_SLOT, changeDuration);
     }
 
+    /**
+     * Formats the duration from milliseconds to a human-readable string.
+     *
+     * @param millis The duration in milliseconds.
+     * @return A formatted string representing the duration.
+     */
     private String formatDuration(long millis) {
         long hours = millis / 3600000L;
         return hours + "h";
     }
 
+    /**
+     * Formats the remaining time into a human-readable string.
+     *
+     * @param millis The time in milliseconds.
+     * @return A formatted string representing the time left.
+     */
+    private String formatTimeLeft(long millis) {
+        if (millis < 0) {
+            return ChatColor.RED + "Expired";
+        }
+        long seconds = millis / 1000 % 60;
+        long minutes = millis / (1000 * 60) % 60;
+        long hours = millis / (1000 * 60 * 60) % 24;
+        long days = millis / (1000 * 60 * 60 * 24);
+
+        StringBuilder sb = new StringBuilder();
+        if (days > 0) sb.append(days).append("d ");
+        if (hours > 0 || days > 0) sb.append(hours).append("h ");
+        if (minutes > 0 || hours > 0 || days > 0) sb.append(minutes).append("m ");
+        sb.append(seconds).append("s");
+        return sb.toString();
+    }
+
+    /**
+     * Toggles the auction type between fixed price and bidding in the Sell GUI.
+     *
+     * @param player  The player who initiated the action.
+     * @param sellGui The Sell GUI inventory.
+     */
     private void toggleAuctionType(Player player, Inventory sellGui) {
         UUID playerUUID = player.getUniqueId();
         boolean isBidItem = !bidMap.getOrDefault(playerUUID, false);
         bidMap.put(playerUUID, isBidItem);
 
         // Update the toggle button
-        ItemStack toggleAuctionType = sellGui.getItem(16);
-        if (toggleAuctionType != null) {
-            ItemMeta toggleMeta = toggleAuctionType.getItemMeta();
-            toggleMeta.setDisplayName(Utils.getInstance().$("Auction Type: " + (isBidItem ? "Bidding" : "Fixed Price")));
-            toggleMeta.setLore(List.of(Utils.getInstance().$("Click to switch auction type")));
-            toggleAuctionType.setItemMeta(toggleMeta);
-            sellGui.setItem(16, toggleAuctionType);
-        }
+        ItemStack toggleAuctionType = createGuiItem(Material.GOLDEN_HOE,
+                Utils.getInstance().$("Auction Type: " + (isBidItem ? "Bidding" : "Fixed Price")),
+                Collections.singletonList(Utils.getInstance().$("Click to switch auction type")));
+        sellGui.setItem(SELL_GUI_TOGGLE_AUCTION_TYPE_SLOT, toggleAuctionType);
 
-        // Update the Confirm button lore to reflect auction type
-        ItemStack confirm = sellGui.getItem(31);
-        if (confirm != null) {
-            ItemMeta confirmMeta = confirm.getItemMeta();
-            confirmMeta.setDisplayName(Utils.getInstance().$("Confirm " + (isBidItem ? "Auction" : "Sale")));
-            confirm.setItemMeta(confirmMeta);
-            sellGui.setItem(31, confirm);
-        }
+        // Update the Confirm button display name to reflect auction type
+        ItemStack confirm = createGuiItem(Material.GREEN_WOOL,
+                Utils.getInstance().$("Confirm " + (isBidItem ? "Auction" : "Sale")),
+                null);
+        sellGui.setItem(SELL_GUI_CONFIRM_SLOT, confirm);
     }
 
+    /**
+     * Prompts the player to enter a bid amount via chat.
+     *
+     * @param player    The player placing the bid.
+     * @param auctionId The auction ID to bid on.
+     */
     private void promptBidAmount(Player player, UUID auctionId) {
         // Add the player to a pending bids map before closing inventory
         pendingBids.put(player.getUniqueId(), auctionId);
@@ -974,6 +982,11 @@ public class AuctionsGUI {
         player.sendMessage(Utils.getInstance().$("Enter your bid amount in chat:"));
     }
 
+    /**
+     * Prompts the player to enter a custom price via chat.
+     *
+     * @param player The player setting a custom price.
+     */
     private void promptCustomPrice(Player player) {
         // Player is already added to pendingPriceInput before this method is called
 
@@ -982,78 +995,125 @@ public class AuctionsGUI {
     }
 
     /**
-     * Handles player chat input for bidding and custom price setting.
+     * Creates a generic GUI item with a display name and optional lore.
      *
-     * @param event The AsyncPlayerChatEvent.
+     * @param material    The material of the item.
+     * @param displayName The display name of the item.
+     * @param lore        The lore of the item (can be null).
+     * @return The customized ItemStack.
      */
-    public void onPlayerChat(AsyncPlayerChatEvent event) {
-        Player player = event.getPlayer();
-        UUID playerId = player.getUniqueId();
-
-        if (pendingBids.containsKey(playerId)) {
-            event.setCancelled(true);
-            String message = event.getMessage();
-            UUID auctionId = pendingBids.remove(playerId);
-
-            try {
-                double bidAmount = Double.parseDouble(message);
-                auctionHouseHelper.placeBid(player, auctionId, bidAmount);
-                // Reopen Buy GUI
-                Bukkit.getScheduler().runTask(plugin, () -> openBuyGUI(player));
-            } catch (NumberFormatException e) {
-                player.sendMessage(Utils.getInstance().$("Invalid bid amount. Please enter a number."));
+    private ItemStack createGuiItem(Material material, String displayName, List<String> lore) {
+        ItemStack item = new ItemStack(material);
+        if (displayName != null) {
+            ItemMeta meta = item.getItemMeta();
+            meta.setDisplayName(displayName);
+            if (lore != null && !lore.isEmpty()) {
+                meta.setLore(lore);
             }
-        } else if (pendingPriceInput.contains(playerId)) {
-            event.setCancelled(true);
-            String message = event.getMessage();
-            pendingPriceInput.remove(playerId);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
 
-            try {
-                double customPrice = Double.parseDouble(message);
-                if (customPrice < 0) {
-                    player.sendMessage(Utils.getInstance().$("Price cannot be negative."));
-                    return;
-                }
-                priceMap.put(playerId, customPrice);
-                player.sendMessage(Utils.getInstance().$("Custom price set to $" + economyHelper.formatBalance(customPrice)));
-                // Reopen Sell GUI
-                Bukkit.getScheduler().runTask(plugin, () -> openSellGUI(player));
-            } catch (NumberFormatException e) {
-                player.sendMessage(Utils.getInstance().$("Invalid price. Please enter a number."));
+    /**
+     * Fills the entire inventory with black stained glass panes as placeholders.
+     *
+     * @param inventory The inventory to fill.
+     */
+    private void fillAllWithPlaceholders(Inventory inventory) {
+        ItemStack placeholder = createGuiItem(Material.BLACK_STAINED_GLASS_PANE, " ", null);
+
+        for (int i = 0; i < inventory.getSize(); i++) {
+            if (inventory.getItem(i) == null || inventory.getItem(i).getType().isAir()) {
+                inventory.setItem(i, placeholder);
             }
         }
     }
 
-    // Additional helper methods for inventory close handling
-    public boolean isPendingPriceInput(UUID playerId) {
-        return pendingPriceInput.contains(playerId);
+    /**
+     * Fills the inventory with placeholders only on the outer border.
+     *
+     * @param inventory    The inventory to fill.
+     * @param excludeSlots Set of slot indices to exclude from being filled with placeholders.
+     */
+    private void fillWithPlaceholdersBorderOnly(Inventory inventory, Set<Integer> excludeSlots) {
+        ItemStack placeholder = createGuiItem(Material.BLACK_STAINED_GLASS_PANE, " ", null);
+
+        // Define border slots
+        Set<Integer> borderSlots = new HashSet<>();
+
+        // Top and Bottom rows
+        for (int i = 0; i < 9; i++) {
+            borderSlots.add(i); // Top row
+            borderSlots.add(45 + i); // Bottom row
+        }
+
+        // Left and Right columns for middle rows
+        for (int row = 1; row <= 4; row++) {
+            borderSlots.add(row * 9); // Left column
+            borderSlots.add(row * 9 + 8); // Right column
+        }
+
+        for (int i : borderSlots) {
+            if (!excludeSlots.contains(i) && (inventory.getItem(i) == null || inventory.getItem(i).getType().isAir())) {
+                inventory.setItem(i, placeholder);
+            }
+        }
     }
 
-    public void removeSellingItem(UUID playerId) {
-        sellingItems.remove(playerId);
+    /**
+     * Fills the inner non-button slots with placeholders, excluding specified slots.
+     *
+     * @param inventory         The inventory to fill.
+     * @param occupiedSlots     List of slot indices that are occupied by interactive buttons.
+     * @param itemSlotExcluded  Slot index that should remain free (e.g., slot 22 in Sell GUI).
+     */
+    private void fillInnerPlaceholders(Inventory inventory, List<Integer> occupiedSlots, int itemSlotExcluded) {
+        ItemStack placeholder = createGuiItem(Material.BLACK_STAINED_GLASS_PANE, " ", null);
+
+        // Define inner slots (excluding border)
+        List<Integer> innerSlots = new ArrayList<>();
+        for (int i = 9; i < 45; i++) { // Middle 4 rows
+            if ((i % 9 != 0) && (i % 9 != 8)) { // Exclude left and right borders
+                innerSlots.add(i);
+            }
+        }
+
+        for (int slot : innerSlots) {
+            if (slot != itemSlotExcluded && !occupiedSlots.contains(slot)) {
+                if (inventory.getItem(slot) == null || inventory.getItem(slot).getType().isAir()) {
+                    inventory.setItem(slot, placeholder);
+                }
+            }
+        }
     }
 
+    /**
+     * Removes PaginationHelpers associated with a player.
+     *
+     * @param playerId The UUID of the player.
+     */
     public void removePagination(UUID playerId) {
         buyPaginationMap.remove(playerId);
         yourAuctionsPaginationMap.remove(playerId);
     }
 
-    public void registerEvents(JavaPlugin pluginInstance) {
-        Bukkit.getPluginManager().registerEvents(new Listener() {
-            @EventHandler
-            public void onInventoryClickEvent(InventoryClickEvent event) {
-                onInventoryClick(event);
-            }
+    /**
+     * Checks if a player is pending a custom price input.
+     *
+     * @param playerId The UUID of the player.
+     * @return True if the player is pending a custom price input, false otherwise.
+     */
+    public boolean isPendingPriceInput(UUID playerId) {
+        return pendingPriceInput.contains(playerId);
+    }
 
-            @EventHandler
-            public void onInventoryDragEvent(InventoryDragEvent event) {
-                onInventoryDrag(event);
-            }
-
-            @EventHandler
-            public void onPlayerChatEvent(AsyncPlayerChatEvent event) {
-                onPlayerChat(event);
-            }
-        }, pluginInstance);
+    /**
+     * Removes the selling item associated with a player.
+     *
+     * @param playerId The UUID of the player.
+     */
+    public void removeSellingItem(UUID playerId) {
+        sellingItems.remove(playerId);
     }
 }

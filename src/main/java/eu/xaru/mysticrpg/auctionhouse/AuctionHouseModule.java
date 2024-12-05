@@ -14,14 +14,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.logging.Level;
 
 /**
@@ -29,6 +28,11 @@ import java.util.logging.Level;
  * of the auction house.
  */
 public class AuctionHouseModule implements IBaseModule {
+
+    private static final String INVENTORY_AUCTION_HOUSE = "Auction House";
+    private static final String INVENTORY_BUY = "Auction House - Buy";
+    private static final String INVENTORY_SELL = "Auction House - Sell";
+    private static final String INVENTORY_YOUR_AUCTIONS = "Your Auctions";
 
     private AuctionHouseHelper auctionHouseHelper;
     private EventManager eventManager;
@@ -60,10 +64,13 @@ public class AuctionHouseModule implements IBaseModule {
         // Instantiate AuctionHouseHelper once
         this.auctionHouseHelper = new AuctionHouseHelper(economyHelper);
 
-        // Pass the same instance to AuctionsGUI
-        this.auctionsGUI = new AuctionsGUI(auctionHouseHelper,
-                economyHelper, logger);
-        this.auctionsGUI.setPlugin(plugin); // Pass the plugin instance to AuctionsGUI
+        // Instantiate AuctionsGUI with necessary dependencies
+        this.auctionsGUI = new AuctionsGUI(
+                auctionHouseHelper,
+                economyHelper,
+                logger,
+                plugin
+        );
 
         logger.log(Level.INFO, "AuctionHouseModule initialized", 0);
     }
@@ -71,7 +78,6 @@ public class AuctionHouseModule implements IBaseModule {
     @Override
     public void start() {
         logger.log(Level.INFO, "AuctionHouseModule started", 0);
-
         registerEvents();
     }
 
@@ -87,8 +93,11 @@ public class AuctionHouseModule implements IBaseModule {
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(DebugLoggerModule.class,
-                EconomyModule.class, SaveModule.class);
+        return List.of(
+                DebugLoggerModule.class,
+                EconomyModule.class,
+                SaveModule.class
+        );
     }
 
     @Override
@@ -96,10 +105,18 @@ public class AuctionHouseModule implements IBaseModule {
         return EModulePriority.NORMAL;
     }
 
+    /**
+     * Opens the main Auction House GUI for the player.
+     *
+     * @param player The player to open the GUI for.
+     */
     public void openAuctionGUI(Player player) {
         auctionsGUI.openMainGUI(player);
     }
 
+    /**
+     * Registers relevant event listeners for the Auction House.
+     */
     private void registerEvents() {
         // Register InventoryClickEvent for AuctionsGUI
         eventManager.registerEvent(InventoryClickEvent.class, event -> {
@@ -111,12 +128,8 @@ public class AuctionHouseModule implements IBaseModule {
 
             String strippedTitle = ChatColor.stripColor(inventoryTitle);
 
-            if ("Auction House".equals(strippedTitle) ||
-                    "Auction House - Buy".equals(strippedTitle) ||
-                    "Auction House - Sell".equals(strippedTitle) ||
-                    "Your Auctions".equals(strippedTitle)) {
-
-                auctionsGUI.onInventoryClick(event);
+            if (isAuctionHouseInventory(strippedTitle)) {
+                auctionsGUI.onInventoryClickEvent(event);
             }
         });
 
@@ -127,12 +140,8 @@ public class AuctionHouseModule implements IBaseModule {
 
             String strippedTitle = ChatColor.stripColor(inventoryTitle);
 
-            if ("Auction House".equals(strippedTitle) ||
-                    "Auction House - Buy".equals(strippedTitle) ||
-                    "Auction House - Sell".equals(strippedTitle) ||
-                    "Your Auctions".equals(strippedTitle)) {
-
-                auctionsGUI.onInventoryDrag(event);
+            if (isAuctionHouseInventory(strippedTitle)) {
+                auctionsGUI.onInventoryDragEvent(event);
             }
         });
 
@@ -141,29 +150,53 @@ public class AuctionHouseModule implements IBaseModule {
             if (!(event.getPlayer() instanceof Player)) return;
             Player player = (Player) event.getPlayer();
             String inventoryTitle = ChatColor.stripColor(event.getView().getTitle());
-            if ("Auction House - Sell".equals(inventoryTitle)) {
-                // Delay the check to the next tick to ensure pendingPriceInput is updated
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    if (!auctionsGUI.isPendingPriceInput(player.getUniqueId())) {
-                        // Return the item in slot 22 to the player
-                        ItemStack item = event.getInventory().getItem(22);
-                        if (item != null && item.getType() != Material.AIR) {
-                            player.getInventory().addItem(item);
-                        }
-                        // Remove the item from the sellingItems map
-                        auctionsGUI.removeSellingItem(player.getUniqueId());
-                    }
-                }, 1L);
-            } else if ("Auction House - Buy".equals(inventoryTitle)) {
-                // Remove the pagination helper for this player to prevent memory leaks
+
+            if (INVENTORY_SELL.equals(inventoryTitle)) {
+                handleSellInventoryClose(event, player);
+            } else if (INVENTORY_BUY.equals(inventoryTitle)) {
                 auctionsGUI.removePagination(player.getUniqueId());
             }
         });
 
         // Register AsyncPlayerChatEvent for handling bids and custom prices
         eventManager.registerEvent(AsyncPlayerChatEvent.class, event -> {
+            // Sanitize the message using Utils (assuming it handles such operations)
             event.setMessage(Utils.getInstance().$(event.getMessage()));
-            auctionsGUI.onPlayerChat(event);
+            auctionsGUI.onPlayerChatEvent(event);
         });
+    }
+
+    /**
+     * Checks if the given inventory title is related to the Auction House.
+     *
+     * @param title The stripped inventory title.
+     * @return True if it's an Auction House inventory, false otherwise.
+     */
+    private boolean isAuctionHouseInventory(String title) {
+        return INVENTORY_AUCTION_HOUSE.equals(title) ||
+                INVENTORY_BUY.equals(title) ||
+                INVENTORY_SELL.equals(title) ||
+                INVENTORY_YOUR_AUCTIONS.equals(title);
+    }
+
+    /**
+     * Handles the InventoryCloseEvent for the Sell GUI.
+     *
+     * @param event  The InventoryCloseEvent.
+     * @param player The player who closed the inventory.
+     */
+    private void handleSellInventoryClose(InventoryCloseEvent event, Player player) {
+        // Delay the check to the next tick to ensure pendingPriceInput is updated
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!auctionsGUI.isPendingPriceInput(player.getUniqueId())) {
+                // Return the item in slot 22 to the player
+                ItemStack item = event.getInventory().getItem(22);
+                if (item != null && item.getType() != Material.AIR) {
+                    player.getInventory().addItem(item);
+                }
+                // Remove the item from the sellingItems map
+                auctionsGUI.removeSellingItem(player.getUniqueId());
+            }
+        }, 1L);
     }
 }
