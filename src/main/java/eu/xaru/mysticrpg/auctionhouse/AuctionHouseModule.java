@@ -1,6 +1,5 @@
 package eu.xaru.mysticrpg.auctionhouse;
 
-import dev.jorel.commandapi.CommandAPICommand;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.economy.EconomyModule;
@@ -11,11 +10,15 @@ import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import eu.xaru.mysticrpg.utils.Utils;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
@@ -60,6 +63,7 @@ public class AuctionHouseModule implements IBaseModule {
         // Pass the same instance to AuctionsGUI
         this.auctionsGUI = new AuctionsGUI(auctionHouseHelper,
                 economyHelper, logger);
+        this.auctionsGUI.setPlugin(plugin); // Pass the plugin instance to AuctionsGUI
 
         logger.log(Level.INFO, "AuctionHouseModule initialized", 0);
     }
@@ -132,7 +136,31 @@ public class AuctionHouseModule implements IBaseModule {
             }
         });
 
-        // Register AsyncPlayerChatEvent for handling bids
+        // Register InventoryCloseEvent for AuctionsGUI
+        eventManager.registerEvent(InventoryCloseEvent.class, event -> {
+            if (!(event.getPlayer() instanceof Player)) return;
+            Player player = (Player) event.getPlayer();
+            String inventoryTitle = ChatColor.stripColor(event.getView().getTitle());
+            if ("Auction House - Sell".equals(inventoryTitle)) {
+                // Delay the check to the next tick to ensure pendingPriceInput is updated
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    if (!auctionsGUI.isPendingPriceInput(player.getUniqueId())) {
+                        // Return the item in slot 22 to the player
+                        ItemStack item = event.getInventory().getItem(22);
+                        if (item != null && item.getType() != Material.AIR) {
+                            player.getInventory().addItem(item);
+                        }
+                        // Remove the item from the sellingItems map
+                        auctionsGUI.removeSellingItem(player.getUniqueId());
+                    }
+                }, 1L);
+            } else if ("Auction House - Buy".equals(inventoryTitle)) {
+                // Remove the pagination helper for this player to prevent memory leaks
+                auctionsGUI.removePagination(player.getUniqueId());
+            }
+        });
+
+        // Register AsyncPlayerChatEvent for handling bids and custom prices
         eventManager.registerEvent(AsyncPlayerChatEvent.class, event -> {
             event.setMessage(Utils.getInstance().$(event.getMessage()));
             auctionsGUI.onPlayerChat(event);

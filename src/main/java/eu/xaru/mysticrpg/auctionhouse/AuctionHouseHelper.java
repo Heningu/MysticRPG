@@ -286,7 +286,7 @@ public class AuctionHouseHelper {
         Auction auction = activeAuctions.get(auctionId);
         if (auction != null && !auction.isBidItem()) {
             double buyerBalance = economyHelper.getBalance(buyer);
-            double price = auction.getStartingPrice(); // Updated line
+            double price = auction.getStartingPrice();
 
             if (buyerBalance >= price) {
                 // Deduct money from buyer
