@@ -26,8 +26,7 @@ public class EconomyModule implements IBaseModule {
     private DebugLoggerModule logger;
 
     public EconomyModule() {
-        // Initialize the plugin instance if required or leave empty
-        this.plugin = JavaPlugin.getPlugin(MysticCore.class); // Assuming MysticCore is the main class
+        this.plugin = JavaPlugin.getPlugin(MysticCore.class);
     }
 
     @Override
@@ -40,7 +39,7 @@ public class EconomyModule implements IBaseModule {
             this.economyHelper = new EconomyHelper(playerDataCache);
             logger.log(Level.INFO, "EconomyModule initialized successfully.", 0);
         } else {
-            logger.error("SaveModule is not initialized. EconomyModule cannot function without it.");
+            logger.log(String.valueOf(Level.SEVERE), "SaveModule is not initialized. EconomyModule cannot function without it.", new Object[0]);
             return;
         }
 
@@ -72,13 +71,16 @@ public class EconomyModule implements IBaseModule {
         return EModulePriority.NORMAL;
     }
 
+    /**
+     * Registers economy-related commands using CommandAPI.
+     */
     private void registerEconomyCommand() {
         new CommandAPICommand("money")
                 .withSubcommand(new CommandAPICommand("balance")
                         .executesPlayer((player, args) -> {
                             double balance = economyHelper.getBalance(player);
                             player.sendMessage(Utils.getInstance().$("Your balance: $" + economyHelper.formatBalance(balance)));
-                            logger.log("Displayed balance for player: " + player.getName());
+                            logger.log(Level.INFO, "Displayed balance for player: {0}", Integer.parseInt(player.getName()));
                         }))
                 .withSubcommand(new CommandAPICommand("send")
                         .withArguments(new PlayerArgument("target"), new DoubleArgument("amount"))
@@ -88,17 +90,21 @@ public class EconomyModule implements IBaseModule {
 
                             if (target != null) {
                                 economyHelper.sendMoney(player, target, amount);
-                                logger.log("Player " + player.getName() + " attempted to send $" + amount + " to " + target.getName());
+                                logger.log(String.valueOf(Level.INFO), "Player {0} attempted to send ${1} to {2}", new Object[]{player.getName(), amount, target.getName()});
                             } else {
-                                logger.warn("Target player not found for sending money command.");
+                                logger.log("Target player not found for sending money command.", Level.WARNING);
                                 player.sendMessage(Utils.getInstance().$("Target player not found."));
                             }
                         }))
                 .register();
     }
+
+    /**
+     * Getter for EconomyHelper.
+     *
+     * @return The EconomyHelper instance.
+     */
     public EconomyHelper getEconomyHelper() {
         return economyHelper;
     }
-
-
 }

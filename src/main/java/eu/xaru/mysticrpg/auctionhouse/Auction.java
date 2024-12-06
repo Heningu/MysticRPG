@@ -138,4 +138,26 @@ public class Auction {
     private ItemStack deserializeItemStack(String data) {
         return SaveHelper.itemStackFromBase64(data);
     }
+
+    /**
+     * **Added Methods for Consistency with placeBid Method**
+     */
+
+    /**
+     * Gets the highest bid for the auction.
+     *
+     * @return The current highest bid.
+     */
+    public double getHighestBid() {
+        return this.getCurrentBid();
+    }
+
+    /**
+     * Sets the highest bid for the auction.
+     *
+     * @param highestBid The new highest bid amount.
+     */
+    public void setHighestBid(double highestBid) {
+        this.setCurrentBid(highestBid);
+    }
 }

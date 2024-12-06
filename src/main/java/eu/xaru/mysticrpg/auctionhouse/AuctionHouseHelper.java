@@ -1,19 +1,32 @@
 package eu.xaru.mysticrpg.auctionhouse;
 
 import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.customs.items.Category;
+import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.*;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.PaginationHelper;
 import eu.xaru.mysticrpg.utils.Utils;
+import eu.xaru.mysticrpg.auctionhouse.guis.BuyGUI;
+import eu.xaru.mysticrpg.auctionhouse.guis.SellGUI;
+import eu.xaru.mysticrpg.auctionhouse.guis.YourAuctionsGUI;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.*;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
@@ -28,6 +41,7 @@ public class AuctionHouseHelper {
     private final DebugLoggerModule logger;
     private boolean auctionsLoaded = false;
     private final MysticCore plugin;
+    private static final Logger loggerAuction = Logger.getLogger(AuctionHouseHelper.class.getName());
 
     public AuctionHouseHelper(EconomyHelper economyHelper) {
         this.economyHelper = economyHelper;
@@ -70,16 +84,16 @@ public class AuctionHouseHelper {
                     ItemStack item = SaveHelper.itemStackFromBase64(auction.getItemData());
                     auction.setItem(item);
                     activeAuctions.put(auction.getAuctionId(), auction);
-                    logger.log(Level.INFO, "Loaded auction with ID: " + auction.getAuctionId(), 0);
+                    loggerAuction.log(Level.INFO, "Loaded auction with ID: " + auction.getAuctionId(), 0);
                 }
                 auctionsLoaded = true;
-                logger.log(Level.INFO, "Total auctions loaded: " + activeAuctions.size(), 0);
+                loggerAuction.log(Level.INFO, "Total auctions loaded: " + activeAuctions.size(), 0);
             }
 
             @Override
             public void onFailure(Throwable throwable) {
                 auctionsLoaded = true; // Prevent hanging
-                logger.error("Failed to load auctions from the database: " + throwable.getMessage());
+                loggerAuction.log(Level.SEVERE, "Failed to load auctions from the database: " + throwable.getMessage(), throwable);
             }
         });
     }
@@ -91,6 +105,7 @@ public class AuctionHouseHelper {
      * @param item     The item being auctioned.
      * @param price    The price of the item.
      * @param duration The duration in milliseconds.
+     * @return The UUID of the newly created auction.
      */
     public UUID addAuction(UUID seller, ItemStack item,
                            double price, long duration) {
@@ -99,7 +114,7 @@ public class AuctionHouseHelper {
         Auction auction = new Auction(auctionId, seller,
                 item, price, endTime);
         activeAuctions.put(auctionId, auction);
-        logger.log(Level.INFO, "Auction added to activeAuctions with ID: " + auctionId, 0);
+        loggerAuction.log(Level.INFO, "Auction added to activeAuctions with ID: " + auctionId, 0);
 
 
         // Save auction to database
@@ -107,12 +122,12 @@ public class AuctionHouseHelper {
             @Override
             public void onSuccess(Void result) {
                 // Auction saved successfully
-                logger.log(Level.INFO, "Auction " + auctionId +
+                loggerAuction.log(Level.INFO, "Auction " + auctionId +
                         " saved to database.", 0);
 
                 // Notify players about the new auction
                 Bukkit.getScheduler().runTask(plugin, () -> {
-                    String itemName = item.getType().toString();
+                    String itemName = auction.getItem().getType().toString();
                     Player sellerPlayer = Bukkit.getPlayer(seller);
                     String sellerName = sellerPlayer != null ? sellerPlayer.getName() : "A player";
                     Bukkit.broadcastMessage(Utils.getInstance().$("&a[Auction House] &e" +
@@ -123,8 +138,7 @@ public class AuctionHouseHelper {
 
             @Override
             public void onFailure(Throwable throwable) {
-                logger.error("Failed to save auction to database: " +
-                        throwable.getMessage());
+                loggerAuction.log(Level.SEVERE, "Failed to save auction to database: " + throwable.getMessage(), throwable);
             }
         });
 
@@ -138,24 +152,25 @@ public class AuctionHouseHelper {
      * @param item          The item being auctioned.
      * @param startingPrice The starting price of the auction.
      * @param duration      The duration in milliseconds.
+     * @return The UUID of the newly created bidding auction.
      */
     public UUID addBidAuction(UUID seller, ItemStack item, double startingPrice, long duration) {
         long endTime = System.currentTimeMillis() + duration;
         UUID auctionId = UUID.randomUUID();
         Auction auction = new Auction(auctionId, seller, item, startingPrice, endTime, true);
         activeAuctions.put(auctionId, auction);
-        logger.log(Level.INFO, "Bid auction added to activeAuctions with ID: " + auctionId, 0);
+        loggerAuction.log(Level.INFO, "Bid auction added to activeAuctions with ID: " + auctionId, 0);
 
 
         // Save auction to database
         saveModule.saveAuction(auction, new Callback<Void>() {
             @Override
             public void onSuccess(Void result) {
-                logger.log(Level.INFO, "Bid auction " + auctionId + " saved to database.", 0);
+                loggerAuction.log(Level.INFO, "Bid auction " + auctionId + " saved to database.", 0);
 
                 // Notify players about the new auction
                 Bukkit.getScheduler().runTask(plugin, () -> {
-                    String itemName = item.getType().toString();
+                    String itemName = auction.getItem().getType().toString();
                     Player sellerPlayer = Bukkit.getPlayer(seller);
                     String sellerName = sellerPlayer != null ? sellerPlayer.getName() : "A player";
                     Bukkit.broadcastMessage(Utils.getInstance().$("&a[Auction House] &e" +
@@ -166,7 +181,7 @@ public class AuctionHouseHelper {
 
             @Override
             public void onFailure(Throwable throwable) {
-                logger.error("Failed to save bid auction to database: " + throwable.getMessage());
+                loggerAuction.log(Level.SEVERE, "Failed to save bid auction to database: " + throwable.getMessage(), throwable);
             }
         });
 
@@ -185,15 +200,13 @@ public class AuctionHouseHelper {
         saveModule.deleteAuction(auctionId, new Callback<Void>() {
             @Override
             public void onSuccess(Void result) {
-                // Auction deleted successfully
-                logger.log(Level.INFO, "Auction " + auctionId +
+                loggerAuction.log(Level.INFO, "Auction " + auctionId +
                         " deleted from database.", 0);
             }
 
             @Override
             public void onFailure(Throwable throwable) {
-                logger.error("Failed to delete auction from database: " +
-                        throwable.getMessage());
+                loggerAuction.log(Level.SEVERE, "Failed to delete auction from database: " + throwable.getMessage(), throwable);
             }
         });
     }
@@ -208,11 +221,11 @@ public class AuctionHouseHelper {
         List<Auction> auctions = activeAuctions.values().stream()
                 .filter(a -> {
                     boolean isActive = a.getEndTime() > currentTime;
-                    logger.log(Level.INFO, "Auction ID: " + a.getAuctionId() + ", End Time: " + a.getEndTime() + ", Is Active: " + isActive, 0);
+                    loggerAuction.log(Level.INFO, "Auction ID: " + a.getAuctionId() + ", End Time: " + a.getEndTime() + ", Is Active: " + isActive, 0);
                     return isActive;
                 })
                 .collect(Collectors.toList());
-        logger.log(Level.INFO, "getActiveAuctions: Found " + auctions.size() + " active auctions.", 0);
+        loggerAuction.log(Level.INFO, "getActiveAuctions: Found " + auctions.size() + " active auctions.", 0);
         return auctions;
     }
 
@@ -259,13 +272,12 @@ public class AuctionHouseHelper {
                 public void onSuccess(Void result) {
                     // Auction deleted successfully
                     player.sendMessage(Utils.getInstance().$("Auction canceled. The item has been returned to your inventory."));
-                    logger.log(Level.INFO, "Auction " + auctionId + " canceled by player " + player.getName(), 0);
+                    loggerAuction.log(Level.INFO, "Auction " + auctionId + " canceled by player " + player.getName(), 0);
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
-                    logger.error("Failed to delete auction from database: " + throwable.getMessage());
-                    player.sendMessage(Utils.getInstance().$("An error occurred while canceling the auction."));
+                    loggerAuction.log(Level.SEVERE, "Failed to delete auction from database: " + throwable.getMessage(), throwable);
                 }
             });
 
@@ -277,77 +289,12 @@ public class AuctionHouseHelper {
     }
 
     /**
-     * Attempts to purchase an auction.
+     * Places a bid on an auction.
      *
-     * @param buyer     The player buying the item.
+     * @param bidder    The player placing the bid.
      * @param auctionId The UUID of the auction.
+     * @param bidAmount The amount of the bid.
      */
-    public void buyAuction(Player buyer, UUID auctionId) {
-        Auction auction = activeAuctions.get(auctionId);
-        if (auction != null && !auction.isBidItem()) {
-            double buyerBalance = economyHelper.getBalance(buyer);
-            double price = auction.getStartingPrice();
-
-            if (buyerBalance >= price) {
-                // Deduct money from buyer
-                economyHelper.addBalance(buyer, -price);
-
-                // Transfer money to seller
-                UUID sellerId = auction.getSeller();
-                Player seller = Bukkit.getPlayer(sellerId);
-                if (seller != null && seller.isOnline()) {
-                    economyHelper.addBalance(seller, price);
-                    seller.sendMessage(Utils.getInstance().$("Your item has been sold to " + buyer.getName() + " for $" + economyHelper.formatBalance(price)));
-                } else {
-                    // Seller is offline, add to pending balance
-                    PlayerData sellerData = playerDataCache.getCachedPlayerData(sellerId);
-                    if (sellerData != null) {
-                        double pendingBalance = sellerData.getPendingBalance();
-                        sellerData.setPendingBalance(pendingBalance + price);
-
-                        // Save the updated PlayerData
-                        playerDataCache.savePlayerData(sellerId, new Callback<Void>() {
-                            @Override
-                            public void onSuccess(Void result) {
-                                logger.log(Level.INFO, "Added pending balance to offline player " + sellerId, 0);
-                            }
-
-                            @Override
-                            public void onFailure(Throwable throwable) {
-                                logger.error("Failed to save pending balance for player " + sellerId + ": " + throwable.getMessage());
-                            }
-                        });
-                    }
-                }
-
-                // Give item to buyer
-                buyer.getInventory().addItem(auction.getItem());
-                buyer.sendMessage(Utils.getInstance().$("You have purchased " + auction.getItem().getType() + " for $" + economyHelper.formatBalance(price)));
-
-                // Remove auction
-                activeAuctions.remove(auctionId);
-
-                // Delete auction from database
-                saveModule.deleteAuction(auctionId, new Callback<Void>() {
-                    @Override
-                    public void onSuccess(Void result) {
-                        // Auction deleted successfully
-                        logger.log(Level.INFO, "Auction " + auctionId + " purchased by player " + buyer.getName(), 0);
-                    }
-
-                    @Override
-                    public void onFailure(Throwable throwable) {
-                        logger.error("Failed to delete auction from database: " + throwable.getMessage());
-                    }
-                });
-            } else {
-                buyer.sendMessage(Utils.getInstance().$("You do not have enough money to purchase this item."));
-            }
-        } else {
-            buyer.sendMessage(Utils.getInstance().$("This auction does not exist or cannot be bought directly."));
-        }
-    }
-
     /**
      * Places a bid on an auction.
      *
@@ -358,7 +305,7 @@ public class AuctionHouseHelper {
     public void placeBid(Player bidder, UUID auctionId, double bidAmount) {
         Auction auction = activeAuctions.get(auctionId);
         if (auction != null && auction.isBidItem()) {
-            if (bidAmount > auction.getCurrentBid()) {
+            if (bidAmount > auction.getHighestBid()) {
                 double bidderBalance = economyHelper.getBalance(bidder);
                 if (bidderBalance >= bidAmount) {
                     // Refund previous highest bidder
@@ -367,23 +314,35 @@ public class AuctionHouseHelper {
                         if (!previousBidderId.equals(bidder.getUniqueId())) {
                             Player previousBidder = Bukkit.getPlayer(previousBidderId);
                             if (previousBidder != null && previousBidder.isOnline()) {
-                                economyHelper.addBalance(previousBidder, auction.getCurrentBid());
-                                previousBidder.sendMessage(Utils.getInstance().$("You have been outbid on auction " + auctionId));
+                                boolean refunded = economyHelper.depositBalance(previousBidder, auction.getHighestBid());
+                                if (!refunded) {
+                                    // If refund fails, log the error
+                                    loggerAuction.log(Level.SEVERE, "Failed to refund previous highest bidder {0} for auction ID: {1}",
+                                            new Object[]{previousBidder.getName(), auctionId});
+                                } else {
+                                    previousBidder.sendMessage(Utils.getInstance().$("Your bid of $" + economyHelper.formatBalance(auction.getHighestBid()) + " has been refunded."));
+                                    loggerAuction.log(Level.INFO, "Refunded previous highest bidder {0} ${1} for auction ID: {2}",
+                                            new Object[]{previousBidder.getName(), auction.getHighestBid(), auctionId});
+                                }
                             } else {
-                                // Add to pending balance for offline player
-                                PlayerData bidderData = playerDataCache.getCachedPlayerData(previousBidderId);
-                                if (bidderData != null) {
-                                    double pendingBalance = bidderData.getPendingBalance();
-                                    bidderData.setPendingBalance(pendingBalance + auction.getCurrentBid());
+                                // Previous bidder is offline, add to pending balance
+                                PlayerData previousBidderData = playerDataCache.getCachedPlayerData(previousBidderId);
+                                if (previousBidderData != null) {
+                                    double pendingBalance = previousBidderData.getPendingBalance();
+                                    previousBidderData.setPendingBalance(pendingBalance + auction.getHighestBid());
+                                    loggerAuction.log(Level.INFO, "Previous highest bidder {0} is offline. Added ${1} to pending balance.",
+                                            new Object[]{previousBidderId, auction.getHighestBid()});
+
+                                    // Save the updated PlayerData
                                     playerDataCache.savePlayerData(previousBidderId, new Callback<Void>() {
                                         @Override
                                         public void onSuccess(Void result) {
-                                            logger.log(Level.INFO, "Refunded previous bidder for auction " + auctionId, 0);
+                                            loggerAuction.log(Level.INFO, "Successfully saved pending balance for previous bidder {0}", previousBidderId);
                                         }
 
                                         @Override
                                         public void onFailure(Throwable throwable) {
-                                            logger.error("Failed to refund previous bidder: " + throwable.getMessage());
+                                            loggerAuction.log(Level.SEVERE, "Failed to save pending balance for previous bidder " + previousBidderId + ": " + throwable.getMessage(), throwable);
                                         }
                                     });
                                 }
@@ -391,12 +350,19 @@ public class AuctionHouseHelper {
                         }
                     }
 
-                    // Deduct bid amount from bidder
-                    economyHelper.addBalance(bidder, -bidAmount);
+                    // Withdraw the bid amount from the bidder
+                    boolean withdrawn = economyHelper.withdrawBalance(bidder, bidAmount);
+                    if (!withdrawn) {
+                        bidder.sendMessage(Utils.getInstance().$("Failed to deduct your bid amount."));
+                        loggerAuction.log(Level.SEVERE, "Failed to withdraw ${0} from bidder {1} for auction ID: {2}",
+                                new Object[]{bidAmount, bidder.getName(), auctionId});
+                        return;
+                    }
 
-                    // Update auction with new bid
-                    auction.setCurrentBid(bidAmount);
+                    // Update the auction with the new highest bid and bidder
+                    auction.setHighestBid(bidAmount);
                     auction.setHighestBidder(bidder.getUniqueId());
+                    activeAuctions.put(auctionId, auction); // Update the map
 
                     bidder.sendMessage(Utils.getInstance().$("You are now the highest bidder on auction " + auctionId));
 
@@ -406,16 +372,28 @@ public class AuctionHouseHelper {
                         seller.sendMessage(Utils.getInstance().$(bidder.getName() + " has placed a bid of $" + economyHelper.formatBalance(bidAmount) + " on your auction."));
                     }
 
-                    // Update auction in database
+                    // Save the updated auction to the database
                     saveModule.saveAuction(auction, new Callback<Void>() {
                         @Override
                         public void onSuccess(Void result) {
-                            logger.log(Level.INFO, "Updated auction " + auctionId + " with new bid.", 0);
+                            loggerAuction.log(Level.INFO, "Auction ID: {0} updated with new highest bid of ${1} by {2}",
+                                    new Object[]{auctionId, bidAmount, bidder.getName()});
+                            // Notify all players about the new highest bid
+                            Bukkit.broadcastMessage(Utils.getInstance().$("&a[Auction House] &e" +
+                                    bidder.getName() + " has placed a bid of $" + economyHelper.formatBalance(bidAmount) +
+                                    " on " + auction.getItem().getType().toString() + "."));
                         }
 
                         @Override
                         public void onFailure(Throwable throwable) {
-                            logger.error("Failed to update auction with new bid: " + throwable.getMessage());
+                            loggerAuction.log(Level.SEVERE, "Failed to update auction ID: " + auctionId + " with new bid: " + throwable.getMessage(), throwable);
+                            // Optionally, refund the bidder if saving fails
+                            boolean refunded = economyHelper.depositBalance(bidder, bidAmount);
+                            if (refunded) {
+                                bidder.sendMessage(Utils.getInstance().$("Failed to place your bid due to a server error. Your bid amount has been refunded."));
+                            } else {
+                                bidder.sendMessage(Utils.getInstance().$("Failed to place your bid due to a server error. Please contact an administrator."));
+                            }
                         }
                     });
                 } else {
@@ -429,122 +407,100 @@ public class AuctionHouseHelper {
         }
     }
 
+
+
+
+
+
     /**
-     * Checks for expired auctions and processes them.
+     * Attempts to purchase an auction.
+     *
+     * @param buyer     The player buying the item.
+     * @param auctionId The UUID of the auction.
      */
-    public void checkExpiredAuctions() {
-        long currentTime = System.currentTimeMillis();
-        Iterator<Map.Entry<UUID, Auction>> iterator = activeAuctions.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<UUID, Auction> entry = iterator.next();
-            Auction auction = entry.getValue();
-            if (auction.getEndTime() <= currentTime) {
-                UUID sellerId = auction.getSeller();
-                Player seller = Bukkit.getPlayer(sellerId);
+    public void buyAuction(Player buyer, UUID auctionId) {
+        Auction auction = activeAuctions.get(auctionId);
+        if (auction != null && !auction.isBidItem()) {
+            double price = auction.getStartingPrice();
+            loggerAuction.log(Level.INFO, "Player {0} attempting to purchase auction ID: {1} for ${2}",
+                    new Object[]{buyer.getName(), auctionId, price});
 
-                if (auction.isBidItem() && auction.getHighestBidder() != null) {
-                    // Auction was a bid item and has a winner
-                    UUID winnerId = auction.getHighestBidder();
-                    Player winner = Bukkit.getPlayer(winnerId);
+            // Attempt to withdraw money from buyer
+            boolean withdrawn = economyHelper.withdrawBalance(buyer, price);
+            if (!withdrawn) {
+                buyer.sendMessage(Utils.getInstance().$("You do not have enough money to purchase this item."));
+                loggerAuction.log(Level.WARNING, "Player {0} has insufficient funds to purchase auction ID: {1}",
+                        new Object[]{buyer.getName(), auctionId});
+                return;
+            }
 
-                    // Transfer money to seller
-                    if (seller != null && seller.isOnline()) {
-                        economyHelper.addBalance(seller, auction.getCurrentBid());
-                        seller.sendMessage(Utils.getInstance().$("Your auction has ended. " +
-                                "You sold " + auction.getItem().getType() + " for $" +
-                                economyHelper.formatBalance(auction.getCurrentBid()) + "."));
-                    } else {
-                        // Seller is offline, add to pending balance
-                        PlayerData sellerData = playerDataCache.getCachedPlayerData(sellerId);
-                        if (sellerData != null) {
-                            double pendingBalance = sellerData.getPendingBalance();
-                            sellerData.setPendingBalance(pendingBalance + auction.getCurrentBid());
-                            playerDataCache.savePlayerData(sellerId, new Callback<Void>() {
-                                @Override
-                                public void onSuccess(Void result) {
-                                    logger.log(Level.INFO, "Added pending balance to offline seller " + sellerId, 0);
-                                }
+            loggerAuction.log(Level.INFO, "Player {0} successfully withdrew ${1} for auction ID: {2}",
+                    new Object[]{buyer.getName(), price, auctionId});
 
-                                @Override
-                                public void onFailure(Throwable throwable) {
-                                    logger.error("Failed to save pending balance for seller: " + throwable.getMessage());
-                                }
-                            });
-                        }
-                    }
-
-                    // Give item to winner
-                    if (winner != null && winner.isOnline()) {
-                        winner.getInventory().addItem(auction.getItem());
-                        winner.sendMessage(Utils.getInstance().$("You have won the auction for " +
-                                auction.getItem().getType() + " with a bid of $" +
-                                economyHelper.formatBalance(auction.getCurrentBid()) + "."));
-                    } else {
-                        // Winner is offline, add item to pending items
-                        PlayerData winnerData = playerDataCache.getCachedPlayerData(winnerId);
-                        if (winnerData != null) {
-                            List<String> pendingItems = winnerData.getPendingItems();
-                            String serializedItem = SaveHelper.itemStackToBase64(auction.getItem());
-                            pendingItems.add(serializedItem);
-                            winnerData.setPendingItems(pendingItems);
-                            playerDataCache.savePlayerData(winnerId, new Callback<Void>() {
-                                @Override
-                                public void onSuccess(Void result) {
-                                    logger.log(Level.INFO, "Added auction item to pending items for winner " + winnerId, 0);
-                                }
-
-                                @Override
-                                public void onFailure(Throwable throwable) {
-                                    logger.error("Failed to save pending items for winner: " + throwable.getMessage());
-                                }
-                            });
-                        }
-                    }
-
-                } else {
-                    // No bids, return item to seller
-                    if (seller != null && seller.isOnline()) {
-                        seller.getInventory().addItem(auction.getItem());
-                        seller.sendMessage(Utils.getInstance().$("Your auction for " +
-                                auction.getItem().getType() + " has expired and has been returned to you."));
-                    } else {
-                        // Seller is offline, add item to pending items
-                        PlayerData sellerData = playerDataCache.getCachedPlayerData(sellerId);
-                        if (sellerData != null) {
-                            List<String> pendingItems = sellerData.getPendingItems();
-                            String serializedItem = SaveHelper.itemStackToBase64(auction.getItem());
-                            pendingItems.add(serializedItem);
-                            sellerData.setPendingItems(pendingItems);
-                            playerDataCache.savePlayerData(sellerId, new Callback<Void>() {
-                                @Override
-                                public void onSuccess(Void result) {
-                                    logger.log(Level.INFO, "Added expired auction item to pending items for seller " + sellerId, 0);
-                                }
-
-                                @Override
-                                public void onFailure(Throwable throwable) {
-                                    logger.error("Failed to save pending items for seller: " + throwable.getMessage());
-                                }
-                            });
-                        }
-                    }
+            // Transfer money to seller
+            UUID sellerId = auction.getSeller();
+            Player seller = Bukkit.getPlayer(sellerId);
+            if (seller != null && seller.isOnline()) {
+                boolean deposited = economyHelper.depositBalance(seller, price);
+                if (!deposited) {
+                    // Refund the buyer if deposit fails
+                    economyHelper.depositBalance(buyer, price);
+                    buyer.sendMessage(Utils.getInstance().$("Transaction failed: Unable to credit seller."));
+                    loggerAuction.log(Level.SEVERE, "Failed to deposit ${0} to seller {1}. Refunding buyer {2}.",
+                            new Object[]{price, seller.getName(), buyer.getName()});
+                    return;
                 }
 
-                // Remove auction from database
-                saveModule.deleteAuction(auction.getAuctionId(), new Callback<Void>() {
-                    @Override
-                    public void onSuccess(Void result) {
-                        logger.log(Level.INFO, "Expired auction " + auction.getAuctionId() + " removed from database.", 0);
-                    }
+                loggerAuction.log(Level.INFO, "Player {0} successfully deposited ${1} to seller {2} for auction ID: {3}",
+                        new Object[]{buyer.getName(), price, seller.getName(), auctionId});
+                seller.sendMessage(Utils.getInstance().$("Your item has been sold to " + buyer.getName() + " for $" + economyHelper.formatBalance(price)));
+            } else {
+                // Seller is offline, add to pending balance
+                PlayerData sellerData = playerDataCache.getCachedPlayerData(sellerId);
+                if (sellerData != null) {
+                    double pendingBalance = sellerData.getPendingBalance();
+                    sellerData.setPendingBalance(pendingBalance + price);
+                    loggerAuction.log(Level.INFO, "Seller {0} is offline. Added ${1} to pending balance.",
+                            new Object[]{sellerId, price});
 
-                    @Override
-                    public void onFailure(Throwable throwable) {
-                        logger.error("Failed to delete expired auction from database: " + throwable.getMessage());
-                    }
-                });
+                    // Save the updated PlayerData
+                    playerDataCache.savePlayerData(sellerId, new Callback<Void>() {
+                        @Override
+                        public void onSuccess(Void result) {
+                            loggerAuction.log(Level.INFO, "Successfully saved pending balance for seller {0}", sellerId);
+                        }
 
-                iterator.remove();
+                        @Override
+                        public void onFailure(Throwable throwable) {
+                            loggerAuction.log(Level.SEVERE, "Failed to save pending balance for seller " + sellerId + ": " + throwable.getMessage(), throwable);
+                        }
+                    });
+                }
             }
+
+            // Give item to buyer
+            buyer.getInventory().addItem(auction.getItem());
+            buyer.sendMessage(Utils.getInstance().$("You have purchased " + auction.getItem().getType() + " for $" + economyHelper.formatBalance(price)));
+            loggerAuction.log(Level.INFO, "Player {0} received item: {1}", new Object[]{buyer.getName(), auction.getItem().getType()});
+
+            // Remove auction
+            activeAuctions.remove(auctionId);
+            loggerAuction.log(Level.INFO, "Auction ID {0} removed from active auctions.", auctionId);
+
+            // Delete auction from database
+            saveModule.deleteAuction(auctionId, new Callback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    // Auction deleted successfully
+                    loggerAuction.log(Level.INFO, "Auction ID {0} deleted from database.", auctionId);
+                }
+
+                @Override
+                public void onFailure(Throwable throwable) {
+                    loggerAuction.log(Level.SEVERE, "Failed to delete auction from database: " + throwable.getMessage(), throwable);
+                }
+            });
         }
+
     }
 }
