@@ -1,5 +1,7 @@
 package eu.xaru.mysticrpg.auctionhouse;
 
+import eu.xaru.mysticrpg.customs.items.Category;
+import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.utils.DebugLoggerModule;
 import eu.xaru.mysticrpg.utils.PaginationHelper;
@@ -18,6 +20,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 /**
  * Manages the Auction House GUI, including displaying available auctions,
@@ -29,15 +32,12 @@ public class AuctionsGUI {
     private final EconomyHelper economyHelper;
     private final DebugLoggerModule logger;
     private final JavaPlugin plugin;
-
-    // Constants for GUI slot indices
+    private final Map<UUID, Category> buyGuiSelectedCategoryMap = new HashMap<>();
     private static final int MAIN_GUI_BUY_SLOT = 20;
     private static final int MAIN_GUI_SELL_SLOT = 22;
     private static final int MAIN_GUI_MY_AUCTIONS_SLOT = 24;
-
     private static final int BUY_GUI_BACK_SLOT = 49;
     private static final int BUY_GUI_PAGE_INDICATOR_SLOT = 50;
-
     private static final int SELL_GUI_BACK_SLOT = 49;
     private static final int SELL_GUI_DECREASE_PRICE_SLOT = 19;
     private static final int SELL_GUI_INCREASE_PRICE_SLOT = 25;
@@ -46,26 +46,16 @@ public class AuctionsGUI {
     private static final int SELL_GUI_PRICE_DISPLAY_SLOT = 28;
     private static final int SELL_GUI_TOGGLE_AUCTION_TYPE_SLOT = 16;
     private static final int SELL_GUI_ITEM_SLOT = 22;
-
+    private final Set<UUID> playersReopeningGUI = new HashSet<>();
     private static final int YOUR_AUCTIONS_BACK_SLOT = 49;
     private static final int YOUR_AUCTIONS_PAGE_INDICATOR_SLOT = 50;
-
-    // Temporary storage for price and duration settings per player
     private final Map<UUID, Double> priceMap = new HashMap<>();
     private final Map<UUID, Long> durationMap = new HashMap<>();
     private final Map<UUID, Boolean> bidMap = new HashMap<>();
-
-    // Maps to store pending actions for players
     private final Map<UUID, UUID> pendingBids = new HashMap<>();
     private final Set<UUID> pendingPriceInput = new HashSet<>();
-
-    // Map to store the item the player is selling
     private final Map<UUID, ItemStack> sellingItems = new HashMap<>();
-
-    // Map to store PaginationHelpers per player for Buy GUI
     private final Map<UUID, PaginationHelper<ItemStack>> buyPaginationMap = new HashMap<>();
-
-    // Map to store PaginationHelpers per player for Your Auctions GUI
     private final Map<UUID, PaginationHelper<ItemStack>> yourAuctionsPaginationMap = new HashMap<>();
 
     /**
@@ -128,19 +118,40 @@ public class AuctionsGUI {
             return;
         }
 
+        UUID playerId = player.getUniqueId();
+        Category selectedCategory = buyGuiSelectedCategoryMap.get(playerId);
+
+        // Retrieve all active auctions
         List<Auction> auctions = auctionHouseHelper.getActiveAuctions();
+
+        // Filter auctions based on the selected category
+        List<Auction> filteredAuctions;
+        if (selectedCategory == null) { // "Everything" selected
+            filteredAuctions = auctions.stream()
+                    .filter(auction -> CustomItemUtils.isCustomItem(auction.getItem()))
+                    .collect(Collectors.toList());
+        } else {
+            filteredAuctions = auctions.stream()
+                    .filter(auction -> {
+                        ItemStack item = auction.getItem();
+                        Category category = CustomItemUtils.getCategory(item);
+                        return category != null && category == selectedCategory;
+                    })
+                    .collect(Collectors.toList());
+        }
+
         logger.log(Level.INFO, "Opening Buy GUI for player " +
                 player.getName() + ". Auctions available: " +
-                auctions.size(), 0);
+                filteredAuctions.size(), 0);
 
-        if (auctions.isEmpty()) {
-            player.sendMessage(Utils.getInstance().$("There are currently no items for sale."));
-            return;
+        if (filteredAuctions.isEmpty()) {
+            player.sendMessage(Utils.getInstance().$("There are currently no items for sale in this category."));
+            // Optionally, still open the GUI with category items
         }
 
         // Convert auctions into ItemStacks
         List<ItemStack> auctionItems = new ArrayList<>();
-        for (Auction auction : auctions) {
+        for (Auction auction : filteredAuctions) {
             ItemStack item = auction.getItem().clone();
             ItemMeta meta = item.getItemMeta();
             List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
@@ -172,8 +183,11 @@ public class AuctionsGUI {
         // Create the inventory
         Inventory gui = Bukkit.createInventory(null, 54, Utils.getInstance().$("Auction House - Buy"));
 
-        // Fill the GUI with placeholders only on the outer border, excluding slot 49 for back button
-        fillWithPlaceholdersBorderOnly(gui, Collections.singleton(BUY_GUI_BACK_SLOT));
+        // Fill the GUI with placeholders only on the outer border, excluding slot 49 for back button and first row for categories
+        fillWithPlaceholdersBorderOnly(gui, new HashSet<>(Arrays.asList(BUY_GUI_BACK_SLOT, 0,1,2,3,4,5,6,7,8)));
+
+        // Create and place category items in the first row (slots 0-8)
+        createAndPlaceCategoryItems(gui, player, selectedCategory);
 
         // Get items for the current page
         List<ItemStack> pageItems = paginationHelper.getCurrentPageItems();
@@ -207,6 +221,87 @@ public class AuctionsGUI {
 
         player.openInventory(gui);
     }
+
+
+
+    /**
+     * Creates and places category items in the first row of the Buy GUI.
+     *
+     * @param gui             The inventory GUI.
+     * @param player          The player opening the GUI.
+     * @param selectedCategory The currently selected category.
+     */
+    private void createAndPlaceCategoryItems(Inventory gui, Player player, Category selectedCategory) {
+        // Slot 0: "Everything" category
+        ItemStack everythingItem = createGuiItem(Material.BARRIER, ChatColor.AQUA + "Everything",
+                Arrays.asList(ChatColor.GRAY + "Click to view all items"));
+        if (selectedCategory == null) { // "Everything" is selected
+            CustomItemUtils.applyEnchantedEffect(everythingItem);
+        }
+        gui.setItem(0, everythingItem);
+
+        // Get all categories
+        Category[] categories = CustomItemUtils.getAllCategories();
+
+        // Place each category item in slots 1-8
+        for (int i = 0; i < categories.length && i < 8; i++) {
+            Category category = categories[i];
+            Material material = getMaterialForCategory(category);
+            String displayName = ChatColor.AQUA + category.name().replace("_", " ");
+            List<String> lore = Arrays.asList(ChatColor.GRAY + "Click to view " + category.name().replace("_", " ") + " items");
+
+            ItemStack categoryItem = createGuiItem(material, displayName, lore);
+            if (category == selectedCategory) {
+                // Highlight the selected category
+                CustomItemUtils.applyEnchantedEffect(categoryItem);
+            }
+            gui.setItem(i + 1, categoryItem);
+        }
+
+        // Fill remaining category slots with placeholders if necessary
+        for (int i = categories.length; i < 8; i++) {
+            int slot = i + 1;
+            if (gui.getItem(slot) == null) {
+                gui.setItem(slot, createGuiItem(Material.GRAY_STAINED_GLASS_PANE, " ", null));
+            }
+        }
+    }
+
+    /**
+     * Maps each Category to a corresponding Material for display.
+     *
+     * @param category The category to map.
+     * @return The Material representing the category.
+     */
+    private Material getMaterialForCategory(Category category) {
+        switch (category) {
+            case WEAPON:
+                return Material.DIAMOND_SWORD;
+            case ARMOR:
+                return Material.DIAMOND_CHESTPLATE;
+            case MAGIC:
+                return Material.BLAZE_ROD;
+            case CONSUMABLE:
+                return Material.GOLDEN_APPLE;
+            case ACCESSORY:
+                return Material.NETHER_STAR; // Represents accessories
+            case TOOL:
+                return Material.IRON_PICKAXE;
+            case ARTIFACT:
+                return Material.EMERALD;
+            case QUEST_ITEM:
+                return Material.BOOK;
+            case PET:
+                return Material.TURTLE_EGG;
+            case MOUNT:
+                return Material.SADDLE;
+            default:
+                return Material.BARRIER; // Fallback material
+        }
+    }
+
+
+
 
     /**
      * Handles pagination for the Buy GUI by creating or retrieving a PaginationHelper.
@@ -394,7 +489,6 @@ public class AuctionsGUI {
         PaginationHelper<ItemStack> paginationHelper;
 
         if (!yourAuctionsPaginationMap.containsKey(player.getUniqueId())) {
-            logger.log("Creating new PaginationHelper for player " + player.getName() + " in Your Auctions GUI.", Level.INFO);
             paginationHelper = new PaginationHelper<>(auctionItems, 28);
             yourAuctionsPaginationMap.put(player.getUniqueId(), paginationHelper);
         } else {
@@ -402,12 +496,6 @@ public class AuctionsGUI {
             // Update the items in the pagination helper in case the auctions have changed
             paginationHelper.updateItems(auctionItems);
         }
-
-        // Debug Logging
-        logger.log("YourAuctions PaginationHelper: " + paginationHelper.toString(), Level.INFO);
-        logger.log("YourAuctions PaginationHelper - Current Page Items: " + paginationHelper.getCurrentPageItems().toString(), Level.INFO);
-        logger.log("YourAuctions PaginationHelper - Total Pages: " + paginationHelper.getTotalPages(), Level.INFO);
-        logger.log("YourAuctions PaginationHelper - Current Page: " + paginationHelper.getCurrentPage(), Level.INFO);
 
         return paginationHelper;
     }
@@ -429,7 +517,6 @@ public class AuctionsGUI {
 
         switch (inventoryTitle) {
             case "Auction House":
-                logger.log("Player " + player.getName() + " clicked in the Auction House menu.", Level.INFO);
                 event.setCancelled(true);
                 if (clickedItem == null || !clickedItem.hasItemMeta()) {
                     return;
@@ -437,7 +524,6 @@ public class AuctionsGUI {
                 handleMainGUIClick(event, player, clickedItem);
                 break;
             case "Auction House - Buy":
-                logger.log("Player " + player.getName() + " clicked in the Auction House - Buy menu.", Level.INFO);
                 event.setCancelled(true);
                 if (clickedItem == null || !clickedItem.hasItemMeta()) {
                     return;
@@ -445,11 +531,9 @@ public class AuctionsGUI {
                 handleBuyGUIClick(event, player, clickedItem);
                 break;
             case "Auction House - Sell":
-                logger.log("Player " + player.getName() + " clicked in the Auction House - Sell menu.", Level.INFO);
                 handleSellGUIClick(event, player);
                 break;
             case "Your Auctions":
-                logger.log("Player " + player.getName() + " clicked in the Your Auctions menu.", Level.INFO);
                 event.setCancelled(true);
                 if (clickedItem == null || !clickedItem.hasItemMeta()) {
                     return;
@@ -559,60 +643,80 @@ public class AuctionsGUI {
      * @param clickedItem The item that was clicked.
      */
     private void handleBuyGUIClick(InventoryClickEvent event, Player player, ItemStack clickedItem) {
-        // Handle the back button click
-        if (clickedItem.getType() == Material.ARROW && ChatColor.stripColor(clickedItem.getItemMeta().getDisplayName()).equals("Back")) {
+        UUID playerId = player.getUniqueId();
+        String displayName = ChatColor.stripColor(clickedItem.getItemMeta().getDisplayName());
+
+        // Check if the clicked item is a category item
+        if (displayName.equals("Everything") || Arrays.stream(CustomItemUtils.getAllCategories())
+                .anyMatch(category -> displayName.equals(category.name().replace("_", " ")))) {
+            event.setCancelled(true);
+
+            Category selectedCategory = null;
+            if (!displayName.equals("Everything")) {
+                // Find the Category by name
+                selectedCategory = Arrays.stream(CustomItemUtils.getAllCategories())
+                        .filter(category -> displayName.equals(category.name().replace("_", " ")))
+                        .findFirst().orElse(null);
+            }
+
+            // Update the selected category for the player
+            buyGuiSelectedCategoryMap.put(playerId, selectedCategory);
+
+            // Add player to reopening set before updating the GUI
+            playersReopeningGUI.add(playerId);
+
+            // Update the Buy GUI in place
+            updateBuyGUI(player);
+
+            return;
+        }
+
+        // Handle back button click
+        if (clickedItem.getType() == Material.ARROW && displayName.equals("Back")) {
             openMainGUI(player);
+            event.setCancelled(true);
             return;
         }
 
         // Handle page indicator clicks
-        if (clickedItem.getType() == Material.PAPER && ChatColor.stripColor(clickedItem.getItemMeta().getDisplayName()).startsWith("Page")) {
+        if (clickedItem.getType() == Material.PAPER && displayName.startsWith("Page")) {
             int clickedSlot = event.getRawSlot();
             ClickType clickType = event.getClick();
 
             if (clickedSlot == BUY_GUI_PAGE_INDICATOR_SLOT) { // Page Indicator slot
-                PaginationHelper<ItemStack> paginationHelper = buyPaginationMap.get(player.getUniqueId());
+                PaginationHelper<ItemStack> paginationHelper = buyPaginationMap.get(playerId);
                 if (paginationHelper == null) {
                     logger.log("Player " + player.getName() + " clicked on Buy GUI pagination without a PaginationHelper.", Level.WARNING);
                     player.sendMessage(Utils.getInstance().$("An error occurred. Please try again."));
                     return;
                 }
 
-                // **Debug Logging for Click Types**
-                logger.log("Player " + player.getName() + " clicked on Buy GUI pagination with ClickType: " + clickType.name(), Level.INFO);
-
                 boolean pageChanged = false;
 
                 if (clickType.isLeftClick()) {
-                    logger.log("Handling LEFT click for pagination in Buy GUI.", Level.INFO);
                     if (paginationHelper.hasPreviousPage()) {
                         paginationHelper.previousPage();
-                        logger.log("PaginationHelper updated to previous page: " + paginationHelper.getCurrentPage(), Level.INFO);
                         pageChanged = true;
                     } else {
-                        logger.log("Player " + player.getName() + " is already on the first page in Buy GUI.", Level.INFO);
                         player.sendMessage(Utils.getInstance().$("You are already on the first page."));
                     }
                 } else if (clickType.isRightClick()) {
-                    logger.log("Handling RIGHT click for pagination in Buy GUI.", Level.INFO);
                     if (paginationHelper.hasNextPage()) {
                         paginationHelper.nextPage();
-                        logger.log("PaginationHelper updated to next page: " + paginationHelper.getCurrentPage(), Level.INFO);
                         pageChanged = true;
                     } else {
-                        logger.log("Player " + player.getName() + " is already on the last page in Buy GUI.", Level.INFO);
                         player.sendMessage(Utils.getInstance().$("You are already on the last page."));
                     }
                 } else {
-                    logger.log("Clicked pagination item with unsupported ClickType: " + clickType.name() + " in Buy GUI.", Level.INFO);
                     player.sendMessage(Utils.getInstance().$("Unsupported click type for pagination."));
                 }
 
                 if (pageChanged) {
                     // Update the GUI in-place
-                    updateBuyGUI(player, paginationHelper);
+                    updateBuyGUI(player);
                 }
 
+                event.setCancelled(true);
                 return;
             }
         }
@@ -1156,8 +1260,90 @@ public class AuctionsGUI {
      * @param player           The player whose GUI is being updated.
      * @param paginationHelper The PaginationHelper managing the current page.
      */
-    private void updateBuyGUI(Player player, PaginationHelper<ItemStack> paginationHelper) {
+    /**
+     * Updates the Buy GUI in-place based on the current PaginationHelper.
+     *
+     * @param player           The player whose GUI is being updated.
+     */
+    public void updateBuyGUI(Player player) {
+        UUID playerId = player.getUniqueId();
+        Category selectedCategory = buyGuiSelectedCategoryMap.get(playerId);
+
+        // Retrieve all active auctions
+        List<Auction> auctions = auctionHouseHelper.getActiveAuctions();
+
+        // Filter auctions based on the selected category
+        List<Auction> filteredAuctions;
+        if (selectedCategory == null) { // "Everything" selected
+            filteredAuctions = auctions.stream()
+                    .filter(auction -> CustomItemUtils.isCustomItem(auction.getItem()))
+                    .collect(Collectors.toList());
+        } else {
+            filteredAuctions = auctions.stream()
+                    .filter(auction -> {
+                        ItemStack item = auction.getItem();
+                        Category category = CustomItemUtils.getCategory(item);
+                        return category != null && category == selectedCategory;
+                    })
+                    .collect(Collectors.toList());
+        }
+        // Inside updateBuyGUI method, after retrieving and filtering auctions
+        logger.log("Total Active Auctions: " + auctions.size(), Level.INFO);
+        logger.log("Selected Category: " + (selectedCategory != null ? selectedCategory.name() : "Everything"), Level.INFO);
+
+        for (Auction auction : filteredAuctions) {
+            Category category = CustomItemUtils.getCategory(auction.getItem());
+            logger.log("Auction ID: " + auction.getAuctionId() + " | Category: " + (category != null ? category.name() : "None"), Level.INFO);
+        }
+
+        logger.log("Filtered Auctions Count: " + filteredAuctions.size(), Level.INFO);
+
+
+        logger.log(Level.INFO, "Updating Buy GUI for player " +
+                player.getName() + ". Auctions available: " +
+                filteredAuctions.size(), 0);
+
+        if (filteredAuctions.isEmpty()) {
+            player.sendMessage(Utils.getInstance().$("There are currently no items for sale in this category."));
+            // Optionally, still update the GUI with category items
+        }
+
+        // Convert auctions into ItemStacks
+        List<ItemStack> auctionItems = new ArrayList<>();
+        for (Auction auction : filteredAuctions) {
+            ItemStack item = auction.getItem().clone();
+            ItemMeta meta = item.getItemMeta();
+            List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+
+            if (auction.isBidItem()) {
+                lore.add(ChatColor.GRAY + "Current Bid: $" +
+                        economyHelper.formatBalance(auction.getCurrentBid()));
+                lore.add(Utils.getInstance().$("Right-click to place a bid"));
+            } else {
+                lore.add(Utils.getInstance().$("Price: $" +
+                        economyHelper.formatBalance(auction.getStartingPrice())));
+                lore.add(Utils.getInstance().$("Left-click to buy now"));
+            }
+            lore.add(Utils.getInstance().$("Time Left: " +
+                    formatTimeLeft(auction.getEndTime()
+                            - System.currentTimeMillis())));
+            lore.add(Utils.getInstance().$("Auction ID: " +
+                    auction.getAuctionId()));
+
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+
+            auctionItems.add(item);
+        }
+
+        // Handle pagination for Buy GUI
+        PaginationHelper<ItemStack> paginationHelper = handleBuyGuiPagination(player, auctionItems);
+
+        // Get the currently open Buy GUI
         Inventory gui = player.getOpenInventory().getTopInventory();
+
+        // Update category items in the first row
+        createAndPlaceCategoryItems(gui, player, selectedCategory);
 
         // Get items for the current page
         List<ItemStack> pageItems = paginationHelper.getCurrentPageItems();
@@ -1190,7 +1376,32 @@ public class AuctionsGUI {
                 ));
         gui.setItem(BUY_GUI_PAGE_INDICATOR_SLOT, pageIndicator); // Placed in slot 50
 
+        // Optionally, update the back button if needed
+        ItemStack backButton = createGuiItem(Material.ARROW, ChatColor.YELLOW + "Back", null);
+        gui.setItem(BUY_GUI_BACK_SLOT, backButton);
+
         // Update the GUI
         player.updateInventory();
     }
+
+    /**
+     * Removes the selected category for a player when they close the Buy GUI.
+     *
+     * @param player The player who closed the GUI.
+     */
+    public void handleGuiClose(Player player) {
+        UUID playerId = player.getUniqueId();
+        buyGuiSelectedCategoryMap.remove(playerId);
+
+        if (!playersReopeningGUI.contains(playerId)) {
+            // Only remove the PaginationHelper if the player is not reopening the GUI
+            buyPaginationMap.remove(playerId);
+        } else {
+            // Player is reopening the GUI; remove them from the reopening set
+            playersReopeningGUI.remove(playerId);
+        }
+    }
+
+
+
 }

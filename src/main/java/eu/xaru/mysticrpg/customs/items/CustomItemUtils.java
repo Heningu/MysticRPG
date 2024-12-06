@@ -215,11 +215,8 @@ public class CustomItemUtils {
         CustomItem customItem = itemManager.getCustomItem(itemId);
         if (customItem == null) return false;
 
-        // Get current tier
-        int currentTier = getCurrentTier(meta, customItem);
-
         // Update lore
-        updateItemLore(meta, customItem, new HashSet<>(), currentTier, powerStoneManager);
+        updateItemLore(meta, customItem, new HashSet<>(), getCurrentTier(meta, customItem), powerStoneManager);
 
         itemStack.setItemMeta(meta);
 
@@ -315,17 +312,17 @@ public class CustomItemUtils {
     }
 
     /**
-     * Retrieves all custom items belonging to a specific category.
+     * **New Method:** Retrieves all custom items belonging to a specific category.
      *
      * @param category The category to filter by.
      * @return A list of custom items in the specified category.
      */
-    public static List<CustomItem> getCustomItemsByCategory(Category category) {
+    public static List<CustomItem> getItemsByCategory(Category category) {
         return itemManager.getItemsByCategory(category);
     }
 
     /**
-     * Retrieves all available categories.
+     * **New Method:** Retrieves all available categories.
      *
      * @return An array of all categories.
      */
