@@ -23,6 +23,7 @@ public class CustomItem {
     private final String name;
     private final Material material;
     private final Rarity rarity;
+    private final Category category;
     private final int customModelData;
     private final List<String> lore;
     private final Map<String, AttributeData> attributes;
@@ -40,7 +41,7 @@ public class CustomItem {
     private final boolean usePowerStones;
     private final int powerStoneSlots;
 
-    public CustomItem(String id, String name, Material material, Rarity rarity, int customModelData,
+    public CustomItem(String id, String name, Material material, Rarity rarity, Category category, int customModelData,
                       List<String> lore, Map<String, AttributeData> attributes, Map<String, Integer> enchantments,
                       boolean enchantedEffect, boolean useTierSystem, int itemLevel, int itemMaxLevel,
                       Map<Integer, Map<String, AttributeData>> tierAttributes,
@@ -49,6 +50,7 @@ public class CustomItem {
         this.name = name;
         this.material = material;
         this.rarity = rarity;
+        this.category = category;
         this.customModelData = customModelData;
         this.lore = lore;
         this.attributes = attributes;
@@ -101,6 +103,10 @@ public class CustomItem {
         return rarity;
     }
 
+    public Category getCategory() {
+        return category;
+    }
+
     public String getName() {
         return name;
     }
@@ -145,7 +151,7 @@ public class CustomItem {
 
         if (meta != null) {
             // Set display name to just the item name
-            String displayName = Utils.getInstance().$( name);
+            String displayName = Utils.getInstance().$(name);
             meta.setDisplayName(displayName);
 
             // Set lore
@@ -154,7 +160,10 @@ public class CustomItem {
             // First line: Rarity
             finalLore.add(rarity.getColor() + rarity.name());
 
-            // Second line: Tier stars (if applicable)
+            // Second line: Category
+            finalLore.add(ChatColor.GRAY + "Category: " + category.name());
+
+            // Third line: Tier stars (if applicable)
             if (useTierSystem) {
                 String tierStars = getTierStars(currentTier, itemMaxLevel);
                 finalLore.add(Utils.getInstance().$(tierStars));
@@ -173,7 +182,7 @@ public class CustomItem {
             if (lore != null && !lore.isEmpty()) {
                 finalLore.addAll(lore.stream()
                         .map(line -> Utils.getInstance().$(line))
-                        .toList());
+                        .collect(Collectors.toList()));
             }
 
             meta.setLore(finalLore);
@@ -236,6 +245,10 @@ public class CustomItem {
             NamespacedKey idKey = new NamespacedKey(JavaPlugin.getPlugin(MysticCore.class), "custom_item_id");
             meta.getPersistentDataContainer().set(idKey, PersistentDataType.STRING, id);
 
+            // Store category in PersistentDataContainer
+            NamespacedKey categoryKey = new NamespacedKey(JavaPlugin.getPlugin(MysticCore.class), "custom_item_category");
+            meta.getPersistentDataContainer().set(categoryKey, PersistentDataType.STRING, category.name());
+
             // Store current tier in PersistentDataContainer if tier system is used
             if (useTierSystem) {
                 NamespacedKey tierKey = new NamespacedKey(JavaPlugin.getPlugin(MysticCore.class), "custom_item_tier");
@@ -272,5 +285,28 @@ public class CustomItem {
             stars.append("☆");
         }
         return stars.toString();
+    }
+
+    /**
+     * Formats the remaining time into a human-readable string.
+     *
+     * @param millis The time in milliseconds.
+     * @return A formatted string representing the time left.
+     */
+    private String formatTimeLeft(long millis) {
+        if (millis < 0) {
+            return ChatColor.RED + "Expired";
+        }
+        long seconds = millis / 1000 % 60;
+        long minutes = millis / (1000 * 60) % 60;
+        long hours = millis / (1000 * 60 * 60) % 24;
+        long days = millis / (1000 * 60 * 60 * 24);
+
+        StringBuilder sb = new StringBuilder();
+        if (days > 0) sb.append(days).append("d ");
+        if (hours > 0 || days > 0) sb.append(hours).append("h ");
+        if (minutes > 0 || hours > 0 || days > 0) sb.append(minutes).append("m ");
+        sb.append(seconds).append("s");
+        return sb.toString();
     }
 }

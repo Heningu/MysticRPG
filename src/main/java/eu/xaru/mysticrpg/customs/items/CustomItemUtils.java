@@ -30,6 +30,23 @@ public class CustomItemUtils {
         return meta.getPersistentDataContainer().has(idKey, PersistentDataType.STRING);
     }
 
+    public static Category getCategory(ItemStack itemStack) {
+        if (!isCustomItem(itemStack)) return null;
+
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return null;
+
+        NamespacedKey categoryKey = new NamespacedKey(plugin, "custom_item_category");
+        String categoryName = meta.getPersistentDataContainer().get(categoryKey, PersistentDataType.STRING);
+        if (categoryName == null) return null;
+
+        try {
+            return Category.valueOf(categoryName.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     public static boolean canApplyPowerStone(ItemStack itemStack) {
         if (!isCustomItem(itemStack)) return false;
 
@@ -215,7 +232,10 @@ public class CustomItemUtils {
         // First line: Rarity
         finalLore.add(customItem.getRarity().getColor() + customItem.getRarity().name());
 
-        // Second line: Tier stars
+        // Second line: Category
+        finalLore.add(ChatColor.GRAY + "Category: " + customItem.getCategory().name());
+
+        // Third line: Tier stars
         if (customItem.isUseTierSystem()) {
             String tierStars = getTierStars(currentTier, customItem.getItemMaxLevel());
             finalLore.add(Utils.getInstance().$(tierStars));
@@ -292,6 +312,25 @@ public class CustomItemUtils {
         meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
 
         itemStack.setItemMeta(meta);
+    }
+
+    /**
+     * Retrieves all custom items belonging to a specific category.
+     *
+     * @param category The category to filter by.
+     * @return A list of custom items in the specified category.
+     */
+    public static List<CustomItem> getCustomItemsByCategory(Category category) {
+        return itemManager.getItemsByCategory(category);
+    }
+
+    /**
+     * Retrieves all available categories.
+     *
+     * @return An array of all categories.
+     */
+    public static Category[] getAllCategories() {
+        return itemManager.getAllCategories();
     }
 
     // Additional utility methods can be added here if needed

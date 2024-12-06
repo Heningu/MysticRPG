@@ -42,6 +42,7 @@ public class AuctionHouseModule implements IBaseModule {
     private AuctionsGUI auctionsGUI;
     private MysticCore plugin;
 
+
     @Override
     public void initialize() {
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
@@ -123,25 +124,19 @@ public class AuctionHouseModule implements IBaseModule {
             if (!(event.getWhoClicked() instanceof Player)) return;
 
             Player player = (Player) event.getWhoClicked();
-            String inventoryTitle = event.getView().getTitle();
+            String inventoryTitle = ChatColor.stripColor(event.getView().getTitle());
             if (inventoryTitle == null) return;
 
-            String strippedTitle = ChatColor.stripColor(inventoryTitle);
-
-            if (isAuctionHouseInventory(strippedTitle)) {
-                auctionsGUI.onInventoryClickEvent(event);
+            if (isAuctionHouseInventory(inventoryTitle)) {
+                auctionsGUI.handleInventoryClick(event);
             }
         });
 
         // Register InventoryDragEvent for AuctionsGUI
         eventManager.registerEvent(InventoryDragEvent.class, event -> {
-            String inventoryTitle = event.getView().getTitle();
-            if (inventoryTitle == null) return;
-
-            String strippedTitle = ChatColor.stripColor(inventoryTitle);
-
-            if (isAuctionHouseInventory(strippedTitle)) {
-                auctionsGUI.onInventoryDragEvent(event);
+            String inventoryTitle = ChatColor.stripColor(event.getView().getTitle());
+            if (isAuctionHouseInventory(inventoryTitle)) {
+                auctionsGUI.handleInventoryDrag(event);
             }
         });
 
@@ -162,7 +157,7 @@ public class AuctionHouseModule implements IBaseModule {
         eventManager.registerEvent(AsyncPlayerChatEvent.class, event -> {
             // Sanitize the message using Utils (assuming it handles such operations)
             event.setMessage(Utils.getInstance().$(event.getMessage()));
-            auctionsGUI.onPlayerChatEvent(event);
+            auctionsGUI.handlePlayerChat(event);
         });
     }
 

@@ -11,6 +11,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.File;
 import java.util.*;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 public class ItemManager {
 
@@ -30,12 +31,13 @@ public class ItemManager {
         }
 
         File[] files = itemsFolder.listFiles((dir, name) -> name.endsWith(".yml"));
+        String id;
         if (files != null) {
             for (File file : files) {
                 try {
                     YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
 
-                    String id = config.getString("id");
+                    id = config.getString("id");
                     if (id == null || id.isEmpty()) {
                         Bukkit.getLogger().severe("Item ID is missing in file: " + file.getName());
                         continue;
@@ -50,7 +52,23 @@ public class ItemManager {
                     }
 
                     String rarityName = config.getString("rarity", "COMMON");
-                    Rarity rarity = Rarity.valueOf(rarityName.toUpperCase());
+                    Rarity rarity;
+                    try {
+                        rarity = Rarity.valueOf(rarityName.toUpperCase());
+                    } catch (IllegalArgumentException e) {
+                        Bukkit.getLogger().warning("Invalid rarity '" + rarityName + "' for item " + id + " in file: " + file.getName() + ". Defaulting to COMMON.");
+                        rarity = Rarity.COMMON;
+                    }
+
+                    // Read category
+                    String categoryName = config.getString("category", "TOOL").toUpperCase();
+                    Category category;
+                    try {
+                        category = Category.valueOf(categoryName);
+                    } catch (IllegalArgumentException e) {
+                        Bukkit.getLogger().warning("Invalid category '" + categoryName + "' for item " + id + " in file: " + file.getName() + ". Defaulting to TOOL.");
+                        category = Category.TOOL; // Default category
+                    }
 
                     int customModelData = config.getInt("custom_model_data", 0);
 
@@ -58,34 +76,39 @@ public class ItemManager {
 
                     Map<String, Integer> enchantments = new HashMap<>();
                     if (config.contains("enchantments")) {
-                        for (String enchantKey : config.getConfigurationSection("enchantments").getKeys(false)) {
-                            int level = config.getInt("enchantments." + enchantKey, 1);
-                            enchantments.put(enchantKey, level);
+                        ConfigurationSection enchantmentsSection = config.getConfigurationSection("enchantments");
+                        if (enchantmentsSection != null) {
+                            for (String enchantKey : enchantmentsSection.getKeys(false)) {
+                                int level = enchantmentsSection.getInt(enchantKey, 1);
+                                enchantments.put(enchantKey, level);
+                            }
                         }
                     }
 
                     Map<String, AttributeData> attributes = new HashMap<>();
                     if (config.contains("attributes")) {
                         ConfigurationSection attributesSection = config.getConfigurationSection("attributes");
-                        for (String attrKey : attributesSection.getKeys(false)) {
-                            ConfigurationSection attrConfig = attributesSection.getConfigurationSection(attrKey);
-                            if (attrConfig != null) {
-                                double value = attrConfig.getDouble("value", 0);
-                                String operationStr = attrConfig.getString("operation", "ADD_NUMBER").toUpperCase();
-                                AttributeModifier.Operation operation;
-                                try {
-                                    operation = AttributeModifier.Operation.valueOf(operationStr);
-                                } catch (IllegalArgumentException e) {
-                                    Bukkit.getLogger().warning("Invalid operation '" + operationStr + "' for attribute '" + attrKey + "' in item '" + id + "'. Defaulting to ADD_NUMBER.");
-                                    operation = AttributeModifier.Operation.ADD_NUMBER;
+                        if (attributesSection != null) {
+                            for (String attrKey : attributesSection.getKeys(false)) {
+                                ConfigurationSection attrConfig = attributesSection.getConfigurationSection(attrKey);
+                                if (attrConfig != null) {
+                                    double value = attrConfig.getDouble("value", 0);
+                                    String operationStr = attrConfig.getString("operation", "ADD_NUMBER").toUpperCase();
+                                    AttributeModifier.Operation operation;
+                                    try {
+                                        operation = AttributeModifier.Operation.valueOf(operationStr);
+                                    } catch (IllegalArgumentException e) {
+                                        Bukkit.getLogger().warning("Invalid operation '" + operationStr + "' for attribute '" + attrKey + "' in item '" + id + "'. Defaulting to ADD_NUMBER.");
+                                        operation = AttributeModifier.Operation.ADD_NUMBER;
+                                    }
+                                    AttributeData attributeData = new AttributeData(value, operation);
+                                    attributes.put(attrKey, attributeData);
+                                } else {
+                                    // If only a value is provided
+                                    double value = attributesSection.getDouble(attrKey, 0);
+                                    AttributeData attributeData = new AttributeData(value, AttributeModifier.Operation.ADD_NUMBER);
+                                    attributes.put(attrKey, attributeData);
                                 }
-                                AttributeData attributeData = new AttributeData(value, operation);
-                                attributes.put(attrKey, attributeData);
-                            } else {
-                                // If only a value is provided
-                                double value = attributesSection.getDouble(attrKey, 0);
-                                AttributeData attributeData = new AttributeData(value, AttributeModifier.Operation.ADD_NUMBER);
-                                attributes.put(attrKey, attributeData);
                             }
                         }
                     }
@@ -111,32 +134,42 @@ public class ItemManager {
                         // Load tier_attributes
                         if (config.contains("tier_attributes")) {
                             ConfigurationSection tierAttributesSection = config.getConfigurationSection("tier_attributes");
-                            for (String tierKey : tierAttributesSection.getKeys(false)) {
-                                int tierNumber = Integer.parseInt(tierKey);
-                                Map<String, AttributeData> tierAttrs = new HashMap<>();
-                                ConfigurationSection attributesSection = tierAttributesSection.getConfigurationSection(tierKey);
-                                for (String attrKey : attributesSection.getKeys(false)) {
-                                    ConfigurationSection attrConfig = attributesSection.getConfigurationSection(attrKey);
-                                    if (attrConfig != null) {
-                                        double value = attrConfig.getDouble("value", 0);
-                                        String operationStr = attrConfig.getString("operation", "ADD_NUMBER").toUpperCase();
-                                        AttributeModifier.Operation operation;
-                                        try {
-                                            operation = AttributeModifier.Operation.valueOf(operationStr);
-                                        } catch (IllegalArgumentException e) {
-                                            Bukkit.getLogger().warning("Invalid operation '" + operationStr + "' for attribute '" + attrKey + "' in item '" + id + "'. Defaulting to ADD_NUMBER.");
-                                            operation = AttributeModifier.Operation.ADD_NUMBER;
-                                        }
-                                        AttributeData attributeData = new AttributeData(value, operation);
-                                        tierAttrs.put(attrKey, attributeData);
-                                    } else {
-                                        // If only a value is provided
-                                        double value = attributesSection.getDouble(attrKey, 0);
-                                        AttributeData attributeData = new AttributeData(value, AttributeModifier.Operation.ADD_NUMBER);
-                                        tierAttrs.put(attrKey, attributeData);
+                            if (tierAttributesSection != null) {
+                                for (String tierKey : tierAttributesSection.getKeys(false)) {
+                                    int tierNumber;
+                                    try {
+                                        tierNumber = Integer.parseInt(tierKey);
+                                    } catch (NumberFormatException e) {
+                                        Bukkit.getLogger().warning("Invalid tier number '" + tierKey + "' in item '" + id + "'. Skipping this tier.");
+                                        continue;
                                     }
+                                    Map<String, AttributeData> tierAttrs = new HashMap<>();
+                                    ConfigurationSection attributesSection = tierAttributesSection.getConfigurationSection(tierKey);
+                                    if (attributesSection != null) {
+                                        for (String attrKey : attributesSection.getKeys(false)) {
+                                            ConfigurationSection attrConfig = attributesSection.getConfigurationSection(attrKey);
+                                            if (attrConfig != null) {
+                                                double value = attrConfig.getDouble("value", 0);
+                                                String operationStr = attrConfig.getString("operation", "ADD_NUMBER").toUpperCase();
+                                                AttributeModifier.Operation operation;
+                                                try {
+                                                    operation = AttributeModifier.Operation.valueOf(operationStr);
+                                                } catch (IllegalArgumentException e) {
+                                                    Bukkit.getLogger().warning("Invalid operation '" + operationStr + "' for attribute '" + attrKey + "' in item '" + id + "'. Defaulting to ADD_NUMBER.");
+                                                    operation = AttributeModifier.Operation.ADD_NUMBER;
+                                                }
+                                                AttributeData attributeData = new AttributeData(value, operation);
+                                                tierAttrs.put(attrKey, attributeData);
+                                            } else {
+                                                // If only a value is provided
+                                                double value = attributesSection.getDouble(attrKey, 0);
+                                                AttributeData attributeData = new AttributeData(value, AttributeModifier.Operation.ADD_NUMBER);
+                                                tierAttrs.put(attrKey, attributeData);
+                                            }
+                                        }
+                                    }
+                                    tierAttributes.put(tierNumber, tierAttrs);
                                 }
-                                tierAttributes.put(tierNumber, tierAttrs);
                             }
                         }
                     } else {
@@ -148,7 +181,7 @@ public class ItemManager {
                     // Read armor_type
                     String armorType = config.getString("armor_type", null);
 
-                    CustomItem customItem = new CustomItem(id, name, material, rarity, customModelData, lore,
+                    CustomItem customItem = new CustomItem(id, name, material, rarity, category, customModelData, lore,
                             attributes, enchantments, enchantedEffect, useTierSystem, itemLevel, itemMaxLevel, tierAttributes,
                             usePowerStones, powerStoneSlots, armorType);
 
@@ -161,11 +194,43 @@ public class ItemManager {
         }
     }
 
-    public CustomItem getCustomItem(String id) {
-        return customItems.get(id);
-    }
+        /**
+         * Retrieves a custom item by its ID.
+         *
+         * @param id The ID of the custom item.
+         * @return The CustomItem object, or null if not found.
+         */
+        public CustomItem getCustomItem (String id){
+            return customItems.get(id);
+        }
 
-    public Collection<CustomItem> getAllCustomItems() {
-        return customItems.values();
+        /**
+         * Retrieves all custom items.
+         *
+         * @return A collection of all CustomItem objects.
+         */
+        public Collection<CustomItem> getAllCustomItems () {
+            return customItems.values();
+        }
+
+        /**
+         * Retrieves all custom items belonging to a specific category.
+         *
+         * @param category The category to filter by.
+         * @return A list of custom items in the specified category.
+         */
+        public List<CustomItem> getItemsByCategory (Category category){
+            return customItems.values().stream()
+                    .filter(item -> item.getCategory() == category)
+                    .collect(Collectors.toList());
+        }
+
+        /**
+         * Retrieves all categories available in the system.
+         *
+         * @return An array of all categories.
+         */
+        public Category[] getAllCategories () {
+            return Category.values();
+        }
     }
-}
