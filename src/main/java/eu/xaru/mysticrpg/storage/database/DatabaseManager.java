@@ -48,20 +48,20 @@ public class DatabaseManager {
 
     private void initializeRepository() {
         FileConfiguration config = getConfig(); // Implement this method to fetch your config
-        String dbType = config.getString("database.type", "mongo").toLowerCase();
+        String dbType = config.getString("database.type", "sqlite").toLowerCase();
 
         switch (dbType) {
-            case "sqlite":
-                String dbPath = config.getString("database.sqlite.path", "plugins/MysticRPG/database.db");
-                repository = new SQLiteRepository(dbPath, logger);
-                logger.log(Level.INFO, "DatabaseManager initialized with SQLiteRepository", 0);
-                break;
             case "mongo":
-            default:
                 String connectionString = config.getString("database.mongo.connectionString", "mongodb://localhost:27017");
                 String databaseName = config.getString("database.mongo.databaseName", "xarumystic");
                 repository = new MongoRepository(connectionString, databaseName, logger);
                 logger.log(Level.INFO, "DatabaseManager initialized with MongoRepository", 0);
+                break;
+            case "sqlite":
+            default:
+                String dbPath = config.getString("database.sqlite.path", "plugins/MysticRPG/database.db");
+                repository = new SQLiteRepository(dbPath, logger);
+                logger.log(Level.INFO, "DatabaseManager initialized with SQLiteRepository", 0);
                 break;
         }
     }
