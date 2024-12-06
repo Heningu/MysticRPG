@@ -14,7 +14,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import org.bukkit.event.inventory.*;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -22,6 +24,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * AuctionHouseModule handles the initialization and management
@@ -41,6 +44,7 @@ public class AuctionHouseModule implements IBaseModule {
     private DebugLoggerModule logger;
     private AuctionsGUI auctionsGUI;
     private MysticCore plugin;
+    private static final Logger loggerModule = Logger.getLogger(AuctionHouseModule.class.getName());
 
 
     @Override
@@ -69,27 +73,26 @@ public class AuctionHouseModule implements IBaseModule {
         this.auctionsGUI = new AuctionsGUI(
                 auctionHouseHelper,
                 economyHelper,
-                logger,
                 plugin
         );
 
-        logger.log(Level.INFO, "AuctionHouseModule initialized", 0);
+        loggerModule.log(Level.INFO, "AuctionHouseModule initialized");
     }
 
     @Override
     public void start() {
-        logger.log(Level.INFO, "AuctionHouseModule started", 0);
+        loggerModule.log(Level.INFO, "AuctionHouseModule started");
         registerEvents();
     }
 
     @Override
     public void stop() {
-        logger.log(Level.INFO, "AuctionHouseModule stopped", 0);
+        loggerModule.log(Level.INFO, "AuctionHouseModule stopped");
     }
 
     @Override
     public void unload() {
-        logger.log(Level.INFO, "AuctionHouseModule unloaded", 0);
+        loggerModule.log(Level.INFO, "AuctionHouseModule unloaded");
     }
 
     @Override
@@ -148,9 +151,13 @@ public class AuctionHouseModule implements IBaseModule {
 
             if (INVENTORY_SELL.equals(inventoryTitle)) {
                 handleSellInventoryClose(event, player);
-            } else if (INVENTORY_BUY.equals(inventoryTitle)) {
+            }
+            // Remove the following block to prevent removing PaginationHelpers when Buy GUI is closed
+            /*
+            else if (INVENTORY_BUY.equals(inventoryTitle)) {
                 auctionsGUI.removePagination(player.getUniqueId());
             }
+            */
         });
 
         // Register AsyncPlayerChatEvent for handling bids and custom prices

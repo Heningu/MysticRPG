@@ -10,5 +10,6 @@ public enum Category {
     ARTIFACT,
     QUEST_ITEM,
     PET,
-    MOUNT
+    MOUNT,
+    EVERYTHING
 }

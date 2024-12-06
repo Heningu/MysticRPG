@@ -183,4 +183,8 @@ public class PaginationHelper<T> {
     public static PaginationHelper<ItemStack> forItemStacks(List<ItemStack> items, int itemsPerPage) {
         return new PaginationHelper<>(items, itemsPerPage);
     }
+
+    public void setCurrentPage(int i) {
+        this.currentPage = i;
+    }
 }
