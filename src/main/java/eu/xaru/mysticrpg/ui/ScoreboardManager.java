@@ -12,6 +12,7 @@ import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.utils.DebugLogger;
+import eu.xaru.mysticrpg.utils.NumberConverter;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -20,10 +21,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.*;
 
 import java.util.*;
-
 import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 /**
  * Custom ScoreboardManager to handle player scoreboards.
@@ -104,7 +102,7 @@ public class ScoreboardManager {
         Objective objective = scoreboard.getObjective("mysticSidebar");
         if (objective == null) {
             objective = scoreboard.registerNewObjective("mysticSidebar", "dummy",
-                     "[" + "Mystic" + "RPG" + "]");
+                    ChatColor.translateAlternateColorCodes('&', "け"));
             objective.setDisplaySlot(DisplaySlot.SIDEBAR);
         }
 
@@ -120,37 +118,38 @@ public class ScoreboardManager {
 
         // Populate scoreboard with player stats
         // Unique separator lines
-        String separatorLine1 = "------------------------------" + ChatColor.RESET;
+        String separatorLine1 = "げげ" + ChatColor.RESET;
         objective.getScore(separatorLine1).setScore(15);
         newEntries.add(separatorLine1);
 
         // Your Stats:
-        String yourStats = "Your Stats:";
+        String yourStats = "く";
         objective.getScore(yourStats).setScore(14);
         newEntries.add(yourStats);
 
         // Level
         int level = playerData.getLevel();
-        String levelEntry = "» " + "Level: " + + level;
+        String convertedLevel = NumberConverter.convert(level);
+        String levelEntry = "» か" + convertedLevel;
         objective.getScore(levelEntry).setScore(13);
         newEntries.add(levelEntry);
 
         // XP Needed
         int currentXp = playerData.getXp();
         int xpNeeded = levelModule != null ? levelModule.getLevelThreshold(level + 1) : 0;
-        String xpEntry = "» " +  "XP: " + currentXp + "/" + xpNeeded;
+        String xpEntry = "» " + "XP: " + currentXp + "/" + xpNeeded;
         objective.getScore(xpEntry).setScore(12);
         newEntries.add(xpEntry);
 
         // Balance
         double balance = economyHelper != null ? economyHelper.getBalance(player) : 0.0;
         String formattedBalance = economyHelper != null ? economyHelper.formatBalance(balance) : "0.00";
-        String balanceEntry = "» " +  "Balance: $"  + formattedBalance;
+        String balanceEntry = "» " + "Balance: $" + formattedBalance;
         objective.getScore(balanceEntry).setScore(11);
         newEntries.add(balanceEntry);
 
         // Empty line (make it unique)
-        String emptyLine =  " ";
+        String emptyLine = " ";
         objective.getScore(emptyLine).setScore(10);
         newEntries.add(emptyLine);
 
@@ -164,7 +163,7 @@ public class ScoreboardManager {
             Quest pinnedQuest = questManager.getQuest(pinnedQuestId);
             if (pinnedQuest != null) {
                 // Quest Name
-                String questNameEntry =  pinnedQuest.getName();
+                String questNameEntry = pinnedQuest.getName();
                 objective.getScore(questNameEntry).setScore(8);
                 newEntries.add(questNameEntry);
 
@@ -185,30 +184,30 @@ public class ScoreboardManager {
                     String formattedObjective = formatObjectiveKey(objectiveKey);
 
                     // Ensure uniqueness by adding color codes
-                    String objectiveDisplay =  formattedObjective + ": "  + currentProgress + "/" + required;
+                    String objectiveDisplay = formattedObjective + ": " + currentProgress + "/" + required;
                     objective.getScore(objectiveDisplay).setScore(scoreIndex);
                     newEntries.add(objectiveDisplay);
                     scoreIndex--;
                     if (scoreIndex < 2) break; // Adjusted to fit in the scoreboard
                 }
             } else {
-                String noPinnedQuestEntry =  "No Pinned Quest" + ChatColor.RESET;
+                String noPinnedQuestEntry = "No Pinned Quest" + ChatColor.RESET;
                 objective.getScore(noPinnedQuestEntry).setScore(8);
                 newEntries.add(noPinnedQuestEntry);
             }
         } else {
-            String noPinnedQuestEntry =  "No Pinned Quest" + ChatColor.RESET;
+            String noPinnedQuestEntry = "No Pinned Quest" + ChatColor.RESET;
             objective.getScore(noPinnedQuestEntry).setScore(8);
             newEntries.add(noPinnedQuestEntry);
         }
 
         // Second unique separator line
-        String separatorLine2 =  "------------------------------" + ChatColor.DARK_GRAY;
+        String separatorLine2 = "げげ" + ChatColor.DARK_GRAY;
         objective.getScore(separatorLine2).setScore(1);
         newEntries.add(separatorLine2);
 
         // www.xaru.eu
-        String websiteEntry =  "www.xaru.eu";
+        String websiteEntry = "www.xaru.eu";
         objective.getScore(websiteEntry).setScore(0);
         newEntries.add(websiteEntry);
 

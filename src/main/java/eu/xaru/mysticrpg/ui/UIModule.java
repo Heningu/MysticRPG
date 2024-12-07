@@ -32,6 +32,8 @@ public class UIModule implements IBaseModule {
     private final JavaPlugin plugin;
     private TitleManager titleManager;
     private final EventManager eventManager;
+    private ChatFormatter chatFormatter;
+
 
     /**
      * Constructs a new UIModule instance.
@@ -46,6 +48,8 @@ public class UIModule implements IBaseModule {
         
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         LevelModule levelModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
+        this.chatFormatter = new ChatFormatter();
+        Bukkit.getPluginManager().registerEvents(this.chatFormatter, plugin);
 
         if (saveModule != null && levelModule != null) {
             PlayerDataCache playerDataCache = saveModule.getPlayerDataCache();
