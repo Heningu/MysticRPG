@@ -5,7 +5,7 @@ package eu.xaru.mysticrpg.dungeons.setup;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfig;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfigManager;
 import eu.xaru.mysticrpg.dungeons.doors.DoorManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -16,14 +16,14 @@ import java.util.UUID;
 public class DungeonSetupManager {
 
     private final JavaPlugin plugin;
-    private final DebugLoggerModule logger;
+    
     private final DoorManager doorManager;
     private final DungeonConfigManager configManager;
     private final Map<UUID, DungeonSetupSession> setupSessions;
 
-    public DungeonSetupManager(JavaPlugin plugin, DebugLoggerModule logger, DungeonConfigManager configManager) {
+    public DungeonSetupManager(JavaPlugin plugin,  DungeonConfigManager configManager) {
         this.plugin = plugin;
-        this.logger = logger;
+ 
         this.configManager = configManager;
         this.doorManager = new DoorManager(plugin);
         this.setupSessions = new HashMap<>();

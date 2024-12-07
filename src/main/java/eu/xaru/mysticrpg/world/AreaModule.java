@@ -8,7 +8,7 @@
 //import eu.xaru.mysticrpg.enums.EModulePriority;
 //import eu.xaru.mysticrpg.interfaces.IBaseModule;
 //import eu.xaru.mysticrpg.managers.ModuleManager;
-//import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+//import eu.xaru.mysticrpg.utils.DebugLogger;
 //import eu.xaru.mysticrpg.utils.Utils;
 //import org.bukkit.entity.Player;
 //import org.bukkit.plugin.java.JavaPlugin;
@@ -22,36 +22,36 @@
 //public class AreaModule implements IBaseModule {
 //
 //    private final AreaHelper areaHelper = new AreaHelper();
-//    private DebugLoggerModule logger;
+//    
 //
 //    @Override
 //    public void initialize() {
-//        logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
+//        
 //        if (logger == null) {
 //            throw new IllegalStateException("DebugLoggerModule not initialized. AreaModule cannot function without it.");
 //        }
 //        registerAreaCommand();
-//        logger.log(Level.INFO, "AreaModule initialized successfully.", 0);
+//        DebugLogger.getInstance().log(Level.INFO, "AreaModule initialized successfully.", 0);
 //    }
 //
 //    @Override
 //    public void start() {
-//        logger.log(Level.INFO, "AreaModule started", 0);
+//        DebugLogger.getInstance().log(Level.INFO, "AreaModule started", 0);
 //    }
 //
 //    @Override
 //    public void stop() {
-//        logger.log(Level.INFO, "AreaModule stopped", 0);
+//        DebugLogger.getInstance().log(Level.INFO, "AreaModule stopped", 0);
 //    }
 //
 //    @Override
 //    public void unload() {
-//        logger.log(Level.INFO, "AreaModule unloaded", 0);
+//        DebugLogger.getInstance().log(Level.INFO, "AreaModule unloaded", 0);
 //    }
 //
 //    @Override
 //    public List<Class<? extends IBaseModule>> getDependencies() {
-//        return List.of(DebugLoggerModule.class);
+//        return List.of();
 //    }
 //
 //    @Override

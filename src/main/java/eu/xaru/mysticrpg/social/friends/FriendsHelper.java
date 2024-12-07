@@ -2,7 +2,7 @@ package eu.xaru.mysticrpg.social.friends;
 
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.ClickEvent;
@@ -20,17 +20,17 @@ import java.util.UUID;
 public class FriendsHelper {
 
     private final PlayerDataCache playerDataCache;
-    private final DebugLoggerModule logger;
+    
 
     /**
      * Constructor to initialize FriendsHelper with required dependencies.
      *
      * @param playerDataCache The cache containing player data.
-     * @param logger          The debug logger for logging purposes.
+               The debug logger for logging purposes.
      */
-    public FriendsHelper(PlayerDataCache playerDataCache, DebugLoggerModule logger) {
+    public FriendsHelper(PlayerDataCache playerDataCache) {
         this.playerDataCache = playerDataCache;
-        this.logger = logger;
+ 
     }
 
     /**
@@ -102,7 +102,7 @@ public class FriendsHelper {
         // Send the clickable message to the receiver
         receiver.spigot().sendMessage(ChatMessageType.valueOf(Utils.getInstance().$(String.valueOf(message))));
 
-        logger.log(sender.getName() + " sent a friend request to " + receiver.getName());
+        DebugLogger.getInstance().log(sender.getName() + " sent a friend request to " + receiver.getName());
     }
 
     /**
@@ -153,7 +153,7 @@ public class FriendsHelper {
             }
         }
 
-        logger.log(receiver.getName() + " accepted the friend request from " + sender.getName());
+        DebugLogger.getInstance().log(receiver.getName() + " accepted the friend request from " + sender.getName());
     }
 
     /**
@@ -199,7 +199,7 @@ public class FriendsHelper {
             }
         }
 
-        logger.log(receiver.getName() + " denied the friend request from " + sender.getName());
+        DebugLogger.getInstance().log(receiver.getName() + " denied the friend request from " + sender.getName());
     }
 
     /**
@@ -241,6 +241,6 @@ public class FriendsHelper {
             }
         }
 
-        logger.log(player.getName() + " removed " + target.getName() + " from their friends list.");
+        DebugLogger.getInstance().log(player.getName() + " removed " + target.getName() + " from their friends list.");
     }
 }

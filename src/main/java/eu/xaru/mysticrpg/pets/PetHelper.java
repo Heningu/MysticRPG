@@ -1,6 +1,6 @@
 package eu.xaru.mysticrpg.pets;
 
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -24,15 +24,15 @@ import java.util.logging.Level;
 
 public class PetHelper implements Listener {
     private final JavaPlugin plugin;
-    private final DebugLoggerModule logger;
+    
 
     private final Map<String, Pet> petConfigurations = new HashMap<>();
     private final Map<UUID, Set<String>> playerOwnedPets = new HashMap<>();
     private final Map<UUID, PetInstance> playerEquippedPets = new HashMap<>();
 
-    public PetHelper(JavaPlugin plugin, DebugLoggerModule logger) {
+    public PetHelper(JavaPlugin plugin) {
         this.plugin = plugin;
-        this.logger = logger;
+ 
 
         loadPetConfigurations();
 
@@ -43,7 +43,7 @@ public class PetHelper implements Listener {
     private void loadPetConfigurations() {
         File petFolder = new File(plugin.getDataFolder(), "pets");
         if (!petFolder.exists() && !petFolder.mkdirs()) {
-            logger.error("Failed to create pets folder.");
+            DebugLogger.getInstance().error("Failed to create pets folder.");
             return;
         }
 
@@ -55,11 +55,11 @@ public class PetHelper implements Listener {
                     String petId = config.getString("id");
                     String petName = config.getString("name");
                     if (petId == null || petId.isEmpty()) {
-                        logger.error("Pet ID is missing in file: " + file.getName());
+                        DebugLogger.getInstance().error("Pet ID is missing in file: " + file.getName());
                         continue;
                     }
                     if (petName == null || petName.isEmpty()) {
-                        logger.error("Pet name is missing in file: " + file.getName());
+                        DebugLogger.getInstance().error("Pet name is missing in file: " + file.getName());
                         continue;
                     }
 
@@ -68,9 +68,9 @@ public class PetHelper implements Listener {
                     Pet pet = new Pet(petId, petName, displayItem);
                     petConfigurations.put(petId, pet);
 
-                    logger.log(Level.INFO, "Loaded pet configuration: " + petId, 0);
+                    DebugLogger.getInstance().log(Level.INFO, "Loaded pet configuration: " + petId, 0);
                 } catch (Exception e) {
-                    logger.error("Failed to load pet configuration from file " + file.getName() + ": " + e.getMessage());
+                    DebugLogger.getInstance().error("Failed to load pet configuration from file " + file.getName() + ":", e);
                 }
             }
         }

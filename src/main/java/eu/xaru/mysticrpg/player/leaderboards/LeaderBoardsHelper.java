@@ -6,7 +6,7 @@ import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.storage.Callback;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.database.DatabaseManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.ChatColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -25,24 +25,22 @@ import java.util.stream.Collectors;
 public class LeaderBoardsHelper {
 
     private final DatabaseManager databaseManager;
-    private final DebugLoggerModule logger;
+    
     private final Map<String, HologramData> holograms = new HashMap<>();
 
     /**
      * Constructor for LeaderBoardsHelper.
      *
      * @param databaseManager The DatabaseManager instance for database interactions.
-     * @param logger          The DebugLoggerModule for logging.
+               The DebugLoggerModule for logging.
      */
-    public LeaderBoardsHelper(DatabaseManager databaseManager, DebugLoggerModule logger) {
+    public LeaderBoardsHelper(DatabaseManager databaseManager) {
         if (databaseManager == null) {
             throw new IllegalArgumentException("DatabaseManager cannot be null.");
         }
-        if (logger == null) {
-            throw new IllegalArgumentException("DebugLoggerModule cannot be null.");
-        }
+
         this.databaseManager = databaseManager;
-        this.logger = logger;
+ 
     }
 
     /**
@@ -69,7 +67,7 @@ public class LeaderBoardsHelper {
 
             @Override
             public void onFailure(Throwable throwable) {
-                logger.error("Failed to load all players for leaderboards: " + throwable.getMessage());
+                DebugLogger.getInstance().error("Failed to load all players for leaderboards: ", throwable);
                 callback.onFailure(throwable);
             }
         });
@@ -116,7 +114,7 @@ public class LeaderBoardsHelper {
         HologramData hologramData = new HologramData(id, hologram, updateTask);
         holograms.put(id, hologramData);
 
-        logger.log(Level.INFO, "Hologram spawned with ID: " + id + " at " + adjustedLocation, 0);
+        DebugLogger.getInstance().log(Level.INFO, "Hologram spawned with ID: " + id + " at " + adjustedLocation, 0);
     }
 
     /**
@@ -139,7 +137,7 @@ public class LeaderBoardsHelper {
         // Remove from the map
         holograms.remove(id);
 
-        logger.log(Level.INFO, "Hologram with ID: " + id + " has been removed.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "Hologram with ID: " + id + " has been removed.", 0);
     }
 
     /**
@@ -165,7 +163,7 @@ public class LeaderBoardsHelper {
             DHAPI.addHologramLine(hologram, line);
         }
 
-        logger.log(Level.INFO, "Initialized hologram '" + id + "' with 7 lines.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "Initialized hologram '" + id + "' with 7 lines.", 0);
     }
 
     /**
@@ -184,7 +182,7 @@ public class LeaderBoardsHelper {
                     DHAPI.setHologramLine(hologram, 0, ChatColor.GREEN + "=== Leaderboard ===");
                     DHAPI.setHologramLine(hologram, 6, ChatColor.GREEN + "==================");
                 } catch (IllegalArgumentException e) {
-                    logger.error("Failed to set static lines for hologram '" + id + "': " + e.getMessage());
+                    DebugLogger.getInstance().error("Failed to set static lines for hologram '" + id + "':", e);
                 }
 
                 // Update top 5 player lines
@@ -198,19 +196,19 @@ public class LeaderBoardsHelper {
                         try {
                             DHAPI.setHologramLine(hologram, i + 1, lineContent);
                         } catch (IllegalArgumentException e) {
-                            logger.error("Failed to set hologram line " + (i + 1) + " for hologram '" + id + "': " + e.getMessage());
+                            DebugLogger.getInstance().error("Failed to set hologram line " + (i + 1) + " for hologram '" + id + "':", e);
                         }
                     } else {
                         // If there are fewer than 5 players, display "N/A"
                         try {
                             DHAPI.setHologramLine(hologram, i + 1, ChatColor.YELLOW + "#" + (i + 1) + ": " + "N/A");
                         } catch (IllegalArgumentException e) {
-                            logger.error("Failed to set hologram line " + (i + 1) + " for hologram '" + id + "': " + e.getMessage());
+                            DebugLogger.getInstance().error("Failed to set hologram line " + (i + 1) + " for hologram '" + id + "':", e);
                         }
                     }
                 }
 
-                logger.log(Level.INFO, "Hologram with ID: " + id + " has been updated with top players.", 0);
+                DebugLogger.getInstance().log(Level.INFO, "Hologram with ID: " + id + " has been updated with top players.", 0);
             }
 
             @Override
@@ -219,10 +217,10 @@ public class LeaderBoardsHelper {
                 try {
                     DHAPI.setHologramLine(hologram, 1, ChatColor.RED + "Error fetching data.");
                 } catch (IllegalArgumentException e) {
-                    logger.error("Failed to set error message for hologram '" + id + "': " + e.getMessage());
+                    DebugLogger.getInstance().error("Failed to set error message for hologram '" + id + "':", e);
                 }
 
-                logger.error("Failed to update hologram with ID: " + id + ". " + throwable.getMessage());
+                DebugLogger.getInstance().error("Failed to update hologram with ID: " + id + ". ", throwable);
             }
         });
     }
@@ -245,7 +243,7 @@ public class LeaderBoardsHelper {
             try {
                 removeHologram(id);
             } catch (IllegalArgumentException e) {
-                logger.error("Failed to remove hologram '" + id + "': " + e.getMessage());
+                DebugLogger.getInstance().error("Failed to remove hologram '" + id + "':", e);
             }
         }
     }

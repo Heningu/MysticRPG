@@ -10,7 +10,7 @@ import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
@@ -29,17 +29,14 @@ import java.util.logging.Level;
 public class CustomItemModule implements IBaseModule {
 
     private ItemManager itemManager;
-    private DebugLoggerModule logger;
+    
     private EventManager eventManager;
     private JavaPlugin plugin;
     private PowerStoneManager powerStoneManager;
 
     @Override
     public void initialize() {
-        logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
-        if (logger == null) {
-            throw new IllegalStateException("DebugLoggerModule not initialized. CustomItemModule cannot function without it.");
-        }
+
 
         plugin = JavaPlugin.getPlugin(MysticCore.class);
 
@@ -60,27 +57,27 @@ public class CustomItemModule implements IBaseModule {
         // Register event handlers
         registerEventHandlers();
 
-        logger.log(Level.INFO, "CustomItemModule initialized successfully.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "CustomItemModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
-        logger.log(Level.INFO, "CustomItemModule started", 0);
+        DebugLogger.getInstance().log(Level.INFO, "CustomItemModule started", 0);
     }
 
     @Override
     public void stop() {
-        logger.log(Level.INFO, "CustomItemModule stopped", 0);
+        DebugLogger.getInstance().log(Level.INFO, "CustomItemModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        logger.log(Level.INFO, "CustomItemModule unloaded", 0);
+        DebugLogger.getInstance().log(Level.INFO, "CustomItemModule unloaded", 0);
     }
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(DebugLoggerModule.class, PowerStoneModule.class);
+        return List.of( PowerStoneModule.class);
     }
 
     @Override
@@ -137,7 +134,7 @@ public class CustomItemModule implements IBaseModule {
             if (clickedItem == null || clickedItem.getType().isAir()) return;
 
             // Debug logging
-            logger.log(Level.INFO, "InventoryClickEvent: Player " + player.getName() +
+            DebugLogger.getInstance().log(Level.INFO, "InventoryClickEvent: Player " + player.getName() +
                     " clicked with " + cursorItem.getType() + " on " + clickedItem.getType(), 0);
 
             if (isUpgradeStone(cursorItem)) {
@@ -168,7 +165,7 @@ public class CustomItemModule implements IBaseModule {
             if (cursorItem == null || cursorItem.getType().isAir()) return;
 
             // Debug logging
-            logger.log(Level.INFO, "InventoryDragEvent: Player " + player.getName() +
+            DebugLogger.getInstance().log(Level.INFO, "InventoryDragEvent: Player " + player.getName() +
                     " dragged " + cursorItem.getType(), 0);
 
             if (isUpgradeStone(cursorItem)) {

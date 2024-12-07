@@ -11,6 +11,7 @@ import eu.xaru.mysticrpg.quests.QuestModule;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -48,21 +49,21 @@ public class ScoreboardManager {
             this.economyHelper = economyModule.getEconomyHelper();
         } else {
             this.economyHelper = null;
-            Bukkit.getLogger().warning("[MysticRPG] EconomyModule not found. Balance display will be disabled.");
+            DebugLogger.getInstance().warning("[MysticRPG] EconomyModule not found. Balance display will be disabled.");
         }
         QuestModule questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
         if (questModule != null) {
             this.questManager = questModule.getQuestManager();
         } else {
             this.questManager = null;
-            Bukkit.getLogger().warning("[MysticRPG] QuestModule not found. Quest display will be disabled.");
+            DebugLogger.getInstance().warning("[MysticRPG] QuestModule not found. Quest display will be disabled.");
         }
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         if (saveModule != null) {
             this.playerDataCache = saveModule.getPlayerDataCache();
         } else {
             this.playerDataCache = null;
-            Bukkit.getLogger().warning("[MysticRPG] SaveModule not found. Player data will not be loaded.");
+            DebugLogger.getInstance().warning("[MysticRPG] SaveModule not found. Player data will not be loaded.");
         }
 
         startScoreboardUpdater();
@@ -312,7 +313,7 @@ public class ScoreboardManager {
         if (!playerScoreboards.containsKey(uuid)) {
             Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
             playerScoreboards.put(uuid, scoreboard);
-            Bukkit.getLogger().info("[MysticRPG] Created scoreboard for player " + player.getName());
+            DebugLogger.getInstance().log("[MysticRPG] Created scoreboard for player " + player.getName());
         }
     }
 }

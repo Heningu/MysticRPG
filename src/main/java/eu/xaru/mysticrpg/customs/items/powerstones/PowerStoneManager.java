@@ -4,6 +4,7 @@ import eu.xaru.mysticrpg.customs.items.effects.DeconstructEffect;
 import eu.xaru.mysticrpg.customs.items.effects.Effect;
 import eu.xaru.mysticrpg.customs.items.effects.FieryEffect;
 import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -38,7 +39,7 @@ public class PowerStoneManager {
     private void loadPowerStones() {
         File powerStonesFolder = new File(plugin.getDataFolder(), "custom/powerstones");
         if (!powerStonesFolder.exists() && !powerStonesFolder.mkdirs()) {
-            Bukkit.getLogger().severe("Failed to create powerstones folder.");
+            DebugLogger.getInstance().severe("Failed to create powerstones folder.");
             return;
         }
 
@@ -49,9 +50,9 @@ public class PowerStoneManager {
                     PowerStoneConfigLoader loader = new PowerStoneConfigLoader(file);
                     PowerStone powerStone = loader.loadPowerStone();
                     registerPowerStone(powerStone);
-                    Bukkit.getLogger().log(Level.INFO, "Loaded power stone: " + powerStone.getId());
+                    DebugLogger.getInstance().log(Level.INFO, "Loaded power stone: " + powerStone.getId());
                 } catch (Exception e) {
-                    Bukkit.getLogger().severe("Failed to load power stone from file " + file.getName() + ": " + e.getMessage());
+                    DebugLogger.getInstance().severe("Failed to load power stone from file " + file.getName() + ":", e);
                 }
             }
         }

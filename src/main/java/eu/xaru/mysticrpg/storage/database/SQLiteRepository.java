@@ -3,7 +3,7 @@ package eu.xaru.mysticrpg.storage.database;
 import eu.xaru.mysticrpg.auctionhouse.Auction;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.Callback;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -14,16 +14,16 @@ import java.util.logging.Level;
 public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDatabaseRepository {
 
     private final Connection connection;
-    private final DebugLoggerModule logger;
+    
 
-    public SQLiteRepository(String databasePath, DebugLoggerModule logger) {
-        this.logger = logger;
+    public SQLiteRepository(String databasePath) {
+ 
         try {
             connection = DriverManager.getConnection("jdbc:sqlite:" + databasePath);
             initializeTables();
-            logger.log(Level.INFO, "SQLiteRepository connected to SQLite database", 0);
+            DebugLogger.getInstance().log(Level.INFO, "SQLiteRepository connected to SQLite database", 0);
         } catch (SQLException e) {
-            logger.error("SQLiteRepository failed to connect to SQLite: " + e.getMessage());
+            DebugLogger.getInstance().error("SQLiteRepository failed to connect to SQLite:", e);
             throw new RuntimeException(e);
         }
     }
@@ -75,7 +75,7 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
 
     @Override
     public void savePlayerData(PlayerData playerData, Callback<Void> callback) {
-        logger.log(Level.INFO, "Saving player data for UUID: " + playerData.getUuid(), 0);
+        DebugLogger.getInstance().log(Level.INFO, "Saving player data for UUID: " + playerData.getUuid(), 0);
         String sql = "INSERT INTO playerData (uuid, balance, xp, level, nextLevelXP, currentHp, attributes, unlockedRecipes, " +
                 "friendRequests, friends, blockedPlayers, blockingRequests, attributePoints, activeQuests, questProgress, " +
                 "completedQuests, pinnedQuest, pendingBalance, pendingItems, remindersEnabled) " +
@@ -113,16 +113,16 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
 
             pstmt.executeUpdate();
             callback.onSuccess(null);
-            logger.log(Level.INFO, "Successfully saved player data for UUID: " + playerData.getUuid(), 0);
+            DebugLogger.getInstance().log(Level.INFO, "Successfully saved player data for UUID: " + playerData.getUuid(), 0);
         } catch (SQLException e) {
-            logger.error("Error saving player data for UUID: " + playerData.getUuid() + ". " + e.getMessage());
+            DebugLogger.getInstance().error("Error saving player data for UUID: " + playerData.getUuid() + ".", e);
             callback.onFailure(e);
         }
     }
 
     @Override
     public void loadPlayerData(UUID uuid, Callback<PlayerData> callback) {
-        logger.log(Level.INFO, "Loading player data for UUID: " + uuid, 0);
+        DebugLogger.getInstance().log(Level.INFO, "Loading player data for UUID: " + uuid, 0);
         String sql = "SELECT * FROM playerData WHERE uuid = ?;";
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, uuid.toString());
@@ -152,41 +152,41 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
                 playerData.setRemindersEnabled(rs.getInt("remindersEnabled") == 1);
 
                 callback.onSuccess(playerData);
-                logger.log(Level.INFO, "Successfully loaded player data for UUID: " + uuid, 0);
+                DebugLogger.getInstance().log(Level.INFO, "Successfully loaded player data for UUID: " + uuid, 0);
             } else {
-                logger.log(Level.INFO, "No data found for UUID: " + uuid + ". Creating default data.", 0);
+                DebugLogger.getInstance().log(Level.INFO, "No data found for UUID: " + uuid + ". Creating default data.", 0);
                 PlayerData newPlayerData = PlayerData.defaultData(uuid.toString());
                 savePlayerData(newPlayerData, new Callback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
-                        logger.log(Level.INFO, "Default player data created for UUID: " + uuid, 0);
+                        DebugLogger.getInstance().log(Level.INFO, "Default player data created for UUID: " + uuid, 0);
                         callback.onSuccess(newPlayerData);
                     }
 
                     @Override
                     public void onFailure(Throwable throwable) {
-                        logger.error("Failed to save default player data for UUID: " + uuid + ". " + throwable.getMessage());
+                        DebugLogger.getInstance().error("Failed to save default player data for UUID: " + uuid + ". ", throwable);
                         callback.onFailure(throwable);
                     }
                 });
             }
         } catch (SQLException e) {
-            logger.error("Error loading player data for UUID: " + uuid + ". " + e.getMessage());
+            DebugLogger.getInstance().error("Error loading player data for UUID: " + uuid + ".", e);
             callback.onFailure(e);
         }
     }
 
     @Override
     public void deletePlayerData(UUID uuid, Callback<Void> callback) {
-        logger.log(Level.INFO, "Deleting player data for UUID: " + uuid, 0);
+        DebugLogger.getInstance().log(Level.INFO, "Deleting player data for UUID: " + uuid, 0);
         String sql = "DELETE FROM playerData WHERE uuid = ?;";
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, uuid.toString());
             pstmt.executeUpdate();
             callback.onSuccess(null);
-            logger.log(Level.INFO, "Successfully deleted player data for UUID: " + uuid, 0);
+            DebugLogger.getInstance().log(Level.INFO, "Successfully deleted player data for UUID: " + uuid, 0);
         } catch (SQLException e) {
-            logger.error("Error deleting player data for UUID: " + uuid + ". " + e.getMessage());
+            DebugLogger.getInstance().error("Error deleting player data for UUID: " + uuid + ".", e);
             callback.onFailure(e);
         }
     }
@@ -195,7 +195,7 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
 
     @Override
     public void saveAuction(Auction auction, Callback<Void> callback) {
-        logger.log(Level.INFO, "Saving auction with ID: " + auction.getAuctionId(), 0);
+        DebugLogger.getInstance().log(Level.INFO, "Saving auction with ID: " + auction.getAuctionId(), 0);
         String sql = "INSERT INTO auctions (auctionId, sellerUUID, itemData, price, expirationTime) " +
                 "VALUES (?, ?, ?, ?, ?) " +
                 "ON CONFLICT(auctionId) DO UPDATE SET " +
@@ -210,16 +210,16 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
 
             pstmt.executeUpdate();
             callback.onSuccess(null);
-            logger.log(Level.INFO, "Successfully saved auction with ID: " + auction.getAuctionId(), 0);
+            DebugLogger.getInstance().log(Level.INFO, "Successfully saved auction with ID: " + auction.getAuctionId(), 0);
         } catch (SQLException e) {
-            logger.error("Error saving auction with ID: " + auction.getAuctionId() + ". " + e.getMessage());
+            DebugLogger.getInstance().error("Error saving auction with ID: " + auction.getAuctionId() + ".", e);
             callback.onFailure(e);
         }
     }
 
     @Override
     public void loadAuctions(Callback<List<Auction>> callback) {
-        logger.log(Level.INFO, "Loading auctions from SQLite", 0);
+        DebugLogger.getInstance().log(Level.INFO, "Loading auctions from SQLite", 0);
         List<Auction> auctions = new ArrayList<>();
         String sql = "SELECT * FROM auctions;";
         try (Statement stmt = connection.createStatement()) {
@@ -234,24 +234,24 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
                 auctions.add(auction);
             }
             callback.onSuccess(auctions);
-            logger.log(Level.INFO, "Loaded " + auctions.size() + " auctions from SQLite", 0);
+            DebugLogger.getInstance().log(Level.INFO, "Loaded " + auctions.size() + " auctions from SQLite", 0);
         } catch (SQLException e) {
-            logger.error("Error loading auctions from SQLite: " + e.getMessage());
+            DebugLogger.getInstance().error("Error loading auctions from SQLite:", e);
             callback.onFailure(e);
         }
     }
 
     @Override
     public void deleteAuction(UUID auctionId, Callback<Void> callback) {
-        logger.log(Level.INFO, "Deleting auction with ID: " + auctionId, 0);
+        DebugLogger.getInstance().log(Level.INFO, "Deleting auction with ID: " + auctionId, 0);
         String sql = "DELETE FROM auctions WHERE auctionId = ?;";
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, auctionId.toString());
             pstmt.executeUpdate();
             callback.onSuccess(null);
-            logger.log(Level.INFO, "Successfully deleted auction with ID: " + auctionId, 0);
+            DebugLogger.getInstance().log(Level.INFO, "Successfully deleted auction with ID: " + auctionId, 0);
         } catch (SQLException e) {
-            logger.error("Error deleting auction with ID: " + auctionId + ". " + e.getMessage());
+            DebugLogger.getInstance().error("Error deleting auction with ID: " + auctionId + ".", e);
             callback.onFailure(e);
         }
     }
@@ -260,7 +260,7 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
 
     @Override
     public void loadAllPlayers(Callback<List<PlayerData>> callback) {
-        logger.log(Level.INFO, "Loading all player data from SQLite", 0);
+        DebugLogger.getInstance().log(Level.INFO, "Loading all player data from SQLite", 0);
         List<PlayerData> allPlayers = new ArrayList<>();
         String sql = "SELECT * FROM playerData;";
         try (Statement stmt = connection.createStatement()) {
@@ -291,9 +291,9 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
                 allPlayers.add(playerData);
             }
             callback.onSuccess(allPlayers);
-            logger.log(Level.INFO, "Successfully loaded all player data. Total players: " + allPlayers.size(), 0);
+            DebugLogger.getInstance().log(Level.INFO, "Successfully loaded all player data. Total players: " + allPlayers.size(), 0);
         } catch (SQLException e) {
-            logger.error("Error loading all player data from SQLite: " + e.getMessage());
+            DebugLogger.getInstance().error("Error loading all player data from SQLite:", e);
             callback.onFailure(e);
         }
     }

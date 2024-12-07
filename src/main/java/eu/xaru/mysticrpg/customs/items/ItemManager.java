@@ -1,6 +1,7 @@
 package eu.xaru.mysticrpg.customs.items;
 
 import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.attribute.AttributeModifier;
@@ -26,7 +27,7 @@ public class ItemManager {
     void loadCustomItems() {
         File itemsFolder = new File(plugin.getDataFolder(), "custom/items");
         if (!itemsFolder.exists() && !itemsFolder.mkdirs()) {
-            Bukkit.getLogger().severe("Failed to create items folder.");
+            DebugLogger.getInstance().severe("Failed to create items folder.");
             return;
         }
 
@@ -39,7 +40,7 @@ public class ItemManager {
 
                     id = config.getString("id");
                     if (id == null || id.isEmpty()) {
-                        Bukkit.getLogger().severe("Item ID is missing in file: " + file.getName());
+                        DebugLogger.getInstance().severe("Item ID is missing in file: " + file.getName());
                         continue;
                     }
 
@@ -47,7 +48,7 @@ public class ItemManager {
                     String materialName = config.getString("material", "STONE");
                     Material material = Material.matchMaterial(materialName.toUpperCase());
                     if (material == null) {
-                        Bukkit.getLogger().severe("Invalid material for item " + id + " in file: " + file.getName());
+                        DebugLogger.getInstance().severe("Invalid material for item " + id + " in file: " + file.getName());
                         continue;
                     }
 
@@ -56,7 +57,7 @@ public class ItemManager {
                     try {
                         rarity = Rarity.valueOf(rarityName.toUpperCase());
                     } catch (IllegalArgumentException e) {
-                        Bukkit.getLogger().warning("Invalid rarity '" + rarityName + "' for item " + id + " in file: " + file.getName() + ". Defaulting to COMMON.");
+                        DebugLogger.getInstance().warning("Invalid rarity '" + rarityName + "' for item " + id + " in file: " + file.getName() + ". Defaulting to COMMON.");
                         rarity = Rarity.COMMON;
                     }
 
@@ -66,7 +67,7 @@ public class ItemManager {
                     try {
                         category = Category.valueOf(categoryName);
                     } catch (IllegalArgumentException e) {
-                        Bukkit.getLogger().warning("Invalid category '" + categoryName + "' for item " + id + " in file: " + file.getName() + ". Defaulting to TOOL.");
+                        DebugLogger.getInstance().warning("Invalid category '" + categoryName + "' for item " + id + " in file: " + file.getName() + ". Defaulting to TOOL.");
                         category = Category.TOOL; // Default category
                     }
 
@@ -98,7 +99,7 @@ public class ItemManager {
                                     try {
                                         operation = AttributeModifier.Operation.valueOf(operationStr);
                                     } catch (IllegalArgumentException e) {
-                                        Bukkit.getLogger().warning("Invalid operation '" + operationStr + "' for attribute '" + attrKey + "' in item '" + id + "'. Defaulting to ADD_NUMBER.");
+                                        DebugLogger.getInstance().warning("Invalid operation '" + operationStr + "' for attribute '" + attrKey + "' in item '" + id + "'. Defaulting to ADD_NUMBER.");
                                         operation = AttributeModifier.Operation.ADD_NUMBER;
                                     }
                                     AttributeData attributeData = new AttributeData(value, operation);
@@ -140,7 +141,7 @@ public class ItemManager {
                                     try {
                                         tierNumber = Integer.parseInt(tierKey);
                                     } catch (NumberFormatException e) {
-                                        Bukkit.getLogger().warning("Invalid tier number '" + tierKey + "' in item '" + id + "'. Skipping this tier.");
+                                        DebugLogger.getInstance().warning("Invalid tier number '" + tierKey + "' in item '" + id + "'. Skipping this tier.");
                                         continue;
                                     }
                                     Map<String, AttributeData> tierAttrs = new HashMap<>();
@@ -155,7 +156,7 @@ public class ItemManager {
                                                 try {
                                                     operation = AttributeModifier.Operation.valueOf(operationStr);
                                                 } catch (IllegalArgumentException e) {
-                                                    Bukkit.getLogger().warning("Invalid operation '" + operationStr + "' for attribute '" + attrKey + "' in item '" + id + "'. Defaulting to ADD_NUMBER.");
+                                                    DebugLogger.getInstance().warning("Invalid operation '" + operationStr + "' for attribute '" + attrKey + "' in item '" + id + "'. Defaulting to ADD_NUMBER.");
                                                     operation = AttributeModifier.Operation.ADD_NUMBER;
                                                 }
                                                 AttributeData attributeData = new AttributeData(value, operation);
@@ -186,9 +187,9 @@ public class ItemManager {
                             usePowerStones, powerStoneSlots, armorType);
 
                     customItems.put(id, customItem);
-                    Bukkit.getLogger().log(Level.INFO, "Loaded custom item: " + id);
+                    DebugLogger.getInstance().log(Level.INFO, "Loaded custom item: " + id);
                 } catch (Exception e) {
-                    Bukkit.getLogger().severe("Failed to load item configuration from file " + file.getName() + ": " + e.getMessage());
+                    DebugLogger.getInstance().severe("Failed to load item configuration from file " + file.getName() + ":", e);
                 }
             }
         }

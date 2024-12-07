@@ -8,7 +8,7 @@ import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.CustomInventoryManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -26,14 +26,14 @@ public class TradingHandler implements IBaseModule {
 
 
     private final EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
-    private DebugLoggerModule debugLogger;
+    
     public static Map<Inventory, Trade> inventoryHandler = new WeakHashMap<>();
     protected static Map<Player, Player> trades = new WeakHashMap<>();
 
     @Override
     public void initialize() throws Exception {
-        debugLogger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
-        debugLogger.log(Level.INFO, "TradeModule initialization", 0);
+
+        DebugLogger.getInstance().log(Level.INFO, "TradeModule initialization", 0);
 
         registerTradeCommand();
         eventManager.registerEvent(InventoryClickEvent.class, event -> {
@@ -125,7 +125,7 @@ public class TradingHandler implements IBaseModule {
                 }
             }
         });
-        debugLogger.log(Level.INFO, "TradeModule init finished", 0);
+        DebugLogger.getInstance().log(Level.INFO, "TradeModule init finished", 0);
     }
 
     private void registerTradeCommand() {
@@ -147,17 +147,17 @@ public class TradingHandler implements IBaseModule {
 
     @Override
     public void start() throws Exception {
-        debugLogger.log(Level.INFO, "TradeModule started", 0);
+        DebugLogger.getInstance().log(Level.INFO, "TradeModule started", 0);
     }
 
     @Override
     public void stop() throws Exception {
-        debugLogger.log(Level.INFO, "TradeModule stopped", 0);
+        DebugLogger.getInstance().log(Level.INFO, "TradeModule stopped", 0);
     }
 
     @Override
     public void unload() throws Exception {
-        debugLogger.log(Level.INFO, "TradeModule unloaded", 0);
+        DebugLogger.getInstance().log(Level.INFO, "TradeModule unloaded", 0);
     }
 
     @Override

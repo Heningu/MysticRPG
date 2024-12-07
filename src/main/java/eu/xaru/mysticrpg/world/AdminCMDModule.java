@@ -5,7 +5,7 @@ import dev.jorel.commandapi.arguments.IntegerArgument;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
 
@@ -17,36 +17,34 @@ import java.util.logging.Level;
  */
 public class AdminCMDModule implements IBaseModule {
 
-    private DebugLoggerModule logger;
+    
 
     @Override
     public void initialize() {
-        logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
-        if (logger == null) {
-            throw new IllegalStateException("DebugLoggerModule not initialized. AdminCMDModule cannot function without it.");
-        }
+
+
         registerCommands();
-        logger.log(Level.INFO, "AdminCMDModule initialized successfully.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "AdminCMDModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
-        logger.log(Level.INFO, "AdminCMDModule started", 0);
+        DebugLogger.getInstance().log(Level.INFO, "AdminCMDModule started", 0);
     }
 
     @Override
     public void stop() {
-        logger.log(Level.INFO, "AdminCMDModule stopped", 0);
+        DebugLogger.getInstance().log(Level.INFO, "AdminCMDModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        logger.log(Level.INFO, "AdminCMDModule unloaded", 0);
+        DebugLogger.getInstance().log(Level.INFO, "AdminCMDModule unloaded", 0);
     }
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(DebugLoggerModule.class);
+        return List.of();
     }
 
     @Override

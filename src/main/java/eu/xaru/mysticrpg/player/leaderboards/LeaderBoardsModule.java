@@ -12,7 +12,7 @@ import eu.xaru.mysticrpg.storage.Callback;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.database.DatabaseManager;
 import eu.xaru.mysticrpg.storage.SaveModule;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
 import org.bukkit.Bukkit;
@@ -33,7 +33,7 @@ public class LeaderBoardsModule implements IBaseModule {
 
     private MysticCore plugin;
     private EventManager eventManager;
-    private DebugLoggerModule debugLogger; // Debug Logger
+    
     private DatabaseManager databaseManager;
     private LeaderBoardsHelper leaderBoardsHelper;
 
@@ -43,14 +43,9 @@ public class LeaderBoardsModule implements IBaseModule {
     @Override
     public void initialize() {
         // Retrieve the debug logger
-        this.debugLogger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
 
-        if (this.debugLogger == null) {
-            Bukkit.getLogger().log(Level.SEVERE, "Failed to initialize LeaderBoardsModule: DebugLoggerModule is null.");
-            throw new IllegalStateException("DebugLoggerModule is not loaded. LeaderBoardsModule cannot function.");
-        }
 
-        debugLogger.log(Level.INFO, "Initializing LeaderBoardsModule...", 0);
+        DebugLogger.getInstance().log(Level.INFO, "Initializing LeaderBoardsModule...", 0);
 
         // Retrieve the main plugin instance
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
@@ -63,21 +58,21 @@ public class LeaderBoardsModule implements IBaseModule {
         if (saveModule != null) {
             this.databaseManager = saveModule.getDatabaseManager();
             if (this.databaseManager != null) {
-                this.leaderBoardsHelper = new LeaderBoardsHelper(databaseManager, debugLogger);
-                debugLogger.log(Level.INFO, "LeaderBoardsHelper initialized successfully.", 0);
+                this.leaderBoardsHelper = new LeaderBoardsHelper(databaseManager);
+                DebugLogger.getInstance().log(Level.INFO, "LeaderBoardsHelper initialized successfully.", 0);
             } else {
-                debugLogger.error("DatabaseManager is not initialized in SaveModule. LeaderBoardsModule will not function.");
+                DebugLogger.getInstance().log("DatabaseManager is not initialized in SaveModule. LeaderBoardsModule will not function.");
                 throw new IllegalStateException("DatabaseManager is null in SaveModule.");
             }
         } else {
-            debugLogger.error("SaveModule not initialized. LeaderBoardsModule will not function without it.");
+            DebugLogger.getInstance().error("SaveModule not initialized. LeaderBoardsModule will not function without it.");
             throw new IllegalStateException("SaveModule is not loaded.");
         }
 
         // Optionally load persisted holograms
         // leaderBoardsHelper.loadPersistedHolograms();
 
-        debugLogger.log(Level.INFO, "LeaderBoardsModule initialization complete.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "LeaderBoardsModule initialization complete.", 0);
     }
 
     /**
@@ -112,7 +107,7 @@ public class LeaderBoardsModule implements IBaseModule {
      */
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(DebugLoggerModule.class, SaveModule.class);
+        return List.of( SaveModule.class);
     }
 
     /**
@@ -159,12 +154,12 @@ public class LeaderBoardsModule implements IBaseModule {
                             @Override
                             public void onFailure(Throwable throwable) {
                                 player.sendMessage(ChatColor.RED + "Failed to retrieve leaderboards. Please try again later.");
-                                debugLogger.error("Error fetching leaderboards: " + throwable.getMessage());
+                                DebugLogger.getInstance().error("Error fetching leaderboards: ", throwable);
                             }
                         });
                     } else {
                         player.sendMessage(ChatColor.RED + "Leaderboard system is currently unavailable.");
-                        debugLogger.error("LeaderBoardsHelper is null. Cannot fetch leaderboards.");
+                        DebugLogger.getInstance().error("LeaderBoardsHelper is null. Cannot fetch leaderboards.");
                     }
                 })
                 // Subcommand: /leaderboards holospawn <ID>
@@ -179,11 +174,11 @@ public class LeaderBoardsModule implements IBaseModule {
                                 leaderBoardsHelper.spawnHologram(id, location);
                                 player.sendMessage(ChatColor.GREEN + "Hologram '" + id + "' spawned at your location.");
                             } catch (IllegalArgumentException e) {
-                                player.sendMessage(ChatColor.RED + "Error spawning hologram: " + e.getMessage());
-                                debugLogger.error("Error spawning hologram '" + id + "': " + e.getMessage());
+                                player.sendMessage(ChatColor.RED + "Error spawning hologram:" + e.getMessage());
+                                DebugLogger.getInstance().error("Error spawning hologram '" + id + "':", e);
                             } catch (Exception e) {
                                 player.sendMessage(ChatColor.RED + "An unexpected error occurred while spawning the hologram.");
-                                debugLogger.error("Unexpected error spawning hologram '" + id + "': " + e.getMessage());
+                                DebugLogger.getInstance().error("Unexpected error spawning hologram '" + id + "':", e);
                             }
                         }))
                 // Subcommand: /leaderboards holoremove <ID>
@@ -197,16 +192,16 @@ public class LeaderBoardsModule implements IBaseModule {
                                 leaderBoardsHelper.removeHologram(id);
                                 player.sendMessage(ChatColor.GREEN + "Hologram '" + id + "' has been removed.");
                             } catch (IllegalArgumentException e) {
-                                player.sendMessage(ChatColor.RED + "Error removing hologram: " + e.getMessage());
-                                debugLogger.error("Error removing hologram '" + id + "': " + e.getMessage());
+                                player.sendMessage(ChatColor.RED + "Error removing hologram:" + e.getMessage());
+                                DebugLogger.getInstance().error("Error removing hologram '" + id + "':", e);
                             } catch (Exception e) {
                                 player.sendMessage(ChatColor.RED + "An unexpected error occurred while removing the hologram.");
-                                debugLogger.error("Unexpected error removing hologram '" + id + "': " + e.getMessage());
+                                DebugLogger.getInstance().error("Unexpected error removing hologram '" + id + "':", e);
                             }
                         }))
                 .register();
 
-        debugLogger.log(Level.INFO, "LeaderBoardsModule commands registered.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "LeaderBoardsModule commands registered.", 0);
     }
 
     /**
@@ -216,7 +211,7 @@ public class LeaderBoardsModule implements IBaseModule {
     public void cleanup() {
         if (leaderBoardsHelper != null) {
             leaderBoardsHelper.removeAllHolograms();
-            debugLogger.log(Level.INFO, "All holograms have been removed during cleanup.", 0);
+            DebugLogger.getInstance().log(Level.INFO, "All holograms have been removed during cleanup.", 0);
         }
     }
 }

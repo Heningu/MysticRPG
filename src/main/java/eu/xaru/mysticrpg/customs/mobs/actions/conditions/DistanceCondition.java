@@ -1,6 +1,7 @@
 package eu.xaru.mysticrpg.customs.mobs.actions.conditions;
 
 import eu.xaru.mysticrpg.customs.mobs.actions.Condition;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -40,12 +41,12 @@ public class DistanceCondition implements Condition {
     @Override
     public boolean evaluate(LivingEntity mob, Entity target) {
         if (mob == null || target == null) {
-            Bukkit.getLogger().info("DistanceCondition: mob or target is null.");
+            DebugLogger.getInstance().log("DistanceCondition: mob or target is null.");
             return false;
         }
 
         double distance = mob.getLocation().distance(target.getLocation());
-        Bukkit.getLogger().info("DistanceCondition: mob=" + mob.getName() + ", target=" + target.getName() + ", distance=" + distance);
+        DebugLogger.getInstance().log("DistanceCondition: mob=" + mob.getName() + ", target=" + target.getName() + ", distance=" + distance);
 
         switch (operator) {
             case "<":

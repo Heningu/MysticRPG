@@ -7,7 +7,7 @@ import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Entity;
@@ -24,21 +24,20 @@ public class PartyModule implements IBaseModule {
     private MysticCore plugin;
     private PartyHelper partyHelper;
     private EventManager eventManager;
-    private DebugLoggerModule logger;
+    
 
     @Override
     public void initialize() {
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
         this.eventManager = new EventManager(plugin);
-        this.logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
         this.partyHelper = new PartyHelper();
 
-        logger.log(Level.INFO, "PartyModule initialized", 0);
+        DebugLogger.getInstance().log(Level.INFO, "PartyModule initialized", 0);
     }
 
     @Override
     public void start() {
-        logger.log(Level.INFO, "PartyModule started", 0);
+        DebugLogger.getInstance().log(Level.INFO, "PartyModule started", 0);
 
         registerCommands();
         registerEvents();
@@ -46,17 +45,17 @@ public class PartyModule implements IBaseModule {
 
     @Override
     public void stop() {
-        logger.log(Level.INFO, "PartyModule stopped", 0);
+        DebugLogger.getInstance().log(Level.INFO, "PartyModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        logger.log(Level.INFO, "PartyModule unloaded", 0);
+        DebugLogger.getInstance().log(Level.INFO, "PartyModule unloaded", 0);
     }
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(DebugLoggerModule.class);
+        return List.of();
     }
 
     @Override

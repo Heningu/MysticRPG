@@ -10,7 +10,7 @@ import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.ui.ActionBarManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -34,7 +34,7 @@ import java.util.logging.Level;
 public class CustomDamageHandler implements IBaseModule {
 
     private PlayerDataCache playerDataCache;
-    private DebugLoggerModule logger;
+    
     private final EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
     private final Map<UUID, Long> lastDamageTime = new HashMap<>();
     private JavaPlugin plugin;
@@ -42,30 +42,30 @@ public class CustomDamageHandler implements IBaseModule {
 
     @Override
     public void initialize() {
-        logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
+        
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         plugin = JavaPlugin.getPlugin(MysticCore.class);
 
         if (saveModule != null) {
             playerDataCache = saveModule.getPlayerDataCache();
         } else {
-            logger.error("SaveModule not initialized. CustomDamageHandler cannot function without it.");
+            DebugLogger.getInstance().error("SaveModule not initialized. CustomDamageHandler cannot function without it.");
             return;
         }
 
         if (playerDataCache == null) {
-            logger.error("PlayerDataCache not initialized. CustomDamageHandler cannot function without it.");
+            DebugLogger.getInstance().error("PlayerDataCache not initialized. CustomDamageHandler cannot function without it.");
             return;
         }
 
         actionBarManager = new ActionBarManager((MysticCore) plugin, playerDataCache);
 
-        logger.log(Level.INFO, "CustomDamageHandler initialized", 0);
+        DebugLogger.getInstance().log(Level.INFO, "CustomDamageHandler initialized", 0);
     }
 
     @Override
     public void start() {
-        logger.log(Level.INFO, "CustomDamageHandler started", 0);
+        DebugLogger.getInstance().log(Level.INFO, "CustomDamageHandler started", 0);
 
         // Register EntityDamageByEntityEvent first to handle damage from mobs and players specifically
         eventManager.registerEvent(EntityDamageByEntityEvent.class, event -> {
@@ -73,7 +73,7 @@ public class CustomDamageHandler implements IBaseModule {
                 Player player = (Player) event.getEntity();
                 if (event.isCancelled()) return;
 
-                logger.log(Level.INFO, "EntityDamageByEntityEvent", 0);
+                DebugLogger.getInstance().log(Level.INFO, "EntityDamageByEntityEvent", 0);
 
                 // Handle only entity-related damage here
                 handleDamage(player, event, event.getFinalDamage());
@@ -94,7 +94,7 @@ public class CustomDamageHandler implements IBaseModule {
             if (event.getEntity() instanceof Player) {
                 Player player = (Player) event.getEntity();
                 EntityDamageEvent.DamageCause cause = event.getCause();
-                logger.log("EntityDamageEvent %s", cause);
+                DebugLogger.getInstance().log("EntityDamageEvent %s", cause);
 
                 switch (cause) {
                     case FALL, FIRE_TICK, LAVA, DROWNING:
@@ -127,7 +127,7 @@ public class CustomDamageHandler implements IBaseModule {
         PlayerData playerData = playerDataCache.getCachedPlayerData(playerUUID);
 
         if (playerData == null) {
-            logger.error("No cached data found for player: " + player.getName());
+            DebugLogger.getInstance().error("No cached data found for player: " + player.getName());
             return;
         }
 
@@ -145,13 +145,13 @@ public class CustomDamageHandler implements IBaseModule {
         actionBarManager.updateActionBar(player);
 
         // Log the damage event
-        logger.log("Player " + player.getName() + " took " + damage + " damage. Current HP: " + currentHp);
+        DebugLogger.getInstance().log("Player " + player.getName() + " took " + damage + " damage. Current HP: " + currentHp);
         if (currentHp <= 0) {
             // Handle player death
             Location spawnLocation = player.getWorld().getSpawnLocation();
             player.teleport(spawnLocation);
             player.sendMessage(Utils.getInstance().$("You Died"));
-            logger.log("Player " + player.getName() + " died and was teleported to spawn.");
+            DebugLogger.getInstance().log("Player " + player.getName() + " died and was teleported to spawn.");
 
             // Reset player's health to max for respawn
             playerData.setCurrentHp(maxHp);
@@ -185,7 +185,7 @@ public class CustomDamageHandler implements IBaseModule {
         PlayerData playerData = playerDataCache.getCachedPlayerData(playerUUID);
 
         if (playerData == null) {
-            logger.error("No cached data found for player: " + player.getName());
+            DebugLogger.getInstance().error("No cached data found for player: " + player.getName());
             return;
         }
 
@@ -202,13 +202,13 @@ public class CustomDamageHandler implements IBaseModule {
         actionBarManager.updateActionBar(player);
 
         // Log the damage event
-        logger.log("Player " + player.getName() + " took " + damage + " damage. Current HP: " + currentHp);
+        DebugLogger.getInstance().log("Player " + player.getName() + " took " + damage + " damage. Current HP: " + currentHp);
         if (currentHp <= 0) {
             // Handle player death
             Location spawnLocation = player.getWorld().getSpawnLocation();
             player.teleport(spawnLocation);
             player.sendMessage(Utils.getInstance().$("You Died"));
-            logger.log("Player " + player.getName() + " died and was teleported to spawn.");
+            DebugLogger.getInstance().log("Player " + player.getName() + " died and was teleported to spawn.");
 
             // Reset player's health to max for respawn
             int maxHp = playerData.getAttributes().getOrDefault("HP", 20);
@@ -242,7 +242,7 @@ public class CustomDamageHandler implements IBaseModule {
                     currentHp += 1; // Regenerate 1 HP per second
                     if (currentHp > maxHp) currentHp = maxHp;
                     playerData.setCurrentHp(currentHp);
-                    logger.log("Regenerated 1 HP for player " + player.getName() + ". Current HP: " + currentHp);
+                    DebugLogger.getInstance().log("Regenerated 1 HP for player " + player.getName() + ". Current HP: " + currentHp);
 
                     // Update the action bar after regeneration
                     actionBarManager.updateActionBar(player);
@@ -253,17 +253,17 @@ public class CustomDamageHandler implements IBaseModule {
 
     @Override
     public void stop() {
-        logger.log(Level.INFO, "CustomDamageHandler stopped", 0);
+        DebugLogger.getInstance().log(Level.INFO, "CustomDamageHandler stopped", 0);
     }
 
     @Override
     public void unload() {
-        logger.log(Level.INFO, "CustomDamageHandler unloaded", 0);
+        DebugLogger.getInstance().log(Level.INFO, "CustomDamageHandler unloaded", 0);
     }
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(DebugLoggerModule.class, SaveModule.class);
+        return List.of( SaveModule.class);
     }
 
     @Override

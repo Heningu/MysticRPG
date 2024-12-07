@@ -3,7 +3,7 @@
 package eu.xaru.mysticrpg.dungeons.lobby;
 
 import eu.xaru.mysticrpg.dungeons.DungeonManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
@@ -13,12 +13,12 @@ import java.util.logging.Level;
 public class LobbyManager {
 
     private final DungeonManager dungeonManager;
-    private final DebugLoggerModule logger;
+    
     private final Map<String, DungeonLobby> activeLobbies;
 
-    public LobbyManager(DungeonManager dungeonManager, DebugLoggerModule logger) {
+    public LobbyManager(DungeonManager dungeonManager) {
         this.dungeonManager = dungeonManager;
-        this.logger = logger;
+ 
         this.activeLobbies = new HashMap<>();
     }
 
@@ -26,12 +26,12 @@ public class LobbyManager {
         DungeonLobby lobby = findAvailableLobby(dungeonId);
         if (lobby != null) {
             lobby.addPlayer(player);
-            logger.log(Level.INFO, "Player " + player.getName() + " added to existing lobby " + lobby.getLobbyId(), 0);
+            DebugLogger.getInstance().log(Level.INFO, "Player " + player.getName() + " added to existing lobby " + lobby.getLobbyId(), 0);
         } else {
             lobby = new DungeonLobby(dungeonId, dungeonManager, this);
             lobby.addPlayer(player);
             activeLobbies.put(lobby.getLobbyId(), lobby);
-            logger.log(Level.INFO, "Lobby " + lobby.getLobbyId() + " created for dungeon " + dungeonId, 0);
+            DebugLogger.getInstance().log(Level.INFO, "Lobby " + lobby.getLobbyId() + " created for dungeon " + dungeonId, 0);
         }
         return lobby;
     }

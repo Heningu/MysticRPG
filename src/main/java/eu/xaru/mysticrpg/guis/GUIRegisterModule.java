@@ -14,7 +14,7 @@ import eu.xaru.mysticrpg.quests.QuestModule;
 import eu.xaru.mysticrpg.social.friends.FriendsModule;
 import eu.xaru.mysticrpg.social.party.PartyModule;
 import eu.xaru.mysticrpg.utils.CustomInventoryManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
@@ -48,7 +48,7 @@ public class GUIRegisterModule implements IBaseModule, Listener {
 
     private MysticCore plugin;
     private EventManager eventManager;
-    private DebugLoggerModule debugLogger;
+    
     private PlayerStatModule playerStat;
     private AuctionHouseModule auctionHouse;
     private EquipmentModule equipmentModule;
@@ -64,14 +64,10 @@ public class GUIRegisterModule implements IBaseModule, Listener {
     @Override
     public void initialize() {
         // Retrieve the debug logger
-        this.debugLogger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
 
-        if (this.debugLogger == null) {
-            Bukkit.getLogger().log(Level.SEVERE, "Failed to initialize GUIRegisterModule: DebugLoggerModule is null.");
-            throw new IllegalStateException("DebugLoggerModule is not loaded. GUIRegisterModule cannot function.");
-        }
 
-        debugLogger.log(Level.INFO, "Initializing GUIRegisterModule...", 0);
+
+        DebugLogger.getInstance().log(Level.INFO, "Initializing GUIRegisterModule...", 0);
 
         // Retrieve the main plugin instance
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
@@ -82,56 +78,56 @@ public class GUIRegisterModule implements IBaseModule, Listener {
         // Retrieve AuctionHouseModule
         this.auctionHouse = ModuleManager.getInstance().getModuleInstance(AuctionHouseModule.class);
         if (this.auctionHouse == null) {
-            debugLogger.error("AuctionHouse module is not loaded. GUIRegisterModule requires it to function.");
+            DebugLogger.getInstance().error("AuctionHouse module is not loaded. GUIRegisterModule requires it to function.");
             throw new IllegalStateException("AuctionHouse is not loaded.");
         }
 
         // Retrieve EquipmentModule
         this.equipmentModule = ModuleManager.getInstance().getModuleInstance(EquipmentModule.class);
         if (this.equipmentModule == null) {
-            debugLogger.error("EquipmentModule is not loaded. GUIRegisterModule requires it to function.");
+            DebugLogger.getInstance().error("EquipmentModule is not loaded. GUIRegisterModule requires it to function.");
             throw new IllegalStateException("EquipmentModule is not loaded.");
         }
 
         // Retrieve LevelModule
         this.levelingModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
         if (this.levelingModule == null) {
-            debugLogger.error("LevelModule is not loaded. GUIRegisterModule requires it to function.");
+            DebugLogger.getInstance().error("LevelModule is not loaded. GUIRegisterModule requires it to function.");
             throw new IllegalStateException("LevelModule is not loaded.");
         }
 
         // Retrieve PlayerStatModule
         this.playerStat = ModuleManager.getInstance().getModuleInstance(PlayerStatModule.class);
         if (this.playerStat == null) {
-            debugLogger.error("PlayerStatModule is not loaded. GUIRegisterModule requires it to function.");
+            DebugLogger.getInstance().error("PlayerStatModule is not loaded. GUIRegisterModule requires it to function.");
             throw new IllegalStateException("PlayerStatModule is not loaded.");
         }
 
         // Retrieve QuestModule
         this.questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
         if (this.questModule == null) {
-            debugLogger.error("QuestModule is not loaded. GUIRegisterModule requires it to function.");
+            DebugLogger.getInstance().error("QuestModule is not loaded. GUIRegisterModule requires it to function.");
             throw new IllegalStateException("QuestModule is not loaded.");
         }
 
         // Retrieve FriendsModule
         this.friendsModule = ModuleManager.getInstance().getModuleInstance(FriendsModule.class);
         if (this.friendsModule == null) {
-            debugLogger.error("FriendsModule is not loaded. GUIRegisterModule requires it to function.");
+            DebugLogger.getInstance().error("FriendsModule is not loaded. GUIRegisterModule requires it to function.");
             throw new IllegalStateException("FriendsModule is not loaded.");
         }
 
         // Retrieve PartyModule
         this.partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
         if (this.partyModule == null) {
-            debugLogger.error("PartyModule is not loaded. GUIRegisterModule requires it to function.");
+            DebugLogger.getInstance().error("PartyModule is not loaded. GUIRegisterModule requires it to function.");
             throw new IllegalStateException("PartyModule is not loaded.");
         }
 
         // Initialize the MainMenu
         this.mainMenu = new MainMenu();
 
-        debugLogger.log(Level.INFO, "GUIRegisterModule initialization complete.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "GUIRegisterModule initialization complete.", 0);
     }
 
     /**
@@ -167,7 +163,7 @@ public class GUIRegisterModule implements IBaseModule, Listener {
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
         return List.of(
-                DebugLoggerModule.class,
+                
                 AuctionHouseModule.class,
                 EquipmentModule.class,
                 LevelModule.class,
@@ -199,7 +195,7 @@ public class GUIRegisterModule implements IBaseModule, Listener {
                 })
                 .register();
 
-        debugLogger.log(Level.INFO, "GUIRegisterModule commands registered.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "GUIRegisterModule commands registered.", 0);
     }
 
     /**
@@ -207,7 +203,7 @@ public class GUIRegisterModule implements IBaseModule, Listener {
      */
     private void registerEventListeners() {
         Bukkit.getPluginManager().registerEvents(this, plugin);
-        debugLogger.log(Level.INFO, "GUIRegisterModule event listeners registered.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "GUIRegisterModule event listeners registered.", 0);
     }
 
     /**
@@ -245,55 +241,55 @@ public class GUIRegisterModule implements IBaseModule, Listener {
                     // Close the main menu before opening the Auctions GUI
                     player.closeInventory();
                     auctionHouse.openAuctionGUI(player);
-                    debugLogger.log(Level.INFO, player.getName() + " opened the Auctions GUI from Main Menu.", 0);
+                    DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Auctions GUI from Main Menu.", 0);
                     break;
 
                 case "Equipment":
                     // Close the main menu before opening the Equipment GUI
                     player.closeInventory();
                     equipmentModule.getEquipmentManager().getEquipmentGUI().openEquipmentGUI(player);
-                    debugLogger.log(Level.INFO, player.getName() + " opened the Equipment GUI from Main Menu.", 0);
+                    DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Equipment GUI from Main Menu.", 0);
                     break;
 
                 case "Leveling":
                     // Close the main menu before opening the Leveling GUI
                     player.closeInventory();
                     levelingModule.getLevelingMenu().openLevelingMenu(player, 1);
-                    debugLogger.log(Level.INFO, player.getName() + " opened the Leveling GUI from Main Menu.", 0);
+                    DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Leveling GUI from Main Menu.", 0);
                     break;
 
                 case "Stats":
                     // Close the main menu before opening the Stats GUI
                     player.closeInventory();
                     playerStat.getPlayerStatMenu().openStatMenu(player);
-                    debugLogger.log(Level.INFO, player.getName() + " opened the Stats GUI from Main Menu.", 0);
+                    DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Stats GUI from Main Menu.", 0);
                     break;
 
                 case "Quests":
                     // Close the main menu before opening the Quest GUI
                     player.closeInventory();
                     questModule.openQuestGUI(player); // Use the method from QuestModule
-                    debugLogger.log(Level.INFO, player.getName() + " opened the Quest GUI from Main Menu.", 0);
+                    DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Quest GUI from Main Menu.", 0);
                     break;
 
                 case "Friends":
                     // Close the main menu before opening the Friends GUI
                     player.closeInventory();
                     friendsModule.openFriendsGUI(player); // Use the method from FriendsModule
-                    debugLogger.log(Level.INFO, player.getName() + " opened the Friends GUI from Main Menu.", 0);
+                    DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Friends GUI from Main Menu.", 0);
                     break;
 
                 case "Party":
                     // Close the main menu before opening the Party GUI
                     player.closeInventory();
                     partyModule.openPartyGUI(player); // Use the method from PartyModule
-                    debugLogger.log(Level.INFO, player.getName() + " opened the Party GUI from Main Menu.", 0);
+                    DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Party GUI from Main Menu.", 0);
                     break;
 
                 default:
                     // Optional: Handle clicks on unknown items or provide feedback
                     player.sendMessage(ChatColor.YELLOW + "This feature is not yet implemented.");
-                    debugLogger.log(Level.WARNING, player.getName() + " clicked an unknown item in the Main Menu: " + displayName, 0);
+                    DebugLogger.getInstance().log(Level.WARNING, player.getName() + " clicked an unknown item in the Main Menu: " + displayName, 0);
                     break;
             }
         } else {
@@ -421,10 +417,10 @@ public class GUIRegisterModule implements IBaseModule, Listener {
         Inventory mainMenuInventory = mainMenu.getInventory(player); // Pass the player
         if (mainMenuInventory != null) {
             CustomInventoryManager.openInventory(player, mainMenuInventory);
-            debugLogger.log(Level.INFO, player.getName() + " opened the Main Menu via item.", 0);
+            DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Main Menu via item.", 0);
         } else {
             player.sendMessage(ChatColor.RED + "Main Menu is currently unavailable.");
-            debugLogger.error("Main Menu inventory is null.");
+            DebugLogger.getInstance().error("Main Menu inventory is null.");
         }
     }
 }

@@ -6,7 +6,7 @@ import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.*;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.PaginationHelper;
 import eu.xaru.mysticrpg.utils.Utils;
 import eu.xaru.mysticrpg.auctionhouse.guis.BuyGUI;
@@ -38,10 +38,9 @@ public class AuctionHouseHelper {
     private final EconomyHelper economyHelper;
     private final SaveModule saveModule;
     private final PlayerDataCache playerDataCache;
-    private final DebugLoggerModule logger;
+    
     private boolean auctionsLoaded = false;
     private final MysticCore plugin;
-    private static final Logger loggerAuction = Logger.getLogger(AuctionHouseHelper.class.getName());
 
     public AuctionHouseHelper(EconomyHelper economyHelper) {
         this.economyHelper = economyHelper;
@@ -51,10 +50,6 @@ public class AuctionHouseHelper {
         this.saveModule = ModuleManager.getInstance()
                 .getModuleInstance(SaveModule.class);
         this.playerDataCache = saveModule.getPlayerDataCache();
-
-        // Get Logger instance
-        this.logger = ModuleManager.getInstance()
-                .getModuleInstance(DebugLoggerModule.class);
 
         // Get plugin instance
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
@@ -84,16 +79,16 @@ public class AuctionHouseHelper {
                     ItemStack item = SaveHelper.itemStackFromBase64(auction.getItemData());
                     auction.setItem(item);
                     activeAuctions.put(auction.getAuctionId(), auction);
-                    loggerAuction.log(Level.INFO, "Loaded auction with ID: " + auction.getAuctionId(), 0);
+                    DebugLogger.getInstance().log(Level.INFO, "Loaded auction with ID: " + auction.getAuctionId(), 0);
                 }
                 auctionsLoaded = true;
-                loggerAuction.log(Level.INFO, "Total auctions loaded: " + activeAuctions.size(), 0);
+                DebugLogger.getInstance().log(Level.INFO, "Total auctions loaded: " + activeAuctions.size(), 0);
             }
 
             @Override
             public void onFailure(Throwable throwable) {
                 auctionsLoaded = true; // Prevent hanging
-                loggerAuction.log(Level.SEVERE, "Failed to load auctions from the database: " + throwable.getMessage(), throwable);
+                DebugLogger.getInstance().log(Level.SEVERE, "Failed to load auctions from the database: ", throwable, throwable);
             }
         });
     }
@@ -114,7 +109,7 @@ public class AuctionHouseHelper {
         Auction auction = new Auction(auctionId, seller,
                 item, price, endTime);
         activeAuctions.put(auctionId, auction);
-        loggerAuction.log(Level.INFO, "Auction added to activeAuctions with ID: " + auctionId, 0);
+        DebugLogger.getInstance().log(Level.INFO, "Auction added to activeAuctions with ID: " + auctionId, 0);
 
 
         // Save auction to database
@@ -122,7 +117,7 @@ public class AuctionHouseHelper {
             @Override
             public void onSuccess(Void result) {
                 // Auction saved successfully
-                loggerAuction.log(Level.INFO, "Auction " + auctionId +
+                DebugLogger.getInstance().log(Level.INFO, "Auction " + auctionId +
                         " saved to database.", 0);
 
                 // Notify players about the new auction
@@ -138,7 +133,7 @@ public class AuctionHouseHelper {
 
             @Override
             public void onFailure(Throwable throwable) {
-                loggerAuction.log(Level.SEVERE, "Failed to save auction to database: " + throwable.getMessage(), throwable);
+                DebugLogger.getInstance().log(Level.SEVERE, "Failed to save auction to database: ", throwable, throwable);
             }
         });
 
@@ -159,14 +154,14 @@ public class AuctionHouseHelper {
         UUID auctionId = UUID.randomUUID();
         Auction auction = new Auction(auctionId, seller, item, startingPrice, endTime, true);
         activeAuctions.put(auctionId, auction);
-        loggerAuction.log(Level.INFO, "Bid auction added to activeAuctions with ID: " + auctionId, 0);
+        DebugLogger.getInstance().log(Level.INFO, "Bid auction added to activeAuctions with ID: " + auctionId, 0);
 
 
         // Save auction to database
         saveModule.saveAuction(auction, new Callback<Void>() {
             @Override
             public void onSuccess(Void result) {
-                loggerAuction.log(Level.INFO, "Bid auction " + auctionId + " saved to database.", 0);
+                DebugLogger.getInstance().log(Level.INFO, "Bid auction " + auctionId + " saved to database.", 0);
 
                 // Notify players about the new auction
                 Bukkit.getScheduler().runTask(plugin, () -> {
@@ -181,7 +176,7 @@ public class AuctionHouseHelper {
 
             @Override
             public void onFailure(Throwable throwable) {
-                loggerAuction.log(Level.SEVERE, "Failed to save bid auction to database: " + throwable.getMessage(), throwable);
+                DebugLogger.getInstance().log(Level.SEVERE, "Failed to save bid auction to database: ", throwable, throwable);
             }
         });
 
@@ -200,13 +195,13 @@ public class AuctionHouseHelper {
         saveModule.deleteAuction(auctionId, new Callback<Void>() {
             @Override
             public void onSuccess(Void result) {
-                loggerAuction.log(Level.INFO, "Auction " + auctionId +
+                DebugLogger.getInstance().log(Level.INFO, "Auction " + auctionId +
                         " deleted from database.", 0);
             }
 
             @Override
             public void onFailure(Throwable throwable) {
-                loggerAuction.log(Level.SEVERE, "Failed to delete auction from database: " + throwable.getMessage(), throwable);
+                DebugLogger.getInstance().log(Level.SEVERE, "Failed to delete auction from database: ", throwable, throwable);
             }
         });
     }
@@ -221,11 +216,11 @@ public class AuctionHouseHelper {
         List<Auction> auctions = activeAuctions.values().stream()
                 .filter(a -> {
                     boolean isActive = a.getEndTime() > currentTime;
-                    loggerAuction.log(Level.INFO, "Auction ID: " + a.getAuctionId() + ", End Time: " + a.getEndTime() + ", Is Active: " + isActive, 0);
+                    DebugLogger.getInstance().log(Level.INFO, "Auction ID: " + a.getAuctionId() + ", End Time: " + a.getEndTime() + ", Is Active: " + isActive, 0);
                     return isActive;
                 })
                 .collect(Collectors.toList());
-        loggerAuction.log(Level.INFO, "getActiveAuctions: Found " + auctions.size() + " active auctions.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "getActiveAuctions: Found " + auctions.size() + " active auctions.", 0);
         return auctions;
     }
 
@@ -272,12 +267,12 @@ public class AuctionHouseHelper {
                 public void onSuccess(Void result) {
                     // Auction deleted successfully
                     player.sendMessage(Utils.getInstance().$("Auction canceled. The item has been returned to your inventory."));
-                    loggerAuction.log(Level.INFO, "Auction " + auctionId + " canceled by player " + player.getName(), 0);
+                    DebugLogger.getInstance().log(Level.INFO, "Auction " + auctionId + " canceled by player " + player.getName(), 0);
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
-                    loggerAuction.log(Level.SEVERE, "Failed to delete auction from database: " + throwable.getMessage(), throwable);
+                    DebugLogger.getInstance().log(Level.SEVERE, "Failed to delete auction from database: ", throwable, throwable);
                 }
             });
 
@@ -317,11 +312,11 @@ public class AuctionHouseHelper {
                                 boolean refunded = economyHelper.depositBalance(previousBidder, auction.getHighestBid());
                                 if (!refunded) {
                                     // If refund fails, log the error
-                                    loggerAuction.log(Level.SEVERE, "Failed to refund previous highest bidder {0} for auction ID: {1}",
+                                    DebugLogger.getInstance().log(Level.SEVERE, "Failed to refund previous highest bidder {0} for auction ID: {1}",
                                             new Object[]{previousBidder.getName(), auctionId});
                                 } else {
                                     previousBidder.sendMessage(Utils.getInstance().$("Your bid of $" + economyHelper.formatBalance(auction.getHighestBid()) + " has been refunded."));
-                                    loggerAuction.log(Level.INFO, "Refunded previous highest bidder {0} ${1} for auction ID: {2}",
+                                    DebugLogger.getInstance().log(Level.INFO, "Refunded previous highest bidder {0} ${1} for auction ID: {2}",
                                             new Object[]{previousBidder.getName(), auction.getHighestBid(), auctionId});
                                 }
                             } else {
@@ -330,19 +325,19 @@ public class AuctionHouseHelper {
                                 if (previousBidderData != null) {
                                     double pendingBalance = previousBidderData.getPendingBalance();
                                     previousBidderData.setPendingBalance(pendingBalance + auction.getHighestBid());
-                                    loggerAuction.log(Level.INFO, "Previous highest bidder {0} is offline. Added ${1} to pending balance.",
+                                    DebugLogger.getInstance().log(Level.INFO, "Previous highest bidder {0} is offline. Added ${1} to pending balance.",
                                             new Object[]{previousBidderId, auction.getHighestBid()});
 
                                     // Save the updated PlayerData
                                     playerDataCache.savePlayerData(previousBidderId, new Callback<Void>() {
                                         @Override
                                         public void onSuccess(Void result) {
-                                            loggerAuction.log(Level.INFO, "Successfully saved pending balance for previous bidder {0}", previousBidderId);
+                                            DebugLogger.getInstance().log(Level.INFO, "Successfully saved pending balance for previous bidder {0}", previousBidderId);
                                         }
 
                                         @Override
                                         public void onFailure(Throwable throwable) {
-                                            loggerAuction.log(Level.SEVERE, "Failed to save pending balance for previous bidder " + previousBidderId + ": " + throwable.getMessage(), throwable);
+                                            DebugLogger.getInstance().log(Level.SEVERE, "Failed to save pending balance for previous bidder " + previousBidderId + ": ", throwable, throwable);
                                         }
                                     });
                                 }
@@ -354,7 +349,7 @@ public class AuctionHouseHelper {
                     boolean withdrawn = economyHelper.withdrawBalance(bidder, bidAmount);
                     if (!withdrawn) {
                         bidder.sendMessage(Utils.getInstance().$("Failed to deduct your bid amount."));
-                        loggerAuction.log(Level.SEVERE, "Failed to withdraw ${0} from bidder {1} for auction ID: {2}",
+                        DebugLogger.getInstance().log(Level.SEVERE, "Failed to withdraw ${0} from bidder {1} for auction ID: {2}",
                                 new Object[]{bidAmount, bidder.getName(), auctionId});
                         return;
                     }
@@ -376,7 +371,7 @@ public class AuctionHouseHelper {
                     saveModule.saveAuction(auction, new Callback<Void>() {
                         @Override
                         public void onSuccess(Void result) {
-                            loggerAuction.log(Level.INFO, "Auction ID: {0} updated with new highest bid of ${1} by {2}",
+                            DebugLogger.getInstance().log(Level.INFO, "Auction ID: {0} updated with new highest bid of ${1} by {2}",
                                     new Object[]{auctionId, bidAmount, bidder.getName()});
                             // Notify all players about the new highest bid
                             Bukkit.broadcastMessage(Utils.getInstance().$("&a[Auction House] &e" +
@@ -386,7 +381,7 @@ public class AuctionHouseHelper {
 
                         @Override
                         public void onFailure(Throwable throwable) {
-                            loggerAuction.log(Level.SEVERE, "Failed to update auction ID: " + auctionId + " with new bid: " + throwable.getMessage(), throwable);
+                            DebugLogger.getInstance().log(Level.SEVERE, "Failed to update auction ID: " + auctionId + " with new bid: ", throwable, throwable);
                             // Optionally, refund the bidder if saving fails
                             boolean refunded = economyHelper.depositBalance(bidder, bidAmount);
                             if (refunded) {
@@ -422,19 +417,19 @@ public class AuctionHouseHelper {
         Auction auction = activeAuctions.get(auctionId);
         if (auction != null && !auction.isBidItem()) {
             double price = auction.getStartingPrice();
-            loggerAuction.log(Level.INFO, "Player {0} attempting to purchase auction ID: {1} for ${2}",
+            DebugLogger.getInstance().log(Level.INFO, "Player {0} attempting to purchase auction ID: {1} for ${2}",
                     new Object[]{buyer.getName(), auctionId, price});
 
             // Attempt to withdraw money from buyer
             boolean withdrawn = economyHelper.withdrawBalance(buyer, price);
             if (!withdrawn) {
                 buyer.sendMessage(Utils.getInstance().$("You do not have enough money to purchase this item."));
-                loggerAuction.log(Level.WARNING, "Player {0} has insufficient funds to purchase auction ID: {1}",
+                DebugLogger.getInstance().log(Level.WARNING, "Player {0} has insufficient funds to purchase auction ID: {1}",
                         new Object[]{buyer.getName(), auctionId});
                 return;
             }
 
-            loggerAuction.log(Level.INFO, "Player {0} successfully withdrew ${1} for auction ID: {2}",
+            DebugLogger.getInstance().log(Level.INFO, "Player {0} successfully withdrew ${1} for auction ID: {2}",
                     new Object[]{buyer.getName(), price, auctionId});
 
             // Transfer money to seller
@@ -446,12 +441,12 @@ public class AuctionHouseHelper {
                     // Refund the buyer if deposit fails
                     economyHelper.depositBalance(buyer, price);
                     buyer.sendMessage(Utils.getInstance().$("Transaction failed: Unable to credit seller."));
-                    loggerAuction.log(Level.SEVERE, "Failed to deposit ${0} to seller {1}. Refunding buyer {2}.",
+                    DebugLogger.getInstance().log(Level.SEVERE, "Failed to deposit ${0} to seller {1}. Refunding buyer {2}.",
                             new Object[]{price, seller.getName(), buyer.getName()});
                     return;
                 }
 
-                loggerAuction.log(Level.INFO, "Player {0} successfully deposited ${1} to seller {2} for auction ID: {3}",
+                DebugLogger.getInstance().log(Level.INFO, "Player {0} successfully deposited ${1} to seller {2} for auction ID: {3}",
                         new Object[]{buyer.getName(), price, seller.getName(), auctionId});
                 seller.sendMessage(Utils.getInstance().$("Your item has been sold to " + buyer.getName() + " for $" + economyHelper.formatBalance(price)));
             } else {
@@ -460,19 +455,19 @@ public class AuctionHouseHelper {
                 if (sellerData != null) {
                     double pendingBalance = sellerData.getPendingBalance();
                     sellerData.setPendingBalance(pendingBalance + price);
-                    loggerAuction.log(Level.INFO, "Seller {0} is offline. Added ${1} to pending balance.",
+                    DebugLogger.getInstance().log(Level.INFO, "Seller {0} is offline. Added ${1} to pending balance.",
                             new Object[]{sellerId, price});
 
                     // Save the updated PlayerData
                     playerDataCache.savePlayerData(sellerId, new Callback<Void>() {
                         @Override
                         public void onSuccess(Void result) {
-                            loggerAuction.log(Level.INFO, "Successfully saved pending balance for seller {0}", sellerId);
+                            DebugLogger.getInstance().log(Level.INFO, "Successfully saved pending balance for seller {0}", sellerId);
                         }
 
                         @Override
                         public void onFailure(Throwable throwable) {
-                            loggerAuction.log(Level.SEVERE, "Failed to save pending balance for seller " + sellerId + ": " + throwable.getMessage(), throwable);
+                            DebugLogger.getInstance().log(Level.SEVERE, "Failed to save pending balance for seller " + sellerId + ": ", throwable, throwable);
                         }
                     });
                 }
@@ -481,23 +476,23 @@ public class AuctionHouseHelper {
             // Give item to buyer
             buyer.getInventory().addItem(auction.getItem());
             buyer.sendMessage(Utils.getInstance().$("You have purchased " + auction.getItem().getType() + " for $" + economyHelper.formatBalance(price)));
-            loggerAuction.log(Level.INFO, "Player {0} received item: {1}", new Object[]{buyer.getName(), auction.getItem().getType()});
+            DebugLogger.getInstance().log(Level.INFO, "Player {0} received item: {1}", new Object[]{buyer.getName(), auction.getItem().getType()});
 
             // Remove auction
             activeAuctions.remove(auctionId);
-            loggerAuction.log(Level.INFO, "Auction ID {0} removed from active auctions.", auctionId);
+            DebugLogger.getInstance().log(Level.INFO, "Auction ID {0} removed from active auctions.", auctionId);
 
             // Delete auction from database
             saveModule.deleteAuction(auctionId, new Callback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
                     // Auction deleted successfully
-                    loggerAuction.log(Level.INFO, "Auction ID {0} deleted from database.", auctionId);
+                    DebugLogger.getInstance().log(Level.INFO, "Auction ID {0} deleted from database.", auctionId);
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
-                    loggerAuction.log(Level.SEVERE, "Failed to delete auction from database: " + throwable.getMessage(), throwable);
+                    DebugLogger.getInstance().log(Level.SEVERE, "Failed to delete auction from database: ", throwable, throwable);
                 }
             });
         }

@@ -9,7 +9,7 @@ import com.mongodb.client.result.UpdateResult;
 import com.mongodb.reactivestreams.client.*;
 import dev.jorel.commandapi.CommandAPICommand;
 import eu.xaru.mysticrpg.auctionhouse.Auction;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bson.UuidRepresentation;
 import org.bson.codecs.configuration.CodecRegistry;
@@ -36,7 +36,7 @@ public class SaveHelper {
 
     private final MongoCollection<PlayerData> playerCollection;
     private final MongoCollection<Auction> auctionCollection; // Collection for auctions
-    private final DebugLoggerModule logger;
+    
 
     // Listener mechanism to notify external modules (e.g., DiscordModule) about data changes
     private final List<PlayerDataListener> listeners = new CopyOnWriteArrayList<>();
@@ -66,10 +66,10 @@ public class SaveHelper {
      * @param connectionString     MongoDB connection string.
      * @param databaseName         Name of the database.
      * @param playerCollectionName Name of the player data collection.
-     * @param logger               Logger instance for logging messages.
+                    Logger instance for logging messages.
      */
-    public SaveHelper(String connectionString, String databaseName, String playerCollectionName, DebugLoggerModule logger) {
-        this.logger = logger;
+    public SaveHelper(String connectionString, String databaseName, String playerCollectionName) {
+ 
 
         try {
             // Create a custom CodecRegistry to handle POJOs
@@ -93,13 +93,13 @@ public class SaveHelper {
             this.playerCollection = database.getCollection(playerCollectionName, PlayerData.class).withCodecRegistry(pojoCodecRegistry);
             this.auctionCollection = database.getCollection("auctions", Auction.class).withCodecRegistry(pojoCodecRegistry); // Auction collection
 
-            logger.log(Level.INFO, "Connected to MongoDB and initialized collections", 0);
+            DebugLogger.getInstance().log(Level.INFO, "Connected to MongoDB and initialized collections", 0);
 
             // Register the saveData command
             registerSaveDataCommand();
 
         } catch (Exception e) {
-            logger.error("Failed to connect to MongoDB: " + e.getMessage());
+            DebugLogger.getInstance().error("Failed to connect to MongoDB:", e);
             throw new RuntimeException(e);
         }
     }
@@ -113,7 +113,7 @@ public class SaveHelper {
      */
     public void addPlayerDataListener(PlayerDataListener listener) {
         listeners.add(listener);
-        logger.log(Level.INFO, "PlayerDataListener added: " + listener.getClass().getName(), 0);
+        DebugLogger.getInstance().log(Level.INFO, "PlayerDataListener added: " + listener.getClass().getName(), 0);
     }
 
     /**
@@ -123,7 +123,7 @@ public class SaveHelper {
      */
     public void removePlayerDataListener(PlayerDataListener listener) {
         listeners.remove(listener);
-        logger.log(Level.INFO, "PlayerDataListener removed: " + listener.getClass().getName(), 0);
+        DebugLogger.getInstance().log(Level.INFO, "PlayerDataListener removed: " + listener.getClass().getName(), 0);
     }
 
     /**
@@ -158,7 +158,7 @@ public class SaveHelper {
      */
     public void loadPlayer(UUID uuid, Callback<PlayerData> callback) {
         String uuidString = uuid.toString();
-        logger.log(Level.INFO, "Attempting to load player data for UUID: " + uuidString, 0);
+        DebugLogger.getInstance().log(Level.INFO, "Attempting to load player data for UUID: " + uuidString, 0);
         playerCollection.find(Filters.eq("_id", uuidString)).first().subscribe(new Subscriber<PlayerData>() {
             private PlayerData playerData;
 
@@ -174,32 +174,32 @@ public class SaveHelper {
 
             @Override
             public void onError(Throwable t) {
-                logger.error("Error loading player data for UUID: " + uuidString + ". " + t.getMessage());
+                DebugLogger.getInstance().error("Error loading player data for UUID: " + uuidString + ". ",t);
                 callback.onFailure(t);
             }
 
             @Override
             public void onComplete() {
                 if (playerData == null) {
-                    logger.log(Level.INFO, "No existing data found for UUID: " + uuidString + ". Creating default data.", 0);
+                    DebugLogger.getInstance().log(Level.INFO, "No existing data found for UUID: " + uuidString + ". Creating default data.", 0);
                     PlayerData newPlayerData = PlayerData.defaultData(uuidString);
-                    logger.logObject(newPlayerData); // Log the default data being created
+                    DebugLogger.getInstance().logObject(newPlayerData); // Log the default data being created
                     savePlayer(newPlayerData, new Callback<Void>() {
                         @Override
                         public void onSuccess(Void result) {
-                            logger.log(Level.INFO, "Successfully saved data for new player UUID: " + newPlayerData.getUuid(), 0);
+                            DebugLogger.getInstance().log(Level.INFO, "Successfully saved data for new player UUID: " + newPlayerData.getUuid(), 0);
                             callback.onSuccess(newPlayerData);
                             notifyPlayerDataUpdated(newPlayerData); // Notify listeners about the new player data
                         }
 
                         @Override
                         public void onFailure(Throwable saveError) {
-                            logger.error("Error saving player data for UUID: " + newPlayerData.getUuid() + ". " + saveError.getMessage());
+                            DebugLogger.getInstance().error("Error saving player data for UUID: " + newPlayerData.getUuid() + ". ", saveError);
                             callback.onFailure(saveError);
                         }
                     });
                 } else {
-                    logger.log(Level.INFO, "Successfully loaded data for UUID: " + uuidString, 0);
+                    DebugLogger.getInstance().log(Level.INFO, "Successfully loaded data for UUID: " + uuidString, 0);
                     callback.onSuccess(playerData);
                     notifyPlayerDataUpdated(playerData); // Notify listeners about the loaded player data
                 }
@@ -214,7 +214,7 @@ public class SaveHelper {
      * @param callback   Callback for success or failure.
      */
     public void savePlayer(PlayerData playerData, Callback<Void> callback) {
-        logger.log(Level.INFO, "Attempting to save player data for UUID: " + playerData.getUuid(), 0);
+        DebugLogger.getInstance().log(Level.INFO, "Attempting to save player data for UUID: " + playerData.getUuid(), 0);
         playerCollection.replaceOne(Filters.eq("_id", playerData.getUuid()), playerData, new ReplaceOptions().upsert(true)).subscribe(new Subscriber<UpdateResult>() {
             @Override
             public void onSubscribe(Subscription s) {
@@ -228,13 +228,13 @@ public class SaveHelper {
 
             @Override
             public void onError(Throwable t) {
-                logger.error("Error saving player data for UUID: " + playerData.getUuid() + ". " + t.getMessage());
+                DebugLogger.getInstance().error("Error saving player data for UUID: " + playerData.getUuid() + ". ", t);
                 callback.onFailure(t);
             }
 
             @Override
             public void onComplete() {
-                logger.log(Level.INFO, "Successfully saved data for UUID: " + playerData.getUuid(), 0);
+                DebugLogger.getInstance().log(Level.INFO, "Successfully saved data for UUID: " + playerData.getUuid(), 0);
                 callback.onSuccess(null);
                 notifyPlayerDataUpdated(playerData); // Notify listeners about the updated player data
             }
@@ -250,7 +250,7 @@ public class SaveHelper {
      * @param callback Callback for success or failure.
      */
     public void saveAuction(Auction auction, Callback<Void> callback) {
-        logger.log(Level.INFO, "Saving auction with ID: " + auction.getAuctionId(), 0);
+        DebugLogger.getInstance().log(Level.INFO, "Saving auction with ID: " + auction.getAuctionId(), 0);
 
         auctionCollection.replaceOne(Filters.eq("_id", auction.getAuctionId()), auction, new ReplaceOptions().upsert(true))
                 .subscribe(new Subscriber<UpdateResult>() {
@@ -266,13 +266,13 @@ public class SaveHelper {
 
                     @Override
                     public void onError(Throwable t) {
-                        logger.error("Error saving auction: " + t.getMessage());
+                        DebugLogger.getInstance().error("Error saving auction: ", t);
                         callback.onFailure(t);
                     }
 
                     @Override
                     public void onComplete() {
-                        logger.log(Level.INFO, "Auction saved successfully: " + auction.getAuctionId(), 0);
+                        DebugLogger.getInstance().log(Level.INFO, "Auction saved successfully: " + auction.getAuctionId(), 0);
                         callback.onSuccess(null);
                     }
                 });
@@ -284,7 +284,7 @@ public class SaveHelper {
      * @param callback Callback with the list of auctions.
      */
     public void loadAuctions(Callback<List<Auction>> callback) {
-        logger.log(Level.INFO, "Loading auctions from database", 0);
+        DebugLogger.getInstance().log(Level.INFO, "Loading auctions from database", 0);
         List<Auction> auctions = new ArrayList<>();
         auctionCollection.find().subscribe(new Subscriber<Auction>() {
             @Override
@@ -302,13 +302,13 @@ public class SaveHelper {
 
             @Override
             public void onError(Throwable t) {
-                logger.error("Error loading auctions: " + t.getMessage());
+                DebugLogger.getInstance().error("Error loading auctions: ", t);
                 callback.onFailure(t);
             }
 
             @Override
             public void onComplete() {
-                logger.log(Level.INFO, "Auctions loaded: " + auctions.size(), 0);
+                DebugLogger.getInstance().log(Level.INFO, "Auctions loaded: " + auctions.size(), 0);
                 callback.onSuccess(auctions);
             }
         });
@@ -321,7 +321,7 @@ public class SaveHelper {
      * @param callback  Callback for success or failure.
      */
     public void deleteAuction(UUID auctionId, Callback<Void> callback) {
-        logger.log(Level.INFO, "Deleting auction with ID: " + auctionId, 0);
+        DebugLogger.getInstance().log(Level.INFO, "Deleting auction with ID: " + auctionId, 0);
         auctionCollection.deleteOne(Filters.eq("_id", auctionId)).subscribe(new Subscriber<DeleteResult>() {
             @Override
             public void onSubscribe(Subscription s) {
@@ -335,13 +335,13 @@ public class SaveHelper {
 
             @Override
             public void onError(Throwable t) {
-                logger.error("Error deleting auction: " + t.getMessage());
+                DebugLogger.getInstance().error("Error deleting auction: ", t);
                 callback.onFailure(t);
             }
 
             @Override
             public void onComplete() {
-                logger.log(Level.INFO, "Auction deleted successfully: " + auctionId, 0);
+                DebugLogger.getInstance().log(Level.INFO, "Auction deleted successfully: " + auctionId, 0);
                 callback.onSuccess(null);
             }
         });
@@ -358,7 +358,7 @@ public class SaveHelper {
                 .withPermission("mysticrpg.saveData")
                 .executesPlayer((player, args) -> {
                     UUID playerUUID = player.getUniqueId();
-                    logger.log(Level.INFO, "Player " + player.getName() + " executed /saveData command.", 0);
+                    DebugLogger.getInstance().log(Level.INFO, "Player " + player.getName() + " executed /saveData command.", 0);
 
                     loadPlayer(playerUUID, new Callback<PlayerData>() {
                         @Override
@@ -367,13 +367,13 @@ public class SaveHelper {
                                 @Override
                                 public void onSuccess(Void result) {
                                     player.sendMessage(Utils.getInstance().$("Your data has been saved to the database."));
-                                    logger.log(Level.INFO, "Data saved successfully for player: " + player.getName(), 0);
+                                    DebugLogger.getInstance().log(Level.INFO, "Data saved successfully for player: " + player.getName(), 0);
                                 }
 
                                 @Override
                                 public void onFailure(Throwable throwable) {
                                     player.sendMessage(Utils.getInstance().$("Failed to save your data. Please try again later."));
-                                    logger.error("Failed to save data for player: " + player.getName() + ". " + throwable.getMessage());
+                                    DebugLogger.getInstance().error("Failed to save data for player: " + player.getName() + ". ", throwable);
                                 }
                             });
                         }
@@ -381,7 +381,7 @@ public class SaveHelper {
                         @Override
                         public void onFailure(Throwable throwable) {
                             player.sendMessage(Utils.getInstance().$("Failed to load your data. Please try again later."));
-                            logger.error("Failed to load data for player: " + player.getName() + ". " + throwable.getMessage());
+                            DebugLogger.getInstance().error("Failed to load data for player: " + player.getName() + ". ", throwable);
                         }
                     });
                 })
@@ -396,7 +396,7 @@ public class SaveHelper {
      * @param callback Callback to handle success or failure.
      */
     public void loadAllPlayers(Callback<List<PlayerData>> callback) {
-        logger.log(Level.INFO, "Attempting to load all player data from the database.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "Attempting to load all player data from the database.", 0);
         List<PlayerData> allPlayerData = new ArrayList<>();
         playerCollection.find().subscribe(new Subscriber<PlayerData>() {
             @Override
@@ -411,23 +411,23 @@ public class SaveHelper {
                 try {
                     playerUUID = UUID.fromString(playerData.getUuid());
                 } catch (IllegalArgumentException e) {
-                    logger.error("Invalid UUID format for player data: " + playerData.getUuid());
+                    DebugLogger.getInstance().error("Invalid UUID format for player data: " + playerData.getUuid());
                     return; // Skip this entry
                 }
                 // Add to the list
                 allPlayerData.add(playerData);
-                logger.log(Level.INFO, "Loaded player data for UUID: " + playerUUID, 0);
+                DebugLogger.getInstance().log(Level.INFO, "Loaded player data for UUID: " + playerUUID, 0);
             }
 
             @Override
             public void onError(Throwable t) {
-                logger.error("Error loading all player data: " + t.getMessage());
+                DebugLogger.getInstance().error("Error loading all player data: ", t);
                 callback.onFailure(t);
             }
 
             @Override
             public void onComplete() {
-                logger.log(Level.INFO, "Successfully loaded all player data. Total players loaded: " + allPlayerData.size(), 0);
+                DebugLogger.getInstance().log(Level.INFO, "Successfully loaded all player data. Total players loaded: " + allPlayerData.size(), 0);
                 callback.onSuccess(allPlayerData);
                 notifyAllPlayersLoaded(allPlayerData); // Notify listeners about all loaded players
             }

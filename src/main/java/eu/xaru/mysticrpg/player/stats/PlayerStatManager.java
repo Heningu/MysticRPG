@@ -2,7 +2,7 @@ package eu.xaru.mysticrpg.player.stats;
 
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.entity.Player;
 
 import java.util.*;
@@ -10,14 +10,14 @@ import java.util.*;
 public class PlayerStatManager {
 
     private final PlayerDataCache playerDataCache;
-    private final DebugLoggerModule logger;
+    
 
     // Map to store temporary stat modifiers for each player
     private final Map<UUID, Map<String, Integer>> temporaryModifiers = Collections.synchronizedMap(new HashMap<>());
 
-    public PlayerStatManager(PlayerDataCache playerDataCache, DebugLoggerModule logger) {
+    public PlayerStatManager(PlayerDataCache playerDataCache) {
         this.playerDataCache = playerDataCache;
-        this.logger = logger;
+ 
     }
 
     /**
@@ -30,7 +30,7 @@ public class PlayerStatManager {
     public void increaseAttributePermanent(Player player, String attribute, int amount) {
         PlayerData data = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (data == null) {
-            logger.error("No cached data found for player: " + player.getName());
+            DebugLogger.getInstance().error("No cached data found for player: " + player.getName());
             return;
         }
 
@@ -38,7 +38,7 @@ public class PlayerStatManager {
         attributes.put(attribute, attributes.getOrDefault(attribute, 0) + amount);
         data.setAttributes(attributes);
 
-        logger.log("Increased " + attribute + " permanently by " + amount + " for player " + player.getName());
+        DebugLogger.getInstance().log("Increased " + attribute + " permanently by " + amount + " for player " + player.getName());
     }
 
     /**
@@ -65,7 +65,7 @@ public class PlayerStatManager {
         Map<String, Integer> modifiers = temporaryModifiers.get(uuid);
         modifiers.put(attribute, modifiers.getOrDefault(attribute, 0) + amount);
 
-        logger.log("Increased " + attribute + " temporarily by " + amount + " for player " + player.getName());
+        DebugLogger.getInstance().log("Increased " + attribute + " temporarily by " + amount + " for player " + player.getName());
     }
 
     /**
@@ -86,7 +86,7 @@ public class PlayerStatManager {
      */
     public void clearTemporaryModifiers(Player player) {
         temporaryModifiers.remove(player.getUniqueId());
-        logger.log("Cleared temporary modifiers for player " + player.getName());
+        DebugLogger.getInstance().log("Cleared temporary modifiers for player " + player.getName());
     }
 
     /**
@@ -99,7 +99,7 @@ public class PlayerStatManager {
     public int getEffectiveAttribute(Player player, String attribute) {
         PlayerData data = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (data == null) {
-            logger.error("No cached data found for player: " + player.getName());
+            DebugLogger.getInstance().error("No cached data found for player: " + player.getName());
             return 0;
         }
 
@@ -119,7 +119,7 @@ public class PlayerStatManager {
     public Map<String, Integer> getAllEffectiveAttributes(Player player) {
         PlayerData data = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (data == null) {
-            logger.error("No cached data found for player: " + player.getName());
+            DebugLogger.getInstance().error("No cached data found for player: " + player.getName());
             return Collections.emptyMap();
         }
 

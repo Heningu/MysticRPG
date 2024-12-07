@@ -3,6 +3,7 @@ package eu.xaru.mysticrpg.ui;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
@@ -24,7 +25,7 @@ public class ActionBarManager {
         PlayerData data = playerDataCache.getCachedPlayerData(player.getUniqueId());
 
         if (data == null) {
-            Bukkit.getLogger().warning("No cached data found for player " + player.getName());
+            DebugLogger.getInstance().warning("No cached data found for player " + player.getName());
             return;
         }
 
@@ -36,7 +37,7 @@ public class ActionBarManager {
         player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(Utils.getInstance().$(actionBarText))) ;
 
         // Logging for debugging
-        // Bukkit.getLogger().info("ActionBar updated for player " + player.getName() + ". Displayed HP: " + currentHp + "/" + maxHp);
+        // DebugLogger.getInstance().info("ActionBar updated for player " + player.getName() + ". Displayed HP: " + currentHp + "/" + maxHp);
     }
 
     private void startActionBarTask() {

@@ -10,7 +10,7 @@ import com.mongodb.reactivestreams.client.*;
 import eu.xaru.mysticrpg.auctionhouse.Auction;
 import eu.xaru.mysticrpg.storage.Callback;
 import eu.xaru.mysticrpg.storage.PlayerData;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bson.UuidRepresentation;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
@@ -28,10 +28,10 @@ public class MongoRepository implements eu.xaru.mysticrpg.storage.database.IData
 
     private final MongoCollection<PlayerData> playerCollection;
     private final MongoCollection<Auction> auctionCollection;
-    private final DebugLoggerModule logger;
+    
 
-    public MongoRepository(String connectionString, String databaseName, DebugLoggerModule logger) {
-        this.logger = logger;
+    public MongoRepository(String connectionString, String databaseName) {
+ 
         try {
             CodecRegistry pojoCodecRegistry = fromRegistries(
                     MongoClientSettings.getDefaultCodecRegistry(),
@@ -50,9 +50,9 @@ public class MongoRepository implements eu.xaru.mysticrpg.storage.database.IData
             this.playerCollection = database.getCollection("playerData", PlayerData.class).withCodecRegistry(pojoCodecRegistry);
             this.auctionCollection = database.getCollection("auctions", Auction.class).withCodecRegistry(pojoCodecRegistry);
 
-            logger.log(Level.INFO, "MongoRepository connected to MongoDB and initialized collections", 0);
+            DebugLogger.getInstance().log(Level.INFO, "MongoRepository connected to MongoDB and initialized collections", 0);
         } catch (Exception e) {
-            logger.error("MongoRepository failed to connect to MongoDB: " + e.getMessage());
+            DebugLogger.getInstance().error("MongoRepository failed to connect to MongoDB:", e);
             throw new RuntimeException(e);
         }
     }
@@ -61,7 +61,7 @@ public class MongoRepository implements eu.xaru.mysticrpg.storage.database.IData
 
     @Override
     public void savePlayerData(PlayerData playerData, Callback<Void> callback) {
-        logger.log(Level.INFO, "Saving player data for UUID: " + playerData.getUuid(), 0);
+        DebugLogger.getInstance().log(Level.INFO, "Saving player data for UUID: " + playerData.getUuid(), 0);
         playerCollection.replaceOne(Filters.eq("_id", playerData.getUuid()), playerData, new ReplaceOptions().upsert(true))
                 .subscribe(new Subscriber<UpdateResult>() {
                     @Override
@@ -76,13 +76,13 @@ public class MongoRepository implements eu.xaru.mysticrpg.storage.database.IData
 
                     @Override
                     public void onError(Throwable t) {
-                        logger.error("Error saving player data for UUID: " + playerData.getUuid() + ". " + t.getMessage());
+                        DebugLogger.getInstance().error("Error saving player data for UUID: " + playerData.getUuid() + ". ", t);
                         callback.onFailure(t);
                     }
 
                     @Override
                     public void onComplete() {
-                        logger.log(Level.INFO, "Successfully saved player data for UUID: " + playerData.getUuid(), 0);
+                        DebugLogger.getInstance().log(Level.INFO, "Successfully saved player data for UUID: " + playerData.getUuid(), 0);
                         callback.onSuccess(null);
                     }
                 });
@@ -90,7 +90,7 @@ public class MongoRepository implements eu.xaru.mysticrpg.storage.database.IData
 
     @Override
     public void loadPlayerData(UUID uuid, Callback<PlayerData> callback) {
-        logger.log(Level.INFO, "Loading player data for UUID: " + uuid, 0);
+        DebugLogger.getInstance().log(Level.INFO, "Loading player data for UUID: " + uuid, 0);
         playerCollection.find(Filters.eq("_id", uuid.toString())).first().subscribe(new Subscriber<PlayerData>() {
             private PlayerData playerData;
 
@@ -106,30 +106,30 @@ public class MongoRepository implements eu.xaru.mysticrpg.storage.database.IData
 
             @Override
             public void onError(Throwable t) {
-                logger.error("Error loading player data for UUID: " + uuid + ". " + t.getMessage());
+                DebugLogger.getInstance().error("Error loading player data for UUID: " + uuid + ". ", t);
                 callback.onFailure(t);
             }
 
             @Override
             public void onComplete() {
                 if (playerData == null) {
-                    logger.log(Level.INFO, "No data found for UUID: " + uuid + ". Creating default data.", 0);
+                    DebugLogger.getInstance().log(Level.INFO, "No data found for UUID: " + uuid + ". Creating default data.", 0);
                     PlayerData newPlayerData = PlayerData.defaultData(uuid.toString());
                     savePlayerData(newPlayerData, new Callback<Void>() {
                         @Override
                         public void onSuccess(Void result) {
-                            logger.log(Level.INFO, "Default player data created for UUID: " + uuid, 0);
+                            DebugLogger.getInstance().log(Level.INFO, "Default player data created for UUID: " + uuid, 0);
                             callback.onSuccess(newPlayerData);
                         }
 
                         @Override
                         public void onFailure(Throwable throwable) {
-                            logger.error("Failed to save default player data for UUID: " + uuid + ". " + throwable.getMessage());
+                            DebugLogger.getInstance().error("Failed to save default player data for UUID: " + uuid + ". ", throwable);
                             callback.onFailure(throwable);
                         }
                     });
                 } else {
-                    logger.log(Level.INFO, "Player data loaded for UUID: " + uuid, 0);
+                    DebugLogger.getInstance().log(Level.INFO, "Player data loaded for UUID: " + uuid, 0);
                     callback.onSuccess(playerData);
                 }
             }
@@ -138,7 +138,7 @@ public class MongoRepository implements eu.xaru.mysticrpg.storage.database.IData
 
     @Override
     public void deletePlayerData(UUID uuid, Callback<Void> callback) {
-        logger.log(Level.INFO, "Deleting player data for UUID: " + uuid, 0);
+        DebugLogger.getInstance().log(Level.INFO, "Deleting player data for UUID: " + uuid, 0);
         playerCollection.deleteOne(Filters.eq("_id", uuid.toString())).subscribe(new Subscriber<DeleteResult>() {
             @Override
             public void onSubscribe(Subscription s) {
@@ -152,13 +152,13 @@ public class MongoRepository implements eu.xaru.mysticrpg.storage.database.IData
 
             @Override
             public void onError(Throwable t) {
-                logger.error("Error deleting player data for UUID: " + uuid + ". " + t.getMessage());
+                DebugLogger.getInstance().error("Error deleting player data for UUID: " + uuid + ". ", t);
                 callback.onFailure(t);
             }
 
             @Override
             public void onComplete() {
-                logger.log(Level.INFO, "Successfully deleted player data for UUID: " + uuid, 0);
+                DebugLogger.getInstance().log(Level.INFO, "Successfully deleted player data for UUID: " + uuid, 0);
                 callback.onSuccess(null);
             }
         });
@@ -168,7 +168,7 @@ public class MongoRepository implements eu.xaru.mysticrpg.storage.database.IData
 
     @Override
     public void saveAuction(Auction auction, Callback<Void> callback) {
-        logger.log(Level.INFO, "Saving auction with ID: " + auction.getAuctionId(), 0);
+        DebugLogger.getInstance().log(Level.INFO, "Saving auction with ID: " + auction.getAuctionId(), 0);
         auctionCollection.replaceOne(Filters.eq("_id", auction.getAuctionId()), auction, new ReplaceOptions().upsert(true))
                 .subscribe(new Subscriber<UpdateResult>() {
                     @Override
@@ -183,13 +183,13 @@ public class MongoRepository implements eu.xaru.mysticrpg.storage.database.IData
 
                     @Override
                     public void onError(Throwable t) {
-                        logger.error("Error saving auction: " + t.getMessage());
+                        DebugLogger.getInstance().error("Error saving auction: ", t);
                         callback.onFailure(t);
                     }
 
                     @Override
                     public void onComplete() {
-                        logger.log(Level.INFO, "Successfully saved auction with ID: " + auction.getAuctionId(), 0);
+                        DebugLogger.getInstance().log(Level.INFO, "Successfully saved auction with ID: " + auction.getAuctionId(), 0);
                         callback.onSuccess(null);
                     }
                 });
@@ -197,7 +197,7 @@ public class MongoRepository implements eu.xaru.mysticrpg.storage.database.IData
 
     @Override
     public void loadAuctions(Callback<List<Auction>> callback) {
-        logger.log(Level.INFO, "Loading auctions from MongoDB", 0);
+        DebugLogger.getInstance().log(Level.INFO, "Loading auctions from MongoDB", 0);
         List<Auction> auctions = new ArrayList<>();
         auctionCollection.find().subscribe(new Subscriber<Auction>() {
             @Override
@@ -212,13 +212,13 @@ public class MongoRepository implements eu.xaru.mysticrpg.storage.database.IData
 
             @Override
             public void onError(Throwable t) {
-                logger.error("Error loading auctions: " + t.getMessage());
+                DebugLogger.getInstance().error("Error loading auctions: ", t);
                 callback.onFailure(t);
             }
 
             @Override
             public void onComplete() {
-                logger.log(Level.INFO, "Loaded " + auctions.size() + " auctions from MongoDB", 0);
+                DebugLogger.getInstance().log(Level.INFO, "Loaded " + auctions.size() + " auctions from MongoDB", 0);
                 callback.onSuccess(auctions);
             }
         });
@@ -226,7 +226,7 @@ public class MongoRepository implements eu.xaru.mysticrpg.storage.database.IData
 
     @Override
     public void deleteAuction(UUID auctionId, Callback<Void> callback) {
-        logger.log(Level.INFO, "Deleting auction with ID: " + auctionId, 0);
+        DebugLogger.getInstance().log(Level.INFO, "Deleting auction with ID: " + auctionId, 0);
         auctionCollection.deleteOne(Filters.eq("_id", auctionId.toString())).subscribe(new Subscriber<DeleteResult>() {
             @Override
             public void onSubscribe(Subscription s) {
@@ -240,13 +240,13 @@ public class MongoRepository implements eu.xaru.mysticrpg.storage.database.IData
 
             @Override
             public void onError(Throwable t) {
-                logger.error("Error deleting auction: " + t.getMessage());
+                DebugLogger.getInstance().error("Error deleting auction: ", t);
                 callback.onFailure(t);
             }
 
             @Override
             public void onComplete() {
-                logger.log(Level.INFO, "Successfully deleted auction with ID: " + auctionId, 0);
+                DebugLogger.getInstance().log(Level.INFO, "Successfully deleted auction with ID: " + auctionId, 0);
                 callback.onSuccess(null);
             }
         });
@@ -266,7 +266,7 @@ public class MongoRepository implements eu.xaru.mysticrpg.storage.database.IData
 
             @Override
             public void onError(Throwable t) {
-                logger.error("Error loading all player data: " + t.getMessage());
+                DebugLogger.getInstance().error("Error loading all player data: ", t);
                 callback.onFailure(t);
             }
 

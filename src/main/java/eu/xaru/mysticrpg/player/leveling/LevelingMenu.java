@@ -6,7 +6,7 @@ import eu.xaru.mysticrpg.storage.LevelData;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -26,7 +26,7 @@ public class LevelingMenu {
     private final MysticCore plugin;
     private final PlayerDataCache playerDataCache;
     private final LevelModule levelModule;
-    private final DebugLoggerModule logger;
+    
 
     public LevelingMenu(MysticCore plugin) {
         this.plugin = plugin;
@@ -42,14 +42,13 @@ public class LevelingMenu {
             throw new IllegalStateException("LevelModule not initialized. LevelingMenu cannot function without it.");
         }
 
-        this.logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
     }
 
     public void openLevelingMenu(Player player, int page) {
         UUID playerUUID = player.getUniqueId();
         PlayerData playerData = playerDataCache.getCachedPlayerData(playerUUID);
         if (playerData == null) {
-            logger.error("No cached data found for player: " + player.getName());
+            DebugLogger.getInstance().error("No cached data found for player: " + player.getName());
             player.sendMessage(Utils.getInstance().$("Failed to open leveling menu. No data found."));
             return;
         }

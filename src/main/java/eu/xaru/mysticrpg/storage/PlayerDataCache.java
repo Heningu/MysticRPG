@@ -1,7 +1,7 @@
 package eu.xaru.mysticrpg.storage;
 
 import eu.xaru.mysticrpg.storage.database.DatabaseManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import dev.jorel.commandapi.CommandAPICommand;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.entity.Player;
@@ -14,12 +14,12 @@ public class PlayerDataCache {
     private static PlayerDataCache instance;
     private final Map<UUID, PlayerData> cache = Collections.synchronizedMap(new HashMap<>());
     private final DatabaseManager databaseManager;
-    private final DebugLoggerModule logger;
+    
 
     // Private constructor to prevent direct instantiation
-    private PlayerDataCache(DatabaseManager databaseManager, DebugLoggerModule logger) {
+    private PlayerDataCache(DatabaseManager databaseManager) {
         this.databaseManager = databaseManager;
-        this.logger = logger;
+ 
         registerCheckCachedDataCommand();
     }
 
@@ -27,13 +27,13 @@ public class PlayerDataCache {
      * Initializes the singleton instance. Should be called once during plugin initialization.
      *
      * @param databaseManager The DatabaseManager instance.
-     * @param logger           The DebugLoggerModule instance.
+                The DebugLoggerModule instance.
      */
-    public static synchronized void initialize(DatabaseManager databaseManager, DebugLoggerModule logger) {
+    public static synchronized void initialize(DatabaseManager databaseManager) {
         if (instance == null) {
-            instance = new PlayerDataCache(databaseManager, logger);
+            instance = new PlayerDataCache(databaseManager);
         } else {
-            logger.log(Level.WARNING, "PlayerDataCache is already initialized.", 0);
+            DebugLogger.getInstance().log(Level.WARNING, "PlayerDataCache is already initialized.", 0);
         }
     }
 
@@ -51,18 +51,18 @@ public class PlayerDataCache {
 
     // Load data into cache when player joins
     public void loadPlayerData(UUID playerUUID, Callback<PlayerData> callback) {
-        logger.log(Level.INFO, "Attempting to load player data for UUID: " + playerUUID, 0);
+        DebugLogger.getInstance().log(Level.INFO, "Attempting to load player data for UUID: " + playerUUID, 0);
         databaseManager.loadPlayerData(playerUUID, new Callback<PlayerData>() {
             @Override
             public void onSuccess(PlayerData playerData) {
                 cache.put(playerUUID, playerData);
-                logger.log(Level.INFO, "Player data loaded and cached for UUID: " + playerUUID, 0);
+                DebugLogger.getInstance().log(Level.INFO, "Player data loaded and cached for UUID: " + playerUUID, 0);
                 callback.onSuccess(playerData);
             }
 
             @Override
             public void onFailure(Throwable throwable) {
-                logger.error("Failed to load player data for UUID: " + playerUUID + ". " + throwable.getMessage());
+                DebugLogger.getInstance().error("Failed to load player data for UUID: " + playerUUID + ". ", throwable);
                 callback.onFailure(throwable);
             }
         });
@@ -75,19 +75,19 @@ public class PlayerDataCache {
             databaseManager.savePlayerData(playerData, new Callback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
-                    logger.log(Level.INFO, "Player data saved to database for UUID: " + playerUUID, 0);
+                    DebugLogger.getInstance().log(Level.INFO, "Player data saved to database for UUID: " + playerUUID, 0);
                     callback.onSuccess(result);
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
-                    logger.error("Failed to save player data for UUID: " + playerUUID + ". " + throwable.getMessage());
+                    DebugLogger.getInstance().error("Failed to save player data for UUID: " + playerUUID + ". ", throwable);
                     callback.onFailure(throwable);
                 }
             });
         } else {
-            logger.error("No cached data found for player UUID: " + playerUUID);
-            logger.log(Level.INFO, "Current cache contents: " + cache.toString(), 0);
+            DebugLogger.getInstance().error("No cached data found for player UUID: " + playerUUID);
+            DebugLogger.getInstance().log(Level.INFO, "Current cache contents: " + cache.toString(), 0);
             callback.onFailure(new IllegalStateException("No cached data found for player UUID: " + playerUUID));
         }
     }
@@ -96,7 +96,7 @@ public class PlayerDataCache {
     public void clearPlayerData(UUID playerUUID) {
         if (cache.containsKey(playerUUID)) {
             cache.remove(playerUUID);
-            logger.log(Level.INFO, "Cleared cache for player UUID: " + playerUUID, 0);
+            DebugLogger.getInstance().log(Level.INFO, "Cleared cache for player UUID: " + playerUUID, 0);
         }
     }
 
@@ -104,8 +104,8 @@ public class PlayerDataCache {
     public PlayerData getCachedPlayerData(UUID playerUUID) {
         PlayerData data = cache.get(playerUUID);
         if (data == null) {
-            logger.error("No cached data found when accessing for player UUID: " + playerUUID);
-            logger.log(Level.INFO, "Current cache contents: " + cache.toString(), 0);
+            DebugLogger.getInstance().error("No cached data found when accessing for player UUID: " + playerUUID);
+            DebugLogger.getInstance().log(Level.INFO, "Current cache contents: " + cache.toString(), 0);
         }
         return data;
     }
@@ -115,7 +115,7 @@ public class PlayerDataCache {
         PlayerData playerData = cache.get(playerUUID);
         if (playerData != null) {
             playerData.getFriends().add(friendUUID.toString());
-            logger.log(Level.INFO, "Added friend " + friendUUID + " for player UUID: " + playerUUID, 0);
+            DebugLogger.getInstance().log(Level.INFO, "Added friend " + friendUUID + " for player UUID: " + playerUUID, 0);
         }
     }
 
@@ -123,7 +123,7 @@ public class PlayerDataCache {
         PlayerData playerData = cache.get(playerUUID);
         if (playerData != null) {
             playerData.getFriends().remove(friendUUID.toString());
-            logger.log(Level.INFO, "Removed friend " + friendUUID + " for player UUID: " + playerUUID, 0);
+            DebugLogger.getInstance().log(Level.INFO, "Removed friend " + friendUUID + " for player UUID: " + playerUUID, 0);
         }
     }
 
@@ -131,7 +131,7 @@ public class PlayerDataCache {
         PlayerData playerData = cache.get(playerUUID);
         if (playerData != null) {
             playerData.getFriendRequests().add(requesterUUID.toString());
-            logger.log(Level.INFO, "Added friend request from " + requesterUUID + " for player UUID: " + playerUUID, 0);
+            DebugLogger.getInstance().log(Level.INFO, "Added friend request from " + requesterUUID + " for player UUID: " + playerUUID, 0);
         }
     }
 
@@ -139,7 +139,7 @@ public class PlayerDataCache {
         PlayerData playerData = cache.get(playerUUID);
         if (playerData != null) {
             playerData.getFriendRequests().remove(requesterUUID.toString());
-            logger.log(Level.INFO, "Removed friend request from " + requesterUUID + " for player UUID: " + playerUUID, 0);
+            DebugLogger.getInstance().log(Level.INFO, "Removed friend request from " + requesterUUID + " for player UUID: " + playerUUID, 0);
         }
     }
 
@@ -147,7 +147,7 @@ public class PlayerDataCache {
         PlayerData playerData = cache.get(blockerUUID);
         if (playerData != null) {
             playerData.getBlockedPlayers().add(toBlockUUID.toString());
-            logger.log(Level.INFO, "Blocked player " + toBlockUUID + " for player UUID: " + blockerUUID, 0);
+            DebugLogger.getInstance().log(Level.INFO, "Blocked player " + toBlockUUID + " for player UUID: " + blockerUUID, 0);
         }
     }
 
@@ -155,7 +155,7 @@ public class PlayerDataCache {
         PlayerData playerData = cache.get(blockerUUID);
         if (playerData != null) {
             playerData.getBlockedPlayers().remove(toUnblockUUID.toString());
-            logger.log(Level.INFO, "Unblocked player " + toUnblockUUID + " for player UUID: " + blockerUUID, 0);
+            DebugLogger.getInstance().log(Level.INFO, "Unblocked player " + toUnblockUUID + " for player UUID: " + blockerUUID, 0);
         }
     }
 
@@ -186,10 +186,10 @@ public class PlayerDataCache {
                         player.sendMessage(Utils.getInstance().$("Friends: " + playerData.getFriends().toString()));
                         player.sendMessage(Utils.getInstance().$("Blocked Players: " + playerData.getBlockedPlayers().toString()));
                         player.sendMessage(Utils.getInstance().$("Blocking Requests: " + playerData.isBlockingRequests()));
-                        logger.log(Level.INFO, "Displayed cached data for player UUID: " + playerUUID, 0);
+                        DebugLogger.getInstance().log(Level.INFO, "Displayed cached data for player UUID: " + playerUUID, 0);
                     } else {
                         player.sendMessage(Utils.getInstance().$("No cached data found for you."));
-                        logger.error("No cached data found for player: " + playerUUID);
+                        DebugLogger.getInstance().error("No cached data found for player: " + playerUUID);
                     }
                 })
                 .register();

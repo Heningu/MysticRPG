@@ -3,6 +3,7 @@ package eu.xaru.mysticrpg.customs.mobs;
 import com.ticxo.modelengine.api.ModelEngineAPI;
 import com.ticxo.modelengine.api.model.ActiveModel;
 import com.ticxo.modelengine.api.model.ModeledEntity;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.entity.Entity;
 
 public class ModelHandler {
@@ -36,7 +37,7 @@ public class ModelHandler {
             modeledEntity.setBaseEntityVisible(false);
 
         } catch (Exception e) {
-            System.err.println("Error applying model with ID '" + modelId + "': " + e.getMessage());
+            DebugLogger.getInstance().error("Failed to apply model '" + modelId + "' to entity: " + entity.getUniqueId());
             return null;
         }
 

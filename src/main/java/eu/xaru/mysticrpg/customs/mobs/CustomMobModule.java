@@ -16,7 +16,7 @@ import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.social.party.PartyModule;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -37,7 +37,7 @@ import java.util.logging.Level;
 public class CustomMobModule implements IBaseModule, Listener {
 
     private final JavaPlugin plugin;
-    private DebugLoggerModule logger;
+    
     private final Map<String, CustomMob> mobConfigurations = new HashMap<>();
     private MobManager mobManager;
     private MobGUI mobGUI;
@@ -48,23 +48,19 @@ public class CustomMobModule implements IBaseModule, Listener {
 
     @Override
     public void initialize() {
-        logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
+        
         PartyModule partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
         if (partyModule == null) {
-            logger.error("PartyModule is not loaded. CustomMobModule requires PartyModule as a dependency.");
+            DebugLogger.getInstance().error("PartyModule is not loaded. CustomMobModule requires PartyModule as a dependency.");
             return;
         }
 
-        if (logger == null) {
-            Bukkit.getLogger().severe("DebugLoggerModule not initialized. CustomMobModule cannot function without it.");
-            return;
-        }
 
         loadMobConfigurations();
 
         EconomyModule economyModule = ModuleManager.getInstance().getModuleInstance(EconomyModule.class);
         if (economyModule == null) {
-            logger.error("EconomyModule is not loaded. CustomMobModule requires EconomyModule as a dependency.");
+            DebugLogger.getInstance().error("EconomyModule is not loaded. CustomMobModule requires EconomyModule as a dependency.");
             return;
         }
         EconomyHelper economyHelper = economyModule.getEconomyHelper();
@@ -77,27 +73,27 @@ public class CustomMobModule implements IBaseModule, Listener {
         // Register event listeners
         Bukkit.getPluginManager().registerEvents(this, plugin);
 
-        logger.log(Level.INFO, "CustomMobModule initialized successfully.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "CustomMobModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
-        logger.log(Level.INFO, "CustomMobModule started", 0);
+        DebugLogger.getInstance().log(Level.INFO, "CustomMobModule started", 0);
     }
 
     @Override
     public void stop() {
-        logger.log(Level.INFO, "CustomMobModule stopped", 0);
+        DebugLogger.getInstance().log(Level.INFO, "CustomMobModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        logger.log(Level.INFO, "CustomMobModule unloaded", 0);
+        DebugLogger.getInstance().log(Level.INFO, "CustomMobModule unloaded", 0);
     }
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(DebugLoggerModule.class, LevelModule.class, EconomyModule.class, PartyModule.class);
+        return List.of( LevelModule.class, EconomyModule.class, PartyModule.class);
     }
 
     @Override
@@ -108,7 +104,7 @@ public class CustomMobModule implements IBaseModule, Listener {
     private void loadMobConfigurations() {
         File mobFolder = new File(plugin.getDataFolder(), "custom/mobs");
         if (!mobFolder.exists() && !mobFolder.mkdirs()) {
-            logger.error("Failed to create mobs folder.");
+            DebugLogger.getInstance().error("Failed to create mobs folder.");
             return;
         }
 
@@ -120,11 +116,11 @@ public class CustomMobModule implements IBaseModule, Listener {
                     String mobId = config.getString("id");
                     String mobName = config.getString("name");
                     if (mobId == null || mobId.isEmpty()) {
-                        logger.error("Mob ID is missing in file: " + file.getName());
+                        DebugLogger.getInstance().error("Mob ID is missing in file: " + file.getName());
                         continue;
                     }
                     if (mobName == null || mobName.isEmpty()) {
-                        logger.error("Mob name is missing in file: " + file.getName());
+                        DebugLogger.getInstance().error("Mob name is missing in file: " + file.getName());
                         continue;
                     }
                     EntityType entityType = EntityType.valueOf(config.getString("type", "ZOMBIE").toUpperCase());
@@ -169,7 +165,7 @@ public class CustomMobModule implements IBaseModule, Listener {
                         for (Map<?, ?> dropConfig : dropList) {
                             String type = (String) dropConfig.get("type");
                             if (type == null) {
-                                logger.error("Drop type is missing for mob: " + mobName);
+                                DebugLogger.getInstance().error("Drop type is missing for mob: " + mobName);
                                 continue;
                             }
                             String id = (String) dropConfig.get("id"); // For custom items
@@ -231,9 +227,9 @@ public class CustomMobModule implements IBaseModule, Listener {
                     );
 
                     mobConfigurations.put(mobId, customMob);
-                    logger.log(Level.INFO, "Loaded mob configuration: " + mobId, 0);
+                    DebugLogger.getInstance().log(Level.INFO, "Loaded mob configuration: " + mobId, 0);
                 } catch (Exception e) {
-                    logger.error("Failed to load mob configuration from file " + file.getName() + ": " + e.getMessage());
+                    DebugLogger.getInstance().error("Failed to load mob configuration from file " + file.getName() + ":", e);
                 }
             }
         }
@@ -279,7 +275,7 @@ public class CustomMobModule implements IBaseModule, Listener {
                         actions.computeIfAbsent(trigger, k -> new ArrayList<>()).add(action);
                     }
                 } else {
-                    logger.error("Invalid action entry: " + actionEntry);
+                    DebugLogger.getInstance().error("Invalid action entry: " + actionEntry);
                 }
             }
         }
@@ -290,14 +286,14 @@ public class CustomMobModule implements IBaseModule, Listener {
     private Action loadActionFromFile(String actionPath, AnimationConfig animationConfig) {
         File actionFile = new File(plugin.getDataFolder(), "custom/mobs/" + actionPath + ".yml");
         if (!actionFile.exists()) {
-            logger.error("Action file not found: " + actionFile.getPath());
+            DebugLogger.getInstance().error("Action file not found: " + actionFile.getPath());
             return null;
         }
         try {
             FileConfiguration actionConfig = YamlConfiguration.loadConfiguration(actionFile);
             ConfigurationSection actionSection = actionConfig.getConfigurationSection("action");
             if (actionSection == null) {
-                logger.error("Action section missing in file: " + actionFile.getPath());
+                DebugLogger.getInstance().error("Action section missing in file: " + actionFile.getPath());
                 return null;
             }
             double cooldown = actionSection.getDouble("Cooldown", 0.0);
@@ -324,7 +320,7 @@ public class CustomMobModule implements IBaseModule, Listener {
 
             return new Action(cooldown, targetConditions, actionSteps);
         } catch (Exception e) {
-            logger.error("Failed to load action from file " + actionFile.getPath() + ": " + e.getMessage());
+            DebugLogger.getInstance().error("Failed to load action from file " + actionFile.getPath() + ":", e);
             return null;
         }
     }
@@ -332,7 +328,7 @@ public class CustomMobModule implements IBaseModule, Listener {
     private Condition parseCondition(String conditionString) {
         String[] parts = conditionString.trim().split("\\s+", 2);
         if (parts.length != 2) {
-            logger.error("Invalid condition format: " + conditionString);
+            DebugLogger.getInstance().error("Invalid condition format: " + conditionString);
             return null;
         }
         String conditionType = parts[0].trim();
@@ -343,7 +339,7 @@ public class CustomMobModule implements IBaseModule, Listener {
                 return new DistanceCondition(conditionParam);
             // Add more conditions here
             default:
-                logger.error("Unknown condition type: " + conditionType);
+                DebugLogger.getInstance().error("Unknown condition type: " + conditionType);
                 return null;
         }
     }
@@ -361,46 +357,46 @@ public class CustomMobModule implements IBaseModule, Listener {
         switch (command.toLowerCase()) {
             case "animation":
                 if (parameter == null) {
-                    logger.error("Missing parameter for animation action.");
+                    DebugLogger.getInstance().error("Missing parameter for animation action.");
                     return null;
                 }
                 String animationName = parameter.replace("\"", "");
                 return new AnimationActionStep(animationName);
             case "delay":
                 if (parameter == null) {
-                    logger.error("Missing parameter for delay action.");
+                    DebugLogger.getInstance().error("Missing parameter for delay action.");
                     return null;
                 }
                 double delaySeconds;
                 try {
                     delaySeconds = Double.parseDouble(parameter);
                 } catch (NumberFormatException e) {
-                    logger.error("Invalid number format for delay action: " + parameter);
+                    DebugLogger.getInstance().error("Invalid number format for delay action: " + parameter);
                     return null;
                 }
                 return new DelayActionStep(delaySeconds);
             case "sound":
                 if (parameter == null) {
-                    logger.error("Missing parameter for sound action.");
+                    DebugLogger.getInstance().error("Missing parameter for sound action.");
                     return null;
                 }
                 return new SoundActionStep(parameter);
             case "damage":
                 if (parameter == null) {
-                    logger.error("Missing parameter for damage action.");
+                    DebugLogger.getInstance().error("Missing parameter for damage action.");
                     return null;
                 }
                 double damageAmount;
                 try {
                     damageAmount = Double.parseDouble(parameter);
                 } catch (NumberFormatException e) {
-                    logger.error("Invalid number format for damage action: " + parameter);
+                    DebugLogger.getInstance().error("Invalid number format for damage action: " + parameter);
                     return null;
                 }
                 return new DamageActionStep(damageAmount);
             case "particles":
                 if (parameter == null) {
-                    logger.error("Missing parameter for particles action.");
+                    DebugLogger.getInstance().error("Missing parameter for particles action.");
                     return null;
                 }
                 String[] params = parameter.split("\\s+");
@@ -410,18 +406,18 @@ public class CustomMobModule implements IBaseModule, Listener {
                     try {
                         count = Integer.parseInt(params[1]);
                     } catch (NumberFormatException e) {
-                        logger.error("Invalid particle count: " + params[1]);
+                        DebugLogger.getInstance().error("Invalid particle count: " + params[1]);
                         return null;
                     }
                     return new ParticleActionStep(particleName, count);
                 } else {
-                    logger.error("Invalid parameters for particles action.");
+                    DebugLogger.getInstance().error("Invalid parameters for particles action.");
                     return null;
                 }
             case "reset_to_default_animation":
                 return new ResetAnimationActionStep(mobManager);
             default:
-                logger.error("Unknown action command: " + command);
+                DebugLogger.getInstance().error("Unknown action command: " + command);
                 return null;
         }
     }

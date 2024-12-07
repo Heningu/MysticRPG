@@ -7,7 +7,7 @@ import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
@@ -18,7 +18,7 @@ import java.util.logging.Level;
 
 public class PetsModule implements IBaseModule, Listener {
     private final JavaPlugin plugin;
-    private DebugLoggerModule logger;
+    
     private PetHelper petHelper;
 
     public PetsModule() {
@@ -27,13 +27,8 @@ public class PetsModule implements IBaseModule, Listener {
 
     @Override
     public void initialize() {
-        logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
-        if (logger == null) {
-            Bukkit.getLogger().severe("DebugLoggerModule not initialized. PetsModule cannot function without it.");
-            return;
-        }
 
-        petHelper = new PetHelper(plugin, logger);
+        petHelper = new PetHelper(plugin);
 
         registerCommands();
 
@@ -41,27 +36,27 @@ public class PetsModule implements IBaseModule, Listener {
         Bukkit.getPluginManager().registerEvents(this, plugin);
         Bukkit.getPluginManager().registerEvents(petHelper, plugin);
 
-        logger.log(Level.INFO, "PetsModule initialized successfully.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "PetsModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
-        logger.log(Level.INFO, "PetsModule started", 0);
+        DebugLogger.getInstance().log(Level.INFO, "PetsModule started", 0);
     }
 
     @Override
     public void stop() {
-        logger.log(Level.INFO, "PetsModule stopped", 0);
+        DebugLogger.getInstance().log(Level.INFO, "PetsModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        logger.log(Level.INFO, "PetsModule unloaded", 0);
+        DebugLogger.getInstance().log(Level.INFO, "PetsModule unloaded", 0);
     }
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(DebugLoggerModule.class);
+        return List.of();
     }
 
     @Override

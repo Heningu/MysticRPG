@@ -9,7 +9,7 @@ import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.*;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -33,16 +33,12 @@ public class LevelModule implements IBaseModule {
     private PlayerDataCache playerDataCache;
     private Map<Integer, LevelData> levelDataMap;
     private int maxLevel;
-    private Logger logger;
-    private DebugLoggerModule debugLogger;
     private LevelingMenu levelingMenu;
     private final EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
     private LevelUpListener levelUpListener;
 
     @Override
     public void initialize() {
-        logger = Bukkit.getLogger();
-        debugLogger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
 
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         if (saveModule == null) {
@@ -53,7 +49,7 @@ public class LevelModule implements IBaseModule {
         // Fetch levels data from the local Levels.json file
         this.levelDataMap = loadLevelsFromFile();
         if (this.levelDataMap != null && !this.levelDataMap.isEmpty()) {
-            logger.info("Levels loaded from Levels.json successfully.");
+            DebugLogger.getInstance().log("Levels loaded from Levels.json successfully.");
         } else {
             throw new RuntimeException("Failed to load levels from Levels.json.");
         }
@@ -61,7 +57,7 @@ public class LevelModule implements IBaseModule {
         this.maxLevel = levelDataMap.keySet().stream().max(Integer::compare).orElse(100);
 
         registerLevelsCommand();
-        debugLogger.log(Level.INFO, "LevelModule initialized", 0);
+        DebugLogger.getInstance().log(Level.INFO, "LevelModule initialized", 0);
     }
 
     @Override
@@ -69,13 +65,13 @@ public class LevelModule implements IBaseModule {
         // Initialize LevelingMenu here instead of in initialize method
         this.levelingMenu = new LevelingMenu(JavaPlugin.getPlugin(MysticCore.class));
 
-        debugLogger.log(Level.INFO, "LevelModule started", 0);
+        DebugLogger.getInstance().log(Level.INFO, "LevelModule started", 0);
 
         // Register InventoryDragEvent for blocking dragging in leveling menus
         eventManager.registerEvent(InventoryDragEvent.class, event -> {
             String inventoryTitle = event.getView().getTitle();
             if ("Leveling Menu".equals(inventoryTitle)) {
-                debugLogger.log("Player is dragging items in the Leveling Menu.");
+                DebugLogger.getInstance().log("Player is dragging items in the Leveling Menu.");
                 event.setCancelled(true); // Prevent item movement
             }
         });
@@ -83,17 +79,17 @@ public class LevelModule implements IBaseModule {
 
     @Override
     public void stop() {
-        debugLogger.log(Level.INFO, "LevelModule stopped", 0);
+        DebugLogger.getInstance().log(Level.INFO, "LevelModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        debugLogger.log(Level.INFO, "LevelModule unloaded", 0);
+        DebugLogger.getInstance().log(Level.INFO, "LevelModule unloaded", 0);
     }
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(DebugLoggerModule.class, SaveModule.class); // Dependencies for this module
+        return List.of( SaveModule.class); // Dependencies for this module
     }
 
     @Override
@@ -138,7 +134,7 @@ public class LevelModule implements IBaseModule {
     public void addXp(Player player, int amount) {
         PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (playerData == null) {
-            logger.warning("No cached data found for player: " + player.getName());
+            DebugLogger.getInstance().warning("No cached data found for player: " + player.getName());
             return;
         }
 
@@ -178,12 +174,12 @@ public class LevelModule implements IBaseModule {
             playerDataCache.savePlayerData(player.getUniqueId(), new Callback<>() {
                 @Override
                 public void onSuccess(Void result) {
-                    logger.log(Level.INFO, "Saved XP for player " + player.getName());
+                    DebugLogger.getInstance().log(Level.INFO, "Saved XP for player " + player.getName());
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
-                    logger.log(Level.SEVERE, "Failed to save XP for player " + player.getName(), throwable);
+                    DebugLogger.getInstance().log(Level.SEVERE, "Failed to save XP for player " + player.getName(), throwable);
                 }
             });
         }
@@ -198,7 +194,7 @@ public class LevelModule implements IBaseModule {
     public void setXp(Player player, int amount) {
         PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (playerData == null) {
-            logger.warning("No cached data found for player: " + player.getName());
+            DebugLogger.getInstance().warning("No cached data found for player: " + player.getName());
             return;
         }
 
@@ -267,7 +263,7 @@ public class LevelModule implements IBaseModule {
         Map<Integer, LevelData> levels = new HashMap<>();
         try (InputStream inputStream = getClass().getResourceAsStream("/leveling/Levels.json")) {
             if (inputStream == null) {
-                logger.warning("Levels.json file not found!");
+                DebugLogger.getInstance().warning("Levels.json file not found!");
                 return levels;
             }
 
@@ -289,7 +285,7 @@ public class LevelModule implements IBaseModule {
             }
 
         } catch (Exception e) {
-            logger.warning("Error reading Levels.json file: " + e.getMessage());
+            DebugLogger.getInstance().warning("Error reading Levels.json file:", e);
         }
         return levels;
     }

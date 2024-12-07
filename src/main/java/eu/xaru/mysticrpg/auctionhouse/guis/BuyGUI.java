@@ -4,6 +4,7 @@ import eu.xaru.mysticrpg.auctionhouse.Auction;
 import eu.xaru.mysticrpg.auctionhouse.AuctionsGUI;
 import eu.xaru.mysticrpg.customs.items.Category;
 import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.PaginationHelper;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
@@ -66,7 +67,7 @@ public class BuyGUI {
         if (selectedCategory == null) {
             selectedCategory = Category.EVERYTHING; // Default to EVERYTHING
             mainGUI.getBuyGuiSelectedCategoryMap().put(playerId, selectedCategory);
-            logger.log(Level.INFO, "Player {0} has no selected category. Defaulting to EVERYTHING.", player.getName());
+            DebugLogger.getInstance().log(Level.INFO, "Player {0} has no selected category. Defaulting to EVERYTHING.", player.getName());
         }
 
         // Retrieve all active auctions
@@ -91,7 +92,7 @@ public class BuyGUI {
 
         if (filteredAuctions.isEmpty()) {
             player.sendMessage(Utils.getInstance().$("There are currently no items for sale in this category."));
-            logger.log(Level.INFO, "No auctions available for player {0} in category {1}.", new Object[]{player.getName(), selectedCategory.name()});
+            DebugLogger.getInstance().log(Level.INFO, "No auctions available for player {0} in category {1}.", new Object[]{player.getName(), selectedCategory.name()});
             // Optionally, still open the GUI with category items
         }
 
@@ -123,7 +124,7 @@ public class BuyGUI {
 
         // Handle pagination for Buy GUI
         PaginationHelper<ItemStack> paginationHelper = handleBuyGuiPagination(player, auctionItems, selectedCategory);
-        logger.log(Level.INFO, "PaginationHelper for player {0} in category {1}: Current Page {2} / Total Pages {3}",
+        DebugLogger.getInstance().log(Level.INFO, "PaginationHelper for player {0} in category {1}: Current Page {2} / Total Pages {3}",
                 new Object[]{player.getName(), selectedCategory.name(), paginationHelper.getCurrentPage(), paginationHelper.getTotalPages()});
 
         // Create the inventory
@@ -189,7 +190,7 @@ public class BuyGUI {
 
             // Update the selected category for the player
             mainGUI.getBuyGuiSelectedCategoryMap().put(playerId, selectedCategory);
-            logger.log(Level.INFO, "Player {0} switched to category: {1}", new Object[]{player.getName(), selectedCategory.name()});
+            DebugLogger.getInstance().log(Level.INFO, "Player {0} switched to category: {1}", new Object[]{player.getName(), selectedCategory.name()});
 
             // Update the Buy GUI in place
             openBuyGUI(player);
@@ -219,7 +220,7 @@ public class BuyGUI {
 
                 if (paginationHelper == null) {
                     player.sendMessage(Utils.getInstance().$("An error occurred. Please try again."));
-                    logger.log(Level.SEVERE, "PaginationHelper is null for player {0} in category {1}", new Object[]{player.getName(), selectedCategory.name()});
+                    DebugLogger.getInstance().log(Level.SEVERE, "PaginationHelper is null for player {0} in category {1}", new Object[]{player.getName(), selectedCategory.name()});
                     event.setCancelled(true);
                     return;
                 }
@@ -230,27 +231,27 @@ public class BuyGUI {
                     if (paginationHelper.hasPreviousPage()) {
                         paginationHelper.previousPage();
                         pageChanged = true;
-                        logger.log(Level.INFO, "Player {0} moved to previous page: {1} in category: {2}",
+                        DebugLogger.getInstance().log(Level.INFO, "Player {0} moved to previous page: {1} in category: {2}",
                                 new Object[]{player.getName(), paginationHelper.getCurrentPage(), selectedCategory.name()});
                     } else {
                         player.sendMessage(Utils.getInstance().$("You are already on the first page."));
-                        logger.log(Level.INFO, "Player {0} attempted to go to previous page but is already on the first page in category: {1}",
+                        DebugLogger.getInstance().log(Level.INFO, "Player {0} attempted to go to previous page but is already on the first page in category: {1}",
                                 new Object[]{player.getName(), selectedCategory.name()});
                     }
                 } else if (clickType.isRightClick()) {
                     if (paginationHelper.hasNextPage()) {
                         paginationHelper.nextPage();
                         pageChanged = true;
-                        logger.log(Level.INFO, "Player {0} moved to next page: {1} in category: {2}",
+                        DebugLogger.getInstance().log(Level.INFO, "Player {0} moved to next page: {1} in category: {2}",
                                 new Object[]{player.getName(), paginationHelper.getCurrentPage(), selectedCategory.name()});
                     } else {
                         player.sendMessage(Utils.getInstance().$("You are already on the last page."));
-                        logger.log(Level.INFO, "Player {0} attempted to go to next page but is already on the last page in category: {1}",
+                        DebugLogger.getInstance().log(Level.INFO, "Player {0} attempted to go to next page but is already on the last page in category: {1}",
                                 new Object[]{player.getName(), selectedCategory.name()});
                     }
                 } else {
                     player.sendMessage(Utils.getInstance().$("Unsupported click type for pagination."));
-                    logger.log(Level.WARNING, "Player {0} used unsupported click type: {1} for pagination.",
+                    DebugLogger.getInstance().log(Level.WARNING, "Player {0} used unsupported click type: {1} for pagination.",
                             new Object[]{player.getName(), clickType.name()});
                 }
 

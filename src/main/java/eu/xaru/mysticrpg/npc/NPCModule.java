@@ -8,7 +8,7 @@
 //import eu.xaru.mysticrpg.interfaces.IBaseModule;
 //import eu.xaru.mysticrpg.managers.EventManager;
 //import eu.xaru.mysticrpg.managers.ModuleManager;
-//import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+//import eu.xaru.mysticrpg.utils.DebugLogger;
 //import org.bukkit.ChatColor;
 //import org.bukkit.plugin.java.JavaPlugin;
 //
@@ -26,7 +26,7 @@
 //public class NPCModule implements IBaseModule {
 //
 //    private final JavaPlugin plugin;
-//    private DebugLoggerModule logger;
+//    
 //    private NPCManager npcManager;
 //    private EventManager eventManager;
 //
@@ -36,7 +36,7 @@
 //
 //    @Override
 //    public void initialize() {
-//        logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
+//        
 //
 //        // Get the NPC-Lib platform from MysticCore
 //        Platform<World, Player, ItemStack, Plugin> npcPlatform = ((MysticCore) plugin).getNpcPlatform();
@@ -48,29 +48,29 @@
 //        registerCommands();
 //        registerEventHandlers();
 //
-//        logger.log(Level.INFO, "NPCModule initialized successfully.", 0);
+//        DebugLogger.getInstance().log(Level.INFO, "NPCModule initialized successfully.", 0);
 //    }
 //
 //    @Override
 //    public void start() {
 //        npcManager.loadNPCs();
-//        logger.log(Level.INFO, "NPCModule started", 0);
+//        DebugLogger.getInstance().log(Level.INFO, "NPCModule started", 0);
 //    }
 //
 //    @Override
 //    public void stop() {
 //        npcManager.saveNPCs();
-//        logger.log(Level.INFO, "NPCModule stopped", 0);
+//        DebugLogger.getInstance().log(Level.INFO, "NPCModule stopped", 0);
 //    }
 //
 //    @Override
 //    public void unload() {
-//        logger.log(Level.INFO, "NPCModule unloaded", 0);
+//        DebugLogger.getInstance().log(Level.INFO, "NPCModule unloaded", 0);
 //    }
 //
 //    @Override
 //    public List<Class<? extends IBaseModule>> getDependencies() {
-//        return List.of(DebugLoggerModule.class);
+//        return List.of();
 //    }
 //
 //    @Override
