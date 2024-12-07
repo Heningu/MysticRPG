@@ -1,7 +1,7 @@
 package eu.xaru.mysticrpg.discord;
 
 import eu.xaru.mysticrpg.storage.PlayerData;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Message;
@@ -23,7 +23,7 @@ import java.util.logging.Level;
  */
 public class DiscordHelper extends ListenerAdapter {
 
-    private final DebugLoggerModule logger;
+    
     private final DiscordModule discordModule;
     private JDA jda;
 
@@ -36,11 +36,11 @@ public class DiscordHelper extends ListenerAdapter {
     /**
      * Constructor for DiscordHelper.
      *
-     * @param logger        The DebugLoggerModule for logging.
+             The DebugLoggerModule for logging.
      * @param discordModule The DiscordModule instance for interacting with other modules.
      */
-    public DiscordHelper(DebugLoggerModule logger, DiscordModule discordModule) {
-        this.logger = logger;
+    public DiscordHelper( DiscordModule discordModule) {
+ 
         this.discordModule = discordModule;
     }
 
@@ -50,7 +50,7 @@ public class DiscordHelper extends ListenerAdapter {
     public void startBot() {
         String botToken = Bukkit.getPluginManager().getPlugin("MysticRPG").getConfig().getString("discordBotToken");
         if (botToken == null || botToken.isEmpty()) {
-            logger.error("Discord bot token is not configured.");
+            DebugLogger.getInstance().error("Discord bot token is not configured.");
             return;
         }
 
@@ -60,12 +60,12 @@ public class DiscordHelper extends ListenerAdapter {
                     .setActivity(net.dv8tion.jda.api.entities.Activity.playing("Linking Accounts"))
                     .build();
             jda.awaitReady();
-            logger.log(Level.INFO, "Discord bot connected and ready.", 0);
+            DebugLogger.getInstance().log(Level.INFO, "Discord bot connected and ready.", 0);
 
             // Register slash commands to a specific guild for faster updates during development
             String guildId = Bukkit.getPluginManager().getPlugin("MysticRPG").getConfig().getString("discordGuildId");
             if (guildId == null || guildId.isEmpty()) {
-                logger.error("Discord guild ID is not configured.");
+                DebugLogger.getInstance().error("Discord guild ID is not configured.");
                 return;
             }
 
@@ -74,10 +74,10 @@ public class DiscordHelper extends ListenerAdapter {
                     net.dv8tion.jda.api.interactions.commands.build.Commands.slash("link", "Link your Discord account with Minecraft.")
                             .addOption(net.dv8tion.jda.api.interactions.commands.OptionType.STRING, "code", "Your unique linking code", true),
                     net.dv8tion.jda.api.interactions.commands.build.Commands.slash("me", "View your linked Minecraft account information.")
-            ).queue(success -> logger.log(Level.INFO, "Slash commands registered successfully.", 0),
-                    failure -> logger.error("Failed to register slash commands: " + failure.getMessage()));
+            ).queue(success -> DebugLogger.getInstance().log(Level.INFO, "Slash commands registered successfully.", 0),
+                    failure -> DebugLogger.getInstance().error("Failed to register slash commands: " + failure.getMessage()));
         } catch (InterruptedException e) {
-            logger.error("Discord bot initialization interrupted: " + e.getMessage());
+            DebugLogger.getInstance().error("Discord bot initialization interrupted:", e);
             Thread.currentThread().interrupt(); // Restore interrupted status
         }
     }
@@ -88,7 +88,7 @@ public class DiscordHelper extends ListenerAdapter {
     public void shutdownBot() {
         if (jda != null) {
             jda.shutdown();
-            logger.log(Level.INFO, "Discord bot shut down.", 0);
+            DebugLogger.getInstance().log(Level.INFO, "Discord bot shut down.", 0);
         }
     }
 
@@ -112,7 +112,7 @@ public class DiscordHelper extends ListenerAdapter {
         // Schedule the task with the finalCode
         Bukkit.getScheduler().runTaskLaterAsynchronously(discordModule.getPlugin(), () -> {
             codeToUUIDMap.remove(finalCode);
-            logger.log(Level.INFO, "Linking code expired and removed: " + finalCode, 0);
+            DebugLogger.getInstance().log(Level.INFO, "Linking code expired and removed: " + finalCode, 0);
         }, 20 * 60 * 5); // Expires after 5 minutes
 
         return code;
@@ -172,10 +172,10 @@ public class DiscordHelper extends ListenerAdapter {
                 // Update discordIdToUUIDMap
                 discordIdToUUIDMap.put(discordId, playerUUID);
                 event.reply("Your Discord account has been successfully linked!").setEphemeral(true).queue();
-                logger.log(Level.INFO, "Discord ID " + discordId + " linked with player UUID " + playerUUID, 0);
+                DebugLogger.getInstance().log(Level.INFO, "Discord ID " + discordId + " linked with player UUID " + playerUUID, 0);
             } else {
                 event.reply("Invalid or expired linking code. Please try again.").setEphemeral(true).queue();
-                logger.log(Level.WARNING, "Failed linking attempt with invalid code: " + code + " by Discord ID: " + discordId, 0);
+                DebugLogger.getInstance().log(Level.WARNING, "Failed linking attempt with invalid code: " + code + " by Discord ID: " + discordId, 0);
             }
         } else if (event.getName().equals("me")) {
             long discordId = event.getUser().getIdLong();
@@ -206,11 +206,11 @@ public class DiscordHelper extends ListenerAdapter {
                     event.reply(response).setEphemeral(true).queue();
                 } else {
                     event.reply("Your Minecraft account data is not available. Please ensure you are online or have played before.").setEphemeral(true).queue();
-                    logger.log(Level.WARNING, "PlayerData not found for UUID: " + playerUUID + " linked to Discord ID: " + discordId, 0);
+                    DebugLogger.getInstance().log(Level.WARNING, "PlayerData not found for UUID: " + playerUUID + " linked to Discord ID: " + discordId, 0);
                 }
             } else {
                 event.reply("You have not linked a Discord account with any Minecraft account. Use `/discord link <code>` to link your accounts.").setEphemeral(true).queue();
-                logger.log(Level.WARNING, "Discord ID " + discordId + " attempted to use /me without linking.", 0);
+                DebugLogger.getInstance().log(Level.WARNING, "Discord ID " + discordId + " attempted to use /me without linking.", 0);
             }
         }
     }

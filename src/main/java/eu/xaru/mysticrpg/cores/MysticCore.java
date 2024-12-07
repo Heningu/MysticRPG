@@ -7,7 +7,7 @@ import eu.decentsoftware.holograms.api.DHAPI;
 import eu.decentsoftware.holograms.api.DecentHologramsAPI;
 import eu.xaru.mysticrpg.config.ConfigCreator;
 import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -18,7 +18,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class MysticCore extends JavaPlugin {
 
     private ModuleManager moduleManager;
-    private DebugLoggerModule logger;
+    
     public static MysticCore instance = null;
 
 
@@ -56,23 +56,14 @@ public class MysticCore extends JavaPlugin {
             CommandAPI.onEnable();
             DecentHologramsAPI.onEnable();
 
-            // Retrieve DebugLoggerModule instance after loading modules
-            logger = moduleManager.getModuleInstance(DebugLoggerModule.class);
 
-            if (logger != null) {
-                logger.log("Core plugin enabled successfully.", 0);
-            } else {
-                getLogger().severe("DebugLoggerModule is not loaded. Plugin may not function correctly.");
-            }
+            DebugLogger.getInstance().log("Core plugin enabled successfully.", 0);
 
         } catch (Exception e) {
-            // Attempt to log using JavaPlugin's logger if DebugLoggerModule isn't available
-            if (logger != null) {
-                logger.error("Error during plugin enable. Exception: " + e.getMessage(), e, null);
-            } else {
-                getLogger().severe("Error during plugin enable. Exception: " + e.getMessage());
-                e.printStackTrace();
-            }
+            // Attempt to log using JavaPlugin's logger if DebugLoggerModule isn't a
+
+            DebugLogger.getInstance().error("Error during plugin enable. Exception:", e);
+
             getServer().getPluginManager().disablePlugin(this);
         }
 
@@ -89,16 +80,9 @@ public class MysticCore extends JavaPlugin {
 
         try {
             moduleManager.shutdown();
-            if (logger != null) {
-                logger.log("Core plugin disabled.", 0);
-            }
+            DebugLogger.getInstance().log("Core plugin disabled.", 0);
         } catch (Exception e) {
-            if (logger != null) {
-                logger.error("Error during plugin disable. Exception: " + e.getMessage(), e, null);
-            } else {
-                getLogger().severe("Error during plugin disable. Exception: " + e.getMessage());
-                e.printStackTrace();
-            }
+            DebugLogger.getInstance().error("Error during plugin disable. Exception:", e);
         }
         PacketEvents.getAPI().terminate();
     }

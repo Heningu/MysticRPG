@@ -20,7 +20,7 @@ import eu.xaru.mysticrpg.npc.NPCManager;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -44,7 +44,7 @@ import java.util.logging.Level;
 public class QuestModule implements IBaseModule {
 
     private QuestManager questManager;
-    private DebugLoggerModule logger;
+    
     private EventManager eventManager;
     private PlayerDataCache playerDataCache;
     private final JavaPlugin plugin;
@@ -57,7 +57,7 @@ public class QuestModule implements IBaseModule {
 
     @Override
     public void initialize() {
-        logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
+        
 
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         if (saveModule == null) {
@@ -84,27 +84,27 @@ public class QuestModule implements IBaseModule {
         registerCommands();
         registerEventHandlers();
 
-        logger.log(Level.INFO, "QuestModule initialized successfully.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "QuestModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
-        logger.log(Level.INFO, "QuestModule started", 0);
+        DebugLogger.getInstance().log(Level.INFO, "QuestModule started", 0);
     }
 
     @Override
     public void stop() {
-        logger.log(Level.INFO, "QuestModule stopped", 0);
+        DebugLogger.getInstance().log(Level.INFO, "QuestModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        logger.log(Level.INFO, "QuestModule unloaded", 0);
+        DebugLogger.getInstance().log(Level.INFO, "QuestModule unloaded", 0);
     }
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(DebugLoggerModule.class, SaveModule.class, CustomItemModule.class, CustomMobModule.class);
+        return List.of( SaveModule.class, CustomItemModule.class, CustomMobModule.class);
     }
 
     @Override
@@ -386,7 +386,7 @@ public class QuestModule implements IBaseModule {
 
             // Handle clicks in the Quests menu
             if ("Quests".equals(inventoryTitle)) {
-                logger.log("Player " + player.getName() + " clicked in the Quests menu.");
+                DebugLogger.getInstance().log("Player " + player.getName() + " clicked in the Quests menu.");
 
                 // Create the QuestGUI with the correct state (active or completed quests)
                 boolean showingActiveQuests = QuestGUI.isShowingActiveQuests(player);
@@ -404,7 +404,7 @@ public class QuestModule implements IBaseModule {
         eventManager.registerEvent(InventoryDragEvent.class, event -> {
             String inventoryTitle = event.getView().getTitle();
             if ("Quests".equals(inventoryTitle)) {
-                logger.log("Player is dragging items in the Quests menu.");
+                DebugLogger.getInstance().log("Player is dragging items in the Quests menu.");
                 event.setCancelled(true); // Prevent item movement
             }
         });

@@ -6,7 +6,7 @@ import eu.xaru.mysticrpg.dungeons.config.DungeonConfig;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfig.ChestLocation;
 import eu.xaru.mysticrpg.dungeons.loot.LootTable;
 import eu.xaru.mysticrpg.dungeons.loot.LootTableManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.block.Chest;
@@ -21,15 +21,15 @@ public class ChestManager {
     private final JavaPlugin plugin;
     private final DungeonInstance instance;
     private final DungeonConfig config;
-    private final DebugLoggerModule logger;
+    
     private final Random random;
     private final LootTableManager lootTableManager;
 
-    public ChestManager(JavaPlugin plugin, DungeonInstance instance, DungeonConfig config, DebugLoggerModule logger) {
+    public ChestManager(JavaPlugin plugin, DungeonInstance instance, DungeonConfig config) {
         this.plugin = plugin;
         this.instance = instance;
         this.config = config;
-        this.logger = logger;
+ 
         this.random = new Random();
         this.lootTableManager = instance.getDungeonManager().getConfigManager().getLootTableManager();
     }
@@ -47,7 +47,7 @@ public class ChestManager {
             LootTable lootTable = lootTableManager.getLootTable(lootTableId);
 
             if (lootTable == null) {
-                logger.log(Level.WARNING, "Loot table with ID '" + lootTableId + "' not found for chest at " + location, 0);
+                DebugLogger.getInstance().log(Level.WARNING, "Loot table with ID '" + lootTableId + "' not found for chest at " + location, 0);
                 continue; // Skip this chest if loot table is not found
             }
 
@@ -63,7 +63,7 @@ public class ChestManager {
                 }
             });
 
-            logger.log(Level.INFO, "Placed chest at " + location + " with loot table '" + lootTableId + "'.", 0);
+            DebugLogger.getInstance().log(Level.INFO, "Placed chest at " + location + " with loot table '" + lootTableId + "'.", 0);
         }
     }
 }

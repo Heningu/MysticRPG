@@ -4,6 +4,7 @@ import eu.xaru.mysticrpg.customs.mobs.CustomMobInstance;
 import eu.xaru.mysticrpg.customs.mobs.actions.ActionStep;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.CustomDamageHandler;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -22,7 +23,7 @@ public class DamageActionStep implements ActionStep {
         Entity target = mobInstance.getTarget();
         if (target instanceof LivingEntity livingTarget) {
             if (livingTarget.equals(mobInstance.getEntity())) {
-                Bukkit.getLogger().warning("Attempted to damage self. Skipping damage.");
+                DebugLogger.getInstance().warning("Attempted to damage self. Skipping damage.");
                 return;
             }
             if (livingTarget instanceof Player playerTarget) {
@@ -31,14 +32,14 @@ public class DamageActionStep implements ActionStep {
                 if (customDamageHandler != null) {
                     customDamageHandler.applyCustomDamage(playerTarget, damageAmount);
                 } else {
-                    Bukkit.getLogger().warning("CustomDamageHandler is not loaded. Cannot apply custom damage.");
+                    DebugLogger.getInstance().warning("CustomDamageHandler is not loaded. Cannot apply custom damage.");
                 }
             } else {
                 // For non-player entities, apply default damage
                 livingTarget.damage(damageAmount, mobInstance.getEntity());
             }
         } else {
-            Bukkit.getLogger().warning("No valid target to apply damage. Target is " + (target != null ? target.getName() : "null"));
+            DebugLogger.getInstance().warning("No valid target to apply damage. Target is " + (target != null ? target.getName() : "null"));
         }
     }
 }

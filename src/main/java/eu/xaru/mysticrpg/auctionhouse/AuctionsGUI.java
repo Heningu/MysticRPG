@@ -3,6 +3,7 @@ package eu.xaru.mysticrpg.auctionhouse;
 import eu.xaru.mysticrpg.customs.items.Category;
 import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.PaginationHelper;
 import eu.xaru.mysticrpg.utils.Utils;
 import eu.xaru.mysticrpg.auctionhouse.guis.BuyGUI;
@@ -225,7 +226,7 @@ public class AuctionsGUI {
 
         // Remove PaginationHelpers when opening Main GUI
         removePagination(player.getUniqueId());
-        logger.log(Level.INFO, "Removed PaginationHelpers for player {0}", player.getName());
+        DebugLogger.getInstance().log(Level.INFO, "Removed PaginationHelpers for player {0}", player.getName());
 
         player.openInventory(gui);
     }
@@ -409,7 +410,7 @@ public class AuctionsGUI {
     public void removePagination(UUID playerId) {
         buyPaginationMap.remove(playerId);
         yourAuctionsPaginationMap.remove(playerId);
-        logger.log(Level.INFO, "Removed PaginationHelpers for player {0}", Bukkit.getPlayer(playerId).getName());
+        DebugLogger.getInstance().log(Level.INFO, "Removed PaginationHelpers for player {0}", Bukkit.getPlayer(playerId).getName());
     }
 
     /**
@@ -447,17 +448,17 @@ public class AuctionsGUI {
         if (paginationHelper == null) {
             paginationHelper = new PaginationHelper<>(auctionItems, 28);
             playerPaginationMap.put(category, paginationHelper);
-            logger.log(Level.INFO, "Created new PaginationHelper for player {0} in category {1}. Total pages: {2}",
+            DebugLogger.getInstance().log(Level.INFO, "Created new PaginationHelper for player {0} in category {1}. Total pages: {2}",
                     new Object[]{player.getName(), category.name(), paginationHelper.getTotalPages()});
         } else {
             paginationHelper.updateItems(auctionItems);
             // Removed the following line to prevent resetting the page to 1
             // paginationHelper.setCurrentPage(1); // Reset to first page upon update
-            logger.log(Level.INFO, "Updated PaginationHelper for player {0} in category {1}.",
+            DebugLogger.getInstance().log(Level.INFO, "Updated PaginationHelper for player {0} in category {1}.",
                     new Object[]{player.getName(), category.name()});
         }
 
-        logger.log(Level.INFO, "PaginationHelper state for player {0} in category {1}: Current Page {2} / Total Pages {3}",
+        DebugLogger.getInstance().log(Level.INFO, "PaginationHelper state for player {0} in category {1}: Current Page {2} / Total Pages {3}",
                 new Object[]{player.getName(), category.name(), paginationHelper.getCurrentPage(), paginationHelper.getTotalPages()});
 
         return paginationHelper;

@@ -4,7 +4,7 @@ package eu.xaru.mysticrpg.dungeons.config;
 
 import eu.xaru.mysticrpg.dungeons.loot.LootTable;
 import eu.xaru.mysticrpg.dungeons.loot.LootTableManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.*;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -18,15 +18,15 @@ import java.util.logging.Level;
 public class DungeonConfigManager {
 
     private final JavaPlugin plugin;
-    private final DebugLoggerModule logger;
+    
     private final Map<String, DungeonConfig> dungeonConfigs;
     private final LootTableManager lootTableManager;
 
-    public DungeonConfigManager(JavaPlugin plugin, DebugLoggerModule logger) {
+    public DungeonConfigManager(JavaPlugin plugin) {
         this.plugin = plugin;
-        this.logger = logger;
+ 
         this.dungeonConfigs = new HashMap<>();
-        this.lootTableManager = new LootTableManager(plugin, logger);
+        this.lootTableManager = new LootTableManager(plugin);
     }
 
     public void loadConfigs() {
@@ -44,7 +44,7 @@ public class DungeonConfigManager {
             DungeonConfig dungeonConfig = parseConfig(config);
             if (dungeonConfig != null) {
                 dungeonConfigs.put(dungeonConfig.getId(), dungeonConfig);
-                logger.log(Level.INFO, "Loaded dungeon config: " + dungeonConfig.getId(), 0);
+                DebugLogger.getInstance().log(Level.INFO, "Loaded dungeon config: " + dungeonConfig.getId(), 0);
             }
         }
     }
@@ -65,12 +65,12 @@ public class DungeonConfigManager {
 
         // Validate required fields
         if (dungeonConfig.getId() == null) {
-            logger.log(Level.SEVERE, "Dungeon config is missing an ID. Skipping...", 0);
+            DebugLogger.getInstance().log(Level.SEVERE, "Dungeon config is missing an ID. Skipping...", 0);
             return null;
         }
 
         if (dungeonConfig.getWorldName() == null) {
-            logger.log(Level.SEVERE, "Dungeon config '" + dungeonConfig.getId() + "' is missing a world name.", 0);
+            DebugLogger.getInstance().log(Level.SEVERE, "Dungeon config '" + dungeonConfig.getId() + "' is missing a world name.", 0);
             return null;
         }
 
@@ -81,7 +81,7 @@ public class DungeonConfigManager {
             WorldCreator creator = new WorldCreator(dungeonConfig.getWorldName());
             world = creator.createWorld();
             if (world == null) {
-                logger.log(Level.SEVERE, "World '" + dungeonConfig.getWorldName() + "' could not be loaded.", 0);
+                DebugLogger.getInstance().log(Level.SEVERE, "World '" + dungeonConfig.getWorldName() + "' could not be loaded.", 0);
                 return null;
             }
         }
@@ -96,7 +96,7 @@ public class DungeonConfigManager {
             Location spawnLocation = new Location(world, spawnX, spawnY, spawnZ, spawnYaw, spawnPitch);
             dungeonConfig.setSpawnLocation(spawnLocation);
         } else {
-            logger.log(Level.WARNING, "Dungeon config '" + dungeonConfig.getId() + "' is missing a spawn location.", 0);
+            DebugLogger.getInstance().log(Level.WARNING, "Dungeon config '" + dungeonConfig.getId() + "' is missing a spawn location.", 0);
         }
 
         // Parse mob spawn points
@@ -113,7 +113,7 @@ public class DungeonConfigManager {
                 String mobId = mobSpawnSection.getString("mob_id");
 
                 if (mobId == null) {
-                    logger.log(Level.WARNING, "Mob spawn point '" + key + "' is missing a mob ID. Skipping...", 0);
+                    DebugLogger.getInstance().log(Level.WARNING, "Mob spawn point '" + key + "' is missing a mob ID. Skipping...", 0);
                     continue;
                 }
 
@@ -143,14 +143,14 @@ public class DungeonConfigManager {
 
                 if (chestType == null) {
                     chestType = Material.CHEST; // Default to CHEST if type is invalid
-                    logger.log(Level.WARNING, "Invalid chest type '" + typeStr + "' at chest '" + key + "'. Defaulting to CHEST.", 0);
+                    DebugLogger.getInstance().log(Level.WARNING, "Invalid chest type '" + typeStr + "' at chest '" + key + "'. Defaulting to CHEST.", 0);
                 }
 
                 String lootTableId = chestSection.getString("loot_table");
                 // Ensure the loot table exists
                 if (lootTableId == null || lootTableManager.getLootTable(lootTableId) == null) {
                     lootTableId = assignDefaultLootTable(chestType);
-                    logger.log(Level.WARNING, "Loot table missing or invalid for chest '" + key + "'. Assigned default loot table '" + lootTableId + "'.", 0);
+                    DebugLogger.getInstance().log(Level.WARNING, "Loot table missing or invalid for chest '" + key + "'. Assigned default loot table '" + lootTableId + "'.", 0);
                 }
 
                 Location location = new Location(world, x, y, z, yaw, pitch);
@@ -174,7 +174,7 @@ public class DungeonConfigManager {
             Location portalLocation = new Location(world, portalX, portalY, portalZ, portalYaw, portalPitch);
             dungeonConfig.setPortalPos1(portalLocation);
         } else {
-            logger.log(Level.WARNING, "Dungeon config '" + dungeonConfig.getId() + "' is missing a portal position.", 0);
+            DebugLogger.getInstance().log(Level.WARNING, "Dungeon config '" + dungeonConfig.getId() + "' is missing a portal position.", 0);
         }
 
         return dungeonConfig;
@@ -216,7 +216,7 @@ public class DungeonConfigManager {
             fileConfig.set("spawnLocation.yaw", config.getSpawnLocation().getYaw());
             fileConfig.set("spawnLocation.pitch", config.getSpawnLocation().getPitch());
         } else {
-            logger.log(Level.WARNING, "Spawn location is null for dungeon: " + config.getId(), 0);
+            DebugLogger.getInstance().log(Level.WARNING, "Spawn location is null for dungeon: " + config.getId(), 0);
         }
 
         // Save mob spawn points
@@ -224,7 +224,7 @@ public class DungeonConfigManager {
         int mobIndex = 0;
         for (DungeonConfig.MobSpawnPoint spawnPoint : config.getMobSpawnPoints()) {
             if (spawnPoint.getLocation() == null || spawnPoint.getMobId() == null) {
-                logger.log(Level.WARNING, "Invalid mob spawn point at index " + mobIndex + ". Skipping...", 0);
+                DebugLogger.getInstance().log(Level.WARNING, "Invalid mob spawn point at index " + mobIndex + ". Skipping...", 0);
                 continue;
             }
             ConfigurationSection spawnSection = mobSpawnPointsSection.createSection("spawn" + mobIndex++);
@@ -241,7 +241,7 @@ public class DungeonConfigManager {
         int chestIndex = 0;
         for (DungeonConfig.ChestLocation chestLocation : config.getChestLocations()) {
             if (chestLocation.getLocation() == null || chestLocation.getType() == null || chestLocation.getLootTableId() == null) {
-                logger.log(Level.WARNING, "Invalid chest location at index " + chestIndex + ". Skipping...", 0);
+                DebugLogger.getInstance().log(Level.WARNING, "Invalid chest location at index " + chestIndex + ". Skipping...", 0);
                 continue;
             }
             ConfigurationSection chestSection = chestLocationsSection.createSection("chest" + chestIndex++);
@@ -263,18 +263,18 @@ public class DungeonConfigManager {
             fileConfig.set("portalPos1.yaw", config.getPortalPos1().getYaw());
             fileConfig.set("portalPos1.pitch", config.getPortalPos1().getPitch());
         } else {
-            logger.log(Level.WARNING, "Portal position is null for dungeon: " + config.getId(), 0);
+            DebugLogger.getInstance().log(Level.WARNING, "Portal position is null for dungeon: " + config.getId(), 0);
         }
 
         try {
             fileConfig.save(configFile);
-            logger.log(Level.INFO, "Dungeon config saved: " + config.getId(), 0);
+            DebugLogger.getInstance().log(Level.INFO, "Dungeon config saved: " + config.getId(), 0);
 
             // Update the in-memory dungeonConfigs map
             dungeonConfigs.put(config.getId(), config);
-            logger.log(Level.INFO, "Dungeon config updated in memory: " + config.getId(), 0);
+            DebugLogger.getInstance().log(Level.INFO, "Dungeon config updated in memory: " + config.getId(), 0);
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Failed to save dungeon config: " + e.getMessage(), 0);
+            DebugLogger.getInstance().log(Level.SEVERE, "Failed to save dungeon config:", e, 0);
         }
     }
 

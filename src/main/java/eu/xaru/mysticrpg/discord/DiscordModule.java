@@ -9,7 +9,7 @@ import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.storage.Callback;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -29,7 +29,7 @@ import java.util.logging.Level;
 public class DiscordModule implements IBaseModule, Listener {
 
     private final JavaPlugin plugin;
-    private DebugLoggerModule logger;
+    
     private DiscordHelper discordHelper;
     private PlayerDataCache playerDataCache;
 
@@ -54,14 +54,10 @@ public class DiscordModule implements IBaseModule, Listener {
     @Override
     public void initialize() {
         // Initialize logger
-        logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
-        if (logger == null) {
-            Bukkit.getLogger().severe("DebugLoggerModule not initialized. DiscordModule cannot function without it.");
-            return;
-        }
+
 
         // Initialize DiscordHelper
-        discordHelper = new DiscordHelper(logger, this);
+        discordHelper = new DiscordHelper( this);
 
         // Initialize PlayerDataCache
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
@@ -70,7 +66,7 @@ public class DiscordModule implements IBaseModule, Listener {
         }
 
         if (playerDataCache == null) {
-            logger.error("SaveModule or PlayerDataCache not initialized. DiscordModule cannot function without it.");
+            DebugLogger.getInstance().error("SaveModule or PlayerDataCache not initialized. DiscordModule cannot function without it.");
             return;
         }
 
@@ -80,32 +76,32 @@ public class DiscordModule implements IBaseModule, Listener {
         // Register event listeners if needed
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
 
-        logger.log(Level.INFO, "DiscordModule initialized successfully.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "DiscordModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
         // Start Discord bot or any other startup logic
         discordHelper.startBot();
-        logger.log(Level.INFO, "DiscordModule started.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "DiscordModule started.", 0);
     }
 
     @Override
     public void stop() {
         // Shutdown Discord bot or any other cleanup logic
         discordHelper.shutdownBot();
-        logger.log(Level.INFO, "DiscordModule stopped.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "DiscordModule stopped.", 0);
     }
 
     @Override
     public void unload() {
         // Additional unload logic if necessary
-        logger.log(Level.INFO, "DiscordModule unloaded.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "DiscordModule unloaded.", 0);
     }
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(SaveModule.class, DebugLoggerModule.class);
+        return List.of(SaveModule.class);
     }
 
     @Override
@@ -127,10 +123,10 @@ public class DiscordModule implements IBaseModule, Listener {
                             if (code != null) {
                                 player.sendMessage(Utils.getInstance().$("Use this code to link your Discord account: " + code));
                                 // Optionally, send the code via other means (e.g., GUI)
-                                logger.log(Level.INFO, "Generated linking code for player " + player.getName() + ": " + code, 0);
+                                DebugLogger.getInstance().log(Level.INFO, "Generated linking code for player " + player.getName() + ": " + code, 0);
                             } else {
                                 player.sendMessage(Utils.getInstance().$("Failed to generate a linking code. Please try again later."));
-                                logger.error("Failed to generate linking code for player " + player.getName());
+                                DebugLogger.getInstance().error("Failed to generate linking code for player " + player.getName());
                             }
                         }))
                 // Subcommand: /discord unlink (unlink self)
@@ -145,13 +141,13 @@ public class DiscordModule implements IBaseModule, Listener {
                                     @Override
                                     public void onSuccess(Void result) {
                                         player.sendMessage(Utils.getInstance().$("Your Discord account has been unlinked."));
-                                        logger.log(Level.INFO, "Unlinked Discord ID for player " + player.getName(), 0);
+                                        DebugLogger.getInstance().log(Level.INFO, "Unlinked Discord ID for player " + player.getName(), 0);
                                     }
 
                                     @Override
                                     public void onFailure(Throwable throwable) {
                                         player.sendMessage(Utils.getInstance().$("Failed to unlink your Discord account. Please try again later."));
-                                        logger.error("Failed to unlink Discord ID for player " + player.getName() + ": " + throwable.getMessage());
+                                        DebugLogger.getInstance().error("Failed to unlink Discord ID for player " + player.getName() + ": ", throwable);
                                     }
                                 });
                             } else {
@@ -185,7 +181,7 @@ public class DiscordModule implements IBaseModule, Listener {
                                         @Override
                                         public void onSuccess(Void result) {
                                             player.sendMessage(Utils.getInstance().$("Discord account for user \"" + finalTargetUsername + "\" has been unlinked."));
-                                            logger.log(Level.INFO, "Unlinked Discord ID for player " + finalTargetUsername + " by admin " + player.getName(), 0);
+                                            DebugLogger.getInstance().log(Level.INFO, "Unlinked Discord ID for player " + finalTargetUsername + " by admin " + player.getName(), 0);
                                             // Notify the target player if online
                                             Player targetPlayer = Bukkit.getPlayer(targetUUID);
                                             if (targetPlayer != null && targetPlayer.isOnline()) {
@@ -196,7 +192,7 @@ public class DiscordModule implements IBaseModule, Listener {
                                         @Override
                                         public void onFailure(Throwable throwable) {
                                             player.sendMessage(Utils.getInstance().$("Failed to unlink Discord account for user \"" + finalTargetUsername + "\". Please try again later."));
-                                            logger.error("Failed to unlink Discord ID for player " + finalTargetUsername + ": " + throwable.getMessage());
+                                            DebugLogger.getInstance().error("Failed to unlink Discord ID for player " + finalTargetUsername + ": ", throwable);
                                         }
                                     });
                                 } else {
@@ -204,7 +200,7 @@ public class DiscordModule implements IBaseModule, Listener {
                                 }
                             } else {
                                 player.sendMessage(Utils.getInstance().$("You do not have permission to unlink other players."));
-                                logger.log(Level.WARNING, "Player " + player.getName() + " attempted to unlink other players without permission.", 0);
+                                DebugLogger.getInstance().log(Level.WARNING, "Player " + player.getName() + " attempted to unlink other players without permission.", 0);
                             }
                         }))
                 // Subcommand: /discord check "USERNAME"
@@ -260,7 +256,7 @@ public class DiscordModule implements IBaseModule, Listener {
                     });
 
             if (alreadyLinked) {
-                logger.error("Discord ID " + discordId + " is already linked to another Minecraft account.");
+                DebugLogger.getInstance().error("Discord ID " + discordId + " is already linked to another Minecraft account.");
                 // Optionally, notify the Discord user via the bot
                 return;
             }
@@ -277,19 +273,19 @@ public class DiscordModule implements IBaseModule, Listener {
                         }
                         // Update discordIdToUUIDMap
                         discordHelper.getDiscordIdToUUIDMap().put(discordId, playerUUID);
-                        logger.log(Level.INFO, "Linked Discord ID " + discordId + " with player UUID " + playerUUID, 0);
+                        DebugLogger.getInstance().log(Level.INFO, "Linked Discord ID " + discordId + " with player UUID " + playerUUID, 0);
                     }
 
                     @Override
                     public void onFailure(Throwable throwable) {
-                        logger.error("Failed to save Discord linking for player UUID " + playerUUID + ": " + throwable.getMessage());
+                        DebugLogger.getInstance().error("Failed to save Discord linking for player UUID " + playerUUID + ": ", throwable);
                     }
                 });
             } else {
-                logger.error("No player found for linking code: " + code);
+                DebugLogger.getInstance().error("No player found for linking code: " + code);
             }
         } else {
-            logger.error("Invalid or expired linking code: " + code);
+            DebugLogger.getInstance().error("Invalid or expired linking code: " + code);
         }
     }
 }

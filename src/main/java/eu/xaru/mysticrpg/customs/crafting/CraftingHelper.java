@@ -8,7 +8,7 @@ import eu.xaru.mysticrpg.storage.Callback;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.utils.CustomInventoryManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -32,14 +32,14 @@ import java.util.logging.Level;
 public class CraftingHelper implements Listener {
 
     private final JavaPlugin plugin;
-    private final DebugLoggerModule logger;
+    
     private final ItemManager itemManager;
     private final Map<String, CustomRecipe> customRecipes = new HashMap<>();
     private final Map<UUID, Inventory> openInventories = new HashMap<>();
 
-    public CraftingHelper(JavaPlugin plugin, DebugLoggerModule logger) {
+    public CraftingHelper(JavaPlugin plugin) {
         this.plugin = plugin;
-        this.logger = logger;
+ 
 
         // Get ItemManager from CustomItemModule
         CustomItemModule customItemModule = ModuleManager.getInstance().getModuleInstance(CustomItemModule.class);
@@ -47,7 +47,7 @@ public class CraftingHelper implements Listener {
             this.itemManager = customItemModule.getItemManager();
         } else {
             this.itemManager = null;
-            logger.log(Level.WARNING, "CustomItemModule not found. Custom items in recipes won't be available.", 0);
+            DebugLogger.getInstance().log(Level.WARNING, "CustomItemModule not found. Custom items in recipes won't be available.", 0);
         }
 
         loadCustomRecipes();
@@ -58,7 +58,7 @@ public class CraftingHelper implements Listener {
     public void loadCustomRecipes() {
         File recipesFolder = new File(plugin.getDataFolder(), "custom/recipes");
         if (!recipesFolder.exists() && !recipesFolder.mkdirs()) {
-            logger.error("Failed to create recipes folder.");
+            DebugLogger.getInstance().error("Failed to create recipes folder.");
             return;
         }
 
@@ -70,13 +70,13 @@ public class CraftingHelper implements Listener {
 
                     String id = config.getString("id");
                     if (id == null || id.isEmpty()) {
-                        logger.error("Recipe ID is missing in file: " + file.getName());
+                        DebugLogger.getInstance().error("Recipe ID is missing in file: " + file.getName());
                         continue;
                     }
 
                     List<String> shape = config.getStringList("shape");
                     if (shape.size() != 3) {
-                        logger.error("Invalid shape in recipe " + id + ". Must have 3 rows.");
+                        DebugLogger.getInstance().error("Invalid shape in recipe " + id + ". Must have 3 rows.");
                         continue;
                     }
 
@@ -89,7 +89,7 @@ public class CraftingHelper implements Listener {
                             if (ingredient != null) {
                                 ingredients.put(key.charAt(0), ingredient);
                             } else {
-                                logger.error("Invalid ingredient for key '" + key + "' in recipe " + id);
+                                DebugLogger.getInstance().error("Invalid ingredient for key '" + key + "' in recipe " + id);
                             }
                         }
                     }
@@ -97,17 +97,17 @@ public class CraftingHelper implements Listener {
                     String resultValue = config.getString("result");
                     RecipeIngredient resultIngredient = parseIngredient(resultValue);
                     if (resultIngredient == null) {
-                        logger.error("Invalid result in recipe " + id);
+                        DebugLogger.getInstance().error("Invalid result in recipe " + id);
                         continue;
                     }
 
                     CustomRecipe customRecipe = new CustomRecipe(id, shape, ingredients, resultIngredient);
                     customRecipes.put(id, customRecipe);
 
-                    logger.log(Level.INFO, "Loaded custom recipe: " + id, 0);
+                    DebugLogger.getInstance().log(Level.INFO, "Loaded custom recipe: " + id, 0);
 
                 } catch (Exception e) {
-                    logger.error("Failed to load recipe from file " + file.getName() + ": " + e.getMessage());
+                    DebugLogger.getInstance().error("Failed to load recipe from file " + file.getName() + ":", e);
                 }
             }
         }
@@ -124,14 +124,14 @@ public class CraftingHelper implements Listener {
                     return new RecipeIngredient(customItem.toItemStack());
                 }
             }
-            logger.error("Custom item not found: " + customItemId);
+            DebugLogger.getInstance().error("Custom item not found: " + customItemId);
             return null;
         } else {
             Material material = Material.matchMaterial(value.toUpperCase());
             if (material != null) {
                 return new RecipeIngredient(new ItemStack(material));
             }
-            logger.error("Invalid material: " + value);
+            DebugLogger.getInstance().error("Invalid material: " + value);
             return null;
         }
     }
@@ -412,13 +412,13 @@ public class CraftingHelper implements Listener {
             @Override
             public void onSuccess(Void result) {
                 // Optionally log success
-                logger.log(Level.INFO, "Recipe " + recipeId + " unlocked and saved for player " + player.getName(), 0);
+                DebugLogger.getInstance().log(Level.INFO, "Recipe " + recipeId + " unlocked and saved for player " + player.getName(), 0);
             }
 
             @Override
             public void onFailure(Throwable throwable) {
                 // Log failure
-                logger.error("Failed to save unlocked recipe " + recipeId + " for player " + player.getName() + ": " + throwable.getMessage());
+                DebugLogger.getInstance().error("Failed to save unlocked recipe " + recipeId + " for player " + player.getName() + ": ", throwable);
             }
         });
 
@@ -442,13 +442,13 @@ public class CraftingHelper implements Listener {
                 @Override
                 public void onSuccess(Void result) {
                     // Optionally log success
-                    logger.log(Level.INFO, "Recipe " + recipeId + " locked and saved for player " + player.getName(), 0);
+                    DebugLogger.getInstance().log(Level.INFO, "Recipe " + recipeId + " locked and saved for player " + player.getName(), 0);
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
                     // Log failure
-                    logger.error("Failed to save locked recipe " + recipeId + " for player " + player.getName() + ": " + throwable.getMessage());
+                    DebugLogger.getInstance().error("Failed to save locked recipe " + recipeId + " for player " + player.getName() + ": ", throwable);
                 }
             });
 

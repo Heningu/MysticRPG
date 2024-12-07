@@ -13,7 +13,7 @@ import eu.xaru.mysticrpg.social.party.PartyModule;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.utils.CustomInventoryManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -40,7 +40,7 @@ public class FriendsModule implements IBaseModule {
 
     private MysticCore plugin;
     private EventManager eventManager;
-    private DebugLoggerModule logger;
+    
     private PlayerDataCache playerDataCache;
     private FriendsHelper friendsHelper;
     private PartyHelper partyHelper;
@@ -63,19 +63,18 @@ public class FriendsModule implements IBaseModule {
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
         // Initialize the event manager
         this.eventManager = new EventManager(plugin);
-        // Retrieve the debug logger module for logging purposes
-        this.logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
+
         // Initialize the player data cache
         this.playerDataCache = PlayerDataCache.getInstance();
         // Initialize the friends helper
-        this.friendsHelper = new FriendsHelper(playerDataCache, logger);
+        this.friendsHelper = new FriendsHelper(playerDataCache);
 
         // Retrieve the PartyHelper from the PartyModule dependency
         PartyModule partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
         if (partyModule != null) {
             this.partyHelper = partyModule.getPartyHelper();
         } else {
-            logger.error("PartyModule not initialized. Party features in FriendsModule will not function.");
+            DebugLogger.getInstance().error("PartyModule not initialized. Party features in FriendsModule will not function.");
         }
     }
 
@@ -111,7 +110,7 @@ public class FriendsModule implements IBaseModule {
      */
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(DebugLoggerModule.class, PartyModule.class);
+        return List.of( PartyModule.class);
     }
 
     /**
@@ -140,7 +139,7 @@ public class FriendsModule implements IBaseModule {
                                 friendsHelper.sendFriendRequest(player, target);
                             } catch (Exception e) {
                                 player.sendMessage(Utils.getInstance().$("An error occurred while processing your request."));
-                                logger.error("Error executing /friends add command: " + e.getMessage());
+                                DebugLogger.getInstance().error("Error executing /friends add command:", e);
                                 e.printStackTrace();
                             }
                         }))
@@ -153,7 +152,7 @@ public class FriendsModule implements IBaseModule {
                                 friendsHelper.removeFriend(player, target);
                             } catch (Exception e) {
                                 player.sendMessage(Utils.getInstance().$("An error occurred while processing your request."));
-                                logger.error("Error executing /friends remove command: " + e.getMessage());
+                                DebugLogger.getInstance().error("Error executing /friends remove command:", e);
                                 e.printStackTrace();
                             }
                         }))
@@ -166,7 +165,7 @@ public class FriendsModule implements IBaseModule {
                                 friendsHelper.acceptFriendRequest(player, senderName);
                             } catch (Exception e) {
                                 player.sendMessage(Utils.getInstance().$("An error occurred while processing your request."));
-                                logger.error("Error executing /friends accept command: " + e.getMessage());
+                                DebugLogger.getInstance().error("Error executing /friends accept command:", e);
                                 e.printStackTrace();
                             }
                         }))
@@ -179,7 +178,7 @@ public class FriendsModule implements IBaseModule {
                                 friendsHelper.denyFriendRequest(player, senderName);
                             } catch (Exception e) {
                                 player.sendMessage(Utils.getInstance().$("An error occurred while processing your request."));
-                                logger.error("Error executing /friends deny command: " + e.getMessage());
+                                DebugLogger.getInstance().error("Error executing /friends deny command:", e);
                                 e.printStackTrace();
                             }
                         }))

@@ -7,7 +7,7 @@ import eu.xaru.mysticrpg.customs.mobs.MobManager;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfig;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfig.MobSpawnPoint;
 import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Location;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -20,15 +20,15 @@ public class DungeonEnemyManager {
     private final JavaPlugin plugin;
     private final DungeonInstance instance;
     private final DungeonConfig config;
-    private final DebugLoggerModule logger;
+    
     private final MobManager mobManager;
     private final List<CustomMobInstance> spawnedMobs;
 
-    public DungeonEnemyManager(JavaPlugin plugin, DungeonInstance instance, DungeonConfig config, DebugLoggerModule logger) {
+    public DungeonEnemyManager(JavaPlugin plugin, DungeonInstance instance, DungeonConfig config) {
         this.plugin = plugin;
         this.instance = instance;
         this.config = config;
-        this.logger = logger;
+ 
         this.spawnedMobs = new ArrayList<>();
 
         // Get your existing MobManager instance from CustomMobModule
@@ -47,7 +47,7 @@ public class DungeonEnemyManager {
             // Get the custom mob configuration
             CustomMob customMob = mobManager.getMobConfigurations().get(spawnPoint.getMobId());
             if (customMob == null) {
-                logger.log(Level.WARNING, "Custom mob with ID '" + spawnPoint.getMobId() + "' not found.", 0);
+                DebugLogger.getInstance().log(Level.WARNING, "Custom mob with ID '" + spawnPoint.getMobId() + "' not found.", 0);
                 continue;
             }
 

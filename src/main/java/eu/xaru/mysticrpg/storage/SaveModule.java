@@ -9,7 +9,7 @@ import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.database.DatabaseManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -30,7 +30,7 @@ public class SaveModule implements IBaseModule {
 
     private DatabaseManager databaseManager;
     private PlayerDataCache playerDataCache;
-    private DebugLoggerModule logger;
+    
     private EconomyHelper economyHelper;
     private SaveHelper saveHelper;
 
@@ -43,30 +43,28 @@ public class SaveModule implements IBaseModule {
 
     @Override
     public void initialize() {
-        // Initialize logger
-        logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
 
         // Initialize DatabaseManager
-        DatabaseManager.initialize(logger);
+        DatabaseManager.initialize();
         databaseManager = DatabaseManager.getInstance();
 
         // Initialize PlayerDataCache
-        PlayerDataCache.initialize(databaseManager, logger);
+        PlayerDataCache.initialize(databaseManager);
         playerDataCache = PlayerDataCache.getInstance();
 
-        logger.log(Level.INFO, "SaveModule initialized", 0);
+        DebugLogger.getInstance().log(Level.INFO, "SaveModule initialized", 0);
     }
 
     @Override
     public void start() {
-        logger.log(Level.INFO, "SaveModule started", 0);
+        DebugLogger.getInstance().log(Level.INFO, "SaveModule started", 0);
 
         // Get EconomyHelper instance in the start() method
         EconomyModule economyModule = ModuleManager.getInstance().getModuleInstance(EconomyModule.class);
         if (economyModule != null) {
             this.economyHelper = economyModule.getEconomyHelper();
         } else {
-            logger.error("EconomyModule is not initialized. SaveModule cannot function without it.");
+            DebugLogger.getInstance().error("EconomyModule is not initialized. SaveModule cannot function without it.");
             return; // Exit start() method if economyHelper is not available
         }
 
@@ -74,12 +72,12 @@ public class SaveModule implements IBaseModule {
         eventManager.registerEvent(PlayerJoinEvent.class, (event) -> {
             Player player = event.getPlayer();
             UUID playerUUID = player.getUniqueId();
-            logger.log(Level.INFO, "SaveModule: Loading data for player: " + player.getName(), 0);
+            DebugLogger.getInstance().log(Level.INFO, "SaveModule: Loading data for player: " + player.getName(), 0);
 
             playerDataCache.loadPlayerData(playerUUID, new Callback<PlayerData>() {
                 @Override
                 public void onSuccess(PlayerData playerData) {
-                    logger.log(Level.INFO, "SaveModule$1: Player data loaded and cached for " + player.getName(), 0);
+                    DebugLogger.getInstance().log(Level.INFO, "SaveModule$1: Player data loaded and cached for " + player.getName(), 0);
 
                     // Check for pending balance
                     if (playerData.getPendingBalance() > 0) {
@@ -87,7 +85,7 @@ public class SaveModule implements IBaseModule {
                         playerData.setBalance(playerData.getBalance() + pendingBalance);
                         playerData.setPendingBalance(0.0);
                         player.sendMessage(Utils.getInstance().$("You have received $" + economyHelper.formatBalance(pendingBalance) + " from your sold auctions."));
-                        logger.log(Level.INFO, "Applied pending balance for " + player.getName(), 0);
+                        DebugLogger.getInstance().log(Level.INFO, "Applied pending balance for " + player.getName(), 0);
                     }
 
                     // Check for pending items
@@ -100,7 +98,7 @@ public class SaveModule implements IBaseModule {
                         }
                         playerData.getPendingItems().clear();
                         player.sendMessage(Utils.getInstance().$("You have received items from your expired auctions."));
-                        logger.log(Level.INFO, "Applied pending items for " + player.getName(), 0);
+                        DebugLogger.getInstance().log(Level.INFO, "Applied pending items for " + player.getName(), 0);
                     }
 
                     // Save the updated player data
@@ -108,13 +106,13 @@ public class SaveModule implements IBaseModule {
                         @Override
                         public void onSuccess(Void result) {
                             player.sendMessage(Utils.getInstance().$("Your data has been saved to the database."));
-                            logger.log(Level.INFO, "SaveModule$1: Data saved successfully for player: " + player.getName(), 0);
+                            DebugLogger.getInstance().log(Level.INFO, "SaveModule$1: Data saved successfully for player: " + player.getName(), 0);
                         }
 
                         @Override
                         public void onFailure(Throwable throwable) {
                             player.sendMessage(Utils.getInstance().$("Failed to save your data. Please try again later."));
-                            logger.error("SaveModule$1: Failed to save data for player: " + player.getName() + ". " + throwable.getMessage());
+                            DebugLogger.getInstance().error("SaveModule$1: Failed to save data for player: " + player.getName() + ". ", throwable);
                         }
                     });
                 }
@@ -122,7 +120,7 @@ public class SaveModule implements IBaseModule {
                 @Override
                 public void onFailure(Throwable throwable) {
                     player.sendMessage(Utils.getInstance().$("Failed to load your data. Please try again later."));
-                    logger.error("SaveModule$1: Failed to load data for player: " + player.getName() + ". " + throwable.getMessage());
+                    DebugLogger.getInstance().error("SaveModule$1: Failed to load data for player: " + player.getName() + ". ", throwable);
                 }
             });
         });
@@ -131,18 +129,18 @@ public class SaveModule implements IBaseModule {
         eventManager.registerEvent(PlayerQuitEvent.class, (event) -> {
             Player player = event.getPlayer();
             UUID playerUUID = player.getUniqueId();
-            logger.log(Level.INFO, "SaveModule: Saving data for player: " + player.getName(), 0);
+            DebugLogger.getInstance().log(Level.INFO, "SaveModule: Saving data for player: " + player.getName(), 0);
             playerDataCache.savePlayerData(playerUUID, new Callback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
-                    logger.log(Level.INFO, "SaveModule$1: Player data saved for " + player.getName(), 0);
+                    DebugLogger.getInstance().log(Level.INFO, "SaveModule$1: Player data saved for " + player.getName(), 0);
                     playerDataCache.clearPlayerData(playerUUID);  // Clear player data from cache
-                    logger.log(Level.INFO, "SaveModule$1: Player data cache cleared for " + player.getName(), 0);
+                    DebugLogger.getInstance().log(Level.INFO, "SaveModule$1: Player data cache cleared for " + player.getName(), 0);
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
-                    logger.error("SaveModule$1: Failed to save player data for " + player.getName() + ": " + throwable.getMessage());
+                    DebugLogger.getInstance().error("SaveModule$1: Failed to save player data for " + player.getName() + ": ", throwable);
                 }
             });
         });
@@ -150,17 +148,17 @@ public class SaveModule implements IBaseModule {
 
     @Override
     public void stop() {
-        logger.log(Level.INFO, "SaveModule stopped", 0);
+        DebugLogger.getInstance().log(Level.INFO, "SaveModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        logger.log(Level.INFO, "SaveModule unloaded", 0);
+        DebugLogger.getInstance().log(Level.INFO, "SaveModule unloaded", 0);
     }
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(DebugLoggerModule.class);
+        return List.of();
     }
 
     @Override

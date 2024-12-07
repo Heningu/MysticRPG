@@ -2,7 +2,7 @@
 
 package eu.xaru.mysticrpg.dungeons.loot;
 
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -13,12 +13,12 @@ import java.util.logging.Level;
 public class LootTableManager {
 
     private final JavaPlugin plugin;
-    private final DebugLoggerModule logger;
+    
     private final Map<String, LootTable> lootTables;
 
-    public LootTableManager(JavaPlugin plugin, DebugLoggerModule logger) {
+    public LootTableManager(JavaPlugin plugin) {
         this.plugin = plugin;
-        this.logger = logger;
+ 
         this.lootTables = new HashMap<>();
         loadLootTables();
     }
@@ -35,7 +35,7 @@ public class LootTableManager {
                 LootTable lootTable = LootTable.loadFromFile(file);
                 if (lootTable != null) {
                     lootTables.put(lootTable.getId(), lootTable);
-                    logger.log(Level.INFO, "Loaded loot table: " + lootTable.getId(), 0);
+                    DebugLogger.getInstance().log(Level.INFO, "Loaded loot table: " + lootTable.getId(), 0);
                 }
             }
         }
@@ -54,7 +54,7 @@ public class LootTableManager {
         File file = new File(lootTableDir, lootTable.getId() + ".yml");
         lootTable.saveToFile(file);
         lootTables.put(lootTable.getId(), lootTable);
-        logger.log(Level.INFO, "Saved loot table: " + lootTable.getId(), 0);
+        DebugLogger.getInstance().log(Level.INFO, "Saved loot table: " + lootTable.getId(), 0);
     }
 
     public Map<String, LootTable> getAllLootTables() {

@@ -5,7 +5,7 @@ import eu.xaru.mysticrpg.customs.items.CustomItem;
 import eu.xaru.mysticrpg.customs.items.CustomItemModule;
 import eu.xaru.mysticrpg.customs.items.ItemManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -19,13 +19,13 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public class EquipmentManager implements Listener {
     private final JavaPlugin plugin;
-    private final DebugLoggerModule logger;
+    
     private final EquipmentGUI equipmentGUI;
     private final ItemManager itemManager;
 
-    public EquipmentManager(JavaPlugin plugin, DebugLoggerModule logger) {
+    public EquipmentManager(JavaPlugin plugin) {
         this.plugin = plugin;
-        this.logger = logger;
+ 
         this.equipmentGUI = new EquipmentGUI();
 
         // Get the ItemManager from CustomItemModule

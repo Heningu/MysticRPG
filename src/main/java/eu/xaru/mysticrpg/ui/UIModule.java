@@ -9,7 +9,7 @@ import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -28,7 +28,7 @@ public class UIModule implements IBaseModule {
 
     private ActionBarManager actionBarManager;
     private ScoreboardManager scoreboardManager;
-    private DebugLoggerModule logger;
+    
     private final JavaPlugin plugin;
     private TitleManager titleManager;
     private final EventManager eventManager;
@@ -43,7 +43,7 @@ public class UIModule implements IBaseModule {
 
     @Override
     public void initialize() {
-        logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
+        
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         LevelModule levelModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
 
@@ -52,13 +52,9 @@ public class UIModule implements IBaseModule {
             this.actionBarManager = new ActionBarManager((MysticCore) plugin, playerDataCache);
             this.scoreboardManager = new ScoreboardManager(); // Initialize ScoreboardManager
             this.titleManager = new TitleManager(plugin, scoreboardManager); // Pass the ScoreboardManager instance
-            logger.log(Level.INFO, "UIModule initialized successfully.", 0);
+            DebugLogger.getInstance().log(Level.INFO, "UIModule initialized successfully.", 0);
         } else {
-            if (logger != null) {
-                logger.error("SaveModule or LevelModule is not initialized. UIModule cannot function without them.");
-            } else {
-                Bukkit.getLogger().severe("[MysticRPG] SaveModule or LevelModule is not initialized. UIModule cannot function without them.");
-            }
+            DebugLogger.getInstance().severe("[MysticRPG] SaveModule or LevelModule is not initialized. UIModule cannot function without them.");
             return;
         }
 
@@ -77,13 +73,13 @@ public class UIModule implements IBaseModule {
 
     @Override
     public void start() {
-        logger.log(Level.INFO, "UIModule started", 0);
+        DebugLogger.getInstance().log(Level.INFO, "UIModule started", 0);
         registerCommands();
     }
 
     @Override
     public void stop() {
-        logger.log(Level.INFO, "UIModule stopped", 0);
+        DebugLogger.getInstance().log(Level.INFO, "UIModule stopped", 0);
     }
 
     @Override
@@ -91,12 +87,12 @@ public class UIModule implements IBaseModule {
         if (titleManager != null) {
             titleManager.cleanup();
         }
-        logger.log(Level.INFO, "UIModule unloaded", 0);
+        DebugLogger.getInstance().log(Level.INFO, "UIModule unloaded", 0);
     }
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(SaveModule.class, DebugLoggerModule.class, LevelModule.class);  // Depend on SaveModule, DebugLoggerModule, and LevelModule
+        return List.of(SaveModule.class,  LevelModule.class);  // Depend on SaveModule, DebugLoggerModule, and LevelModule
     }
 
     @Override
@@ -150,7 +146,7 @@ public class UIModule implements IBaseModule {
                 if (playerScoreboard != null) {
                     player.setScoreboard(playerScoreboard);
                 } else {
-                    Bukkit.getLogger().warning("[MysticRPG] Scoreboard for player " + player.getName() + " is null.");
+                    DebugLogger.getInstance().warning("[MysticRPG] Scoreboard for player " + player.getName() + " is null.");
                 }
             }
 

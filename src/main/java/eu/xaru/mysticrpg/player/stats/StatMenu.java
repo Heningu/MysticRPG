@@ -5,7 +5,7 @@ import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -24,7 +24,7 @@ import java.util.UUID;
 public class StatMenu {
     private final MysticCore plugin;
     private final PlayerDataCache playerDataCache;
-    private final DebugLoggerModule logger;
+    
 
     public StatMenu(MysticCore plugin) {
         this.plugin = plugin;
@@ -36,7 +36,6 @@ public class StatMenu {
             throw new IllegalStateException("SaveModule not initialized. StatMenu cannot function without it.");
         }
 
-        this.logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
     }
 
     public void openStatMenu(Player player) {
@@ -44,7 +43,7 @@ public class StatMenu {
         PlayerData data = playerDataCache.getCachedPlayerData(playerUUID);
 
         if (data == null) {
-            logger.error("No cached data found for player: " + player.getName());
+            DebugLogger.getInstance().error("No cached data found for player: " + player.getName());
             player.sendMessage(Utils.getInstance().$("Failed to open stat menu. No data found."));
             return;
         }

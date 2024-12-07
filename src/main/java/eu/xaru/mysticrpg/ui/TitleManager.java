@@ -3,6 +3,7 @@ package eu.xaru.mysticrpg.ui;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.event.user.track.UserTrackEvent;
@@ -75,7 +76,7 @@ public class TitleManager implements Listener {
             if (player != null && player.isOnline()) {
                 // Schedule the update on the main server thread to ensure thread safety
                 Bukkit.getScheduler().runTask(plugin, () -> {
-                    Bukkit.getLogger().info("[MysticRPG] Detected group change for player " + player.getName() + ". Updating display name.");
+                    DebugLogger.getInstance().log("[MysticRPG] Detected group change for player " + player.getName() + ". Updating display name.");
                     updatePlayerDisplayName(player);
                 });
             }
@@ -93,7 +94,7 @@ public class TitleManager implements Listener {
                     updatePlayerDisplayName(player);
                 }
             }, 100L, 100L); // Runs every 5 seconds (100 ticks)
-            Bukkit.getLogger().info("[MysticRPG] Scheduled periodic prefix updates every 5 seconds.");
+            DebugLogger.getInstance().log("[MysticRPG] Scheduled periodic prefix updates every 5 seconds.");
         }
     }
 
@@ -106,7 +107,7 @@ public class TitleManager implements Listener {
         PlayerDataCache playerDataCache = getPlayerDataCache();
         if (playerDataCache == null) {
             player.sendMessage(ChatColor.RED + "Error: PlayerDataCache not available.");
-            Bukkit.getLogger().warning("[MysticRPG] PlayerDataCache is null. Cannot update display name for " + player.getName());
+            DebugLogger.getInstance().warning("[MysticRPG] PlayerDataCache is null. Cannot update display name for " + player.getName());
             return;
         }
 
@@ -126,7 +127,7 @@ public class TitleManager implements Listener {
         Scoreboard scoreboard = scoreboardManager.getPlayerScoreboard(player);
         if (scoreboard == null) {
             player.sendMessage(ChatColor.RED + "Error: Player's scoreboard not found.");
-            Bukkit.getLogger().warning("[MysticRPG] ScoreboardManager returned null for " + player.getName());
+            DebugLogger.getInstance().warning("[MysticRPG] ScoreboardManager returned null for " + player.getName());
             return;
         }
 
@@ -136,11 +137,11 @@ public class TitleManager implements Listener {
         if (team == null) {
             try {
                 team = scoreboard.registerNewTeam(teamName);
-                Bukkit.getLogger().info("[MysticRPG] Created new team '" + teamName + "' for player " + player.getName());
+                DebugLogger.getInstance().log("[MysticRPG] Created new team '" + teamName + "' for player " + player.getName());
             } catch (IllegalArgumentException e) {
                 // Team already exists; retrieve it
                 team = scoreboard.getTeam(teamName);
-                Bukkit.getLogger().info("[MysticRPG] Retrieved existing team '" + teamName + "' for player " + player.getName());
+                DebugLogger.getInstance().log("[MysticRPG] Retrieved existing team '" + teamName + "' for player " + player.getName());
             }
         }
 
@@ -148,7 +149,7 @@ public class TitleManager implements Listener {
             // Ensure the team has the player's name as its entry
             if (!team.hasEntry(player.getName())) {
                 team.addEntry(player.getName());
-                Bukkit.getLogger().info("[MysticRPG] Added player " + player.getName() + " to team '" + teamName + "'");
+                DebugLogger.getInstance().log("[MysticRPG] Added player " + player.getName() + " to team '" + teamName + "'");
             }
 
             // Set prefix and suffix with proper spacing
@@ -160,7 +161,7 @@ public class TitleManager implements Listener {
             team.setSuffix(" " + suffix); // Always add space before suffix
         } else {
             player.sendMessage(ChatColor.RED + "Error: Could not create or retrieve scoreboard team.");
-            Bukkit.getLogger().warning("[MysticRPG] Could not create or retrieve scoreboard team for " + player.getName());
+            DebugLogger.getInstance().warning("[MysticRPG] Could not create or retrieve scoreboard team for " + player.getName());
         }
 
         // Update player list name (tab list)
@@ -180,7 +181,7 @@ public class TitleManager implements Listener {
             // User might not be cached; attempt to load
             user = luckPerms.getUserManager().loadUser(player.getUniqueId()).join();
             if (user == null) {
-                Bukkit.getLogger().warning("[MysticRPG] Could not load LuckPerms user data for " + player.getName());
+                DebugLogger.getInstance().warning("[MysticRPG] Could not load LuckPerms user data for " + player.getName());
                 return "";
             }
         }
@@ -223,7 +224,7 @@ public class TitleManager implements Listener {
                 if (team != null) {
                     team.removeEntry(player.getName());
                     team.unregister();
-                    Bukkit.getLogger().info("[MysticRPG] Unregistered team '" + teamName + "' for player " + player.getName());
+                    DebugLogger.getInstance().log("[MysticRPG] Unregistered team '" + teamName + "' for player " + player.getName());
                 }
             }
         }
@@ -245,7 +246,7 @@ public class TitleManager implements Listener {
             if (playerScoreboard != null) {
                 player.setScoreboard(playerScoreboard);
             } else {
-                Bukkit.getLogger().warning("[MysticRPG] Scoreboard for player " + player.getName() + " is null.");
+                DebugLogger.getInstance().warning("[MysticRPG] Scoreboard for player " + player.getName() + " is null.");
             }
         }
 
@@ -272,7 +273,7 @@ public class TitleManager implements Listener {
             if (team != null) {
                 team.removeEntry(player.getName());
                 team.unregister();
-                Bukkit.getLogger().info("[MysticRPG] Unregistered team '" + teamName + "' for player " + player.getName());
+                DebugLogger.getInstance().log("[MysticRPG] Unregistered team '" + teamName + "' for player " + player.getName());
             }
         }
     }
@@ -284,7 +285,7 @@ public class TitleManager implements Listener {
      * @param player The player who leveled up.
      */
     public void onPlayerLevelUp(Player player) {
-        Bukkit.getLogger().info("[MysticRPG] Player " + player.getName() + " leveled up. Updating display name.");
+        DebugLogger.getInstance().log("[MysticRPG] Player " + player.getName() + " leveled up. Updating display name.");
         updatePlayerDisplayName(player);
     }
 }

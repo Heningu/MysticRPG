@@ -2,6 +2,7 @@ package eu.xaru.mysticrpg.customs.mobs.actions.steps;
 
 import eu.xaru.mysticrpg.customs.mobs.CustomMobInstance;
 import eu.xaru.mysticrpg.customs.mobs.actions.ActionStep;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.Particle;
 import org.bukkit.entity.LivingEntity;
@@ -20,6 +21,6 @@ public class ParticleActionStep implements ActionStep {
     public void execute(CustomMobInstance mobInstance) {
         LivingEntity entity = mobInstance.getEntity();
         entity.getWorld().spawnParticle(particle, entity.getLocation(), count, 0.5, 1, 0.5, 0);
-        Bukkit.getLogger().info("Spawned particle '" + particle.name() + "' around mob.");
+        DebugLogger.getInstance().log("Spawned particle '" + particle.name() + "' around mob.");
     }
 }

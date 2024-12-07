@@ -8,7 +8,7 @@ import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -22,7 +22,7 @@ import java.util.logging.Level;
 public class CustomCraftingModule implements IBaseModule {
 
     private final JavaPlugin plugin;
-    private DebugLoggerModule logger;
+    
     private CraftingHelper craftingHelper;
 
     public CustomCraftingModule() {
@@ -31,13 +31,9 @@ public class CustomCraftingModule implements IBaseModule {
 
     @Override
     public void initialize() {
-        logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
-        if (logger == null) {
-            Bukkit.getLogger().severe("DebugLoggerModule not initialized. CustomCraftingModule cannot function without it.");
-            return;
-        }
 
-        craftingHelper = new CraftingHelper(plugin, logger);
+
+        craftingHelper = new CraftingHelper(plugin);
 
         // Disable default crafting
         Bukkit.getPluginManager().registerEvents(new CraftingDisabler(), plugin);
@@ -45,27 +41,27 @@ public class CustomCraftingModule implements IBaseModule {
         // Register commands
         registerCommands();
 
-        logger.log(Level.INFO, "CustomCraftingModule initialized successfully.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "CustomCraftingModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
-        logger.log(Level.INFO, "CustomCraftingModule started.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "CustomCraftingModule started.", 0);
     }
 
     @Override
     public void stop() {
-        logger.log(Level.INFO, "CustomCraftingModule stopped.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "CustomCraftingModule stopped.", 0);
     }
 
     @Override
     public void unload() {
-        logger.log(Level.INFO, "CustomCraftingModule unloaded.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "CustomCraftingModule unloaded.", 0);
     }
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(DebugLoggerModule.class);
+        return List.of();
     }
 
     @Override

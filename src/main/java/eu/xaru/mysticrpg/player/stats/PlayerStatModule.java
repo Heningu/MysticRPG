@@ -12,7 +12,7 @@ import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -32,13 +32,13 @@ import java.util.logging.Level;
 public class PlayerStatModule implements IBaseModule {
 
     private PlayerDataCache playerDataCache;
-    private DebugLoggerModule logger;
+    
     private StatMenu statMenu;
     private final EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
 
     @Override
     public void initialize() {
-        logger = ModuleManager.getInstance().getModuleInstance(DebugLoggerModule.class);
+        
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         MysticCore plugin = JavaPlugin.getPlugin(MysticCore.class);
 
@@ -47,23 +47,23 @@ public class PlayerStatModule implements IBaseModule {
         if (saveModule != null) {
             playerDataCache = saveModule.getPlayerDataCache();
         } else {
-            logger.error("SaveModule not initialized. PlayerStatModule cannot function without it.");
+            DebugLogger.getInstance().error("SaveModule not initialized. PlayerStatModule cannot function without it.");
             return;
         }
 
         if (playerDataCache == null) {
-            logger.error("PlayerDataCache not initialized. PlayerStatModule cannot function without it.");
+            DebugLogger.getInstance().error("PlayerDataCache not initialized. PlayerStatModule cannot function without it.");
             return;
         }
 
         statMenu = new StatMenu(plugin);
 
-        logger.log(Level.INFO, "PlayerStatModule initialized", 0);
+        DebugLogger.getInstance().log(Level.INFO, "PlayerStatModule initialized", 0);
     }
 
     @Override
     public void start() {
-        logger.log(Level.INFO, "PlayerStatModule started", 0);
+        DebugLogger.getInstance().log(Level.INFO, "PlayerStatModule started", 0);
 
         // Register InventoryClickEvent for StatMenu
         eventManager.registerEvent(InventoryClickEvent.class, event -> {
@@ -82,9 +82,9 @@ public class PlayerStatModule implements IBaseModule {
 
             // Handle clicks in the Player Stats menu
             if ("Player Stats".equals(inventoryTitle)) {
-                logger.log("Player " + player.getName() + " clicked in the Player Stats menu.");
+                DebugLogger.getInstance().log("Player " + player.getName() + " clicked in the Player Stats menu.");
                 if (displayName.startsWith("Increase ")) {
-                    logger.log("Passing attribute name to StatManager: " + displayName);
+                    DebugLogger.getInstance().log("Passing attribute name to StatManager: " + displayName);
                     increaseAttribute(player, displayName);
                     statMenu.openStatMenu(player); // Refresh the inventory to show updated stats
                 }
@@ -96,7 +96,7 @@ public class PlayerStatModule implements IBaseModule {
         eventManager.registerEvent(InventoryDragEvent.class, event -> {
             String inventoryTitle = event.getView().getTitle();
             if ("Player Stats".equals(inventoryTitle)) {
-                logger.log("Player is dragging items in the Player Stats menu.");
+                DebugLogger.getInstance().log("Player is dragging items in the Player Stats menu.");
                 event.setCancelled(true); // Prevent item movement
             }
         });
@@ -104,17 +104,17 @@ public class PlayerStatModule implements IBaseModule {
 
     @Override
     public void stop() {
-        logger.log(Level.INFO, "PlayerStatModule stopped", 0);
+        DebugLogger.getInstance().log(Level.INFO, "PlayerStatModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        logger.log(Level.INFO, "PlayerStatModule unloaded", 0);
+        DebugLogger.getInstance().log(Level.INFO, "PlayerStatModule unloaded", 0);
     }
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(DebugLoggerModule.class, SaveModule.class);
+        return List.of( SaveModule.class);
     }
 
     @Override
@@ -130,12 +130,12 @@ public class PlayerStatModule implements IBaseModule {
         PlayerData data = playerDataCache.getCachedPlayerData(playerUUID);
 
         if (data == null) {
-            logger.error("No cached data found for player: " + player.getName());
+            DebugLogger.getInstance().error("No cached data found for player: " + player.getName());
             return;
         }
 
         if (data.getAttributePoints() <= 0) {
-            logger.log(Level.INFO, "Player " + player.getName() + " has no attribute points.", 0);
+            DebugLogger.getInstance().log(Level.INFO, "Player " + player.getName() + " has no attribute points.", 0);
             return;
         }
 
@@ -146,32 +146,32 @@ public class PlayerStatModule implements IBaseModule {
             case "Increase Vitality":
                 attributes.put("Vitality", attributes.get("Vitality") + 1);
                 attributes.put("HP", attributes.get("HP") + 2);
-                logger.log(Level.INFO, "Player " + player.getName() + " increased Vitality to " + attributes.get("Vitality"), 0);
+                DebugLogger.getInstance().log(Level.INFO, "Player " + player.getName() + " increased Vitality to " + attributes.get("Vitality"), 0);
                 break;
             case "Increase Intelligence":
                 attributes.put("Intelligence", attributes.get("Intelligence") + 1);
                 attributes.put("MANA", attributes.get("MANA") + 2);
-                logger.log(Level.INFO, "Player " + player.getName() + " increased Intelligence to " + attributes.get("Intelligence"), 0);
+                DebugLogger.getInstance().log(Level.INFO, "Player " + player.getName() + " increased Intelligence to " + attributes.get("Intelligence"), 0);
                 break;
             case "Increase Dexterity":
                 attributes.put("Dexterity", attributes.get("Dexterity") + 1);
                 attributes.put("AttackDamageDex", attributes.getOrDefault("AttackDamageDex", 0) + 1);
-                logger.log(Level.INFO, "Player " + player.getName() + " increased Dexterity to " + attributes.get("Dexterity"), 0);
+                DebugLogger.getInstance().log(Level.INFO, "Player " + player.getName() + " increased Dexterity to " + attributes.get("Dexterity"), 0);
                 break;
             case "Increase Strength":
                 attributes.put("Strength", attributes.get("Strength") + 1);
                 attributes.put("AttackDamage", attributes.getOrDefault("AttackDamage", 0) + 1);
-                logger.log(Level.INFO, "Player " + player.getName() + " increased Strength to " + attributes.get("Strength"), 0);
+                DebugLogger.getInstance().log(Level.INFO, "Player " + player.getName() + " increased Strength to " + attributes.get("Strength"), 0);
                 break;
             default:
-                logger.error("Unknown attribute name: " + attributeName);
+                DebugLogger.getInstance().error("Unknown attribute name: " + attributeName);
                 return;
         }
 
         // Update attributes and attribute points
         data.setAttributes(attributes);
         data.setAttributePoints(data.getAttributePoints() - 1);
-        logger.log(Level.INFO, "Player " + player.getName() + " now has " + data.getAttributePoints() + " attribute points left.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "Player " + player.getName() + " now has " + data.getAttributePoints() + " attribute points left.", 0);
     }
 
     private void registerStatsCommand() {
@@ -184,13 +184,13 @@ public class PlayerStatModule implements IBaseModule {
 
                             if (playerData == null) {
                                 player.sendMessage(Utils.getInstance().$("No cached data found for you."));
-                                logger.error("No cached data found for player: " + player.getName());
+                                DebugLogger.getInstance().error("No cached data found for player: " + player.getName());
                                 return;
                             }
 
                             resetStats(playerData);
                             player.sendMessage(Utils.getInstance().$("Your stats have been reset."));
-                            logger.log("Player " + player.getName() + "'s stats have been reset.");
+                            DebugLogger.getInstance().log("Player " + player.getName() + "'s stats have been reset.");
                         }))
                 .register();
     }

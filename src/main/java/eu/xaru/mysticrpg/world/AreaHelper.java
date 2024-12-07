@@ -21,12 +21,12 @@
 //    public void defineArea(String areaId, Location corner1, Location corner2) {
 //        SpawnArea newArea = new SpawnArea(areaId, corner1, corner2);
 //        spawnAreas.add(newArea);
-//        Bukkit.getLogger().log(Level.INFO, "Defined new spawn area: " + areaId);
+//        DebugLogger.getInstance().log(Level.INFO, "Defined new spawn area: " + areaId);
 //    }
 //
 //    public void removeArea(String areaId) {
 //        spawnAreas.removeIf(area -> area.getAreaId().equalsIgnoreCase(areaId));
-//        Bukkit.getLogger().log(Level.INFO, "Removed spawn area: " + areaId);
+//        DebugLogger.getInstance().log(Level.INFO, "Removed spawn area: " + areaId);
 //    }
 //
 //    public void modifyArea(String areaId, Location corner1, Location corner2) {
@@ -34,7 +34,7 @@
 //            if (area.getAreaId().equalsIgnoreCase(areaId)) {
 //                area.setCorner1(corner1);
 //                area.setCorner2(corner2);
-//                Bukkit.getLogger().log(Level.INFO, "Modified spawn area: " + areaId);
+//                DebugLogger.getInstance().log(Level.INFO, "Modified spawn area: " + areaId);
 //                return;
 //            }
 //        }
@@ -163,7 +163,7 @@
 //            if (flags.containsKey(flag)) {
 //                flags.put(flag, state);
 //            } else {
-//                Bukkit.getLogger().log(Level.WARNING, "Unknown flag: " + flag);
+//                DebugLogger.getInstance().log(Level.WARNING, "Unknown flag: " + flag);
 //            }
 //        }
 //

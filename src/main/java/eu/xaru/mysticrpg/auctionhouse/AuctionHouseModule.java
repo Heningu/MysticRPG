@@ -8,7 +8,7 @@ import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.SaveModule;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -41,7 +41,7 @@ public class AuctionHouseModule implements IBaseModule {
     private EventManager eventManager;
     private EconomyHelper economyHelper;
     private SaveModule saveModule;
-    private DebugLoggerModule logger;
+    
     private AuctionsGUI auctionsGUI;
     private MysticCore plugin;
     private static final Logger loggerModule = Logger.getLogger(AuctionHouseModule.class.getName());
@@ -51,8 +51,6 @@ public class AuctionHouseModule implements IBaseModule {
     public void initialize() {
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
         this.eventManager = new EventManager(plugin);
-        this.logger = ModuleManager.getInstance()
-                .getModuleInstance(DebugLoggerModule.class);
         this.saveModule = ModuleManager.getInstance()
                 .getModuleInstance(SaveModule.class);
 
@@ -61,7 +59,7 @@ public class AuctionHouseModule implements IBaseModule {
         if (economyModule != null) {
             this.economyHelper = economyModule.getEconomyHelper();
         } else {
-            logger.error("EconomyModule is not initialized. " +
+            DebugLogger.getInstance().error("EconomyModule is not initialized. " +
                     "AuctionHouseModule cannot function without it.");
             return;
         }
@@ -98,7 +96,7 @@ public class AuctionHouseModule implements IBaseModule {
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
         return List.of(
-                DebugLoggerModule.class,
+                
                 EconomyModule.class,
                 SaveModule.class
         );

@@ -2,6 +2,7 @@ package eu.xaru.mysticrpg.economy;
 
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.entity.Player;
 
@@ -27,7 +28,7 @@ public class EconomyHelper {
     public double getBalance(Player player) {
         PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (playerData == null) {
-            logger.log(Level.WARNING, "PlayerData not found for player: {0}", player.getName());
+            DebugLogger.getInstance().log(Level.WARNING, "PlayerData not found for player: {0}", player.getName());
             return 0;
         }
         return playerData.getBalance();
@@ -42,11 +43,11 @@ public class EconomyHelper {
     public void setBalance(Player player, double amount) {
         PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (playerData == null) {
-            logger.log(Level.WARNING, "PlayerData not found for player: {0}", player.getName());
+            DebugLogger.getInstance().log(Level.WARNING, "PlayerData not found for player: {0}", player.getName());
             return;
         }
         playerData.setBalance(amount);
-        logger.log(Level.INFO, "Set balance for player {0} to ${1}", new Object[]{player.getName(), amount});
+        DebugLogger.getInstance().log(Level.INFO, "Set balance for player {0} to ${1}", new Object[]{player.getName(), amount});
     }
 
     /**
@@ -59,14 +60,14 @@ public class EconomyHelper {
     public boolean depositBalance(Player player, double amount) {
         if (amount <= 0) {
             player.sendMessage(Utils.getInstance().$("Deposit amount must be positive."));
-            logger.log(Level.WARNING, "Attempted to deposit a non-positive amount: ${0} to player: {1}", new Object[]{amount, player.getName()});
+            DebugLogger.getInstance().log(Level.WARNING, "Attempted to deposit a non-positive amount: ${0} to player: {1}", new Object[]{amount, player.getName()});
             return false;
         }
 
         PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (playerData == null) {
             player.sendMessage(Utils.getInstance().$("Player data not found."));
-            logger.log(Level.SEVERE, "PlayerData not found for player: {0}", player.getName());
+            DebugLogger.getInstance().log(Level.SEVERE, "PlayerData not found for player: {0}", player.getName());
             return false;
         }
 
@@ -74,7 +75,7 @@ public class EconomyHelper {
         playerData.setBalance(newBalance);
 
         player.sendMessage(Utils.getInstance().$("Your balance has been increased by $" + formatBalance(amount) + ". New balance: $" + formatBalance(newBalance)));
-        logger.log(Level.INFO, "Deposited ${0} to player {1}. New balance: ${2}", new Object[]{amount, player.getName(), newBalance});
+        DebugLogger.getInstance().log(Level.INFO, "Deposited ${0} to player {1}. New balance: ${2}", new Object[]{amount, player.getName(), newBalance});
         return true;
     }
 
@@ -88,21 +89,21 @@ public class EconomyHelper {
     public boolean withdrawBalance(Player player, double amount) {
         if (amount <= 0) {
             player.sendMessage(Utils.getInstance().$("Withdrawal amount must be positive."));
-            logger.log(Level.WARNING, "Attempted to withdraw a non-positive amount: ${0} from player: {1}", new Object[]{amount, player.getName()});
+            DebugLogger.getInstance().log(Level.WARNING, "Attempted to withdraw a non-positive amount: ${0} from player: {1}", new Object[]{amount, player.getName()});
             return false;
         }
 
         PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (playerData == null) {
             player.sendMessage(Utils.getInstance().$("Player data not found."));
-            logger.log(Level.SEVERE, "PlayerData not found for player: {0}", player.getName());
+            DebugLogger.getInstance().log(Level.SEVERE, "PlayerData not found for player: {0}", player.getName());
             return false;
         }
 
         double currentBalance = playerData.getBalance();
         if (currentBalance < amount) {
             player.sendMessage(Utils.getInstance().$("Insufficient funds."));
-            logger.log(Level.WARNING, "Player {0} has insufficient funds. Balance: ${1}, Attempted withdrawal: ${2}",
+            DebugLogger.getInstance().log(Level.WARNING, "Player {0} has insufficient funds. Balance: ${1}, Attempted withdrawal: ${2}",
                     new Object[]{player.getName(), currentBalance, amount});
             return false;
         }
@@ -111,7 +112,7 @@ public class EconomyHelper {
         playerData.setBalance(newBalance);
 
         player.sendMessage(Utils.getInstance().$("Your balance has been decreased by $" + formatBalance(amount) + ". New balance: $" + formatBalance(newBalance)));
-        logger.log(Level.INFO, "Withdrew ${0} from player {1}. New balance: ${2}", new Object[]{amount, player.getName(), newBalance});
+        DebugLogger.getInstance().log(Level.INFO, "Withdrew ${0} from player {1}. New balance: ${2}", new Object[]{amount, player.getName(), newBalance});
         return true;
     }
 
@@ -142,7 +143,7 @@ public class EconomyHelper {
     public void sendMoney(Player sender, Player receiver, double amount) {
         if (amount <= 0) {
             sender.sendMessage(Utils.getInstance().$("Amount must be positive."));
-            logger.log(Level.WARNING, "Player {0} attempted to send a non-positive amount: ${1} to {2}",
+            DebugLogger.getInstance().log(Level.WARNING, "Player {0} attempted to send a non-positive amount: ${1} to {2}",
                     new Object[]{sender.getName(), amount, receiver.getName()});
             return;
         }
@@ -152,7 +153,7 @@ public class EconomyHelper {
 
         if (senderData == null || receiverData == null) {
             sender.sendMessage(Utils.getInstance().$("Failed to find data for either sender or receiver."));
-            logger.log(Level.SEVERE, "PlayerData not found for sender: {0} or receiver: {1}", new Object[]{sender.getName(), receiver.getName()});
+            DebugLogger.getInstance().log(Level.SEVERE, "PlayerData not found for sender: {0} or receiver: {1}", new Object[]{sender.getName(), receiver.getName()});
             return;
         }
 
@@ -160,7 +161,7 @@ public class EconomyHelper {
             boolean withdrawn = withdrawBalance(sender, amount);
             if (!withdrawn) {
                 sender.sendMessage(Utils.getInstance().$("Transaction failed: Unable to deduct money."));
-                logger.log(Level.SEVERE, "Failed to withdraw ${0} from sender {1}", new Object[]{amount, sender.getName()});
+                DebugLogger.getInstance().log(Level.SEVERE, "Failed to withdraw ${0} from sender {1}", new Object[]{amount, sender.getName()});
                 return;
             }
 
@@ -169,17 +170,17 @@ public class EconomyHelper {
                 // Refund the sender if depositing fails
                 depositBalance(sender, amount);
                 sender.sendMessage(Utils.getInstance().$("Transaction failed: Unable to credit receiver."));
-                logger.log(Level.SEVERE, "Failed to deposit ${0} to receiver {1}. Refunded ${0} to sender {2}",
+                DebugLogger.getInstance().log(Level.SEVERE, "Failed to deposit ${0} to receiver {1}. Refunded ${0} to sender {2}",
                         new Object[]{amount, receiver.getName(), sender.getName()});
                 return;
             }
 
             sender.sendMessage(Utils.getInstance().$("You sent $" + formatBalance(amount) + " to " + receiver.getName()));
             receiver.sendMessage(Utils.getInstance().$("You received $" + formatBalance(amount) + " from " + sender.getName()));
-            logger.log(Level.INFO, "Player {0} sent ${1} to player {2}", new Object[]{sender.getName(), amount, receiver.getName()});
+            DebugLogger.getInstance().log(Level.INFO, "Player {0} sent ${1} to player {2}", new Object[]{sender.getName(), amount, receiver.getName()});
         } else {
             sender.sendMessage(Utils.getInstance().$("Insufficient funds."));
-            logger.log(Level.WARNING, "Player {0} has insufficient funds. Balance: ${1}, Attempted to send: ${2}",
+            DebugLogger.getInstance().log(Level.WARNING, "Player {0} has insufficient funds. Balance: ${1}, Attempted to send: ${2}",
                     new Object[]{sender.getName(), senderData.getBalance(), amount});
         }
     }

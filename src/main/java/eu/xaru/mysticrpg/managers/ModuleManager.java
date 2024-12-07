@@ -1,12 +1,12 @@
 package eu.xaru.mysticrpg.managers;
 
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ScanResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
 import java.util.*;
@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
  * Supports lazy loading of modules.
  */
 public class ModuleManager {
-    private static final Logger log = LoggerFactory.getLogger(ModuleManager.class);
 
     // Map to hold loaded modules
     private final Map<Class<? extends IBaseModule>, IBaseModule> loadedModules = new ConcurrentHashMap<>();
@@ -69,7 +68,7 @@ public class ModuleManager {
         Set<Class<? extends IBaseModule>> moduleClasses = discoverModules();
 
         if (moduleClasses.isEmpty()) {
-            log.warn("No modules found to load.");
+            DebugLogger.getInstance().warning("No modules found to load.");
             return;
         }
 
@@ -79,7 +78,7 @@ public class ModuleManager {
                     IBaseModule module = instantiateModule(moduleClass);
                     if (module != null && module.isLazy()) {
                         lazyModules.add(moduleClass);
-                        log.debug("Module {} marked as lazy-loaded.", moduleClass.getSimpleName());
+                        DebugLogger.getInstance().log("Module {} marked as lazy-loaded.", moduleClass.getSimpleName());
                         return false;
                     }
                     return true;
@@ -90,11 +89,11 @@ public class ModuleManager {
         List<Class<? extends IBaseModule>> orderedEagerModules = resolveLoadingOrder(eagerModules);
 
         if (orderedEagerModules == null) {
-            log.error("Failed to resolve eager module loading order due to circular dependencies.");
+            DebugLogger.getInstance().error("Failed to resolve eager module loading order due to circular dependencies.");
             return;
         }
 
-        log.info("Final eager module loading order: {}", orderedEagerModules.stream()
+        DebugLogger.getInstance().log("Final eager module loading order: {}", orderedEagerModules.stream()
                 .map(Class::getSimpleName)
                 .collect(Collectors.joining(", ")));
 
@@ -102,9 +101,9 @@ public class ModuleManager {
         for (Class<? extends IBaseModule> moduleClass : orderedEagerModules) {
             try {
                 loadModule(moduleClass);
-                log.info("Module {} loaded successfully.", moduleClass.getSimpleName());
+                DebugLogger.getInstance().log("Module {} loaded successfully.", moduleClass.getSimpleName());
             } catch (Exception e) {
-                log.error("Failed to load module {}: {}", moduleClass.getSimpleName(), e.getMessage(), e);
+                DebugLogger.getInstance().error("Failed to load module {}: {}", moduleClass.getSimpleName(), e.getMessage(), e);
             }
         }
 
@@ -131,16 +130,16 @@ public class ModuleManager {
                 @SuppressWarnings("unchecked")
                 Class<? extends IBaseModule> moduleClass = (Class<? extends IBaseModule>) classInfo.loadClass();
                 modules.add(moduleClass);
-                log.debug("Discovered module class: {}", moduleClass.getSimpleName());
+                DebugLogger.getInstance().debug("Discovered module class: {}", moduleClass.getSimpleName());
             }
         } catch (Exception e) {
-            log.error("Error during module discovery: {}", e.getMessage(), e);
+            DebugLogger.getInstance().error("Error during module discovery: {}", e.getMessage(), e);
         }
         return modules;
     }
 
     /**
-     * Resolves the loading order based on dependencies and priorities using topological sorting.
+     * Resolves the loading order based on dependencies and priorities using topoDebugLogger.getInstance().logical sorting.
      * Handles the `FIRST` priority group by ensuring they are loaded before others.
      * Implements auto-correction strategies for circular dependencies.
      *
@@ -154,7 +153,7 @@ public class ModuleManager {
             try {
                 IBaseModule moduleInstance = instantiateModule(module);
                 if (moduleInstance == null) {
-                    log.warn("Module {} could not be instantiated for dependency resolution.", module.getSimpleName());
+                    DebugLogger.getInstance().warn("Module {} could not be instantiated for dependency resolution.", module.getSimpleName());
                     dependencyGraph.put(module, new HashSet<>());
                     continue;
                 }
@@ -166,7 +165,7 @@ public class ModuleManager {
                     for (Class<? extends IBaseModule> dependency : dependencies) {
                         IBaseModule depModule = moduleInstanceCache.get(dependency);
                         if (depModule != null && depModule.getPriority() != EModulePriority.FIRST) {
-                            log.error("Module {} in `FIRST` group cannot depend on non-`FIRST` module {}.",
+                            DebugLogger.getInstance().error("Module {} in `FIRST` group cannot depend on non-`FIRST` module {}.",
                                     module.getSimpleName(), dependency.getSimpleName());
                             throw new IllegalArgumentException("Invalid dependency: `FIRST` modules cannot depend on non-`FIRST` modules.");
                         }
@@ -174,15 +173,15 @@ public class ModuleManager {
                 }
 
                 dependencyGraph.put(module, new HashSet<>(dependencies));
-                log.debug("Module {} dependencies: {}", module.getSimpleName(),
+                DebugLogger.getInstance().debug("Module {} dependencies: {}", module.getSimpleName(),
                         dependencies.stream().map(Class::getSimpleName).collect(Collectors.joining(", ")));
             } catch (Exception e) {
-                log.error("Error instantiating module {} for dependency resolution: {}", module.getSimpleName(), e.getMessage(), e);
+                DebugLogger.getInstance().error("Error instantiating module {} for dependency resolution: {}", module.getSimpleName(), e.getMessage(), e);
                 dependencyGraph.put(module, new HashSet<>()); // Assume no dependencies on failure
             }
         }
 
-        // Perform topological sort with cycle detection
+        // Perform topoDebugLogger.getInstance().logical sort with cycle detection
         List<Class<? extends IBaseModule>> sortedModules = new ArrayList<>();
         Set<Class<? extends IBaseModule>> visited = new HashSet<>();
         Set<Class<? extends IBaseModule>> visiting = new HashSet<>();
@@ -198,13 +197,13 @@ public class ModuleManager {
         }
 
         if (hasCycle) {
-            log.warn("Circular dependencies detected. Attempting to auto-correct loading order.");
+            DebugLogger.getInstance().warn("Circular dependencies detected. Attempting to auto-correct loading order.");
 
             // Attempt to break cycles by removing dependencies that cause cycles
             // Strategy: Remove the lowest priority dependency in the cycle
             Set<Class<? extends IBaseModule>> modulesInCycle = findModulesInCycle(dependencyGraph);
             if (modulesInCycle.isEmpty()) {
-                log.error("Unable to identify modules involved in circular dependencies.");
+                DebugLogger.getInstance().error("Unable to identify modules involved in circular dependencies.");
                 return null;
             }
 
@@ -214,10 +213,10 @@ public class ModuleManager {
                     .orElse(null);
 
             if (lowestPriorityModule != null) {
-                log.warn("Auto-correcting by removing dependencies from module {}", lowestPriorityModule.getSimpleName());
+                DebugLogger.getInstance().warn("Auto-correcting by removing dependencies from module {}", lowestPriorityModule.getSimpleName());
                 dependencyGraph.put(lowestPriorityModule, new HashSet<>()); // Remove its dependencies
 
-                // Retry topological sort after correction
+                // Retry topoDebugLogger.getInstance().logical sort after correction
                 sortedModules.clear();
                 visited.clear();
                 visiting.clear();
@@ -233,11 +232,11 @@ public class ModuleManager {
                 }
 
                 if (hasCycle) {
-                    log.error("Failed to resolve circular dependencies after auto-correction.");
+                    DebugLogger.getInstance().error("Failed to resolve circular dependencies after auto-correction.");
                     return null;
                 }
             } else {
-                log.error("No suitable module found to break the circular dependency.");
+                DebugLogger.getInstance().error("No suitable module found to break the circular dependency.");
                 return null;
             }
         }
@@ -248,14 +247,14 @@ public class ModuleManager {
             return module != null ? module.getPriority().ordinal() : EModulePriority.LOW.ordinal();
         }));
 
-        log.debug("Resolved loading order after handling dependencies: {}", sortedModules.stream()
+        DebugLogger.getInstance().debug("Resolved loading order after handling dependencies: {}", sortedModules.stream()
                 .map(Class::getSimpleName)
                 .collect(Collectors.joining(", ")));
         return sortedModules;
     }
 
     /**
-     * Performs a topological sort on the dependency graph.
+     * Performs a topoDebugLogger.getInstance().logical sort on the dependency graph.
      *
      * @param module          the current module being visited
      * @param dependencyGraph the dependency graph
@@ -272,11 +271,11 @@ public class ModuleManager {
         visiting.add(module);
         for (Class<? extends IBaseModule> dependency : dependencyGraph.getOrDefault(module, Collections.emptySet())) {
             if (!dependencyGraph.containsKey(dependency)) {
-                log.warn("Module {} depends on unknown module {}", module.getSimpleName(), dependency.getSimpleName());
+                DebugLogger.getInstance().warn("Module {} depends on unknown module {}", module.getSimpleName(), dependency.getSimpleName());
                 continue; // Skip unknown dependencies
             }
             if (visiting.contains(dependency)) {
-                log.error("Circular dependency detected: {} <-> {}", module.getSimpleName(), dependency.getSimpleName());
+                DebugLogger.getInstance().error("Circular dependency detected: {} <-> {}", module.getSimpleName(), dependency.getSimpleName());
                 return false; // Circular dependency detected
             }
             if (!visited.contains(dependency)) {
@@ -373,7 +372,7 @@ public class ModuleManager {
             moduleInstanceCache.put(moduleClass, module);
             return module;
         } catch (Exception e) {
-            log.error("Failed to instantiate module {}: {}", moduleClass.getSimpleName(), e.getMessage(), e);
+            DebugLogger.getInstance().error("Failed to instantiate module {}: {}", moduleClass.getSimpleName(), e.getMessage(), e);
             return null;
         }
     }
@@ -386,7 +385,7 @@ public class ModuleManager {
      */
     private void loadModule(Class<? extends IBaseModule> moduleClass) throws Exception {
         if (loadedModules.containsKey(moduleClass)) {
-            log.warn("Module {} is already loaded.", moduleClass.getSimpleName());
+            DebugLogger.getInstance().warn("Module {} is already loaded.", moduleClass.getSimpleName());
             return;
         }
 
@@ -402,7 +401,7 @@ public class ModuleManager {
         module.initialize();
         loadedModules.put(moduleClass, module);
         loadingOrder.add(moduleClass);
-        log.info("Module {} initialized.", moduleClass.getSimpleName());
+        DebugLogger.getInstance().log("Module {} initialized.", moduleClass.getSimpleName());
     }
 
     /**
@@ -422,14 +421,14 @@ public class ModuleManager {
     private void startModule(Class<? extends IBaseModule> moduleClass) {
         IBaseModule module = loadedModules.get(moduleClass);
         if (module == null) {
-            log.warn("Module {} is not loaded and cannot be started.", moduleClass.getSimpleName());
+            DebugLogger.getInstance().warn("Module {} is not loaded and cannot be started.", moduleClass.getSimpleName());
             return;
         }
         try {
             module.start();
-            log.info("Module {} started.", moduleClass.getSimpleName());
+            DebugLogger.getInstance().log("Module {} started.", moduleClass.getSimpleName());
         } catch (Exception e) {
-            log.error("Failed to start module {}: {}", moduleClass.getSimpleName(), e.getMessage(), e);
+            DebugLogger.getInstance().error("Failed to start module {}: {}", moduleClass.getSimpleName(), e.getMessage(), e);
         }
     }
 
@@ -441,7 +440,7 @@ public class ModuleManager {
     public synchronized void stopAndUnloadModule(Class<? extends IBaseModule> moduleClass) {
         IBaseModule module = loadedModules.remove(moduleClass);
         if (module == null) {
-            log.warn("Module {} is not loaded.", moduleClass.getSimpleName());
+            DebugLogger.getInstance().warn("Module {} is not loaded.", moduleClass.getSimpleName());
             return;
         }
 
@@ -449,9 +448,9 @@ public class ModuleManager {
             module.stop();
             module.unload();
             loadingOrder.remove(moduleClass);
-            log.info("Module {} stopped and unloaded.", moduleClass.getSimpleName());
+            DebugLogger.getInstance().log("Module {} stopped and unloaded.", moduleClass.getSimpleName());
         } catch (Exception e) {
-            log.error("Failed to stop or unload module {}: {}", moduleClass.getSimpleName(), e.getMessage(), e);
+            DebugLogger.getInstance().error("Failed to stop or unload module {}: {}", moduleClass.getSimpleName(), e.getMessage(), e);
         }
     }
 
@@ -471,7 +470,7 @@ public class ModuleManager {
         moduleInstanceCache.clear();
         lazyModules.clear();
 
-        log.info("All modules have been unloaded.");
+        DebugLogger.getInstance().log("All modules have been unloaded.");
     }
 
     /**
@@ -484,7 +483,7 @@ public class ModuleManager {
     public synchronized <T extends IBaseModule> T getModuleInstance(Class<T> moduleClass) {
         IBaseModule module = loadedModules.get(moduleClass);
         if (module == null) {
-            log.warn("Module {} is not loaded.", moduleClass.getSimpleName());
+            DebugLogger.getInstance().warn("Module {} is not loaded.", moduleClass.getSimpleName());
             return null;
         }
         return moduleClass.cast(module);
@@ -498,7 +497,7 @@ public class ModuleManager {
      */
     public synchronized boolean loadLazyModule(Class<? extends IBaseModule> moduleClass) {
         if (!lazyModules.contains(moduleClass)) {
-            log.warn("Module {} is not marked as lazy-loaded.", moduleClass.getSimpleName());
+            DebugLogger.getInstance().warn("Module {} is not marked as lazy-loaded.", moduleClass.getSimpleName());
             return false;
         }
 
@@ -513,27 +512,27 @@ public class ModuleManager {
         modulesToLoad.removeAll(loadedModules.keySet());
 
         if (modulesToLoad.isEmpty()) {
-            log.info("No new modules to load for {}", moduleClass.getSimpleName());
+            DebugLogger.getInstance().log("No new modules to load for {}", moduleClass.getSimpleName());
             return true;
         }
 
         List<Class<? extends IBaseModule>> orderedModules = resolveLoadingOrder(modulesToLoad);
 
         if (orderedModules == null) {
-            log.error("Failed to resolve loading order for lazy module {} due to circular dependencies.", moduleClass.getSimpleName());
+            DebugLogger.getInstance().error("Failed to resolve loading order for lazy module {} due to circular dependencies.", moduleClass.getSimpleName());
             return false;
         }
 
-        log.info("Loading lazy module {} and its dependencies in order: {}", moduleClass.getSimpleName(),
+        DebugLogger.getInstance().log("Loading lazy module {} and its dependencies in order: {}", moduleClass.getSimpleName(),
                 orderedModules.stream().map(Class::getSimpleName).collect(Collectors.joining(", ")));
 
         // Load and initialize modules in the determined order
         for (Class<? extends IBaseModule> cls : orderedModules) {
             try {
                 loadModule(cls);
-                log.info("Module {} loaded successfully.", cls.getSimpleName());
+                DebugLogger.getInstance().log("Module {} loaded successfully.", cls.getSimpleName());
             } catch (Exception e) {
-                log.error("Failed to load module {}: {}", cls.getSimpleName(), e.getMessage(), e);
+                DebugLogger.getInstance().error("Failed to load module {}: {}", cls.getSimpleName(), e.getMessage(), e);
                 return false;
             }
         }
@@ -562,7 +561,7 @@ public class ModuleManager {
         visited.add(module);
         IBaseModule moduleInstance = instantiateModule(module);
         if (moduleInstance == null) {
-            log.warn("Module {} could not be instantiated during dependency collection.", module.getSimpleName());
+            DebugLogger.getInstance().warn("Module {} could not be instantiated during dependency collection.", module.getSimpleName());
             return;
         }
         for (Class<? extends IBaseModule> dependency : moduleInstance.getDependencies()) {
@@ -579,7 +578,7 @@ public class ModuleManager {
      */
     public synchronized void shutdown() {
         unloadAllModules();
-        log.info("ModuleManager has been shut down.");
+        DebugLogger.getInstance().log("ModuleManager has been shut down.");
     }
 
     /**

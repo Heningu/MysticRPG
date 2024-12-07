@@ -118,7 +118,7 @@ public class MobGUI {
 //
 //        // Handle clicks in the Quests menu
 //        if ("Quests".equals(inventoryTitle)) {
-//            logger.log("Player " + player.getName() + " clicked in the Quests menu.");
+//            DebugLogger.getInstance().log("Player " + player.getName() + " clicked in the Quests menu.");
 //
 //            // Create the QuestGUI with the correct state (active or completed quests)
 //            boolean showingActiveQuests = QuestGUI.isShowingActiveQuests(player);

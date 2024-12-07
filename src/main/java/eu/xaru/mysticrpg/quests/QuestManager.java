@@ -1,6 +1,7 @@
 package eu.xaru.mysticrpg.quests;
 
 import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -23,7 +24,7 @@ public class QuestManager {
     private void loadQuests() {
         File questsFolder = new File(plugin.getDataFolder(), "quests");
         if (!questsFolder.exists() && !questsFolder.mkdirs()) {
-            Bukkit.getLogger().severe("Failed to create quests folder.");
+            DebugLogger.getInstance().severe("Failed to create quests folder.");
             return;
         }
 
@@ -35,7 +36,7 @@ public class QuestManager {
 
                     String id = config.getString("id");
                     if (id == null || id.isEmpty()) {
-                        Bukkit.getLogger().severe("Quest ID is missing in file: " + file.getName());
+                        DebugLogger.getInstance().severe("Quest ID is missing in file: " + file.getName());
                         continue;
                     }
 
@@ -69,9 +70,9 @@ public class QuestManager {
                     Quest quest = new Quest(id, name, levelRequirement, type, details, prerequisites, objectives, rewards);
                     quests.put(id, quest);
 
-                    Bukkit.getLogger().log(Level.INFO, "Loaded quest: " + id);
+                    DebugLogger.getInstance().log(Level.INFO, "Loaded quest: " + id);
                 } catch (Exception e) {
-                    Bukkit.getLogger().severe("Failed to load quest from file " + file.getName() + ": " + e.getMessage());
+                    DebugLogger.getInstance().severe("Failed to load quest from file " + file.getName() + ":", e);
                 }
             }
         }

@@ -11,7 +11,7 @@ import eu.xaru.mysticrpg.dungeons.instance.DungeonInstance;
 import eu.xaru.mysticrpg.dungeons.lobby.LobbyManager;
 import eu.xaru.mysticrpg.dungeons.setup.DungeonSetupListener;
 import eu.xaru.mysticrpg.dungeons.setup.DungeonSetupManager;
-import eu.xaru.mysticrpg.utils.DebugLoggerModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.World;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -22,7 +22,7 @@ import java.util.logging.Level;
 public class DungeonManager {
 
     private final JavaPlugin plugin;
-    private final DebugLoggerModule logger;
+    
     private final Map<UUID, DungeonInstance> activeInstances;
     private final LobbyManager lobbyManager;
     private final DungeonConfigManager configManager;
@@ -30,14 +30,14 @@ public class DungeonManager {
     private final DungeonModule dungeonModule;
     private final DungeonLobbyGUI lobbyGUI;
 
-    public DungeonManager(JavaPlugin plugin, DebugLoggerModule logger, DungeonModule dungeonModule) {
+    public DungeonManager(JavaPlugin plugin,  DungeonModule dungeonModule) {
         this.plugin = plugin;
-        this.logger = logger;
+ 
         this.dungeonModule = dungeonModule;
         this.activeInstances = new ConcurrentHashMap<>();
-        this.configManager = new DungeonConfigManager(plugin, logger);
-        this.lobbyManager = new LobbyManager(this, logger);
-        this.setupManager = new DungeonSetupManager(plugin, logger, configManager);
+        this.configManager = new DungeonConfigManager(plugin);
+        this.lobbyManager = new LobbyManager(this);
+        this.setupManager = new DungeonSetupManager(plugin,  configManager);
         this.lobbyGUI = new DungeonLobbyGUI(lobbyManager, plugin);
 
         // Register commands
@@ -53,13 +53,13 @@ public class DungeonManager {
 
     public void start() {
         configManager.loadConfigs();
-        logger.log(Level.INFO, "DungeonManager started.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "DungeonManager started.", 0);
     }
 
     public void stop() {
         activeInstances.values().forEach(DungeonInstance::stop);
         activeInstances.clear();
-        logger.log(Level.INFO, "DungeonManager stopped.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "DungeonManager stopped.", 0);
     }
 
     public DungeonConfigManager getConfigManager() {
@@ -87,7 +87,7 @@ public class DungeonManager {
     }
 
     public void createInstance(String dungeonId, List<UUID> playerUUIDs) {
-        DungeonInstance instance = new DungeonInstance(plugin, logger, dungeonId, playerUUIDs, configManager, this);
+        DungeonInstance instance = new DungeonInstance(plugin,  dungeonId, playerUUIDs, configManager, this);
         activeInstances.put(instance.getInstanceId(), instance);
         instance.start();
     }
@@ -111,7 +111,7 @@ public class DungeonManager {
     public void checkAndRemoveInstance(DungeonInstance instance) {
         if (instance.getPlayersInInstance().isEmpty()) {
             removeInstance(instance.getInstanceId());
-            logger.log(Level.INFO, "Dungeon instance " + instance.getInstanceId() + " removed due to no players.", 0);
+            DebugLogger.getInstance().log(Level.INFO, "Dungeon instance " + instance.getInstanceId() + " removed due to no players.", 0);
         }
     }
 
