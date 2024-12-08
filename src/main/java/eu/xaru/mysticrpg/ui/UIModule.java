@@ -16,7 +16,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scoreboard.Scoreboard;
 
 import java.util.List;
 import java.util.logging.Level;
@@ -28,9 +27,8 @@ public class UIModule implements IBaseModule {
 
     private ActionBarManager actionBarManager;
     private ScoreboardManager scoreboardManager;
-    
+
     private final JavaPlugin plugin;
-    private TitleManager titleManager;
     private final EventManager eventManager;
     private ChatFormatter chatFormatter;
 
@@ -45,7 +43,7 @@ public class UIModule implements IBaseModule {
 
     @Override
     public void initialize() {
-        
+
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         LevelModule levelModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
         this.chatFormatter = new ChatFormatter();
@@ -55,7 +53,6 @@ public class UIModule implements IBaseModule {
             PlayerDataCache playerDataCache = saveModule.getPlayerDataCache();
             this.actionBarManager = new ActionBarManager((MysticCore) plugin, playerDataCache);
             this.scoreboardManager = new ScoreboardManager(); // Initialize ScoreboardManager
-            this.titleManager = new TitleManager(plugin, scoreboardManager); // Pass the ScoreboardManager instance
             DebugLogger.getInstance().log(Level.INFO, "UIModule initialized successfully.", 0);
         } else {
             DebugLogger.getInstance().severe("[MysticRPG] SaveModule or LevelModule is not initialized. UIModule cannot function without them.");
@@ -65,11 +62,12 @@ public class UIModule implements IBaseModule {
         // Register event listeners using EventManager
         registerEventListeners();
 
-        // Register LevelModule's level-up callback to update TitleManager
+        // Register LevelModule's level-up callback to update ScoreboardManager
         if (levelModule != null) {
             levelModule.setLevelUpListener(player -> {
-                if (titleManager != null) {
-                    titleManager.onPlayerLevelUp(player);
+                if (scoreboardManager != null) {
+                    scoreboardManager.createOrUpdateTeam(player); // Ensure team is updated first
+                    scoreboardManager.updatePlayerScoreboard(player); // Then update scoreboard
                 }
             });
         }
@@ -88,15 +86,15 @@ public class UIModule implements IBaseModule {
 
     @Override
     public void unload() {
-        if (titleManager != null) {
-            titleManager.cleanup();
+        if (scoreboardManager != null) {
+            scoreboardManager.cleanup();
         }
         DebugLogger.getInstance().log(Level.INFO, "UIModule unloaded", 0);
     }
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(SaveModule.class,  LevelModule.class);  // Depend on SaveModule, DebugLoggerModule, and LevelModule
+        return List.of(SaveModule.class, LevelModule.class);  // Depend on SaveModule and LevelModule
     }
 
     @Override
@@ -106,15 +104,15 @@ public class UIModule implements IBaseModule {
 
     /**
      * Registers the /name and /refreshname commands using CommandAPI.
-     * Since prefixes are managed via LuckPerms, /name informs players accordingly.
-     * /refreshname allows admins to manually update a player's display name.
+     * Since prefixes are managed via the scoreboard teams, /name informs players accordingly.
+     * /refreshname allows admins to manually update a player's display name and side scoreboard.
      */
     private void registerCommands() {
         // Parent /name command
         new CommandAPICommand("name")
                 .withPermission("mysticrpg.debug")
                 .executes((sender, args) -> {
-                    sender.sendMessage(ChatColor.RED + "Prefixes are managed through LuckPerms.");
+                    sender.sendMessage(ChatColor.RED + "Prefixes are managed automatically through LuckPerms.");
                 })
                 .register();
 
@@ -124,12 +122,13 @@ public class UIModule implements IBaseModule {
                 .withArguments(new dev.jorel.commandapi.arguments.PlayerArgument("target"))
                 .executes((sender, args) -> {
                     Player target = (Player) args.get("target");
-                    if (titleManager != null) {
-                        titleManager.updatePlayerDisplayName(target);
-                        sender.sendMessage(ChatColor.GREEN + "Refreshed display name for " + target.getName());
-                        target.sendMessage(ChatColor.GREEN + "Your display name has been refreshed by " + sender.getName());
+                    if (scoreboardManager != null) {
+                        scoreboardManager.createOrUpdateTeam(target); // Update team first
+                        scoreboardManager.updatePlayerScoreboard(target); // Then update scoreboard
+                        sender.sendMessage(ChatColor.GREEN + "Refreshed scoreboard for " + target.getName());
+                        target.sendMessage(ChatColor.GREEN + "Your scoreboard has been refreshed by " + sender.getName());
                     } else {
-                        sender.sendMessage(ChatColor.RED + "Error: TitleManager is not initialized.");
+                        sender.sendMessage(ChatColor.RED + "Error: ScoreboardManager is not initialized.");
                     }
                 })
                 .register();
@@ -142,40 +141,25 @@ public class UIModule implements IBaseModule {
         // Handle PlayerJoinEvent
         eventManager.registerEvent(PlayerJoinEvent.class, event -> {
             Player player = event.getPlayer();
-            // Assign the player's specific scoreboard
+
+            // Assign the per-player scoreboard and add the player to all teams
             if (scoreboardManager != null) {
                 scoreboardManager.createScoreboardForPlayer(player);
-                scoreboardManager.updatePlayerScoreboard(player);
-                Scoreboard playerScoreboard = scoreboardManager.getPlayerScoreboard(player);
-                if (playerScoreboard != null) {
-                    player.setScoreboard(playerScoreboard);
-                } else {
-                    DebugLogger.getInstance().warning("[MysticRPG] Scoreboard for player " + player.getName() + " is null.");
-                }
+                scoreboardManager.addNewPlayer(player);
             }
 
-            // Update display name with current level and prefix
-            if (titleManager != null) {
-                // Ensure that PlayerDataCache has loaded the player's level
-                Bukkit.getScheduler().runTaskLater(plugin, () -> titleManager.updatePlayerDisplayName(player), 1L); // 1 tick delay
-            }
+            // Update display name with current level and prefix is handled within ScoreboardManager
         });
 
         // Handle PlayerQuitEvent
         eventManager.registerEvent(PlayerQuitEvent.class, event -> {
             Player player = event.getPlayer();
-            // No need to remove prefix as it's managed by LuckPerms
-            // Removed calls to removePrefix and removeTitle
-        });
-    }
 
-    /**
-     * Retrieves the TitleManager instance.
-     *
-     * @return The TitleManager.
-     */
-    public TitleManager getTitleManager() {
-        return this.titleManager;
+            // Remove the player from all scoreboards and clean up
+            if (scoreboardManager != null) {
+                scoreboardManager.removePlayer(player);
+            }
+        });
     }
 
     /**
@@ -185,5 +169,41 @@ public class UIModule implements IBaseModule {
      */
     public ScoreboardManager getScoreboardManager() {
         return this.scoreboardManager;
+    }
+
+    /**
+     * Retrieves the ActionBarManager instance.
+     *
+     * @return The ActionBarManager.
+     */
+    public ActionBarManager getActionBarManager() {
+        return actionBarManager;
+    }
+
+    /**
+     * Sets the ActionBarManager instance.
+     *
+     * @param actionBarManager The ActionBarManager to set.
+     */
+    public void setActionBarManager(ActionBarManager actionBarManager) {
+        this.actionBarManager = actionBarManager;
+    }
+
+    /**
+     * Retrieves the ChatFormatter instance.
+     *
+     * @return The ChatFormatter.
+     */
+    public ChatFormatter getChatFormatter() {
+        return chatFormatter;
+    }
+
+    /**
+     * Sets the ChatFormatter instance.
+     *
+     * @param chatFormatter The ChatFormatter to set.
+     */
+    public void setChatFormatter(ChatFormatter chatFormatter) {
+        this.chatFormatter = chatFormatter;
     }
 }
