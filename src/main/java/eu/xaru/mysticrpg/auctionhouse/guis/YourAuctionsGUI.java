@@ -2,7 +2,6 @@ package eu.xaru.mysticrpg.auctionhouse.guis;
 
 import eu.xaru.mysticrpg.auctionhouse.Auction;
 import eu.xaru.mysticrpg.auctionhouse.AuctionsGUI;
-import eu.xaru.mysticrpg.guis.PaginationHelper;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;

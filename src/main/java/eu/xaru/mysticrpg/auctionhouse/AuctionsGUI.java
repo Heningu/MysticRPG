@@ -4,7 +4,6 @@ import eu.xaru.mysticrpg.customs.items.Category;
 import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.utils.DebugLogger;
-import eu.xaru.mysticrpg.guis.PaginationHelper;
 import eu.xaru.mysticrpg.utils.Utils;
 import eu.xaru.mysticrpg.auctionhouse.guis.BuyGUI;
 import eu.xaru.mysticrpg.auctionhouse.guis.SellGUI;
@@ -55,9 +54,7 @@ public class AuctionsGUI {
     // Map to store the item the player is selling
     private final Map<UUID, ItemStack> sellingItems = new HashMap<>();
 
-    // Maps to store PaginationHelpers per player
-    private final Map<UUID, Map<Category, PaginationHelper<ItemStack>>> buyPaginationMap = new ConcurrentHashMap<>();
-    private final Map<UUID, PaginationHelper<ItemStack>> yourAuctionsPaginationMap = new HashMap<>();
+
 
     // Instances of sub-GUI classes
     private final BuyGUI buyGUI;
@@ -223,8 +220,6 @@ public class AuctionsGUI {
         gui.setItem(MAIN_GUI_SELL_SLOT, sellItems);
         gui.setItem(MAIN_GUI_MY_AUCTIONS_SLOT, myAuctions);
 
-        // Remove PaginationHelpers when opening Main GUI
-        removePagination(player.getUniqueId());
         DebugLogger.getInstance().log(Level.INFO, "Removed PaginationHelpers for player {0}", player.getName());
 
         player.openInventory(gui);
@@ -402,17 +397,6 @@ public class AuctionsGUI {
     }
 
     /**
-     * Removes PaginationHelpers associated with a player.
-     *
-     * @param playerId The UUID of the player.
-     */
-    public void removePagination(UUID playerId) {
-        buyPaginationMap.remove(playerId);
-        yourAuctionsPaginationMap.remove(playerId);
-        DebugLogger.getInstance().log(Level.INFO, "Removed PaginationHelpers for player {0}", Bukkit.getPlayer(playerId).getName());
-    }
-
-    /**
      * Checks if a player is pending a custom price input.
      *
      * @param playerId The UUID of the player.
@@ -431,53 +415,6 @@ public class AuctionsGUI {
         sellingItems.remove(playerId);
     }
 
-    /**
-     * Retrieves or creates a PaginationHelper for the specified player and category.
-     *
-     * @param player       The player for whom the PaginationHelper is needed.
-     * @param category     The selected category.
-     * @param auctionItems The list of auction items to paginate.
-     * @return The PaginationHelper instance for the current page.
-     */
-    public PaginationHelper<ItemStack> getBuyGuiPaginationHelper(Player player, Category category, List<ItemStack> auctionItems) {
-        UUID playerUUID = player.getUniqueId();
-        Map<Category, PaginationHelper<ItemStack>> playerPaginationMap = buyPaginationMap.computeIfAbsent(playerUUID, k -> new ConcurrentHashMap<>());
-
-        PaginationHelper<ItemStack> paginationHelper = playerPaginationMap.get(category);
-        if (paginationHelper == null) {
-            paginationHelper = new PaginationHelper<>(auctionItems, 28);
-            playerPaginationMap.put(category, paginationHelper);
-            DebugLogger.getInstance().log(Level.INFO, "Created new PaginationHelper for player {0} in category {1}. Total pages: {2}",
-                    new Object[]{player.getName(), category.name(), paginationHelper.getTotalPages()});
-        } else {
-            paginationHelper.updateItems(auctionItems);
-            // Removed the following line to prevent resetting the page to 1
-            // paginationHelper.setCurrentPage(1); // Reset to first page upon update
-            DebugLogger.getInstance().log(Level.INFO, "Updated PaginationHelper for player {0} in category {1}.",
-                    new Object[]{player.getName(), category.name()});
-        }
-
-        DebugLogger.getInstance().log(Level.INFO, "PaginationHelper state for player {0} in category {1}: Current Page {2} / Total Pages {3}",
-                new Object[]{player.getName(), category.name(), paginationHelper.getCurrentPage(), paginationHelper.getTotalPages()});
-
-        return paginationHelper;
-    }
-
-    /**
-     * Retrieves an existing PaginationHelper for the specified player and category without modifying it.
-     *
-     * @param player   The player for whom the PaginationHelper is needed.
-     * @param category The selected category.
-     * @return The existing PaginationHelper instance, or null if none exists.
-     */
-    public PaginationHelper<ItemStack> getExistingBuyGuiPaginationHelper(Player player, Category category) {
-        UUID playerUUID = player.getUniqueId();
-        Map<Category, PaginationHelper<ItemStack>> playerPaginationMap = buyPaginationMap.get(playerUUID);
-        if (playerPaginationMap != null) {
-            return playerPaginationMap.get(category);
-        }
-        return null;
-    }
 
     // Getter methods for accessing maps and helpers from sub-GUI classes
     public AuctionHouseHelper getAuctionHouseHelper() {
@@ -520,11 +457,4 @@ public class AuctionsGUI {
         return sellingItems;
     }
 
-    public Map<UUID, Map<Category, PaginationHelper<ItemStack>>> getBuyPaginationMap() {
-        return buyPaginationMap;
-    }
-
-    public Map<UUID, PaginationHelper<ItemStack>> getYourAuctionsPaginationMap() {
-        return yourAuctionsPaginationMap;
-    }
 }
