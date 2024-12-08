@@ -9,6 +9,7 @@ import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -204,6 +205,58 @@ public class Utils {
             text = text.replace(format, applied);
         }
         return text;
+    }
+    /**
+     * Creates an inventory with the specified size and title.
+     *
+     * @param size  The size of the inventory (must be a multiple of 9).
+     * @param title The title of the inventory.
+     * @return The created Inventory instance.
+     */
+    public Inventory createInventory(int size, String title) {
+        if (size < 9 || size > 54 || size % 9 != 0) {
+            throw new IllegalArgumentException("Inventory size must be a multiple of 9 and between 9 and 54.");
+        }
+        return org.bukkit.Bukkit.createInventory(null, size, getInstance().$(title));
+    }
+
+    /**
+     * Creates a GUI ItemStack with the specified properties.
+     *
+     * @param material    The material of the item.
+     * @param displayName The display name of the item.
+     * @param lore        The lore of the item.
+     * @return The created ItemStack.
+     */
+    public ItemStack createGuiItem(Material material, String displayName, List<String> lore) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName($(displayName));
+            if (lore != null) {
+                meta.setLore(Collections.singletonList($(String.valueOf(lore))));
+            }
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    /**
+     * Creates a placeholder ItemStack with the specified material and name.
+     *
+     * @param material The material of the placeholder item.
+     * @param name     The display name of the placeholder item.
+     * @return The created placeholder ItemStack.
+     */
+    public static ItemStack createPlaceholder(Material material, String name) {
+        ItemStack placeholder = new ItemStack(material);
+        ItemMeta meta = placeholder.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(getInstance().$(name));
+            meta.setLore(List.of(""));
+            placeholder.setItemMeta(meta);
+        }
+        return placeholder;
     }
 
     // Handle gradient format {#RRGGBB>}text{#RRGGBB<}

@@ -1,32 +1,18 @@
 package eu.xaru.mysticrpg.auctionhouse;
 
 import eu.xaru.mysticrpg.cores.MysticCore;
-import eu.xaru.mysticrpg.customs.items.Category;
-import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.*;
 import eu.xaru.mysticrpg.utils.DebugLogger;
-import eu.xaru.mysticrpg.utils.PaginationHelper;
 import eu.xaru.mysticrpg.utils.Utils;
-import eu.xaru.mysticrpg.auctionhouse.guis.BuyGUI;
-import eu.xaru.mysticrpg.auctionhouse.guis.SellGUI;
-import eu.xaru.mysticrpg.auctionhouse.guis.YourAuctionsGUI;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import org.bukkit.event.inventory.*;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**

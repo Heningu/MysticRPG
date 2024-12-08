@@ -1,4 +1,4 @@
-package eu.xaru.mysticrpg.utils;
+package eu.xaru.mysticrpg.guis;
 
 import org.bukkit.inventory.ItemStack;
 

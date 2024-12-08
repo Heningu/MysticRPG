@@ -5,7 +5,7 @@ import eu.xaru.mysticrpg.auctionhouse.AuctionsGUI;
 import eu.xaru.mysticrpg.customs.items.Category;
 import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
 import eu.xaru.mysticrpg.utils.DebugLogger;
-import eu.xaru.mysticrpg.utils.PaginationHelper;
+import eu.xaru.mysticrpg.guis.PaginationHelper;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;

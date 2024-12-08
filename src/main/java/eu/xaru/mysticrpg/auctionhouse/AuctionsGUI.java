@@ -4,7 +4,7 @@ import eu.xaru.mysticrpg.customs.items.Category;
 import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.utils.DebugLogger;
-import eu.xaru.mysticrpg.utils.PaginationHelper;
+import eu.xaru.mysticrpg.guis.PaginationHelper;
 import eu.xaru.mysticrpg.utils.Utils;
 import eu.xaru.mysticrpg.auctionhouse.guis.BuyGUI;
 import eu.xaru.mysticrpg.auctionhouse.guis.SellGUI;
@@ -24,7 +24,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 /**
  * Manages the Auction House GUI, including displaying available auctions,
