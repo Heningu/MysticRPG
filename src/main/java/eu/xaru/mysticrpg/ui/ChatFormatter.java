@@ -77,7 +77,7 @@ public class ChatFormatter implements Listener {
      * @param player The player whose prefix is to be retrieved.
      * @return The prefix string, or an empty string if not set.
      */
-    private String getPrefixFromLuckPerms(Player player) {
+    public String getPrefixFromLuckPerms(Player player) {
         User user = luckPerms.getUserManager().getUser(player.getUniqueId());
         if (user == null) {
             // User might not be cached; attempt to load

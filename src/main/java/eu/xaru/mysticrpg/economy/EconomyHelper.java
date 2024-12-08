@@ -25,7 +25,7 @@ public class EconomyHelper {
      * @param player The player whose balance is to be retrieved.
      * @return The current balance.
      */
-    public double getBalance(Player player) {
+    public int getBalance(Player player) {
         PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (playerData == null) {
             DebugLogger.getInstance().log(Level.WARNING, "PlayerData not found for player: {0}", player.getName());
@@ -40,7 +40,7 @@ public class EconomyHelper {
      * @param player The player whose balance is to be set.
      * @param amount The new balance amount.
      */
-    public void setBalance(Player player, double amount) {
+    public void setBalance(Player player, int amount) {
         PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (playerData == null) {
             DebugLogger.getInstance().log(Level.WARNING, "PlayerData not found for player: {0}", player.getName());
@@ -57,7 +57,7 @@ public class EconomyHelper {
      * @param amount The amount to deposit.
      * @return True if the deposit was successful, false otherwise.
      */
-    public boolean depositBalance(Player player, double amount) {
+    public boolean depositBalance(Player player, int amount) {
         if (amount <= 0) {
             player.sendMessage(Utils.getInstance().$("Deposit amount must be positive."));
             DebugLogger.getInstance().log(Level.WARNING, "Attempted to deposit a non-positive amount: ${0} to player: {1}", new Object[]{amount, player.getName()});
@@ -71,7 +71,7 @@ public class EconomyHelper {
             return false;
         }
 
-        double newBalance = playerData.getBalance() + amount;
+        int newBalance = playerData.getBalance() + amount;
         playerData.setBalance(newBalance);
 
         player.sendMessage(Utils.getInstance().$("Your balance has been increased by $" + formatBalance(amount) + ". New balance: $" + formatBalance(newBalance)));
@@ -86,7 +86,7 @@ public class EconomyHelper {
      * @param amount The amount to withdraw.
      * @return True if the withdrawal was successful, false otherwise.
      */
-    public boolean withdrawBalance(Player player, double amount) {
+    public boolean withdrawBalance(Player player, int amount) {
         if (amount <= 0) {
             player.sendMessage(Utils.getInstance().$("Withdrawal amount must be positive."));
             DebugLogger.getInstance().log(Level.WARNING, "Attempted to withdraw a non-positive amount: ${0} from player: {1}", new Object[]{amount, player.getName()});
@@ -100,7 +100,7 @@ public class EconomyHelper {
             return false;
         }
 
-        double currentBalance = playerData.getBalance();
+        int currentBalance = playerData.getBalance();
         if (currentBalance < amount) {
             player.sendMessage(Utils.getInstance().$("Insufficient funds."));
             DebugLogger.getInstance().log(Level.WARNING, "Player {0} has insufficient funds. Balance: ${1}, Attempted withdrawal: ${2}",
@@ -108,7 +108,7 @@ public class EconomyHelper {
             return false;
         }
 
-        double newBalance = currentBalance - amount;
+        int newBalance = currentBalance - amount;
         playerData.setBalance(newBalance);
 
         player.sendMessage(Utils.getInstance().$("Your balance has been decreased by $" + formatBalance(amount) + ". New balance: $" + formatBalance(newBalance)));
@@ -124,7 +124,7 @@ public class EconomyHelper {
      * @param amount The amount to add (positive) or subtract (negative).
      */
     @Deprecated
-    public void addBalance(Player player, double amount) {
+    public void addBalance(Player player, int amount) {
         if (amount > 0) {
             depositBalance(player, amount);
         } else if (amount < 0) {
@@ -140,7 +140,7 @@ public class EconomyHelper {
      * @param receiver  The player receiving money.
      * @param amount    The amount to send.
      */
-    public void sendMoney(Player sender, Player receiver, double amount) {
+    public void sendMoney(Player sender, Player receiver, int amount) {
         if (amount <= 0) {
             sender.sendMessage(Utils.getInstance().$("Amount must be positive."));
             DebugLogger.getInstance().log(Level.WARNING, "Player {0} attempted to send a non-positive amount: ${1} to {2}",
@@ -191,7 +191,7 @@ public class EconomyHelper {
      * @param balance The balance amount.
      * @return A formatted string representing the balance.
      */
-    public String formatBalance(double balance) {
+    public String formatBalance(int balance) {
         return String.format("%,.2f", balance);
     }
 }

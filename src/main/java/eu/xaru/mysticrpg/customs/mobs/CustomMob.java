@@ -17,7 +17,7 @@ public class CustomMob {
     private final double health;
     private final int level;
     private final int experienceReward;
-    private final double currencyReward;
+    private final int currencyReward;
     private final Map<String, Integer> customAttributes;
     private final List<String> assignedAreas;
     private final Map<String, AreaSettings> areaSettingsMap;
@@ -42,7 +42,7 @@ public class CustomMob {
     private final Map<String, List<Action>> actions;
 
     public CustomMob(String id, String name, EntityType entityType, double health, int level, int experienceReward,
-                     double currencyReward, Map<String, Integer> customAttributes, List<String> assignedAreas,
+                     int currencyReward, Map<String, Integer> customAttributes, List<String> assignedAreas,
                      Map<String, AreaSettings> areaSettingsMap, List<DropItem> drops,
                      double baseDamage, double baseArmor, double movementSpeed, Equipment equipment,
                      String modelId, Map<String, List<Action>> actions, AnimationConfig animationConfig, BossBarConfig bossBarConfig) {
@@ -112,7 +112,7 @@ public class CustomMob {
         return experienceReward;
     }
 
-    public double getCurrencyReward() {
+    public int getCurrencyReward() {
         return currencyReward;
     }
 

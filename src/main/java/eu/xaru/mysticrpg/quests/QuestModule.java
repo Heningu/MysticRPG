@@ -435,7 +435,7 @@ public class QuestModule implements IBaseModule {
         Map<String, Object> rewards = quest.getRewards();
         if (rewards != null) {
             if (rewards.containsKey("currency")) {
-                double amount = ((Number) rewards.get("currency")).doubleValue();
+                int amount = ((Number) rewards.get("currency")).intValue();
                 data.setBalance(data.getBalance() + amount);
             }
             if (rewards.containsKey("experience")) {

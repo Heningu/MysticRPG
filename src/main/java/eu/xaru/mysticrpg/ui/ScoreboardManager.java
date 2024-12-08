@@ -36,6 +36,8 @@ public class ScoreboardManager {
     private final EconomyHelper economyHelper;
     private final QuestManager questManager;
     private final PlayerDataCache playerDataCache;
+    private ChatFormatter chatFormatter;
+
 
     // Map of player UUID to their per-player scoreboard
     private final Map<UUID, Scoreboard> playerScoreboards = new HashMap<>();
@@ -76,6 +78,11 @@ public class ScoreboardManager {
             this.playerDataCache = null;
             DebugLogger.getInstance().warning("[MysticRPG] SaveModule not found. Player data will not be loaded.");
         }
+        this.chatFormatter = new ChatFormatter();
+
+
+
+
 
         // Initialize for existing online players
         for (Player player : Bukkit.getOnlinePlayers()) {
@@ -240,45 +247,79 @@ public class ScoreboardManager {
         Set<String> newEntries = new HashSet<>();
 
         // Populate scoreboard with player stats
-        // Unique separator lines
+
+
+        // First seperation line LINE 1
+
         String separatorLine1 = "げげ";
-        objective.getScore(separatorLine1).setScore(14);
+        objective.getScore(separatorLine1).setScore(15);
         newEntries.add(separatorLine1);
 
-        // Your Stats:
-        String yourStats = "く";
+        // First empty spaceholder line LINE 2
+
+        String firstemptyline = "  ";
+        objective.getScore(firstemptyline).setScore(14);
+        newEntries.add(firstemptyline);
+
+        // Your Statistics LINE 3
+        String yourStats = "ぁ YOUR STATS";
         objective.getScore(yourStats).setScore(13);
         newEntries.add(yourStats);
 
         // Level
         int level = playerData.getLevel();
-        String levelEntry = "か" + ChatColor.WHITE + level;
-        objective.getScore(levelEntry).setScore(12);
-        newEntries.add(levelEntry);
+
+        if( level <= 10){
+            String levelEntry = "   あ LEVEL " + ChatColor.WHITE + level;
+            objective.getScore(levelEntry).setScore(12);
+            newEntries.add(levelEntry);
+        } else if(level > 10 && level <= 20){
+            String levelEntry = "   あ LEVEL " + ChatColor.GREEN + level;
+            objective.getScore(levelEntry).setScore(12);
+            newEntries.add(levelEntry);
+        } else if(level > 20 && level < 25){
+            String levelEntry = "   あ LEVEL " + ChatColor.GOLD + level;
+            objective.getScore(levelEntry).setScore(12);
+            newEntries.add(levelEntry);
+        } else if(level == 25){
+            String levelEntry = "   あ LEVEL " + ChatColor.RED + "MAXEDぅ";
+            objective.getScore(levelEntry).setScore(12);
+            newEntries.add(levelEntry);
+        }
 
         // XP Needed
         int currentXp = playerData.getXp();
         int xpNeeded = levelModule != null ? levelModule.getLevelThreshold(level + 1) : 100;
-        String xpEntry = ChatColor.YELLOW + "XP: " + ChatColor.WHITE + currentXp + "/" + xpNeeded;
+        String xpEntry = ChatColor.RED + "   あ " + ChatColor.WHITE + "XP " + ChatColor.GREEN + currentXp + ChatColor.WHITE + "/" + ChatColor.GOLD + xpNeeded;
         objective.getScore(xpEntry).setScore(11);
         newEntries.add(xpEntry);
 
         // Balance
-        double balance = economyHelper != null ? economyHelper.getBalance(player) : 0.0;
-        String formattedBalance = economyHelper != null ? economyHelper.formatBalance(balance) : "0.00";
-        String balanceEntry = ChatColor.YELLOW + "Balance: " + ChatColor.WHITE + "$" + formattedBalance;
+        int balance = economyHelper.getBalance(player);
+        String balanceEntry = ChatColor.YELLOW + "   い " + ChatColor.WHITE + balance + ChatColor.GOLD + " Gold";
         objective.getScore(balanceEntry).setScore(10);
         newEntries.add(balanceEntry);
 
-        // Empty line
-        String emptyLine = " ";
-        objective.getScore(emptyLine).setScore(9);
-        newEntries.add(emptyLine);
+        String secondemptyline = "   ";
+        objective.getScore(secondemptyline).setScore(9);
+        newEntries.add(secondemptyline);
 
-        // Your Pinned Quest:
-        String pinnedQuestTitle = ChatColor.GREEN + "Pinned Quest:";
-        objective.getScore(pinnedQuestTitle).setScore(8);
-        newEntries.add(pinnedQuestTitle);
+        String information = "ぇ INFORMATION";
+        objective.getScore(information).setScore(8);
+        newEntries.add(information);
+
+        //RANK
+
+        String yourRank = "   え " + chatFormatter.getPrefixFromLuckPerms(player);
+        objective.getScore(yourRank).setScore(7);
+        newEntries.add(yourRank);
+
+        String yourpet = "   シ NO PET";
+        objective.getScore(yourpet).setScore(5);
+        newEntries.add(yourpet);
+
+
+        // Pinned quest
 
         String pinnedQuestId = playerData.getPinnedQuest();
         if (pinnedQuestId != null && questManager != null) {
@@ -286,7 +327,7 @@ public class ScoreboardManager {
             if (pinnedQuest != null) {
                 // Quest Name
                 String questNameEntry = ChatColor.AQUA + pinnedQuest.getName();
-                objective.getScore(questNameEntry).setScore(7);
+                objective.getScore(questNameEntry).setScore(3);
                 newEntries.add(questNameEntry);
 
                 // Objective and Progress
@@ -306,25 +347,33 @@ public class ScoreboardManager {
                     String formattedObjective = formatObjectiveKey(objectiveKey);
 
                     // Ensure uniqueness by adding color codes
-                    String objectiveDisplay = ChatColor.GRAY + formattedObjective + ": " + ChatColor.WHITE + currentProgress + "/" + required;
+                    String objectiveDisplay = "   う " + ChatColor.GRAY + formattedObjective + ": " + ChatColor.WHITE + currentProgress + "/" + required;
                     objective.getScore(objectiveDisplay).setScore(scoreIndex);
                     newEntries.add(objectiveDisplay);
                     scoreIndex--;
                     if (scoreIndex < 2) break; // Adjusted to fit in the scoreboard
                 }
             } else {
-                String noPinnedQuestEntry = ChatColor.RED + "No Pinned Quest";
-                objective.getScore(noPinnedQuestEntry).setScore(7);
+                String noPinnedQuestEntry = "   う " + ChatColor.RED + "No Pinned Quest";
+                objective.getScore(noPinnedQuestEntry).setScore(3);
                 newEntries.add(noPinnedQuestEntry);
             }
         } else {
-            String noPinnedQuestEntry = ChatColor.RED + "No Pinned Quest";
-            objective.getScore(noPinnedQuestEntry).setScore(7);
+            String noPinnedQuestEntry = "   う " + ChatColor.RED + "No Pinned Quest";
+            objective.getScore(noPinnedQuestEntry).setScore(3);
             newEntries.add(noPinnedQuestEntry);
         }
 
+
+
+
+        String thirdemptyline = "    ";
+        objective.getScore(thirdemptyline).setScore(2);
+        newEntries.add(thirdemptyline);
+
+
         // Second unique separator line
-        String separatorLine2 = ChatColor.GRAY + "げげ";
+        String separatorLine2 ="げげ ";
         objective.getScore(separatorLine2).setScore(1);
         newEntries.add(separatorLine2);
 

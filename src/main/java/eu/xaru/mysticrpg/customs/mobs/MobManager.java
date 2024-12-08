@@ -346,7 +346,7 @@ public class MobManager implements Listener {
                 }
 
                 // Currency reward (only the killer gets this)
-                double currencyReward = mobInstance.getCustomMob().getCurrencyReward();
+                int currencyReward = mobInstance.getCustomMob().getCurrencyReward();
 
                 // Define the chance for currency reward (100% for testing)
                 double currencyChance = 1.0; // 1.0 represents 100%

@@ -131,7 +131,7 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
             if (rs.next()) {
                 PlayerData playerData = new PlayerData();
                 playerData.setUuid(rs.getString("uuid"));
-                playerData.setBalance(rs.getDouble("balance"));
+                playerData.setBalance(rs.getInt("balance"));
                 playerData.setXp(rs.getInt("xp"));
                 playerData.setLevel(rs.getInt("level"));
                 playerData.setNextLevelXP(rs.getInt("nextLevelXP"));
@@ -147,7 +147,7 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
                 playerData.setQuestProgress(deserializeQuestProgress(rs.getString("questProgress")));
                 playerData.setCompletedQuests(deserializeList(rs.getString("completedQuests")));
                 playerData.setPinnedQuest(rs.getString("pinnedQuest"));
-                playerData.setPendingBalance(rs.getDouble("pendingBalance"));
+                playerData.setPendingBalance(rs.getInt("pendingBalance"));
                 playerData.setPendingItems(deserializeList(rs.getString("pendingItems")));
                 playerData.setRemindersEnabled(rs.getInt("remindersEnabled") == 1);
 
@@ -229,7 +229,7 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
                 auction.setAuctionId(UUID.fromString(rs.getString("auctionId")));
                 auction.setSeller(UUID.fromString(rs.getString("sellerUUID")));
                 auction.setItemData(rs.getString("itemData")); // Deserialize if necessary
-                auction.setStartingPrice(rs.getDouble("price"));
+                auction.setStartingPrice(rs.getInt("price"));
                 auction.setEndTime(rs.getLong("expirationTime"));
                 auctions.add(auction);
             }
@@ -268,7 +268,7 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
             while (rs.next()) {
                 PlayerData playerData = new PlayerData();
                 playerData.setUuid(rs.getString("uuid"));
-                playerData.setBalance(rs.getDouble("balance"));
+                playerData.setBalance(rs.getInt("balance"));
                 playerData.setXp(rs.getInt("xp"));
                 playerData.setLevel(rs.getInt("level"));
                 playerData.setNextLevelXP(rs.getInt("nextLevelXP"));
@@ -284,7 +284,7 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
                 playerData.setQuestProgress(deserializeQuestProgress(rs.getString("questProgress")));
                 playerData.setCompletedQuests(deserializeList(rs.getString("completedQuests")));
                 playerData.setPinnedQuest(rs.getString("pinnedQuest"));
-                playerData.setPendingBalance(rs.getDouble("pendingBalance"));
+                playerData.setPendingBalance(rs.getInt("pendingBalance"));
                 playerData.setPendingItems(deserializeList(rs.getString("pendingItems")));
                 playerData.setRemindersEnabled(rs.getInt("remindersEnabled") == 1);
 

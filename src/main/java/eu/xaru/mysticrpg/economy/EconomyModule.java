@@ -78,7 +78,7 @@ public class EconomyModule implements IBaseModule {
         new CommandAPICommand("money")
                 .withSubcommand(new CommandAPICommand("balance")
                         .executesPlayer((player, args) -> {
-                            double balance = economyHelper.getBalance(player);
+                            int balance = economyHelper.getBalance(player);
                             player.sendMessage(Utils.getInstance().$("Your balance: $" + economyHelper.formatBalance(balance)));
                             DebugLogger.getInstance().log(Level.INFO, "Displayed balance for player: {0}", Integer.parseInt(player.getName()));
                         }))
@@ -86,7 +86,7 @@ public class EconomyModule implements IBaseModule {
                         .withArguments(new PlayerArgument("target"), new DoubleArgument("amount"))
                         .executesPlayer((player, args) -> {
                             Player target = (Player) args.get("target");
-                            double amount = (double) args.get("amount");
+                            int amount = (int) args.get("amount");
 
                             if (target != null) {
                                 economyHelper.sendMoney(player, target, amount);

@@ -52,7 +52,7 @@ public class SellGUI {
         mainGUI.fillWithPlaceholdersBorderOnly(gui, Collections.singleton(SELL_GUI_ITEM_SLOT));
 
         // Set default price and duration if not set
-        mainGUI.getPriceMap().putIfAbsent(player.getUniqueId(), 100.0); // Default price
+        mainGUI.getPriceMap().putIfAbsent(player.getUniqueId(), 100); // Default price
         mainGUI.getDurationMap().putIfAbsent(player.getUniqueId(), 86400000L); // Default duration (24h)
         mainGUI.getBidMap().putIfAbsent(player.getUniqueId(), false); // Default to fixed price
 
@@ -204,7 +204,7 @@ public class SellGUI {
      */
     private void decreasePrice(Player player, Inventory sellGui) {
         UUID playerUUID = player.getUniqueId();
-        double currentPrice = mainGUI.getPriceMap().getOrDefault(playerUUID, 100.0);
+        int currentPrice = mainGUI.getPriceMap().getOrDefault(playerUUID, 100);
         currentPrice = Math.max(0, currentPrice - 10); // Decrease by $10, minimum $0
         mainGUI.getPriceMap().put(playerUUID, currentPrice);
 
@@ -219,7 +219,7 @@ public class SellGUI {
      */
     private void increasePrice(Player player, Inventory sellGui) {
         UUID playerUUID = player.getUniqueId();
-        double currentPrice = mainGUI.getPriceMap().getOrDefault(playerUUID, 100.0);
+        int currentPrice = mainGUI.getPriceMap().getOrDefault(playerUUID, 100);
         currentPrice += 10; // Increase by $10
         mainGUI.getPriceMap().put(playerUUID, currentPrice);
 
@@ -232,7 +232,7 @@ public class SellGUI {
      * @param sellGui      The Sell GUI inventory.
      * @param currentPrice The current price to display.
      */
-    private void updatePriceDisplay(Inventory sellGui, double currentPrice) {
+    private void updatePriceDisplay(Inventory sellGui, int currentPrice) {
         ItemStack priceDisplay = mainGUI.createGuiItem(Material.PAPER, Utils.getInstance().$("Current Price: $" +
                         mainGUI.getEconomyHelper().formatBalance(currentPrice)),
                 Collections.singletonList(Utils.getInstance().$("Right-click to set custom price")));
@@ -254,7 +254,7 @@ public class SellGUI {
         }
 
         UUID playerUUID = player.getUniqueId();
-        double price = mainGUI.getPriceMap().getOrDefault(playerUUID, 100.0);
+        int price = mainGUI.getPriceMap().getOrDefault(playerUUID, 100);
         long duration = mainGUI.getDurationMap().getOrDefault(playerUUID, 86400000L); // Default 24h
         boolean isBidItem = mainGUI.getBidMap().getOrDefault(playerUUID, false);
 

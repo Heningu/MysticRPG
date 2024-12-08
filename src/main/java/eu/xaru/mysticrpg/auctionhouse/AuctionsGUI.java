@@ -45,7 +45,7 @@ public class AuctionsGUI {
     private static final int MAIN_GUI_MY_AUCTIONS_SLOT = 24;
 
     // Temporary storage for price and duration settings per player
-    private final Map<UUID, Double> priceMap = new HashMap<>();
+    private final Map<UUID, Integer> priceMap = new HashMap<>();
     private final Map<UUID, Long> durationMap = new HashMap<>();
     private final Map<UUID, Boolean> bidMap = new HashMap<>();
 
@@ -320,7 +320,7 @@ public class AuctionsGUI {
             UUID auctionId = pendingBids.remove(playerId);
 
             try {
-                double bidAmount = Double.parseDouble(message);
+                int bidAmount = Integer.parseInt(message);
                 auctionHouseHelper.placeBid(player, auctionId, bidAmount);
                 // Reopen Buy GUI
                 Bukkit.getScheduler().runTask(plugin, () -> buyGUI.openBuyGUI(player));
@@ -333,7 +333,7 @@ public class AuctionsGUI {
             pendingPriceInput.remove(playerId);
 
             try {
-                double customPrice = Double.parseDouble(message);
+                int customPrice = Integer.parseInt(message);
                 if (customPrice < 0) {
                     player.sendMessage(Utils.getInstance().$("Price cannot be negative."));
                     return;
@@ -497,7 +497,7 @@ public class AuctionsGUI {
         return buyGuiSelectedCategoryMap;
     }
 
-    public Map<UUID, Double> getPriceMap() {
+    public Map<UUID, Integer> getPriceMap() {
         return priceMap;
     }
 
