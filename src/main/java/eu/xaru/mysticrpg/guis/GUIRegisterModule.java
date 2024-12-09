@@ -4,8 +4,7 @@ import dev.jorel.commandapi.CommandAPICommand;
 import eu.xaru.mysticrpg.auctionhouse.AuctionHouseModule;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.enums.EModulePriority;
-import eu.xaru.mysticrpg.guis.invui.gui.Gui;
-import eu.xaru.mysticrpg.guis.invui.window.Window;
+
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
@@ -19,6 +18,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import xyz.xenondevs.invui.gui.Gui;
+import xyz.xenondevs.invui.window.Window;
 
 import java.util.List;
 import java.util.logging.Level;

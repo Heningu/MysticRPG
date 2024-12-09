@@ -1,13 +1,7 @@
 package eu.xaru.mysticrpg.guis;
 
 import eu.xaru.mysticrpg.auctionhouse.AuctionHouseModule;
-import eu.xaru.mysticrpg.guis.invui.gui.Gui;
-import eu.xaru.mysticrpg.guis.invui.item.Item;
-import eu.xaru.mysticrpg.guis.invui.item.ItemProvider;
-import eu.xaru.mysticrpg.guis.invui.item.builder.ItemBuilder;
-import eu.xaru.mysticrpg.guis.invui.item.impl.CommandItem;
-import eu.xaru.mysticrpg.guis.invui.item.impl.SimpleItem;
-import eu.xaru.mysticrpg.guis.invui.window.Window;
+
 import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.player.stats.PlayerStatModule;
@@ -21,6 +15,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import xyz.xenondevs.invui.gui.Gui;
+import xyz.xenondevs.invui.item.Item;
+import xyz.xenondevs.invui.item.builder.ItemBuilder;
+import xyz.xenondevs.invui.item.impl.SimpleItem;
 
 import java.util.Arrays;
 import java.util.logging.Level;
