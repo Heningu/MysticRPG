@@ -192,6 +192,6 @@ public class EconomyHelper {
      * @return A formatted string representing the balance.
      */
     public String formatBalance(int balance) {
-        return String.format("%,.2f", balance);
+        return String.format("%d", balance);
     }
 }

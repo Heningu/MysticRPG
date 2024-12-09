@@ -598,7 +598,7 @@ public class ScoreboardManager {
             // If this scoreboard belongs to the player, re-assign it to force display updates
             if (entry.getKey().equals(uuid)) {
                 player.setScoreboard(scoreboard);
-                DebugLogger.getInstance().log("[MysticRPG] Reassigned scoreboard to player " + player.getName() + " after team update.");
+                // DebugLogger.getInstance().log("[MysticRPG] Reassigned scoreboard to player " + player.getName() + " after team update.");
             }
         }
     }
