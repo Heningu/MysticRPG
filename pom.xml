@@ -240,47 +240,6 @@
             </plugin>
 
 
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.2.2</version>
-                <executions>
-                    <execution>
-                        <id>default-jar</id>
-                        <phase>none</phase>
-                    </execution>
-                    <execution>
-                        <id>spigot</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                        <configuration>
-                            <classesDirectory>${project.build.directory}/classes-spigot</classesDirectory>
-                            <archive>
-                                <manifestEntries>
-                                    <paperweight-mappings-namespace>spigot</paperweight-mappings-namespace>
-                                </manifestEntries>
-                            </archive>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>mojang</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                        <configuration>
-                            <classesDirectory>${project.build.directory}/classes-mojang</classesDirectory>
-                            <classifier>remapped-mojang</classifier>
-                            <archive>
-                                <manifestEntries>
-                                    <paperweight-mappings-namespace>mojang</paperweight-mappings-namespace>
-                                </manifestEntries>
-                            </archive>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
             <!-- Maven Shade Plugin for shading dependencies to avoid conflicts -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
