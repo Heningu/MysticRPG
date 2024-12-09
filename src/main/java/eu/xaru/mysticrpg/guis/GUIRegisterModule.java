@@ -48,7 +48,7 @@ public class GUIRegisterModule implements IBaseModule, Listener {
 
     private MysticCore plugin;
     private EventManager eventManager;
-    
+
     private PlayerStatModule playerStat;
     private AuctionHouseModule auctionHouse;
     private EquipmentModule equipmentModule;
@@ -163,7 +163,7 @@ public class GUIRegisterModule implements IBaseModule, Listener {
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
         return List.of(
-                
+
                 AuctionHouseModule.class,
                 EquipmentModule.class,
                 LevelModule.class,

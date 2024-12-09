@@ -5,7 +5,6 @@ import eu.xaru.mysticrpg.auctionhouse.AuctionsGUI;
 import eu.xaru.mysticrpg.customs.items.Category;
 import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
 import eu.xaru.mysticrpg.utils.DebugLogger;
-import eu.xaru.mysticrpg.utils.PaginationHelper;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -123,9 +122,9 @@ public class BuyGUI {
         }).collect(Collectors.toList());
 
         // Handle pagination for Buy GUI
-        PaginationHelper<ItemStack> paginationHelper = handleBuyGuiPagination(player, auctionItems, selectedCategory);
+       // PaginationHelper<ItemStack> paginationHelper = handleBuyGuiPagination(player, auctionItems, selectedCategory);
         DebugLogger.getInstance().log(Level.INFO, "PaginationHelper for player {0} in category {1}: Current Page {2} / Total Pages {3}",
-                new Object[]{player.getName(), selectedCategory.name(), paginationHelper.getCurrentPage(), paginationHelper.getTotalPages()});
+                new Object[]{player.getName(), selectedCategory.name(), 1, 1});
 
         // Create the inventory
         Inventory gui = Bukkit.createInventory(null, 54, Utils.getInstance().$("Auction House - Buy"));
@@ -137,7 +136,7 @@ public class BuyGUI {
         mainGUI.createAndPlaceCategoryItems(gui, player, selectedCategory);
 
         // Get items for the current page
-        List<ItemStack> pageItems = paginationHelper.getCurrentPageItems();
+        List<ItemStack> pageItems = auctionItems.subList(1, 1);
 
         // Place the auction items in the GUI
         for (int i = 0; i < pageItems.size() && i < AUCTION_SLOTS.length; i++) {
@@ -147,7 +146,7 @@ public class BuyGUI {
 
         // Create the page indicator with lore instructions
         ItemStack pageIndicator = mainGUI.createGuiItem(Material.PAPER,
-                ChatColor.GREEN + "Page " + paginationHelper.getCurrentPage() + " of " + paginationHelper.getTotalPages(),
+                ChatColor.GREEN + "Page " + 1 + " of " + 1,
                 Arrays.asList(
                         ChatColor.GRAY + "Left-click to go to the previous page",
                         ChatColor.GRAY + "Right-click to go to the next page"
@@ -216,39 +215,39 @@ public class BuyGUI {
                     selectedCategory = Category.EVERYTHING; // Default to EVERYTHING
                 }
 
-                PaginationHelper<ItemStack> paginationHelper = mainGUI.getExistingBuyGuiPaginationHelper(player, selectedCategory);
+                //PaginationHelper<ItemStack> paginationHelper = mainGUI.getExistingBuyGuiPaginationHelper(player, selectedCategory);
 
-                if (paginationHelper == null) {
-                    player.sendMessage(Utils.getInstance().$("An error occurred. Please try again."));
-                    DebugLogger.getInstance().log(Level.SEVERE, "PaginationHelper is null for player {0} in category {1}", new Object[]{player.getName(), selectedCategory.name()});
-                    event.setCancelled(true);
-                    return;
-                }
+//                if (paginationHelper == null) {
+//                    player.sendMessage(Utils.getInstance().$("An error occurred. Please try again."));
+//                    DebugLogger.getInstance().log(Level.SEVERE, "PaginationHelper is null for player {0} in category {1}", new Object[]{player.getName(), selectedCategory.name()});
+//                    event.setCancelled(true);
+//                    return;
+//                }
 
                 boolean pageChanged = false;
 
                 if (clickType.isLeftClick()) {
-                    if (paginationHelper.hasPreviousPage()) {
-                        paginationHelper.previousPage();
-                        pageChanged = true;
-                        DebugLogger.getInstance().log(Level.INFO, "Player {0} moved to previous page: {1} in category: {2}",
-                                new Object[]{player.getName(), paginationHelper.getCurrentPage(), selectedCategory.name()});
-                    } else {
-                        player.sendMessage(Utils.getInstance().$("You are already on the first page."));
-                        DebugLogger.getInstance().log(Level.INFO, "Player {0} attempted to go to previous page but is already on the first page in category: {1}",
-                                new Object[]{player.getName(), selectedCategory.name()});
-                    }
+//                    if (paginationHelper.hasPreviousPage()) {
+//                        paginationHelper.previousPage();
+//                        pageChanged = true;
+//                        DebugLogger.getInstance().log(Level.INFO, "Player {0} moved to previous page: {1} in category: {2}",
+//                                new Object[]{player.getName(), paginationHelper.getCurrentPage(), selectedCategory.name()});
+//                    } else {
+//                        player.sendMessage(Utils.getInstance().$("You are already on the first page."));
+//                        DebugLogger.getInstance().log(Level.INFO, "Player {0} attempted to go to previous page but is already on the first page in category: {1}",
+//                                new Object[]{player.getName(), selectedCategory.name()});
+//                    }
                 } else if (clickType.isRightClick()) {
-                    if (paginationHelper.hasNextPage()) {
-                        paginationHelper.nextPage();
-                        pageChanged = true;
-                        DebugLogger.getInstance().log(Level.INFO, "Player {0} moved to next page: {1} in category: {2}",
-                                new Object[]{player.getName(), paginationHelper.getCurrentPage(), selectedCategory.name()});
-                    } else {
-                        player.sendMessage(Utils.getInstance().$("You are already on the last page."));
-                        DebugLogger.getInstance().log(Level.INFO, "Player {0} attempted to go to next page but is already on the last page in category: {1}",
-                                new Object[]{player.getName(), selectedCategory.name()});
-                    }
+//                    if (paginationHelper.hasNextPage()) {
+//                        paginationHelper.nextPage();
+//                        pageChanged = true;
+//                        DebugLogger.getInstance().log(Level.INFO, "Player {0} moved to next page: {1} in category: {2}",
+//                                new Object[]{player.getName(), paginationHelper.getCurrentPage(), selectedCategory.name()});
+//                    } else {
+//                        player.sendMessage(Utils.getInstance().$("You are already on the last page."));
+//                        DebugLogger.getInstance().log(Level.INFO, "Player {0} attempted to go to next page but is already on the last page in category: {1}",
+//                                new Object[]{player.getName(), selectedCategory.name()});
+//                    }
                 } else {
                     player.sendMessage(Utils.getInstance().$("Unsupported click type for pagination."));
                     DebugLogger.getInstance().log(Level.WARNING, "Player {0} used unsupported click type: {1} for pagination.",
@@ -311,18 +310,18 @@ public class BuyGUI {
     }
 
 
-    /**
-     * Handles pagination for the Buy GUI by creating or retrieving a PaginationHelper.
-     *
-     * @param player       The player for whom pagination is handled.
-     * @param auctionItems The list of auction items to paginate.
-     * @param category     The currently selected category.
-     * @return The PaginationHelper instance for the current page.
-     */
-    private PaginationHelper<ItemStack> handleBuyGuiPagination(Player player, List<ItemStack> auctionItems, Category category) {
-        PaginationHelper<ItemStack> paginationHelper = mainGUI.getBuyGuiPaginationHelper(player, category, auctionItems);
-        return paginationHelper;
-    }
+//    /**
+//     * Handles pagination for the Buy GUI by creating or retrieving a PaginationHelper.
+//     *
+//     * @param player       The player for whom pagination is handled.
+//     * @param auctionItems The list of auction items to paginate.
+//     * @param category     The currently selected category.
+//     * @return The PaginationHelper instance for the current page.
+//     */
+//    private PaginationHelper<ItemStack> handleBuyGuiPagination(Player player, List<ItemStack> auctionItems, Category category) {
+//        PaginationHelper<ItemStack> paginationHelper = mainGUI.getBuyGuiPaginationHelper(player, category, auctionItems);
+//        return paginationHelper;
+//    }
 
     /**
      * Prompts the player to enter a bid amount via chat.

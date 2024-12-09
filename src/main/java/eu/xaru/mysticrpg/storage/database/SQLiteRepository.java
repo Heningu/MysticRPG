@@ -1,12 +1,15 @@
+// File: eu/xaru/mysticrpg/storage/database/SQLiteRepository.java
 package eu.xaru.mysticrpg.storage.database;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import eu.xaru.mysticrpg.auctionhouse.Auction;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.Callback;
 import eu.xaru.mysticrpg.utils.DebugLogger;
-import org.json.JSONArray;
-import org.json.JSONObject;
+import org.bukkit.inventory.ItemStack;
 
+import java.lang.reflect.Type;
 import java.sql.*;
 import java.util.*;
 import java.util.logging.Level;
@@ -14,10 +17,11 @@ import java.util.logging.Level;
 public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDatabaseRepository {
 
     private final Connection connection;
-    
+    private final Gson gson;
 
     public SQLiteRepository(String databasePath) {
- 
+
+        this.gson = new Gson(); // Initialize Gson
         try {
             connection = DriverManager.getConnection("jdbc:sqlite:" + databasePath);
             initializeTables();
@@ -40,19 +44,19 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
                         "level INTEGER," +
                         "nextLevelXP INTEGER," +
                         "currentHp INTEGER," +
-                        "attributes TEXT," + // JSON or serialized string
-                        "unlockedRecipes TEXT," + // JSON or serialized string
-                        "friendRequests TEXT," + // JSON or serialized string
-                        "friends TEXT," + // JSON or serialized string
-                        "blockedPlayers TEXT," + // JSON or serialized string
+                        "attributes TEXT," + // JSON serialized string
+                        "unlockedRecipes TEXT," + // JSON serialized string
+                        "friendRequests TEXT," + // JSON serialized string
+                        "friends TEXT," + // JSON serialized string
+                        "blockedPlayers TEXT," + // JSON serialized string
                         "blockingRequests INTEGER," +
                         "attributePoints INTEGER," +
-                        "activeQuests TEXT," + // JSON or serialized string
-                        "questProgress TEXT," + // JSON or serialized string
-                        "completedQuests TEXT," + // JSON or serialized string
+                        "activeQuests TEXT," + // JSON serialized string
+                        "questProgress TEXT," + // JSON serialized string
+                        "completedQuests TEXT," + // JSON serialized string
                         "pinnedQuest TEXT," +
                         "pendingBalance REAL," +
-                        "pendingItems TEXT," + // JSON or serialized string
+                        "pendingItems TEXT," + // JSON serialized string
                         "remindersEnabled INTEGER" +
                         ");"
         );
@@ -300,81 +304,115 @@ public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDat
 
 
 
-    // Utility serialization/deserialization methods
-    // Implement these methods based on your serialization preference (e.g., JSON)
+    // Utility serialization/deserialization methods using Gson
 
+    /**
+     * Serializes a Map<String, Integer> to a JSON string.
+     *
+     * @param map The map to serialize.
+     * @return JSON representation of the map.
+     */
     private String serializeMap(Map<String, Integer> map) {
-        return new JSONObject(map).toString();
+        return gson.toJson(map);
     }
 
+    /**
+     * Deserializes a JSON string to a Map<String, Integer>.
+     *
+     * @param data The JSON string.
+     * @return The resulting map.
+     */
     private Map<String, Integer> deserializeMap(String data) {
-        Map<String, Integer> map = new HashMap<>();
-        if (data == null || data.isEmpty()) return map;
-        JSONObject json = new JSONObject(data);
-        for (String key : json.keySet()) {
-            map.put(key, json.getInt(key));
-        }
-        return map;
+        if (data == null || data.isEmpty()) return new HashMap<>();
+        Type type = new TypeToken<Map<String, Integer>>() {}.getType();
+        return gson.fromJson(data, type);
     }
 
+    /**
+     * Serializes a Map<String, Boolean> to a JSON string.
+     *
+     * @param map The map to serialize.
+     * @return JSON representation of the map.
+     */
     private String serializeMapBoolean(Map<String, Boolean> map) {
-        return new JSONObject(map).toString();
+        return gson.toJson(map);
     }
 
+    /**
+     * Deserializes a JSON string to a Map<String, Boolean>.
+     *
+     * @param data The JSON string.
+     * @return The resulting map.
+     */
     private Map<String, Boolean> deserializeMapBoolean(String data) {
-        Map<String, Boolean> map = new HashMap<>();
-        if (data == null || data.isEmpty()) return map;
-        JSONObject json = new JSONObject(data);
-        for (String key : json.keySet()) {
-            map.put(key, json.getBoolean(key));
-        }
-        return map;
+        if (data == null || data.isEmpty()) return new HashMap<>();
+        Type type = new TypeToken<Map<String, Boolean>>() {}.getType();
+        return gson.fromJson(data, type);
     }
 
+    /**
+     * Serializes a Set<String> to a JSON string.
+     *
+     * @param set The set to serialize.
+     * @return JSON representation of the set.
+     */
     private String serializeSet(Set<String> set) {
-        return new JSONArray(set).toString();
+        return gson.toJson(set);
     }
 
+    /**
+     * Deserializes a JSON string to a Set<String>.
+     *
+     * @param data The JSON string.
+     * @return The resulting set.
+     */
     private Set<String> deserializeSet(String data) {
-        Set<String> set = new HashSet<>();
-        if (data == null || data.isEmpty()) return set;
-        JSONArray json = new JSONArray(data);
-        for (int i = 0; i < json.length(); i++) {
-            set.add(json.getString(i));
-        }
-        return set;
+        if (data == null || data.isEmpty()) return new HashSet<>();
+        Type type = new TypeToken<Set<String>>() {}.getType();
+        return gson.fromJson(data, type);
     }
 
+    /**
+     * Serializes a List<String> to a JSON string.
+     *
+     * @param list The list to serialize.
+     * @return JSON representation of the list.
+     */
     private String serializeList(List<String> list) {
-        return new JSONArray(list).toString();
+        return gson.toJson(list);
     }
 
+    /**
+     * Deserializes a JSON string to a List<String>.
+     *
+     * @param data The JSON string.
+     * @return The resulting list.
+     */
     private List<String> deserializeList(String data) {
-        List<String> list = new ArrayList<>();
-        if (data == null || data.isEmpty()) return list;
-        JSONArray json = new JSONArray(data);
-        for (int i = 0; i < json.length(); i++) {
-            list.add(json.getString(i));
-        }
-        return list;
+        if (data == null || data.isEmpty()) return new ArrayList<>();
+        Type type = new TypeToken<List<String>>() {}.getType();
+        return gson.fromJson(data, type);
     }
 
+    /**
+     * Serializes a Map<String, Map<String, Integer>> to a JSON string.
+     *
+     * @param questProgress The map to serialize.
+     * @return JSON representation of the map.
+     */
     private String serializeQuestProgress(Map<String, Map<String, Integer>> questProgress) {
-        return new JSONObject(questProgress).toString();
+        return gson.toJson(questProgress);
     }
 
+    /**
+     * Deserializes a JSON string to a Map<String, Map<String, Integer>>.
+     *
+     * @param data The JSON string.
+     * @return The resulting map.
+     */
     private Map<String, Map<String, Integer>> deserializeQuestProgress(String data) {
-        Map<String, Map<String, Integer>> questProgress = new HashMap<>();
-        if (data == null || data.isEmpty()) return questProgress;
-        JSONObject json = new JSONObject(data);
-        for (String key : json.keySet()) {
-            JSONObject inner = json.getJSONObject(key);
-            Map<String, Integer> innerMap = new HashMap<>();
-            for (String innerKey : inner.keySet()) {
-                innerMap.put(innerKey, inner.getInt(innerKey));
-            }
-            questProgress.put(key, innerMap);
-        }
-        return questProgress;
+        if (data == null || data.isEmpty()) return new HashMap<>();
+        Type type = new TypeToken<Map<String, Map<String, Integer>>>() {}.getType();
+        return gson.fromJson(data, type);
     }
 }

@@ -2,7 +2,6 @@ package eu.xaru.mysticrpg.auctionhouse.guis;
 
 import eu.xaru.mysticrpg.auctionhouse.Auction;
 import eu.xaru.mysticrpg.auctionhouse.AuctionsGUI;
-import eu.xaru.mysticrpg.utils.PaginationHelper;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -89,7 +88,7 @@ public class YourAuctionsGUI {
         }).collect(Collectors.toList());
 
         // Handle pagination for Your Auctions GUI
-        PaginationHelper<ItemStack> paginationHelper = handleYourAuctionsGuiPagination(player, auctionItems);
+//        PaginationHelper<ItemStack> paginationHelper = handleYourAuctionsGuiPagination(player, auctionItems);
 
         // Create the inventory
         Inventory gui = Bukkit.createInventory(null, 54, Utils.getInstance().$("Your Auctions"));
@@ -98,7 +97,7 @@ public class YourAuctionsGUI {
         mainGUI.fillWithPlaceholdersBorderOnly(gui, Collections.singleton(YOUR_AUCTIONS_BACK_SLOT));
 
         // Get items for the current page
-        List<ItemStack> pageItems = paginationHelper.getCurrentPageItems();
+        List<ItemStack> pageItems = new ArrayList<>(auctionItems.subList(1, 1));
 
         // Place the auction items in the GUI
         for (int i = 0; i < pageItems.size() && i < AUCTION_SLOTS.length; i++) {
@@ -108,7 +107,7 @@ public class YourAuctionsGUI {
 
         // Create the page indicator with lore instructions
         ItemStack pageIndicator = mainGUI.createGuiItem(Material.PAPER,
-                ChatColor.GREEN + "Page " + paginationHelper.getCurrentPage() + " of " + paginationHelper.getTotalPages(),
+                ChatColor.GREEN + "Page " + 1 + " of " + 1,
                 Arrays.asList(
                         ChatColor.GRAY + "Left-click to go to the previous page",
                         ChatColor.GRAY + "Right-click to go to the next page"
@@ -142,25 +141,25 @@ public class YourAuctionsGUI {
             ClickType clickType = event.getClick();
 
             if (clickedSlot == YOUR_AUCTIONS_PAGE_INDICATOR_SLOT) { // Page Indicator slot
-                PaginationHelper<ItemStack> paginationHelper = mainGUI.getYourAuctionsPaginationMap().get(player.getUniqueId());
-                if (paginationHelper == null) return;
+//                PaginationHelper<ItemStack> paginationHelper = mainGUI.getYourAuctionsPaginationMap().get(player.getUniqueId());
+//                if (paginationHelper == null) return;
 
                 boolean pageChanged = false;
 
                 if (clickType.isLeftClick()) {
-                    if (paginationHelper.hasPreviousPage()) {
-                        paginationHelper.previousPage();
-                        pageChanged = true;
-                    } else {
-                        player.sendMessage(Utils.getInstance().$("You are already on the first page."));
-                    }
+//                    if (paginationHelper.hasPreviousPage()) {
+//                        paginationHelper.previousPage();
+//                        pageChanged = true;
+//                    } else {
+//                        player.sendMessage(Utils.getInstance().$("You are already on the first page."));
+//                    }
                 } else if (clickType.isRightClick()) {
-                    if (paginationHelper.hasNextPage()) {
-                        paginationHelper.nextPage();
-                        pageChanged = true;
-                    } else {
-                        player.sendMessage(Utils.getInstance().$("You are already on the last page."));
-                    }
+//                    if (paginationHelper.hasNextPage()) {
+//                        paginationHelper.nextPage();
+//                        pageChanged = true;
+//                    } else {
+//                        player.sendMessage(Utils.getInstance().$("You are already on the last page."));
+//                    }
                 }
 
                 if (pageChanged) {
@@ -198,27 +197,27 @@ public class YourAuctionsGUI {
         }
     }
 
-    /**
-     * Handles pagination for the Your Auctions GUI by creating or retrieving a PaginationHelper.
-     *
-     * @param player       The player for whom pagination is handled.
-     * @param auctionItems The list of auction items to paginate.
-     * @return The PaginationHelper instance for the current page.
-     */
-    private PaginationHelper<ItemStack> handleYourAuctionsGuiPagination(Player player, List<ItemStack> auctionItems) {
-        PaginationHelper<ItemStack> paginationHelper;
-
-        if (!mainGUI.getYourAuctionsPaginationMap().containsKey(player.getUniqueId())) {
-            paginationHelper = new PaginationHelper<>(auctionItems, 28);
-            mainGUI.getYourAuctionsPaginationMap().put(player.getUniqueId(), paginationHelper);
-        } else {
-            paginationHelper = mainGUI.getYourAuctionsPaginationMap().get(player.getUniqueId());
-            // Update the items in the pagination helper in case the auctions have changed
-            paginationHelper.updateItems(auctionItems);
-        }
-
-        return paginationHelper;
-    }
+//    /**
+//     * Handles pagination for the Your Auctions GUI by creating or retrieving a PaginationHelper.
+//     *
+//     * @param player       The player for whom pagination is handled.
+//     * @param auctionItems The list of auction items to paginate.
+//     * @return The PaginationHelper instance for the current page.
+//     */
+//    private PaginationHelper<ItemStack> handleYourAuctionsGuiPagination(Player player, List<ItemStack> auctionItems) {
+//        PaginationHelper<ItemStack> paginationHelper;
+//
+//        if (!mainGUI.getYourAuctionsPaginationMap().containsKey(player.getUniqueId())) {
+//            paginationHelper = new PaginationHelper<>(auctionItems, 28);
+//            mainGUI.getYourAuctionsPaginationMap().put(player.getUniqueId(), paginationHelper);
+//        } else {
+//            paginationHelper = mainGUI.getYourAuctionsPaginationMap().get(player.getUniqueId());
+//            // Update the items in the pagination helper in case the auctions have changed
+//            paginationHelper.updateItems(auctionItems);
+//        }
+//
+//        return paginationHelper;
+//    }
 
     /**
      * Formats the remaining time into a human-readable string.
