@@ -1,6 +1,7 @@
 package eu.xaru.mysticrpg.guis.invui.item;
 
 import org.bukkit.Material;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -30,5 +31,4 @@ public interface ItemProvider extends Supplier<@NotNull ItemStack>, Cloneable {
     default @NotNull ItemStack get() {
         return get(null);
     }
-    
 }

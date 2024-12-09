@@ -13,7 +13,7 @@ public class ReflectionUtils {
     
     public static <T> @NotNull Class<T> getImplClass(@NotNull String path) {
         try {
-            return (Class<T>) Class.forName("eu.xaru.mysticrpg.guis.exp.invaccess." + InventoryAccessRevision.REQUIRED_REVISION.getPackageName() + "." + path);
+            return (Class<T>) Class.forName("eu.xaru.mysticrpg.guis.exp.invaccess." + path);
         } catch (Throwable t) {
             throw new RuntimeException(t);
         }

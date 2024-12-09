@@ -1,152 +1,200 @@
 package eu.xaru.mysticrpg.guis;
 
-import eu.xaru.mysticrpg.utils.CustomInventoryManager;
-import eu.xaru.mysticrpg.utils.Utils;
-import org.bukkit.Bukkit;
+import eu.xaru.mysticrpg.auctionhouse.AuctionHouseModule;
+import eu.xaru.mysticrpg.guis.invui.gui.Gui;
+import eu.xaru.mysticrpg.guis.invui.item.Item;
+import eu.xaru.mysticrpg.guis.invui.item.ItemProvider;
+import eu.xaru.mysticrpg.guis.invui.item.builder.ItemBuilder;
+import eu.xaru.mysticrpg.guis.invui.item.impl.CommandItem;
+import eu.xaru.mysticrpg.guis.invui.item.impl.SimpleItem;
+import eu.xaru.mysticrpg.guis.invui.window.Window;
+import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
+import eu.xaru.mysticrpg.player.leveling.LevelModule;
+import eu.xaru.mysticrpg.player.stats.PlayerStatModule;
+import eu.xaru.mysticrpg.quests.QuestModule;
+import eu.xaru.mysticrpg.social.friends.FriendsModule;
+import eu.xaru.mysticrpg.social.party.PartyModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.SkullMeta;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.UUID;
+import java.util.logging.Level;
 
 /**
- * Represents the Main Menu GUI for the MysticRPG plugin.
+ * Represents the Main Menu GUI for the MysticRPG plugin using InvUI.
  */
 public class MainMenu {
 
-    private static final String INVENTORY_TITLE = "Main Menu";
-    private static final int INVENTORY_SIZE = 54;
+    private final AuctionHouseModule auctionHouse;
+    private final EquipmentModule equipmentModule;
+    private final LevelModule levelingModule;
+    private final PlayerStatModule playerStat;
+    private final QuestModule questModule;
+    private final FriendsModule friendsModule;
+    private final PartyModule partyModule;
+
+    private final Gui gui;
 
     /**
-     * Creates and returns the main menu inventory for the specified player.
+     * Constructor for MainMenu. Initializes module references and builds the GUI.
      *
-     * @param player The player who is opening the GUI.
-     * @return The Inventory instance representing the main menu.
+     * @param auctionHouse    The AuctionHouseModule instance.
+     * @param equipmentModule The EquipmentModule instance.
+     * @param levelingModule  The LevelModule instance.
+     * @param playerStat      The PlayerStatModule instance.
+     * @param questModule     The QuestModule instance.
+     * @param friendsModule   The FriendsModule instance.
+     * @param partyModule     The PartyModule instance.
      */
-    public Inventory getInventory(Player player) {
-        Inventory mainMenu = CustomInventoryManager.createInventory(INVENTORY_SIZE, INVENTORY_TITLE);
+    public MainMenu(
+            AuctionHouseModule auctionHouse,
+            EquipmentModule equipmentModule,
+            LevelModule levelingModule,
+            PlayerStatModule playerStat,
+            QuestModule questModule,
+            FriendsModule friendsModule,
+            PartyModule partyModule
+    ) {
+        this.auctionHouse = auctionHouse;
+        this.equipmentModule = equipmentModule;
+        this.levelingModule = levelingModule;
+        this.playerStat = playerStat;
+        this.questModule = questModule;
+        this.friendsModule = friendsModule;
+        this.partyModule = partyModule;
 
-        // Create the Auctions item
-        ItemStack auctionsItem = CustomInventoryManager.createPlaceholder(Material.CHEST, ChatColor.GREEN + "Auctions");
-        CustomInventoryManager.setItemLore(auctionsItem, Arrays.asList(
-                ChatColor.GRAY + "Click to access the Auctions",
-                ChatColor.GRAY + "house and manage your listings."
-        ));
-
-        // Add the Auctions item to slot 11 (center-left)
-        CustomInventoryManager.addItemToSlot(mainMenu, 11, auctionsItem);
-
-        // Create the Equipment item
-        ItemStack equipmentItem = CustomInventoryManager.createPlaceholder(Material.DIAMOND_CHESTPLATE, ChatColor.AQUA + "Equipment");
-        CustomInventoryManager.setItemLore(equipmentItem, Arrays.asList(
-                ChatColor.GRAY + "Click to manage your",
-                ChatColor.GRAY + "equipment and gear."
-        ));
-
-        // Add the Equipment item to slot 15 (center-right)
-        CustomInventoryManager.addItemToSlot(mainMenu, 15, equipmentItem);
-
-        // Create the Leveling item
-        ItemStack levelingItem = CustomInventoryManager.createPlaceholder(Material.EXPERIENCE_BOTTLE, ChatColor.LIGHT_PURPLE + "Leveling");
-        CustomInventoryManager.setItemLore(levelingItem, Arrays.asList(
-                ChatColor.GRAY + "Click to view and",
-                ChatColor.GRAY + "manage your leveling progress."
-        ));
-
-        // Add the Leveling item to slot 13 (center)
-        CustomInventoryManager.addItemToSlot(mainMenu, 13, levelingItem);
-
-        // Create the Stats item
-        ItemStack statsItem = CustomInventoryManager.createPlaceholder(Material.BOOK, ChatColor.BLUE + "Stats");
-        CustomInventoryManager.setItemLore(statsItem, Arrays.asList(
-                ChatColor.GRAY + "Click to view and",
-                ChatColor.GRAY + "enhance your attributes."
-        ));
-
-        // Add the Stats item to slot 22 (bottom-left)
-        CustomInventoryManager.addItemToSlot(mainMenu, 22, statsItem);
-
-        // **Create the Quests item**
-        ItemStack questsItem = CustomInventoryManager.createPlaceholder(Material.WRITABLE_BOOK, ChatColor.GOLD + "Quests");
-        CustomInventoryManager.setItemLore(questsItem, Arrays.asList(
-                ChatColor.GRAY + "Click to view and",
-                ChatColor.GRAY + "manage your quests."
-        ));
-
-        // **Add the Quests item to slot 16 (bottom-right)**
-        CustomInventoryManager.addItemToSlot(mainMenu, 16, questsItem);
-
-        // **Create the Friends item (Player Head)**
-        ItemStack friendsItem = createPlayerHead(player, "Friends");
-        CustomInventoryManager.setItemLore(friendsItem, Arrays.asList(
-                ChatColor.GRAY + "Click to view and",
-                ChatColor.GRAY + "manage your friends."
-        ));
-
-        // **Add the Friends item to slot 19 (adjust as needed)**
-        CustomInventoryManager.addItemToSlot(mainMenu, 19, friendsItem);
-
-        // **Create the Party item (Cake)**
-        ItemStack partyItem = createPartyCake("Party");
-        CustomInventoryManager.setItemLore(partyItem, Arrays.asList(
-                ChatColor.GRAY + "Click to view and",
-                ChatColor.GRAY + "manage your parties."
-        ));
-
-        // **Add the Party item to slot 25 (adjust as needed)**
-        CustomInventoryManager.addItemToSlot(mainMenu, 25, partyItem);
-
-        // You can add more items to the main menu here following the same pattern
-        // Example: Leaderboards, Settings, etc.
-
-        // Fill remaining empty slots with placeholder items (optional)
-        ItemStack placeholder = CustomInventoryManager.createPlaceholder(Material.GRAY_STAINED_GLASS_PANE, " ");
-        CustomInventoryManager.fillEmptySlots(mainMenu, placeholder);
-
-        return mainMenu;
+        this.gui = buildGui();
     }
 
     /**
-     * Creates a player head for the specified player with a given display name.
+     * Builds the Main Menu GUI using InvUI's GuiBuilder.
      *
-     * @param player      The player whose head will be displayed.
-     * @param displayName The display name for the player head.
-     * @return The player head ItemStack.
+     * @return The constructed Gui instance.
      */
-    private ItemStack createPlayerHead(Player player, String displayName) {
-        ItemStack head = new ItemStack(Material.PLAYER_HEAD);
-        SkullMeta meta = (SkullMeta) head.getItemMeta();
-        if (meta != null) {
-            meta.setOwningPlayer(player);
-            meta.setDisplayName(Utils.getInstance().$(displayName));
-            // Embed UUID in lore for identification (optional, can be useful for event handling)
-            meta.setLore(Collections.singletonList(player.getUniqueId().toString()));
-            head.setItemMeta(meta);
-        }
-        return head;
-    }
+    public Gui buildGui() {
 
-    /**
-     * Creates a Cake item for the "Party" button with a specified display name.
-     *
-     * @param displayName The display name for the cake.
-     * @return The Cake ItemStack.
-     */
-    private ItemStack createPartyCake(String displayName) {
-        ItemStack cake = new ItemStack(Material.CAKE);
-        ItemMeta meta = cake.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(Utils.getInstance().$(displayName));
-            // Optionally, add lore or other meta data
-            cake.setItemMeta(meta);
-        }
-        return cake;
+        // Define the structure using InvUI's Structure-like approach
+        // For simplicity, we'll manually set items in specific slots
+
+        Item border = new SimpleItem(new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE));
+
+
+        Gui builder = Gui.normal().setStructure(
+                        "# # # # # # # # #",
+                        "# . . . . . . . #",
+                        "# . . . . . . . #",
+                        "# # # # # # # # #")
+                .addIngredient('#', border)
+                .build();
+
+        return builder;
+
     }
 }
+
+//        // Create and add interactive items
+//        // Slot indices: 0-53 (9x6 grid)
+//
+//        // Auctions - Slot 11
+//        CommandItem auctionsItem = new CommandItem(new ItemStack(Material.CHEST), (player, clickType) -> {
+//            auctionHouse.openAuctionGUI(player);
+//            DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Auctions GUI from Main Menu.", 0);
+//        });
+//        auctionsItem.setDisplayName(ChatColor.GREEN + "Auctions");
+//        auctionsItem.setLore(Arrays.asList(
+//                ChatColor.GRAY + "Click to access the Auctions",
+//                ChatColor.GRAY + "house and manage your listings."
+//        ));
+//        builder.setItem(11, auctionsItem);
+//
+//        // Equipment - Slot 15
+//        CommandItem equipmentItem = new CommandItem(new ItemStack(Material.DIAMOND_CHESTPLATE), (player, clickType) -> {
+//            equipmentModule.getEquipmentManager().getEquipmentGUI().open(player);
+//            DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Equipment GUI from Main Menu.", 0);
+//        });
+//        equipmentItem.setDisplayName(ChatColor.AQUA + "Equipment");
+//        equipmentItem.setLore(Arrays.asList(
+//                ChatColor.GRAY + "Click to manage your",
+//                ChatColor.GRAY + "equipment and gear."
+//        ));
+//        builder.setItem(15, equipmentItem);
+//
+//        // Leveling - Slot 13
+//        CommandItem levelingItem = new CommandItem(new ItemStack(Material.EXPERIENCE_BOTTLE), (player, clickType) -> {
+//            levelingModule.getLevelingMenu().openLevelingMenu(player, 1);
+//            DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Leveling GUI from Main Menu.", 0);
+//        });
+//        levelingItem.setDisplayName(ChatColor.LIGHT_PURPLE + "Leveling");
+//        levelingItem.setLore(Arrays.asList(
+//                ChatColor.GRAY + "Click to view and",
+//                ChatColor.GRAY + "manage your leveling progress."
+//        ));
+//        builder.setItem(13, levelingItem);
+//
+//        // Stats - Slot 22
+//        CommandItem statsItem = new CommandItem(new ItemStack(Material.BOOK), (player, clickType) -> {
+//            playerStat.getPlayerStatMenu().openStatMenu(player);
+//            DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Stats GUI from Main Menu.", 0);
+//        });
+//        statsItem.setDisplayName(ChatColor.BLUE + "Stats");
+//        statsItem.setLore(Arrays.asList(
+//                ChatColor.GRAY + "Click to view and",
+//                ChatColor.GRAY + "enhance your attributes."
+//        ));
+//        builder.setItem(22, statsItem);
+//
+//        // Quests - Slot 16
+//        CommandItem questsItem = new CommandItem(new ItemStack(Material.WRITABLE_BOOK), (player, clickType) -> {
+//            questModule.openQuestGUI(player);
+//            DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Quest GUI from Main Menu.", 0);
+//        });
+//        questsItem.setDisplayName(ChatColor.GOLD + "Quests");
+//        questsItem.setLore(Arrays.asList(
+//                ChatColor.GRAY + "Click to view and",
+//                ChatColor.GRAY + "manage your quests."
+//        ));
+//        builder.setItem(16, questsItem);
+//
+//        // Friends - Slot 19
+//        CommandItem friendsItem = new CommandItem(new ItemStack(Material.PLAYER_HEAD), (player, clickType) -> {
+//            friendsModule.openFriendsGUI(player);
+//            DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Friends GUI from Main Menu.", 0);
+//        });
+//        friendsItem.setDisplayName(ChatColor.YELLOW + "Friends");
+//        friendsItem.setLore(Arrays.asList(
+//                ChatColor.GRAY + "Click to view and",
+//                ChatColor.GRAY + "manage your friends."
+//        ));
+//        builder.setItem(19, friendsItem);
+//
+//        // Party - Slot 25
+//        CommandItem partyItem = new CommandItem(new ItemStack(Material.CAKE), (player, clickType) -> {
+//            partyModule.openPartyGUI(player);
+//            DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Party GUI from Main Menu.", 0);
+//        });
+//        partyItem.setDisplayName(ChatColor.PINK + "Party");
+//        partyItem.setLore(Arrays.asList(
+//                ChatColor.GRAY + "Click to view and",
+//                ChatColor.GRAY + "manage your parties."
+//        ));
+//        builder.setItem(25, partyItem);
+//
+//        // Fill remaining slots with placeholders
+//        // Already handled by setBackground in builder
+//
+//        return builder.build();
+//    }
+//
+//    /**
+//     * Opens the Main Menu GUI for the specified player.
+//     *
+//     * @param player The player to open the GUI for.
+//     */
+//    public void open(Player player) {
+//        gui.open(player);
+//    }
