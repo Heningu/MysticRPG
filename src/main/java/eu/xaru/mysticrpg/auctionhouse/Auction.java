@@ -14,8 +14,8 @@ public class Auction {
     private UUID auctionId;
     private UUID seller;
     private String itemData; // Serialized ItemStack
-    private double startingPrice;
-    private double currentBid;
+    private int startingPrice;
+    private int currentBid;
     private UUID highestBidder;
     private long endTime;
     private boolean isBidItem; // Indicates if the auction allows bidding
@@ -28,7 +28,7 @@ public class Auction {
     }
 
     // Constructor for fixed-price auction
-    public Auction(UUID auctionId, UUID seller, ItemStack item, double price, long endTime) {
+    public Auction(UUID auctionId, UUID seller, ItemStack item, int price, long endTime) {
         this.auctionId = auctionId;
         this.seller = seller;
         this.item = item;
@@ -40,7 +40,7 @@ public class Auction {
     }
 
     // Constructor for bidding auction
-    public Auction(UUID auctionId, UUID seller, ItemStack item, double startingPrice, long endTime, boolean isBidItem) {
+    public Auction(UUID auctionId, UUID seller, ItemStack item, int startingPrice, long endTime, boolean isBidItem) {
         this.auctionId = auctionId;
         this.seller = seller;
         this.item = item;
@@ -81,19 +81,19 @@ public class Auction {
         this.itemData = serializeItemStack(item);
     }
 
-    public double getStartingPrice() {
+    public int getStartingPrice() {
         return startingPrice;
     }
 
-    public void setStartingPrice(double startingPrice) {
+    public void setStartingPrice(int startingPrice) {
         this.startingPrice = startingPrice;
     }
 
-    public double getCurrentBid() {
+    public int getCurrentBid() {
         return currentBid;
     }
 
-    public void setCurrentBid(double currentBid) {
+    public void setCurrentBid(int currentBid) {
         this.currentBid = currentBid;
     }
 
@@ -148,7 +148,7 @@ public class Auction {
      *
      * @return The current highest bid.
      */
-    public double getHighestBid() {
+    public int getHighestBid() {
         return this.getCurrentBid();
     }
 
@@ -157,7 +157,7 @@ public class Auction {
      *
      * @param highestBid The new highest bid amount.
      */
-    public void setHighestBid(double highestBid) {
+    public void setHighestBid(int highestBid) {
         this.setCurrentBid(highestBid);
     }
 }

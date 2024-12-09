@@ -12,6 +12,9 @@ import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.utils.DebugLogger;
+import net.luckperms.api.LuckPerms;
+import net.luckperms.api.LuckPermsProvider;
+import net.luckperms.api.model.user.User;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -20,13 +23,11 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.*;
 
 import java.util.*;
-
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 /**
- * Custom ScoreboardManager to handle player scoreboards.
+ * Custom ScoreboardManager to handle shared and per-player scoreboards.
  */
 public class ScoreboardManager {
 
@@ -35,8 +36,20 @@ public class ScoreboardManager {
     private final EconomyHelper economyHelper;
     private final QuestManager questManager;
     private final PlayerDataCache playerDataCache;
+    private ChatFormatter chatFormatter;
+
+
+    // Map of player UUID to their per-player scoreboard
     private final Map<UUID, Scoreboard> playerScoreboards = new HashMap<>();
+
+    // Set to track all online players for team management
+    private final Set<UUID> onlinePlayerUUIDs = new HashSet<>();
+
+    // Map of player UUID to their own side data entries
     private final Map<UUID, Set<String>> playerEntries = new HashMap<>();
+
+    // To prevent multiple scheduled tasks
+    private final AtomicBoolean isScheduled = new AtomicBoolean(false);
 
     /**
      * Constructs a new ScoreboardManager instance.
@@ -65,26 +78,139 @@ public class ScoreboardManager {
             this.playerDataCache = null;
             DebugLogger.getInstance().warning("[MysticRPG] SaveModule not found. Player data will not be loaded.");
         }
+        this.chatFormatter = new ChatFormatter();
 
+
+
+
+
+        // Initialize for existing online players
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            onlinePlayerUUIDs.add(player.getUniqueId());
+            createScoreboardForPlayer(player);
+            createOrUpdateTeam(player);
+            updatePlayerScoreboard(player);
+        }
+
+        // Start the scoreboard updater
         startScoreboardUpdater();
     }
 
     /**
-     * Starts a repeating task to update all players' scoreboards.
+     * Starts a scheduled task to update all players' scoreboards periodically.
      */
     private void startScoreboardUpdater() {
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                for (Player player : Bukkit.getOnlinePlayers()) {
-                    updatePlayerScoreboard(player);
+        if (isScheduled.compareAndSet(false, true)) {
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    for (Player player : Bukkit.getOnlinePlayers()) {
+                        createOrUpdateTeam(player); // Update team data first
+                        updatePlayerScoreboard(player); // Then update scoreboard
+                    }
                 }
-            }
-        }.runTaskTimer(plugin, 0L, 20L); // Update every second (20 ticks)
+            }.runTaskTimer(plugin, 0L, 20L); // Update every second (20 ticks)
+            DebugLogger.getInstance().log("[MysticRPG] Scoreboard updater started, updating scoreboards every second.");
+        }
     }
 
     /**
-     * Updates the scoreboard for a specific player.
+     * Creates a scoreboard for the player if it doesn't already exist.
+     *
+     * @param player The player to create a scoreboard for.
+     */
+    public void createScoreboardForPlayer(Player player) {
+        UUID uuid = player.getUniqueId();
+        if (!playerScoreboards.containsKey(uuid)) {
+            Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
+            playerScoreboards.put(uuid, scoreboard);
+            DebugLogger.getInstance().log("[MysticRPG] Created side scoreboard for player " + player.getName());
+
+            // Create and assign side data to the scoreboard
+            setupPerPlayerScoreboard(scoreboard, player);
+
+            // Add all existing players to the new player's scoreboard
+            for (UUID otherUUID : onlinePlayerUUIDs) {
+                Player otherPlayer = Bukkit.getPlayer(otherUUID);
+                if (otherPlayer != null && otherPlayer.isOnline()) {
+                    addPlayerToScoreboard(scoreboard, otherPlayer);
+                }
+            }
+
+            // Assign the scoreboard to the player
+            player.setScoreboard(scoreboard);
+        }
+    }
+
+    /**
+     * Sets up the per-player scoreboard with side data.
+     *
+     * @param scoreboard The player's scoreboard.
+     * @param player     The player.
+     */
+    private void setupPerPlayerScoreboard(Scoreboard scoreboard, Player player) {
+        // Ensure the main sidebar objective is set up
+        Objective objective = scoreboard.getObjective("mysticSidebar");
+        if (objective == null) {
+            objective = scoreboard.registerNewObjective("mysticSidebar", "dummy",
+                    ChatColor.translateAlternateColorCodes('&', "け"));
+            objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+        }
+
+        // Initialize entries set
+        playerEntries.put(player.getUniqueId(), new HashSet<>());
+    }
+
+    /**
+     * Adds a player to a specific scoreboard's teams.
+     *
+     * @param scoreboard The scoreboard to modify.
+     * @param player     The player whose team is to be added.
+     */
+    private void addPlayerToScoreboard(Scoreboard scoreboard, Player player) {
+        UUID uuid = player.getUniqueId();
+        String teamName = "team_" + uuid.toString();
+
+        Team team = scoreboard.getTeam(teamName);
+        if (team == null) {
+            team = scoreboard.registerNewTeam(teamName);
+            DebugLogger.getInstance().log("[MysticRPG] Created new team '" + teamName + "' in scoreboard.");
+        }
+
+        // Set prefix and suffix
+        String prefix = getPrefixFromLuckPerms(player);
+        String suffix = ChatColor.BLACK + " [" + ChatColor.GREEN + "LVL" + ChatColor.RED + getPlayerLevel(uuid) + ChatColor.BLACK + "]";
+
+        team.setPrefix(prefix + " ");
+        team.setSuffix(suffix);
+
+        // Add the player's name to their team in this scoreboard
+        if (!team.hasEntry(player.getName())) {
+            team.addEntry(player.getName());
+            DebugLogger.getInstance().log("[MysticRPG] Added player " + player.getName() + " to team '" + teamName + "' in scoreboard.");
+        }
+    }
+
+    /**
+     * Removes a player from a specific scoreboard's teams.
+     *
+     * @param scoreboard The scoreboard to modify.
+     * @param player     The player whose team is to be removed.
+     */
+    private void removePlayerFromScoreboard(Scoreboard scoreboard, Player player) {
+        UUID uuid = player.getUniqueId();
+        String teamName = "team_" + uuid.toString();
+
+        Team team = scoreboard.getTeam(teamName);
+        if (team != null) {
+            team.removeEntry(player.getName());
+            team.unregister();
+            DebugLogger.getInstance().log("[MysticRPG] Removed player " + player.getName() + " from team '" + teamName + "' in scoreboard.");
+        }
+    }
+
+    /**
+     * Updates the scoreboard for a specific player with their own side data.
      *
      * @param player The player whose scoreboard to update.
      */
@@ -96,15 +222,16 @@ public class ScoreboardManager {
 
         Scoreboard scoreboard = playerScoreboards.get(player.getUniqueId());
         if (scoreboard == null) {
-            scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
-            playerScoreboards.put(player.getUniqueId(), scoreboard);
+            createScoreboardForPlayer(player);
+            scoreboard = playerScoreboards.get(player.getUniqueId());
+            if (scoreboard == null) return; // Failed to create
         }
 
-        // Ensure the main sidebar objective is set up
+        // Get the sidebar objective
         Objective objective = scoreboard.getObjective("mysticSidebar");
         if (objective == null) {
             objective = scoreboard.registerNewObjective("mysticSidebar", "dummy",
-                     "[" + "Mystic" + "RPG" + "]");
+                    ChatColor.translateAlternateColorCodes('&', "け"));
             objective.setDisplaySlot(DisplaySlot.SIDEBAR);
         }
 
@@ -114,58 +241,93 @@ public class ScoreboardManager {
             for (String entry : entries) {
                 scoreboard.resetScores(entry);
             }
+            entries.clear();
         }
 
         Set<String> newEntries = new HashSet<>();
 
         // Populate scoreboard with player stats
-        // Unique separator lines
-        String separatorLine1 = "------------------------------" + ChatColor.RESET;
+
+
+        // First seperation line LINE 1
+
+        String separatorLine1 = "げげ";
         objective.getScore(separatorLine1).setScore(15);
         newEntries.add(separatorLine1);
 
-        // Your Stats:
-        String yourStats = "Your Stats:";
-        objective.getScore(yourStats).setScore(14);
+        // First empty spaceholder line LINE 2
+
+        String firstemptyline = "  ";
+        objective.getScore(firstemptyline).setScore(14);
+        newEntries.add(firstemptyline);
+
+        // Your Statistics LINE 3
+        String yourStats = "ぁ YOUR STATS";
+        objective.getScore(yourStats).setScore(13);
         newEntries.add(yourStats);
 
         // Level
         int level = playerData.getLevel();
-        String levelEntry = "» " + "Level: " + + level;
-        objective.getScore(levelEntry).setScore(13);
-        newEntries.add(levelEntry);
+
+        if( level <= 10){
+            String levelEntry = "   あ LEVEL " + ChatColor.WHITE + level;
+            objective.getScore(levelEntry).setScore(12);
+            newEntries.add(levelEntry);
+        } else if(level > 10 && level <= 20){
+            String levelEntry = "   あ LEVEL " + ChatColor.GREEN + level;
+            objective.getScore(levelEntry).setScore(12);
+            newEntries.add(levelEntry);
+        } else if(level > 20 && level < 25){
+            String levelEntry = "   あ LEVEL " + ChatColor.GOLD + level;
+            objective.getScore(levelEntry).setScore(12);
+            newEntries.add(levelEntry);
+        } else if(level == 25){
+            String levelEntry = "   あ LEVEL " + ChatColor.RED + "MAXEDぅ";
+            objective.getScore(levelEntry).setScore(12);
+            newEntries.add(levelEntry);
+        }
 
         // XP Needed
         int currentXp = playerData.getXp();
-        int xpNeeded = levelModule != null ? levelModule.getLevelThreshold(level + 1) : 0;
-        String xpEntry = "» " +  "XP: " + currentXp + "/" + xpNeeded;
-        objective.getScore(xpEntry).setScore(12);
+        int xpNeeded = levelModule != null ? levelModule.getLevelThreshold(level + 1) : 100;
+        String xpEntry = ChatColor.RED + "   あ " + ChatColor.WHITE + "XP " + ChatColor.GREEN + currentXp + ChatColor.WHITE + "/" + ChatColor.GOLD + xpNeeded;
+        objective.getScore(xpEntry).setScore(11);
         newEntries.add(xpEntry);
 
         // Balance
-        double balance = economyHelper != null ? economyHelper.getBalance(player) : 0.0;
-        String formattedBalance = economyHelper != null ? economyHelper.formatBalance(balance) : "0.00";
-        String balanceEntry = "» " +  "Balance: $"  + formattedBalance;
-        objective.getScore(balanceEntry).setScore(11);
+        int balance = economyHelper.getBalance(player);
+        String balanceEntry = ChatColor.YELLOW + "   い " + ChatColor.WHITE + balance + ChatColor.GOLD + " Gold";
+        objective.getScore(balanceEntry).setScore(10);
         newEntries.add(balanceEntry);
 
-        // Empty line (make it unique)
-        String emptyLine =  " ";
-        objective.getScore(emptyLine).setScore(10);
-        newEntries.add(emptyLine);
+        String secondemptyline = "   ";
+        objective.getScore(secondemptyline).setScore(9);
+        newEntries.add(secondemptyline);
 
-        // Your Pinned Quest:
-        String pinnedQuestTitle = "Your Pinned Quest:";
-        objective.getScore(pinnedQuestTitle).setScore(9);
-        newEntries.add(pinnedQuestTitle);
+        String information = "ぇ INFORMATION";
+        objective.getScore(information).setScore(8);
+        newEntries.add(information);
+
+        //RANK
+
+        String yourRank = "   え " + chatFormatter.getPrefixFromLuckPerms(player);
+        objective.getScore(yourRank).setScore(7);
+        newEntries.add(yourRank);
+
+        String yourpet = "   シ NO PET";
+        objective.getScore(yourpet).setScore(5);
+        newEntries.add(yourpet);
+
+
+        // Pinned quest
 
         String pinnedQuestId = playerData.getPinnedQuest();
         if (pinnedQuestId != null && questManager != null) {
             Quest pinnedQuest = questManager.getQuest(pinnedQuestId);
             if (pinnedQuest != null) {
                 // Quest Name
-                String questNameEntry =  pinnedQuest.getName();
-                objective.getScore(questNameEntry).setScore(8);
+                String questNameEntry = ChatColor.AQUA + pinnedQuest.getName();
+                objective.getScore(questNameEntry).setScore(3);
                 newEntries.add(questNameEntry);
 
                 // Objective and Progress
@@ -185,35 +347,44 @@ public class ScoreboardManager {
                     String formattedObjective = formatObjectiveKey(objectiveKey);
 
                     // Ensure uniqueness by adding color codes
-                    String objectiveDisplay =  formattedObjective + ": "  + currentProgress + "/" + required;
+                    String objectiveDisplay = "   う " + ChatColor.GRAY + formattedObjective + ": " + ChatColor.WHITE + currentProgress + "/" + required;
                     objective.getScore(objectiveDisplay).setScore(scoreIndex);
                     newEntries.add(objectiveDisplay);
                     scoreIndex--;
                     if (scoreIndex < 2) break; // Adjusted to fit in the scoreboard
                 }
             } else {
-                String noPinnedQuestEntry =  "No Pinned Quest" + ChatColor.RESET;
-                objective.getScore(noPinnedQuestEntry).setScore(8);
+                String noPinnedQuestEntry = "   う " + ChatColor.RED + "No Pinned Quest";
+                objective.getScore(noPinnedQuestEntry).setScore(3);
                 newEntries.add(noPinnedQuestEntry);
             }
         } else {
-            String noPinnedQuestEntry =  "No Pinned Quest" + ChatColor.RESET;
-            objective.getScore(noPinnedQuestEntry).setScore(8);
+            String noPinnedQuestEntry = "   う " + ChatColor.RED + "No Pinned Quest";
+            objective.getScore(noPinnedQuestEntry).setScore(3);
             newEntries.add(noPinnedQuestEntry);
         }
 
+
+
+
+        String thirdemptyline = "    ";
+        objective.getScore(thirdemptyline).setScore(2);
+        newEntries.add(thirdemptyline);
+
+
         // Second unique separator line
-        String separatorLine2 =  "------------------------------" + ChatColor.DARK_GRAY;
+        String separatorLine2 ="げげ ";
         objective.getScore(separatorLine2).setScore(1);
         newEntries.add(separatorLine2);
 
-        // www.xaru.eu
-        String websiteEntry =  "www.xaru.eu";
+        // Website
+        String websiteEntry = ChatColor.DARK_GRAY + "さ";
         objective.getScore(websiteEntry).setScore(0);
         newEntries.add(websiteEntry);
 
         playerEntries.put(player.getUniqueId(), newEntries);
 
+        // Assign the scoreboard to the player
         player.setScoreboard(scoreboard);
     }
 
@@ -255,65 +426,180 @@ public class ScoreboardManager {
     }
 
     /**
-     * Retrieves the PlayerDataCache instance from the SaveModule.
+     * Retrieves the prefix from LuckPerms for the specified player.
      *
-     * @return The PlayerDataCache instance, or null if not available.
+     * @param player The player whose prefix is to be retrieved.
+     * @return The prefix string, or an empty string if not set.
      */
-    private PlayerDataCache getPlayerDataCache() {
-        SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
-        if (saveModule != null) {
-            return saveModule.getPlayerDataCache();
+    private String getPrefixFromLuckPerms(Player player) {
+        LuckPerms luckPerms = LuckPermsProvider.get();
+        if (luckPerms == null) {
+            DebugLogger.getInstance().warning("[MysticRPG] LuckPerms not found. Unable to retrieve prefix for " + player.getName());
+            return "";
         }
-        return null;
+
+        User user = luckPerms.getUserManager().getUser(player.getUniqueId());
+        if (user == null) {
+            // User might not be cached; attempt to load
+            user = luckPerms.getUserManager().loadUser(player.getUniqueId()).join();
+            if (user == null) {
+                DebugLogger.getInstance().warning("[MysticRPG] Could not load LuckPerms user data for " + player.getName());
+                return "";
+            }
+        }
+
+        // Retrieve the highest priority prefix
+        String prefix = user.getCachedData().getMetaData().getPrefix();
+        if (prefix == null) {
+            return "";
+        }
+
+        // Translate color codes and return
+        return ChatColor.translateAlternateColorCodes('&', prefix);
     }
 
     /**
-     * Retrieves a player's specific Scoreboard.
+     * Retrieves a player's current level.
      *
      * @param uuid The UUID of the player.
-     * @return The player's Scoreboard, or null if not found.
+     * @return The player's level, or 1 if not found.
      */
-    public Scoreboard getPlayerScoreboard(UUID uuid) {
-        return playerScoreboards.get(uuid);
+    public int getPlayerLevel(UUID uuid) {
+        if (playerDataCache == null) return 1;
+        PlayerData playerData = playerDataCache.getCachedPlayerData(uuid);
+        if (playerData == null) return 1;
+        return playerData.getLevel();
     }
 
     /**
-     * Retrieves a player's specific Scoreboard.
-     *
-     * @param player The player.
-     * @return The player's Scoreboard, or null if not found.
-     */
-    public Scoreboard getPlayerScoreboard(Player player) {
-        return getPlayerScoreboard(player.getUniqueId());
-    }
-
-    /**
-     * Cleans up all Scoreboard Teams managed by this ScoreboardManager.
+     * Cleans up all Scoreboard Teams and objectives managed by this ScoreboardManager.
      * This should be called during module unload to prevent memory leaks.
      */
     public void cleanup() {
-        for (Scoreboard scoreboard : playerScoreboards.values()) {
+        // Clean up all teams and objectives from all per-player scoreboards
+        for (Map.Entry<UUID, Scoreboard> entry : playerScoreboards.entrySet()) {
+            Scoreboard scoreboard = entry.getValue();
             if (scoreboard != null) {
                 for (Team team : scoreboard.getTeams()) {
                     team.unregister();
+                }
+
+                for (Objective objective : scoreboard.getObjectives()) {
+                    objective.unregister();
                 }
             }
         }
         playerScoreboards.clear();
         playerEntries.clear();
+        onlinePlayerUUIDs.clear();
+        DebugLogger.getInstance().log("[MysticRPG] ScoreboardManager cleanup called. Cleared all scoreboards.");
     }
 
     /**
-     * Creates a scoreboard for the player if it doesn't already exist.
+     * Adds a new player to all existing per-player scoreboards' teams.
      *
-     * @param player The player to create a scoreboard for.
+     * @param newPlayer The new player to add.
      */
-    public void createScoreboardForPlayer(Player player) {
+    public void addNewPlayer(Player newPlayer) {
+        UUID newUUID = newPlayer.getUniqueId();
+        onlinePlayerUUIDs.add(newUUID);
+        createScoreboardForPlayer(newPlayer);
+        createOrUpdateTeam(newPlayer);
+
+        // Add the new player's team to all existing players' scoreboards
+        for (Map.Entry<UUID, Scoreboard> entry : playerScoreboards.entrySet()) {
+            UUID targetUUID = entry.getKey();
+            Scoreboard scoreboard = entry.getValue();
+
+            if (targetUUID.equals(newUUID)) continue; // Already handled
+
+            Player targetPlayer = Bukkit.getPlayer(targetUUID);
+            if (targetPlayer != null && targetPlayer.isOnline()) {
+                addPlayerToScoreboard(scoreboard, newPlayer);
+            }
+        }
+    }
+
+    /**
+     * Removes a player from all existing per-player scoreboards' teams and cleans up their scoreboard.
+     *
+     * @param departingPlayer The player to remove.
+     */
+    public void removePlayer(Player departingPlayer) {
+        UUID departingUUID = departingPlayer.getUniqueId();
+        onlinePlayerUUIDs.remove(departingUUID);
+
+        // Remove the player's team from all existing scoreboards
+        for (Map.Entry<UUID, Scoreboard> entry : playerScoreboards.entrySet()) {
+            UUID targetUUID = entry.getKey();
+            Scoreboard scoreboard = entry.getValue();
+
+            if (targetUUID.equals(departingUUID)) continue; // Will unregister their own scoreboard later
+
+            Player targetPlayer = Bukkit.getPlayer(targetUUID);
+            if (targetPlayer != null && targetPlayer.isOnline()) {
+                removePlayerFromScoreboard(scoreboard, departingPlayer);
+            }
+        }
+
+        // Clean up their own scoreboard
+        Scoreboard departingScoreboard = playerScoreboards.get(departingUUID);
+        if (departingScoreboard != null) {
+            for (Team team : departingScoreboard.getTeams()) {
+                team.unregister();
+            }
+
+            for (Objective objective : departingScoreboard.getObjectives()) {
+                objective.unregister();
+            }
+
+            playerScoreboards.remove(departingUUID);
+            DebugLogger.getInstance().log("[MysticRPG] Cleaned up scoreboard for departing player " + departingPlayer.getName());
+        }
+
+        // Remove side data entries
+        playerEntries.remove(departingUUID);
+    }
+
+    /**
+     * Creates or updates a team for a player on the shared scoreboard.
+     *
+     * @param player The player whose team is to be created or updated.
+     */
+    public void createOrUpdateTeam(Player player) {
         UUID uuid = player.getUniqueId();
-        if (!playerScoreboards.containsKey(uuid)) {
-            Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
-            playerScoreboards.put(uuid, scoreboard);
-            DebugLogger.getInstance().log("[MysticRPG] Created scoreboard for player " + player.getName());
+        String teamName = "team_" + uuid.toString();
+
+        // Iterate through all player scoreboards and update teams
+        for (Map.Entry<UUID, Scoreboard> entry : playerScoreboards.entrySet()) {
+            UUID targetUUID = entry.getKey();
+            Scoreboard scoreboard = entry.getValue();
+            Player targetPlayer = Bukkit.getPlayer(targetUUID);
+
+            Team team = scoreboard.getTeam(teamName);
+            if (team == null) {
+                team = scoreboard.registerNewTeam(teamName);
+                DebugLogger.getInstance().log("[MysticRPG] Created new team '" + teamName + "' in scoreboard.");
+            }
+
+            // Set prefix and suffix
+            String prefix = getPrefixFromLuckPerms(player);
+            String suffix = ChatColor.BLACK + " [" + ChatColor.GREEN + "LVL" + ChatColor.RED + getPlayerLevel(uuid) + ChatColor.BLACK + "]";
+
+            team.setPrefix(prefix + " ");
+            team.setSuffix(suffix);
+
+            // Add the player's name to their team in this scoreboard
+            if (!team.hasEntry(player.getName())) {
+                team.addEntry(player.getName());
+                DebugLogger.getInstance().log("[MysticRPG] Added player " + player.getName() + " to team '" + teamName + "' in scoreboard.");
+            }
+
+            // If this scoreboard belongs to the player, re-assign it to force display updates
+            if (entry.getKey().equals(uuid)) {
+                player.setScoreboard(scoreboard);
+                // DebugLogger.getInstance().log("[MysticRPG] Reassigned scoreboard to player " + player.getName() + " after team update.");
+            }
         }
     }
 }

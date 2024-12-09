@@ -89,7 +89,7 @@ public class AuctionHouseHelper {
      * @return The UUID of the newly created auction.
      */
     public UUID addAuction(UUID seller, ItemStack item,
-                           double price, long duration) {
+                           int price, long duration) {
         long endTime = System.currentTimeMillis() + duration;
         UUID auctionId = UUID.randomUUID();
         Auction auction = new Auction(auctionId, seller,
@@ -135,7 +135,7 @@ public class AuctionHouseHelper {
      * @param duration      The duration in milliseconds.
      * @return The UUID of the newly created bidding auction.
      */
-    public UUID addBidAuction(UUID seller, ItemStack item, double startingPrice, long duration) {
+    public UUID addBidAuction(UUID seller, ItemStack item, int startingPrice, long duration) {
         long endTime = System.currentTimeMillis() + duration;
         UUID auctionId = UUID.randomUUID();
         Auction auction = new Auction(auctionId, seller, item, startingPrice, endTime, true);
@@ -283,11 +283,11 @@ public class AuctionHouseHelper {
      * @param auctionId The UUID of the auction.
      * @param bidAmount The amount of the bid.
      */
-    public void placeBid(Player bidder, UUID auctionId, double bidAmount) {
+    public void placeBid(Player bidder, UUID auctionId, int bidAmount) {
         Auction auction = activeAuctions.get(auctionId);
         if (auction != null && auction.isBidItem()) {
             if (bidAmount > auction.getHighestBid()) {
-                double bidderBalance = economyHelper.getBalance(bidder);
+                int bidderBalance = economyHelper.getBalance(bidder);
                 if (bidderBalance >= bidAmount) {
                     // Refund previous highest bidder
                     if (auction.getHighestBidder() != null) {
@@ -309,7 +309,7 @@ public class AuctionHouseHelper {
                                 // Previous bidder is offline, add to pending balance
                                 PlayerData previousBidderData = playerDataCache.getCachedPlayerData(previousBidderId);
                                 if (previousBidderData != null) {
-                                    double pendingBalance = previousBidderData.getPendingBalance();
+                                    int pendingBalance = previousBidderData.getPendingBalance();
                                     previousBidderData.setPendingBalance(pendingBalance + auction.getHighestBid());
                                     DebugLogger.getInstance().log(Level.INFO, "Previous highest bidder {0} is offline. Added ${1} to pending balance.",
                                             new Object[]{previousBidderId, auction.getHighestBid()});
@@ -402,7 +402,7 @@ public class AuctionHouseHelper {
     public void buyAuction(Player buyer, UUID auctionId) {
         Auction auction = activeAuctions.get(auctionId);
         if (auction != null && !auction.isBidItem()) {
-            double price = auction.getStartingPrice();
+            int price = auction.getStartingPrice();
             DebugLogger.getInstance().log(Level.INFO, "Player {0} attempting to purchase auction ID: {1} for ${2}",
                     new Object[]{buyer.getName(), auctionId, price});
 
@@ -439,7 +439,7 @@ public class AuctionHouseHelper {
                 // Seller is offline, add to pending balance
                 PlayerData sellerData = playerDataCache.getCachedPlayerData(sellerId);
                 if (sellerData != null) {
-                    double pendingBalance = sellerData.getPendingBalance();
+                    int pendingBalance = sellerData.getPendingBalance();
                     sellerData.setPendingBalance(pendingBalance + price);
                     DebugLogger.getInstance().log(Level.INFO, "Seller {0} is offline. Added ${1} to pending balance.",
                             new Object[]{sellerId, price});

@@ -4,7 +4,7 @@ import java.util.*;
 
 public class PlayerData {
     private String uuid;
-    private double balance;
+    private int balance;
     private int xp;
     private int level;
     private int nextLevelXP;
@@ -21,7 +21,7 @@ public class PlayerData {
     private List<String> completedQuests;
     private String pinnedQuest;
     private boolean remindersEnabled;
-    private double pendingBalance;
+    private int pendingBalance;
     private List<String> pendingItems;
     private Map<String, String> equipment;
 
@@ -35,12 +35,12 @@ public class PlayerData {
     }
 
 
-    public PlayerData(String uuid, double balance, int xp, int level, int nextLevelXP, int currentHp,
+    public PlayerData(String uuid, int balance, int xp, int level, int nextLevelXP, int currentHp,
                       Map<String, Integer> attributes, Map<String, Boolean> unlockedRecipes,
                       Set<String> friendRequests, Set<String> friends, Set<String> blockedPlayers,
                       boolean blockingRequests, int attributePoints, List<String> activeQuests,
                       Map<String, Map<String, Integer>> questProgress, List<String> completedQuests,
-                      String pinnedQuest, double pendingBalance, List<String> pendingItems,
+                      String pinnedQuest, int pendingBalance, List<String> pendingItems,
                       boolean remindersEnabled, Long discordId, List<String> completedDialogues, Map<String, String> equipment) {
         this.uuid = uuid;
         this.balance = balance;
@@ -70,7 +70,7 @@ public class PlayerData {
     public static PlayerData defaultData(String uuid) {
         return new PlayerData(
                 uuid,
-                0.0,
+                0,
                 0,
                 1,
                 100,
@@ -86,7 +86,7 @@ public class PlayerData {
                 new HashMap<>(),
                 new ArrayList<>(),
                 null,
-                0.0,
+                0,
                 new ArrayList<>(),
                 true, // Reminders enabled by default
                 null,  // Discord ID initially null
@@ -154,11 +154,11 @@ public class PlayerData {
         this.uuid = uuid;
     }
 
-    public double getBalance() {
+    public int getBalance() {
         return balance;
     }
 
-    public void setBalance(double balance) {
+    public void setBalance(int balance) {
         this.balance = balance;
     }
 
@@ -290,11 +290,11 @@ public class PlayerData {
         this.remindersEnabled = remindersEnabled;
     }
 
-    public double getPendingBalance() {
+    public int getPendingBalance() {
         return pendingBalance;
     }
 
-    public void setPendingBalance(double pendingBalance) {
+    public void setPendingBalance(int pendingBalance) {
         this.pendingBalance = pendingBalance;
     }
 

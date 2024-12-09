@@ -81,9 +81,9 @@ public class SaveModule implements IBaseModule {
 
                     // Check for pending balance
                     if (playerData.getPendingBalance() > 0) {
-                        double pendingBalance = playerData.getPendingBalance();
+                        int pendingBalance = playerData.getPendingBalance();
                         playerData.setBalance(playerData.getBalance() + pendingBalance);
-                        playerData.setPendingBalance(0.0);
+                        playerData.setPendingBalance(0);
                         player.sendMessage(Utils.getInstance().$("You have received $" + economyHelper.formatBalance(pendingBalance) + " from your sold auctions."));
                         DebugLogger.getInstance().log(Level.INFO, "Applied pending balance for " + player.getName(), 0);
                     }

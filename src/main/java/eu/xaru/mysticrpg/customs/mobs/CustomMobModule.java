@@ -128,7 +128,7 @@ public class CustomMobModule implements IBaseModule, Listener {
                     int level = config.getInt("level", 1);
 
                     int experienceReward = config.getInt("experienceReward", 0);
-                    double currencyReward = config.getDouble("currencyReward", 0.0);
+                    int currencyReward = config.getInt("currencyReward", 0);
 
                     // Read new attributes
                     double baseDamage = config.getDouble("damage", 2.0); // Default damage
