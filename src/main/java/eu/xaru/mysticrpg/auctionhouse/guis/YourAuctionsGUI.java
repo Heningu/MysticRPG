@@ -197,28 +197,6 @@ public class YourAuctionsGUI {
         }
     }
 
-//    /**
-//     * Handles pagination for the Your Auctions GUI by creating or retrieving a PaginationHelper.
-//     *
-//     * @param player       The player for whom pagination is handled.
-//     * @param auctionItems The list of auction items to paginate.
-//     * @return The PaginationHelper instance for the current page.
-//     */
-//    private PaginationHelper<ItemStack> handleYourAuctionsGuiPagination(Player player, List<ItemStack> auctionItems) {
-//        PaginationHelper<ItemStack> paginationHelper;
-//
-//        if (!mainGUI.getYourAuctionsPaginationMap().containsKey(player.getUniqueId())) {
-//            paginationHelper = new PaginationHelper<>(auctionItems, 28);
-//            mainGUI.getYourAuctionsPaginationMap().put(player.getUniqueId(), paginationHelper);
-//        } else {
-//            paginationHelper = mainGUI.getYourAuctionsPaginationMap().get(player.getUniqueId());
-//            // Update the items in the pagination helper in case the auctions have changed
-//            paginationHelper.updateItems(auctionItems);
-//        }
-//
-//        return paginationHelper;
-//    }
-
     /**
      * Formats the remaining time into a human-readable string.
      *

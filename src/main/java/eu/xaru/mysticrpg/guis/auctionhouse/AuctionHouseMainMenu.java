@@ -120,8 +120,20 @@ public class AuctionHouseMainMenu {
                         "Check what items you currently sell.",
                         ""
                 )
-                .addAllItemFlags()
-        );
+                .addAllItemFlags())
+        {
+            @Override
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
+                // Close the current GUI before opening the Equipment GUI
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window ?
+                        (Window) event.getView().getTopInventory().getHolder() : null;
+                if (window != null) {
+                    window.close();
+                }
+                YourAuctionsGUI yourAuctionsgui = new YourAuctionsGUI();
+                yourAuctionsgui.openAuctionHouseYourAuctionsGUI(player);
+            }
+        };
 
 
             // BACK BUTTON

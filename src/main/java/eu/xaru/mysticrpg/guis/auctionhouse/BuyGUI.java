@@ -54,23 +54,9 @@ import java.util.UUID;
 public class BuyGUI {
 
     private final AuctionsGUI mainGUI;
-    private AuctionHouseModule auctionHouse;
-    private EquipmentModule equipmentModule;
-    private LevelModule levelingModule;
-    private PlayerStatModule playerStat;
-    private QuestModule questModule;
-    private FriendsModule friendsModule;
-    private PartyModule partyModule;
 
     public BuyGUI(){
         this.mainGUI = ModuleManager.getInstance().getModuleInstance(AuctionHouseModule.class).getAuctionsGUI();
-        this.auctionHouse = ModuleManager.getInstance().getModuleInstance(AuctionHouseModule.class);
-        this.equipmentModule = ModuleManager.getInstance().getModuleInstance(EquipmentModule.class);
-        this.levelingModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
-        this.playerStat = ModuleManager.getInstance().getModuleInstance(PlayerStatModule.class);
-        this.questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
-        this.friendsModule = ModuleManager.getInstance().getModuleInstance(FriendsModule.class);
-        this.partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
     }
 
     public void openAuctionHouseBuyGUI(Player player){
@@ -110,8 +96,8 @@ public class BuyGUI {
                 if (window != null) {
                     window.close();
                 }
-                MainMenu mainMenu = new MainMenu(auctionHouse, equipmentModule, levelingModule, playerStat, questModule, friendsModule, partyModule);
-                mainMenu.openGUI(p);
+                AuctionHouseMainMenu mainMenu = new AuctionHouseMainMenu();
+                mainMenu.openAuctionsGUI(p);
             }
         };
 
