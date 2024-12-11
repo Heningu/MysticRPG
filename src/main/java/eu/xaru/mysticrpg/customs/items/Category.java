@@ -8,5 +8,6 @@ public enum Category {
     ACCESSORY, //
     TOOL,
     ARTIFACT,
-    EVERYTHING //
+    EVERYTHING, //
+    QUEST_ITEM
 }
