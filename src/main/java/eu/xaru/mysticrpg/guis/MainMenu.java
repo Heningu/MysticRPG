@@ -2,26 +2,26 @@ package eu.xaru.mysticrpg.guis;
 
 import eu.xaru.mysticrpg.auctionhouse.AuctionHouseModule;
 
+import eu.xaru.mysticrpg.auctionhouse.AuctionsGUI;
+import eu.xaru.mysticrpg.guis.auctionhouse.AuctionHouseMainMenu;
 import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.player.stats.PlayerStatModule;
 import eu.xaru.mysticrpg.quests.QuestModule;
 import eu.xaru.mysticrpg.social.friends.FriendsModule;
 import eu.xaru.mysticrpg.social.party.PartyModule;
-import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import xyz.xenondevs.invui.gui.Gui;
 import xyz.xenondevs.invui.item.Item;
 import xyz.xenondevs.invui.item.builder.ItemBuilder;
 import xyz.xenondevs.invui.item.impl.SimpleItem;
-
-import java.util.Arrays;
-import java.util.logging.Level;
+import xyz.xenondevs.invui.window.Window;
 
 /**
  * Represents the Main Menu GUI for the MysticRPG plugin using InvUI.
@@ -35,6 +35,7 @@ public class MainMenu {
     private final QuestModule questModule;
     private final FriendsModule friendsModule;
     private final PartyModule partyModule;
+
 
     private final Gui gui;
 
@@ -76,123 +77,306 @@ public class MainMenu {
      */
     public Gui buildGui() {
 
-        // Define the structure using InvUI's Structure-like approach
-        // For simplicity, we'll manually set items in specific slots
+
+        // TBI means To be implemented
 
         Item border = new SimpleItem(new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE));
 
+        // Left part of the GUI
+
+        Item equip = new SimpleItem(new ItemBuilder(Material.DIAMOND_CHESTPLATE)
+                .setDisplayName(ChatColor.AQUA + "Equipment")
+                .addLoreLines("Manage your equipment here.")
+                .addAllItemFlags()
+        )
+
+
+
+        {
+            @Override
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
+                // Close the current GUI before opening the Equipment GUI
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window ?
+                        (Window) event.getView().getTopInventory().getHolder() : null;
+                if (window != null) {
+                    window.close();
+                }
+                // Open the Equipment GUI
+                equipmentModule.getEquipmentManager().getEquipmentGUI().openEquipmentGUI(player);
+            }
+        }; // Ingredient E
+
+
+        Item buffs = new SimpleItem(new ItemBuilder(Material.REDSTONE)
+                .setDisplayName("Buffs")
+                .addLoreLines(
+                        "See your current buffs or simply",
+                        "apply a buff to help your journey.",
+                        "Will be implemented in the Beta"
+                )
+                .addAllItemFlags()
+        ); // Ingredient F
+
+        Item pets = new SimpleItem(new ItemBuilder(Material.PIGLIN_HEAD)
+                .setDisplayName("Pets")
+                .addLoreLines(
+                        "Need a companion? Click here to see",
+                        "who can join and help you while",
+                        "exploring the Mystic Realm."
+                )
+                .addAllItemFlags()
+        ); // Ingredient G
+
+        Item mounts = new SimpleItem(new ItemBuilder(Material.DRAGON_HEAD)
+                .setDisplayName("Mounts")
+                .addLoreLines(
+                        "Need a ride? Check your summons to",
+                        "explore the world differently.",
+                        "Will be implemented in the Beta"
+                )
+                .addAllItemFlags()
+        ); // Ingredient H
+
+        Item professions = new SimpleItem(new ItemBuilder(Material.STONE_PICKAXE)
+                .setDisplayName("Professions")
+                .addLoreLines(
+                        "Mining? Chopping monsters? or just",
+                        "sit and fish for some goodies?",
+                        "Check how well you mastered your",
+                        "favorite hobby.",
+                        "Will be implemented in the Beta"
+                )
+                .addAllItemFlags()
+        ); // Ingredient I
+
+        Item skills = new SimpleItem(new ItemBuilder(Material.DIAMOND_SWORD)
+                .setDisplayName("Skills")
+                .addLoreLines(
+                        "Depending on what you skilled, you will get",
+                        "different extras on your professions or while",
+                        "fighting. Choose wisely!",
+                        "Will be implemented in the Beta"
+                )
+                .addAllItemFlags()
+        ); // Ingredient D
+
+        Item reputation = new SimpleItem(new ItemBuilder(Material.WARD_ARMOR_TRIM_SMITHING_TEMPLATE)
+                .setDisplayName("Reputation")
+                .addLoreLines(
+                        "You like to converse with npcs? Huh?,",
+                        "suddenly they offer me discounts or new",
+                        "items. Hmmm, maybe i should do more quests",
+                        "and trade with them as they started to like me...",
+                        "Will be implemented in the Beta"
+                )
+                .addAllItemFlags()
+        ); // Ingredient J
+
+        Item storage = new SimpleItem(new ItemBuilder(Material.ENDER_CHEST)
+                .setDisplayName("Storage")
+                .addLoreLines(
+                        "Store all your items directly in your storage.",
+                        "You can access everything from wherever you are",
+                        "but keep in mind that you cant be in combat.",
+                        "Will be implemented in the Beta"
+                )
+                .addAllItemFlags()
+        ); // Ingredient B
+
+        // Right part of the GUI
+
+        Item character = new SimpleItem(new ItemBuilder(Material.BOOK)
+                .setDisplayName("Character")
+                .addLoreLines(
+                        "See your attributes and use your",
+                        "attribute points to let your",
+                        "character grow. What trait do",
+                        "you prefer?"
+                )
+                .addAllItemFlags()
+        ); // Ingredient A
+
+        Item leveling = new SimpleItem(new ItemBuilder(Material.EXPERIENCE_BOTTLE)
+                .setDisplayName("Leveling")
+                .addLoreLines(
+                        "Keep track of your character leveling.",
+                        "See what level you are, what levels are",
+                        "infront of you and what benefits you gain"
+                )
+                .addAllItemFlags()
+        ); // Ingredient L
+
+        Item collections = new SimpleItem(new ItemBuilder(Material.ITEM_FRAME)
+                .setDisplayName("Collections")
+                .addLoreLines(
+                        "Here are all your items, mobs and bosses",
+                        "that you discovered. To not lose track of",
+                        "them, you can find information here",
+                        "Will be implemented in the Beta"
+                )
+                .addAllItemFlags()
+        ); // Ingredient C
+
+        Item housing = new SimpleItem(new ItemBuilder(Material.IRON_DOOR)
+                .setDisplayName("Housing")
+                .addLoreLines(
+                        "Here you can manage your property.",
+                        "Will be implemented in the Beta"
+                )
+                .addAllItemFlags()
+        ); // Ingredient 9
+
+        Item auctions = new SimpleItem(new ItemBuilder(Material.CHEST)
+                .setDisplayName("Auction House")
+                .addLoreLines(
+                        "You can find here the Auction house.",
+                        "To avoid transport fees, go to your",
+                        "local Auction Manager in your area."
+                )
+                .addAllItemFlags()
+        ) {
+            @Override
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
+                // Close the current GUI before opening the Equipment GUI
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window ?
+                        (Window) event.getView().getTopInventory().getHolder() : null;
+                if (window != null) {
+                    window.close();
+                }
+                // Open the Equipment GUI
+                AuctionHouseMainMenu ahmain = new AuctionHouseMainMenu();
+                ahmain.openAuctionsGUI(player);
+            }
+        }; // Ingredient 8
+
+        Item events = new SimpleItem(new ItemBuilder(Material.FIREWORK_ROCKET)
+                .setDisplayName("Events")
+                .addLoreLines(
+                        "Check all ongoing events.",
+                        "Events can be Boss-spawns, drops or",
+                        "time-limited content",
+                        "Will be implemented in the Beta"
+                )
+                .addAllItemFlags()
+        ); // Ingredient 7
+
+        Item fasttravel = new SimpleItem(new ItemBuilder(Material.REPEATER)
+                .setDisplayName("Fast Travel")
+                .addLoreLines(
+                        "Check your unlocked Fast Travel locations.",
+                        "Keep in mind that fast traveling requires you",
+                        "to hold a specific gold amount as fees",
+                        "Will be implemented in the Beta"
+                )
+                .addAllItemFlags()
+        ); // Ingredient 6
+
+        Item quests = new SimpleItem(new ItemBuilder(Material.WRITABLE_BOOK)
+                .setDisplayName("Quests")
+                .addLoreLines(
+                        "Click here to see all of your quests.",
+                        "Current pinned Quest: TBI"
+                )
+                .addAllItemFlags()
+        ); // Ingredient 5
+
+        // Middle of the GUI
+
+        Item friends = new SimpleItem(new ItemBuilder(Material.PLAYER_HEAD)
+                .setDisplayName("Your Friends")
+                .addLoreLines(
+                        "Click here to manage your friends.",
+                        "Friends: TBI",
+                        "Currently online: TBI"
+                )
+                .addAllItemFlags()
+        ); // Ingredient 4
+
+        Item guilds = new SimpleItem(new ItemBuilder(Material.WHITE_BANNER)
+                .setDisplayName("Guilds")
+                .addLoreLines(
+                        "Click here to manage your guild or find one.",
+                        "Will be implemented in the Beta"
+                )
+                .addAllItemFlags()
+        ); // Ingredient 3
+
+        Item party = new SimpleItem(new ItemBuilder(Material.CAKE)
+                .setDisplayName("Party")
+                .addLoreLines(
+                        "Click here to manage your current Party."
+                )
+                .addAllItemFlags()
+        ); // Ingredient 2
+
+        // Header Item
+
+        Item info = new SimpleItem(new ItemBuilder(Material.NETHER_STAR)
+                .setDisplayName("&6MysticRealm")
+                .addLoreLines(
+                        ">----------------------------------------<",
+                        "This is the mystic realm!",
+                        "Here you can find all the important menus!",
+                        ">----------------------------------------<"
+                )
+                .addEnchantment(Enchantment.UNBREAKING,1,true)
+                .addAllItemFlags()
+        ); // Ingredient 1
+
+
 
         Gui builder = Gui.normal().setStructure(
-                        "# # # # # # # # #",
-                        "# . . . . . . . #",
-                        "# . . . . . . . #",
-                        "# # # # # # # # #")
+                        "# # # # 1 # # # #",
+                        "# E F # # # A L #",
+                        "# G H # 4 # C 9 #",
+                        "# I D # 3 # 8 7 #",
+                        "# J B # 2 # 6 5 #",
+                        "# # # # # # # # #"
+
+
+
+                )
                 .addIngredient('#', border)
+                .addIngredient('1', info)
+                .addIngredient('2', party)
+                .addIngredient('3', guilds)
+                .addIngredient('4', friends)
+                .addIngredient('5', quests)
+                .addIngredient('6', fasttravel)
+                .addIngredient('7', events)
+                .addIngredient('8', auctions)
+                .addIngredient('9', housing)
+                .addIngredient('C', collections)
+                .addIngredient('L', leveling)
+                .addIngredient('A', character)
+                .addIngredient('B', storage)
+                .addIngredient('D', skills)
+                .addIngredient('E', equip)
+                .addIngredient('F', buffs)
+                .addIngredient('G', pets)
+                .addIngredient('H', mounts)
+                .addIngredient('I', professions)
+                .addIngredient('J', reputation)
+
                 .build();
 
         return builder;
 
     }
+
+    public void openGUI(Player player) {
+
+        Gui builder = buildGui();
+
+        Window window = Window.single()
+                .setViewer(player)
+                .setTitle(ChatColor.GOLD + "Main Menu")
+                .setGui(builder)
+                .build();
+
+        window.open();
+    }
+
+
 }
 
-//        // Create and add interactive items
-//        // Slot indices: 0-53 (9x6 grid)
-//
-//        // Auctions - Slot 11
-//        CommandItem auctionsItem = new CommandItem(new ItemStack(Material.CHEST), (player, clickType) -> {
-//            auctionHouse.openAuctionGUI(player);
-//            DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Auctions GUI from Main Menu.", 0);
-//        });
-//        auctionsItem.setDisplayName(ChatColor.GREEN + "Auctions");
-//        auctionsItem.setLore(Arrays.asList(
-//                ChatColor.GRAY + "Click to access the Auctions",
-//                ChatColor.GRAY + "house and manage your listings."
-//        ));
-//        builder.setItem(11, auctionsItem);
-//
-//        // Equipment - Slot 15
-//        CommandItem equipmentItem = new CommandItem(new ItemStack(Material.DIAMOND_CHESTPLATE), (player, clickType) -> {
-//            equipmentModule.getEquipmentManager().getEquipmentGUI().open(player);
-//            DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Equipment GUI from Main Menu.", 0);
-//        });
-//        equipmentItem.setDisplayName(ChatColor.AQUA + "Equipment");
-//        equipmentItem.setLore(Arrays.asList(
-//                ChatColor.GRAY + "Click to manage your",
-//                ChatColor.GRAY + "equipment and gear."
-//        ));
-//        builder.setItem(15, equipmentItem);
-//
-//        // Leveling - Slot 13
-//        CommandItem levelingItem = new CommandItem(new ItemStack(Material.EXPERIENCE_BOTTLE), (player, clickType) -> {
-//            levelingModule.getLevelingMenu().openLevelingMenu(player, 1);
-//            DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Leveling GUI from Main Menu.", 0);
-//        });
-//        levelingItem.setDisplayName(ChatColor.LIGHT_PURPLE + "Leveling");
-//        levelingItem.setLore(Arrays.asList(
-//                ChatColor.GRAY + "Click to view and",
-//                ChatColor.GRAY + "manage your leveling progress."
-//        ));
-//        builder.setItem(13, levelingItem);
-//
-//        // Stats - Slot 22
-//        CommandItem statsItem = new CommandItem(new ItemStack(Material.BOOK), (player, clickType) -> {
-//            playerStat.getPlayerStatMenu().openStatMenu(player);
-//            DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Stats GUI from Main Menu.", 0);
-//        });
-//        statsItem.setDisplayName(ChatColor.BLUE + "Stats");
-//        statsItem.setLore(Arrays.asList(
-//                ChatColor.GRAY + "Click to view and",
-//                ChatColor.GRAY + "enhance your attributes."
-//        ));
-//        builder.setItem(22, statsItem);
-//
-//        // Quests - Slot 16
-//        CommandItem questsItem = new CommandItem(new ItemStack(Material.WRITABLE_BOOK), (player, clickType) -> {
-//            questModule.openQuestGUI(player);
-//            DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Quest GUI from Main Menu.", 0);
-//        });
-//        questsItem.setDisplayName(ChatColor.GOLD + "Quests");
-//        questsItem.setLore(Arrays.asList(
-//                ChatColor.GRAY + "Click to view and",
-//                ChatColor.GRAY + "manage your quests."
-//        ));
-//        builder.setItem(16, questsItem);
-//
-//        // Friends - Slot 19
-//        CommandItem friendsItem = new CommandItem(new ItemStack(Material.PLAYER_HEAD), (player, clickType) -> {
-//            friendsModule.openFriendsGUI(player);
-//            DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Friends GUI from Main Menu.", 0);
-//        });
-//        friendsItem.setDisplayName(ChatColor.YELLOW + "Friends");
-//        friendsItem.setLore(Arrays.asList(
-//                ChatColor.GRAY + "Click to view and",
-//                ChatColor.GRAY + "manage your friends."
-//        ));
-//        builder.setItem(19, friendsItem);
-//
-//        // Party - Slot 25
-//        CommandItem partyItem = new CommandItem(new ItemStack(Material.CAKE), (player, clickType) -> {
-//            partyModule.openPartyGUI(player);
-//            DebugLogger.getInstance().log(Level.INFO, player.getName() + " opened the Party GUI from Main Menu.", 0);
-//        });
-//        partyItem.setDisplayName(ChatColor.PINK + "Party");
-//        partyItem.setLore(Arrays.asList(
-//                ChatColor.GRAY + "Click to view and",
-//                ChatColor.GRAY + "manage your parties."
-//        ));
-//        builder.setItem(25, partyItem);
-//
-//        // Fill remaining slots with placeholders
-//        // Already handled by setBackground in builder
-//
-//        return builder.build();
-//    }
-//
-//    /**
-//     * Opens the Main Menu GUI for the specified player.
-//     *
-//     * @param player The player to open the GUI for.
-//     */
-//    public void open(Player player) {
-//        gui.open(player);
-//    }

@@ -168,14 +168,7 @@ public class GUIRegisterModule implements IBaseModule {
                 .withPermission("mysticrpg.mainmenu.use") // Permission check
                 .executesPlayer((player, args) -> {
                     MainMenu test = new MainMenu(auctionHouse,equipmentModule,levelingModule,playerStat,questModule,friendsModule,partyModule);
-                    Gui builder = test.buildGui();
-                    Window window = Window.single()
-                            .setViewer(player)
-                            .setTitle("Test")
-                            .setGui(builder)
-                            .build();
-
-                    window.open();
+                    test.openGUI(player);
                 })
                 .register();
 

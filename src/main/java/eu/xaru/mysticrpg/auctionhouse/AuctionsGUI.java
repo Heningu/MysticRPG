@@ -181,12 +181,6 @@ public class AuctionsGUI {
                 return Material.IRON_PICKAXE;
             case ARTIFACT:
                 return Material.EMERALD;
-            case QUEST_ITEM:
-                return Material.BOOK;
-            case PET:
-                return Material.TURTLE_EGG;
-            case MOUNT:
-                return Material.SADDLE;
             case EVERYTHING:
                 return Material.BARRIER; // Represents "Everything"
             default:

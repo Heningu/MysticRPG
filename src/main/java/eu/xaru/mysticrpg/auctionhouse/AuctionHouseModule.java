@@ -179,6 +179,12 @@ public class AuctionHouseModule implements IBaseModule {
                 INVENTORY_YOUR_AUCTIONS.equals(title);
     }
 
+
+    public AuctionsGUI getAuctionsGUI() {
+        return auctionsGUI;
+    }
+
+
     /**
      * Handles the InventoryCloseEvent for the Sell GUI.
      *

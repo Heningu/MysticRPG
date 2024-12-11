@@ -92,7 +92,7 @@
 
         <dependency>
             <groupId>org.spigotmc</groupId>
-            <artifactId>spigot-api</artifactId>
+            <artifactId>spigot</artifactId>
             <version>${spigot.version}</version>
             <scope>provided</scope>
         </dependency>
@@ -227,7 +227,6 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <minimizeJar>true</minimizeJar>
                     <relocations>
 
                         <relocation>

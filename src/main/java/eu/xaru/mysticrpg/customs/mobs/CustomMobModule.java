@@ -11,7 +11,7 @@ import eu.xaru.mysticrpg.customs.mobs.actions.conditions.DistanceCondition;
 import eu.xaru.mysticrpg.customs.mobs.actions.steps.*;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.enums.EModulePriority;
-import eu.xaru.mysticrpg.guis.MobGUI;
+import eu.xaru.mysticrpg.guis.admin.MobGUI;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
