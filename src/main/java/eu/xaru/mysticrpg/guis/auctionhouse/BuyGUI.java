@@ -137,8 +137,6 @@ public class BuyGUI {
         //
         // '<' and '>' are placed at the bottom row for page navigation of the current tab.
 
-        ChangePageItemBack backPage = new ChangePageItemBack();
-        ChangePageItemForward forwardPage = new ChangePageItemForward();
         ChangePageItem changePageItem = new ChangePageItem();
         TabGui buyGUI = TabGui.normal()
                 .setStructure(
@@ -158,6 +156,7 @@ public class BuyGUI {
                 .addIngredient('5', new CategoryTabItem(5,"ACCESSORY", Material.HEART_OF_THE_SEA))
                 .addIngredient('6', new CategoryTabItem(6,"TOOL", Material.STONE_PICKAXE))
                 .addIngredient('7', new CategoryTabItem(7,"ARTIFACT", Material.NETHER_STAR))
+                .addIngredient('8', new CategoryTabItem(8,"QUEST", Material.ENCHANTED_BOOK))
                 .addIngredient('x', Markers.CONTENT_LIST_SLOT_HORIZONTAL)
                 .addIngredient('B', back)
                 .addIngredient('s', changePageItem)
@@ -228,94 +227,6 @@ public class BuyGUI {
         return items;
     }
 
-    /**
-     * ControlItem for going to the previous page of the currently selected tab (PagedGui).
-     * This item controls the pagination from the outer TabGui layer.
-     */
-    public class ChangePageItemBack extends ControlItem<TabGui> {
-
-        @Override
-        public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
-            TabGui tabGui = getGui();
-            Gui currentTab = tabGui.getTabs().get(tabGui.getCurrentTab());
-
-            // Current tab is a PagedGui
-            if (currentTab instanceof PagedGui<?> paged) {
-                if (paged.hasPreviousPage()) {
-                    paged.goBack();
-                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
-                } else {
-                    player.sendMessage(ChatColor.RED + "No previous page!");
-                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 1, 0.5f);
-                }
-                notifyWindows(); // Refresh the item if needed
-            }
-        }
-
-        @Override
-        public ItemProvider getItemProvider(TabGui gui) {
-            // The displayed page info: we must reflect the current tab's page info
-            Gui currentTab = gui.getTabs().get(gui.getCurrentTab());
-            String lore;
-            if (currentTab instanceof PagedGui<?> paged) {
-                if (!paged.hasPreviousPage()) {
-                    lore = ChatColor.GRAY + "You're on the first page.";
-                } else {
-                    lore = ChatColor.GRAY + "Click to go back to page " + (paged.getCurrentPage());
-                }
-            } else {
-                lore = ChatColor.GRAY + "No paging available.";
-            }
-
-            return new ItemBuilder(Material.RED_STAINED_GLASS_PANE)
-                    .setDisplayName(ChatColor.RED + "Previous Page")
-                    .addLoreLines(lore)
-                    .addAllItemFlags();
-        }
-    }
-
-    /**
-     * ControlItem for going to the next page of the currently selected tab (PagedGui).
-     */
-    public class ChangePageItemForward extends ControlItem<TabGui> {
-
-        @Override
-        public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
-            TabGui tabGui = getGui();
-            Gui currentTab = tabGui.getTabs().get(tabGui.getCurrentTab());
-
-            if (currentTab instanceof PagedGui<?> paged) {
-                if (paged.hasNextPage()) {
-                    paged.goForward();
-                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
-                } else {
-                    player.sendMessage(ChatColor.RED + "No next page!");
-                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 1, 0.5f);
-                }
-                notifyWindows(); // Refresh the item if needed
-            }
-        }
-
-        @Override
-        public ItemProvider getItemProvider(TabGui gui) {
-            Gui currentTab = gui.getTabs().get(gui.getCurrentTab());
-            String lore;
-            if (currentTab instanceof PagedGui<?> paged) {
-                if (!paged.hasNextPage()) {
-                    lore = ChatColor.GRAY + "There are no more pages.";
-                } else {
-                    lore = ChatColor.GRAY + "Click to go forward to page " + (paged.getCurrentPage() + 2);
-                }
-            } else {
-                lore = ChatColor.GRAY + "No paging available.";
-            }
-
-            return new ItemBuilder(Material.GREEN_STAINED_GLASS_PANE)
-                    .setDisplayName(ChatColor.GREEN + "Next Page")
-                    .addLoreLines(lore)
-                    .addAllItemFlags();
-        }
-    }
 
     /**
      * Handles pagination controls - Left-click to go back, Right-click to go forward.
@@ -352,20 +263,25 @@ public class BuyGUI {
         @Override
         public ItemProvider getItemProvider(TabGui gui) {
             Gui currentTab = gui.getTabs().get(gui.getCurrentTab());
-            String lore = "";
+            List<String> lore = new ArrayList<>();
             if (currentTab instanceof PagedGui<?> paged) {
-                lore +=
-                        ChatColor.GRAY + "Current page: " + (paged.getCurrentPage() + 1) + " from " + (paged.getPageAmount()) + " pages\n" +
-                        ChatColor.GREEN + "Left-click to go forward\n" +
-                        ChatColor.RED + "Right-click to go back\n";
+
+                        lore.add( ChatColor.GRAY + "Current page: " + (paged.getCurrentPage() + 1) + " from " + (paged.getPageAmount()) + " pages" );
+                        if (paged.hasPreviousPage()) {
+                            lore.add( ChatColor.GRAY + "Click " + ChatColor.GOLD + "LEFT_CLICK" + ChatColor.GRAY + " to go back." );
+                        }
+                        if (paged.hasNextPage()) {
+                            lore.add( ChatColor.GRAY + "Click " + ChatColor.GOLD + "RIGHT_CLICK" + ChatColor.GRAY + " to go forward." );
+                        }
+
             } else {
-                lore = ChatColor.GRAY + "No paging available.";
+                lore.add( ChatColor.GRAY + "No pagination available." );
             }
 
             return new ItemBuilder(Material.ARROW)
                     .setDisplayName("Switch pages")
                     .addLoreLines(
-                            lore
+                            lore.toArray(new String[0])
                     )
                     .addEnchantment(Enchantment.UNBREAKING,1,true)
                     .addAllItemFlags();

@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.logging.Level;
 
 public class GUIRegisterModule implements IBaseModule {
@@ -158,7 +159,7 @@ public class GUIRegisterModule implements IBaseModule {
         eventManager.registerEvent(PlayerDropItemEvent.class, event -> {
             ItemStack droppedItem = event.getItemDrop().getItemStack();
             log.info("DropEvent: Player={}, DroppedItem={}, IsMainMenuItem={}", event.getPlayer().getName(),
-                    droppedItem != null ? droppedItem.getType() + " (" + droppedItem.getItemMeta().getDisplayName() + ")" : "null",
+                    droppedItem != null ? droppedItem.getType() + " (" + Objects.requireNonNull(droppedItem.getItemMeta()).getDisplayName() + ")" : "null",
                     isMainMenuItem(droppedItem));
             if (isMainMenuItem(droppedItem)) {
                 event.setCancelled(true);
@@ -191,8 +192,8 @@ public class GUIRegisterModule implements IBaseModule {
                     player.getName(),
                     event.getRawSlot(),
                     event.getClick(),
-                    currentItem != null ? currentItem.getType() + " (" + currentItem.getItemMeta().getDisplayName() + ")" : "null",
-                    event.getCursor() != null ? event.getCursor().getType() + " (" + event.getCursor().getItemMeta().getDisplayName() + ")" : "null"
+                    currentItem != null ? currentItem.getType() + " (" + Objects.requireNonNull(currentItem.getItemMeta()).getDisplayName() + ")" : "null",
+                    event.getCursor() != null ? event.getCursor().getType() + " (" + Objects.requireNonNull(event.getCursor().getItemMeta()).getDisplayName() + ")" : "null"
             );
 
             if (isMainMenuItem(currentItem)) {
@@ -213,7 +214,7 @@ public class GUIRegisterModule implements IBaseModule {
 
             log.info("InventoryDragEvent: Player={}, OldCursor={}, OldCursorMainMenuItem={}",
                     player.getName(),
-                    oldCursor != null ? oldCursor.getType() + "(" + oldCursor.getItemMeta().getDisplayName() + ")" : "null",
+                    oldCursor != null ? oldCursor.getType() + "(" + Objects.requireNonNull(oldCursor.getItemMeta()).getDisplayName() + ")" : "null",
                     isMainMenuItem(oldCursor));
 
             // If oldCursor is main menu item
@@ -227,7 +228,7 @@ public class GUIRegisterModule implements IBaseModule {
             event.getNewItems().forEach((slot, item) -> {
                 boolean mainMenu = isMainMenuItem(item);
                 log.info("Drag new items: Slot={}, Item={}, IsMainMenuItem={}", slot,
-                        item != null ? item.getType() + " (" + item.getItemMeta().getDisplayName() + ")" : "null",
+                        item != null ? item.getType() + " (" + Objects.requireNonNull(item.getItemMeta()).getDisplayName() + ")" : "null",
                         mainMenu
                 );
                 if (mainMenu) {
@@ -252,7 +253,7 @@ public class GUIRegisterModule implements IBaseModule {
         ItemStack item = new ItemStack(Material.COMPASS);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(ChatColor.GREEN + "Main Menu");
-        meta.setLore(Arrays.asList(ChatColor.GRAY + "Click to open the main menu."));
+        meta.setLore(List.of(ChatColor.GRAY + "Click to open the main menu."));
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         meta.setUnbreakable(true);
 
