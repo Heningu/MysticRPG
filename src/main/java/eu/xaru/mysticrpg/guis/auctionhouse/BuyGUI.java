@@ -135,6 +135,7 @@ public class BuyGUI {
         PagedGui<Item> gui6 = createPagedGuiForCategory(Category.ACCESSORY, allAuctions);
         PagedGui<Item> gui7 = createPagedGuiForCategory(Category.TOOL, allAuctions);
         PagedGui<Item> gui8 = createPagedGuiForCategory(Category.ARTIFACT, allAuctions);
+        PagedGui<Item> gui9 = createPagedGuiForCategory(Category.QUEST_ITEM, allAuctions);
 
         // Build the TabGui
         Gui buyGUI = TabGui.normal()
@@ -150,10 +151,12 @@ public class BuyGUI {
                 .addIngredient('1', new CategoryTabItem(1,"Weapons", Material.DIAMOND_SWORD))
                 .addIngredient('2', new CategoryTabItem(2,"Armor", Material.DIAMOND_HELMET))
                 .addIngredient('3', new CategoryTabItem(3,"Magic", Material.BLAZE_ROD))
-                .addIngredient('4', new CategoryTabItem(3,"CONSUMABLE", Material.GOLDEN_APPLE))
-                .addIngredient('5', new CategoryTabItem(3,"ACCESSORY", Material.HEART_OF_THE_SEA))
-                .addIngredient('6', new CategoryTabItem(3,"TOOL", Material.STONE_PICKAXE))
-                .addIngredient('7', new CategoryTabItem(3,"ARTIFACT", Material.NETHER_STAR))
+                .addIngredient('4', new CategoryTabItem(4,"CONSUMABLE", Material.GOLDEN_APPLE))
+                .addIngredient('5', new CategoryTabItem(5,"ACCESSORY", Material.HEART_OF_THE_SEA))
+                .addIngredient('6', new CategoryTabItem(6,"TOOL", Material.STONE_PICKAXE))
+                .addIngredient('7', new CategoryTabItem(7,"ARTIFACT", Material.NETHER_STAR))
+                .addIngredient('8', new CategoryTabItem(7,"Quest_Item", Material.BOOK))
+
                 .addIngredient('x', Markers.CONTENT_LIST_SLOT_HORIZONTAL)
                 .addIngredient('B', back)
                 .setTabs(Arrays.asList(gui1, gui2, gui3, gui4, gui5, gui6, gui7, gui8))
