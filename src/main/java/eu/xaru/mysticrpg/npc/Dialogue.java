@@ -8,8 +8,6 @@ import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.utils.Utils;
-import net.md_5.bungee.api.chat.ClickEvent;
-import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -18,7 +16,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 public class Dialogue {
 
@@ -57,20 +54,16 @@ public class Dialogue {
     public void start(Player player) {
         PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (playerData.getCompletedDialogues().contains(id)) {
-            // Dialogue already completed
             player.sendMessage(Utils.getInstance().$(completionMessage));
             return;
         }
 
-        // Check if quest is completed
         if (questId != null && playerData.getCompletedQuests().contains(questId)) {
-            // Quest is completed, show completion message
             player.sendMessage(Utils.getInstance().$(completionMessage));
             markCompleted(player);
             return;
         }
 
-        // If the quest is active but not completed, inform the player
         if (questId != null && playerData.getActiveQuests().contains(questId)) {
             player.sendMessage(Utils.getInstance().$("Have you completed the quest?"));
             return;
@@ -84,30 +77,15 @@ public class Dialogue {
             String message = iterator.next();
             Bukkit.getScheduler().runTaskLater(JavaPlugin.getPlugin(eu.xaru.mysticrpg.cores.MysticCore.class), () -> {
                 player.sendMessage(Utils.getInstance().$(message));
-                sendMessagesWithDelay(player, 40, iterator); // 2 seconds delay (40 ticks)
+                sendMessagesWithDelay(player, 40, iterator);
             }, delay);
         } else {
-            // All messages sent, now ask the question
             if (question != null) {
-                sendQuestion(player);
+                npc.sendQuestion(player, this);
             } else {
                 completeDialogue(player);
             }
         }
-    }
-
-    private void sendQuestion(Player player) {
-        TextComponent questionComponent = new TextComponent(question + " ");
-        TextComponent yesComponent = new TextComponent("[Yes]");
-        yesComponent.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/npcdialogue yes " + npc.getName() + " " + id));
-        TextComponent noComponent = new TextComponent("[No]");
-        noComponent.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/npcdialogue no " + npc.getName() + " " + id));
-
-        questionComponent.addExtra(yesComponent);
-        questionComponent.addExtra(" ");
-        questionComponent.addExtra(noComponent);
-
-        player.spigot().sendMessage(questionComponent);
     }
 
     public void handleResponse(Player player, String response) {
@@ -118,18 +96,19 @@ public class Dialogue {
                 Quest quest = questManager.getQuest(questId);
                 if (quest != null) {
                     if (!data.getActiveQuests().contains(questId) && !data.getCompletedQuests().contains(questId)) {
+                        // start quest
                         data.getActiveQuests().add(questId);
                         data.getQuestProgress().put(questId, new HashMap<>());
+                        data.getQuestPhaseIndex().put(questId,0);
+                        data.getQuestStartTime().put(questId,System.currentTimeMillis());
                         player.sendMessage(Utils.getInstance().$("You have received a new quest: " + quest.getName()));
                     } else {
                         player.sendMessage(Utils.getInstance().$("You have already received this quest."));
                     }
                 }
             }
-            // Do not mark dialogue as completed yet, wait until quest is completed
         } else {
             player.sendMessage(Utils.getInstance().$(noResponse));
-            // Optionally restart the dialogue
             start(player);
         }
     }
@@ -149,7 +128,6 @@ public class Dialogue {
     public boolean isCompletedByPlayer(Player player) {
         PlayerData data = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (data != null) {
-            // Dialogue is considered completed if the quest is completed
             if (questId != null && data.getCompletedQuests().contains(questId)) {
                 return true;
             }
@@ -169,4 +147,9 @@ public class Dialogue {
     public String getId() {
         return id;
     }
+
+    public String getQuestion() {
+        return question;
+    }
+
 }

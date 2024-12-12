@@ -319,52 +319,58 @@ public class ScoreboardManager {
         newEntries.add(yourpet);
 
 
-        // Pinned quest
+//        // Pinned quest
+//
+//        String pinnedQuestId = playerData.getPinnedQuest();
+//        if (pinnedQuestId != null && questManager != null) {
+//            Quest pinnedQuest = questManager.getQuest(pinnedQuestId);
+//            if (pinnedQuest != null) {
+//                // Quest Name
+//                String questNameEntry = ChatColor.AQUA + pinnedQuest.getName();
+//                objective.getScore(questNameEntry).setScore(3);
+//                newEntries.add(questNameEntry);
+//
+//                // Objective and Progress
+//                Map<String, Integer> objectivesMap = pinnedQuest.getObjectives();
+//                Map<String, Integer> progressMap = playerData.getQuestProgress().getOrDefault(pinnedQuestId, new HashMap<>());
+//
+//                int scoreIndex = 7;
+//                for (Map.Entry<String, Integer> entry : objectivesMap.entrySet()) {
+//                    String objectiveKey = entry.getKey();
+//                    int required = entry.getValue();
+//                    int currentProgress = progressMap.getOrDefault(objectiveKey, 0);
+//
+//                    // Cap currentProgress at required
+//                    currentProgress = Math.min(currentProgress, required);
+//
+//                    // Format the objectiveKey
+//                    String formattedObjective = formatObjectiveKey(objectiveKey);
+//
+//                    // Ensure uniqueness by adding color codes
+//                    String objectiveDisplay = "   う " + ChatColor.GRAY + formattedObjective + ": " + ChatColor.WHITE + currentProgress + "/" + required;
+//                    objective.getScore(objectiveDisplay).setScore(scoreIndex);
+//                    newEntries.add(objectiveDisplay);
+//                    scoreIndex--;
+//                    if (scoreIndex < 2) break; // Adjusted to fit in the scoreboard
+//                }
+//            } else {
+//                String noPinnedQuestEntry = "   う " + ChatColor.RED + "No Pinned Quest";
+//                objective.getScore(noPinnedQuestEntry).setScore(3);
+//                newEntries.add(noPinnedQuestEntry);
+//            }
+//        } else {
+//            String noPinnedQuestEntry = "   う " + ChatColor.RED + "No Pinned Quest";
+//            objective.getScore(noPinnedQuestEntry).setScore(3);
+//            newEntries.add(noPinnedQuestEntry);
+//        }
 
-        String pinnedQuestId = playerData.getPinnedQuest();
-        if (pinnedQuestId != null && questManager != null) {
-            Quest pinnedQuest = questManager.getQuest(pinnedQuestId);
-            if (pinnedQuest != null) {
-                // Quest Name
-                String questNameEntry = ChatColor.AQUA + pinnedQuest.getName();
-                objective.getScore(questNameEntry).setScore(3);
-                newEntries.add(questNameEntry);
 
-                // Objective and Progress
-                Map<String, Integer> objectivesMap = pinnedQuest.getObjectives();
-                Map<String, Integer> progressMap = playerData.getQuestProgress().getOrDefault(pinnedQuestId, new HashMap<>());
-
-                int scoreIndex = 7;
-                for (Map.Entry<String, Integer> entry : objectivesMap.entrySet()) {
-                    String objectiveKey = entry.getKey();
-                    int required = entry.getValue();
-                    int currentProgress = progressMap.getOrDefault(objectiveKey, 0);
-
-                    // Cap currentProgress at required
-                    currentProgress = Math.min(currentProgress, required);
-
-                    // Format the objectiveKey
-                    String formattedObjective = formatObjectiveKey(objectiveKey);
-
-                    // Ensure uniqueness by adding color codes
-                    String objectiveDisplay = "   う " + ChatColor.GRAY + formattedObjective + ": " + ChatColor.WHITE + currentProgress + "/" + required;
-                    objective.getScore(objectiveDisplay).setScore(scoreIndex);
-                    newEntries.add(objectiveDisplay);
-                    scoreIndex--;
-                    if (scoreIndex < 2) break; // Adjusted to fit in the scoreboard
-                }
-            } else {
-                String noPinnedQuestEntry = "   う " + ChatColor.RED + "No Pinned Quest";
-                objective.getScore(noPinnedQuestEntry).setScore(3);
-                newEntries.add(noPinnedQuestEntry);
-            }
-        } else {
-            String noPinnedQuestEntry = "   う " + ChatColor.RED + "No Pinned Quest";
-            objective.getScore(noPinnedQuestEntry).setScore(3);
-            newEntries.add(noPinnedQuestEntry);
-        }
+        // SPACEHOLDER FOR QUEST
 
 
+        String noPinnedQuestEntry = "   う " + ChatColor.RED + "No Pinned Quest";
+        objective.getScore(noPinnedQuestEntry).setScore(3);
+        newEntries.add(noPinnedQuestEntry);
 
 
         String thirdemptyline = "    ";

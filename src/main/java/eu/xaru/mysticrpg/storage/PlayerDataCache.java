@@ -14,21 +14,13 @@ public class PlayerDataCache {
     private static PlayerDataCache instance;
     private final Map<UUID, PlayerData> cache = Collections.synchronizedMap(new HashMap<>());
     private final DatabaseManager databaseManager;
-    
 
     // Private constructor to prevent direct instantiation
     private PlayerDataCache(DatabaseManager databaseManager) {
         this.databaseManager = databaseManager;
- 
         registerCheckCachedDataCommand();
     }
 
-    /**
-     * Initializes the singleton instance. Should be called once during plugin initialization.
-     *
-     * @param databaseManager The DatabaseManager instance.
-                The DebugLoggerModule instance.
-     */
     public static synchronized void initialize(DatabaseManager databaseManager) {
         if (instance == null) {
             instance = new PlayerDataCache(databaseManager);
@@ -37,11 +29,6 @@ public class PlayerDataCache {
         }
     }
 
-    /**
-     * Retrieves the singleton instance.
-     *
-     * @return The PlayerDataCache instance.
-     */
     public static PlayerDataCache getInstance() {
         if (instance == null) {
             throw new IllegalStateException("PlayerDataCache is not initialized. Call initialize() first.");
@@ -49,7 +36,6 @@ public class PlayerDataCache {
         return instance;
     }
 
-    // Load data into cache when player joins
     public void loadPlayerData(UUID playerUUID, Callback<PlayerData> callback) {
         DebugLogger.getInstance().log(Level.INFO, "Attempting to load player data for UUID: " + playerUUID, 0);
         databaseManager.loadPlayerData(playerUUID, new Callback<PlayerData>() {
@@ -68,7 +54,6 @@ public class PlayerDataCache {
         });
     }
 
-    // Save cached data to the database when player disconnects
     public void savePlayerData(UUID playerUUID, Callback<Void> callback) {
         PlayerData playerData = cache.get(playerUUID);
         if (playerData != null) {
@@ -92,7 +77,6 @@ public class PlayerDataCache {
         }
     }
 
-    // Clear player data from cache
     public void clearPlayerData(UUID playerUUID) {
         if (cache.containsKey(playerUUID)) {
             cache.remove(playerUUID);
@@ -100,7 +84,6 @@ public class PlayerDataCache {
         }
     }
 
-    // Access cached data
     public PlayerData getCachedPlayerData(UUID playerUUID) {
         PlayerData data = cache.get(playerUUID);
         if (data == null) {
@@ -110,7 +93,6 @@ public class PlayerDataCache {
         return data;
     }
 
-    // Methods to modify cached player data (friends-related)
     public void addFriend(UUID playerUUID, UUID friendUUID) {
         PlayerData playerData = cache.get(playerUUID);
         if (playerData != null) {
@@ -163,7 +145,6 @@ public class PlayerDataCache {
         return cache.keySet();
     }
 
-    // Registering the checkCachedData Command
     private void registerCheckCachedDataCommand() {
         new CommandAPICommand("checkCachedData")
                 .withAliases("checkCache")
@@ -194,12 +175,7 @@ public class PlayerDataCache {
                 })
                 .register();
     }
-    /**
-     * Retrieves the player's current level.
-     *
-     * @param uuid The UUID of the player.
-     * @return The level of the player, or 1 if not found.
-     */
+
     public int getPlayerLevel(UUID uuid) {
         PlayerData playerData = getCachedPlayerData(uuid);
         if (playerData != null) {

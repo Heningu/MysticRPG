@@ -25,15 +25,16 @@ public class PlayerData {
     private List<String> pendingItems;
     private Map<String, String> equipment;
 
-
-
     private List<String> completedDialogues;
     private Long discordId;
+
+    // Newly added fields for the enhanced quest system:
+    private Map<String, Integer> questPhaseIndex;   // Tracks the current phase of each active quest
+    private Map<String, Long> questStartTime;       // Tracks the start time of each quest phase for timed objectives
 
     public PlayerData() {
         // Default constructor for MongoDB POJO codec
     }
-
 
     public PlayerData(String uuid, int balance, int xp, int level, int nextLevelXP, int currentHp,
                       Map<String, Integer> attributes, Map<String, Boolean> unlockedRecipes,
@@ -41,7 +42,10 @@ public class PlayerData {
                       boolean blockingRequests, int attributePoints, List<String> activeQuests,
                       Map<String, Map<String, Integer>> questProgress, List<String> completedQuests,
                       String pinnedQuest, int pendingBalance, List<String> pendingItems,
-                      boolean remindersEnabled, Long discordId, List<String> completedDialogues, Map<String, String> equipment) {
+                      boolean remindersEnabled, Long discordId, List<String> completedDialogues,
+                      Map<String, String> equipment,
+                      Map<String, Integer> questPhaseIndex,
+                      Map<String, Long> questStartTime) {
         this.uuid = uuid;
         this.balance = balance;
         this.xp = xp;
@@ -65,6 +69,8 @@ public class PlayerData {
         this.discordId = discordId;
         this.completedDialogues = completedDialogues;
         this.equipment = equipment;
+        this.questPhaseIndex = questPhaseIndex;
+        this.questStartTime = questStartTime;
     }
 
     public static PlayerData defaultData(String uuid) {
@@ -91,7 +97,9 @@ public class PlayerData {
                 true, // Reminders enabled by default
                 null,  // Discord ID initially null
                 new ArrayList<>(), // Initialize completedDialogues
-                new HashMap<>()
+                new HashMap<>(), // equipment
+                new HashMap<>(), // questPhaseIndex
+                new HashMap<>()  // questStartTime
         );
     }
 
@@ -126,12 +134,17 @@ public class PlayerData {
         if (!(pendingItems instanceof ArrayList)) {
             pendingItems = new ArrayList<>(pendingItems);
         }
-
         if (!(completedDialogues instanceof ArrayList)) {
             completedDialogues = new ArrayList<>(completedDialogues);
         }
         if (!(equipment instanceof HashMap)) {
             equipment = new HashMap<>(equipment);
+        }
+        if (!(questPhaseIndex instanceof HashMap)) {
+            questPhaseIndex = new HashMap<>(questPhaseIndex);
+        }
+        if (!(questStartTime instanceof HashMap)) {
+            questStartTime = new HashMap<>(questStartTime);
         }
     }
 
@@ -144,7 +157,6 @@ public class PlayerData {
     public void setEquipment(Map<String, String> equipment) {
         this.equipment = equipment;
     }
-
 
     public String getUuid() {
         return uuid;
@@ -306,8 +318,6 @@ public class PlayerData {
         this.pendingItems = pendingItems;
     }
 
-    // New getter and setter for Discord ID
-
     public Long getDiscordId() {
         return discordId;
     }
@@ -315,7 +325,6 @@ public class PlayerData {
     public void setDiscordId(Long discordId) {
         this.discordId = discordId;
     }
-
 
     public List<String> getCompletedDialogues() {
         return completedDialogues;
@@ -325,4 +334,19 @@ public class PlayerData {
         this.completedDialogues = completedDialogues;
     }
 
+    public Map<String, Integer> getQuestPhaseIndex() {
+        return questPhaseIndex;
+    }
+
+    public void setQuestPhaseIndex(Map<String, Integer> questPhaseIndex) {
+        this.questPhaseIndex = questPhaseIndex;
+    }
+
+    public Map<String, Long> getQuestStartTime() {
+        return questStartTime;
+    }
+
+    public void setQuestStartTime(Map<String, Long> questStartTime) {
+        this.questStartTime = questStartTime;
+    }
 }

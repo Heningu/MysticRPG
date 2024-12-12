@@ -363,7 +363,7 @@ public class MobManager implements Listener {
                 // Update quest progress (only for the killer)
                 QuestModule questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
                 if (questModule != null) {
-                    questModule.updateQuestProgressOnMobDeath(killer, mobInstance.getCustomMob());
+                   // questModule.updateQuestProgressOnMobDeath(killer, mobInstance.getCustomMob());
                 } else {
                     DebugLogger.getInstance().warning("QuestModule is not available. Cannot update quest progress.");
                 }

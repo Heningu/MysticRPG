@@ -29,7 +29,6 @@ public class DialogueManager {
         this.playerDataCache = saveModule.getPlayerDataCache();
         this.levelModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
 
-        // Initialize dialogues folder
         File npcsFolder = new File(JavaPlugin.getPlugin(eu.xaru.mysticrpg.cores.MysticCore.class).getDataFolder(), "npcs");
         this.dialoguesFolder = new File(npcsFolder, "dialogues");
         if (!dialoguesFolder.exists()) {
@@ -41,14 +40,12 @@ public class DialogueManager {
         dialogues.clear();
         dialogueOrder.clear();
 
-        // Load dialogue order from NPC's YAML file
         List<String> order = npc.getConfig().getStringList("dialogues.order");
         if (order == null || order.isEmpty()) {
             return;
         }
         dialogueOrder.addAll(order);
 
-        // Load dialogues from files
         for (String dialogueId : dialogueOrder) {
             File dialogueFile = new File(dialoguesFolder, dialogueId + ".yml");
             if (!dialogueFile.exists()) {
@@ -74,7 +71,6 @@ public class DialogueManager {
 
         String currentDialogueId = getNextDialogueIdForPlayer(player);
         if (currentDialogueId == null) {
-            // All dialogues exhausted
             String message = npc.getConfig().getString("interaction.allDialoguesCompletedMessage", "I have nothing more to say.");
             player.sendMessage(Utils.getInstance().$(npc.getName() + ": " + message));
             return;
@@ -86,7 +82,6 @@ public class DialogueManager {
             return;
         }
 
-        // Check level requirement
         int playerLevel = data.getLevel();
         if (playerLevel < dialogue.getLevelRequirement()) {
             player.sendMessage(Utils.getInstance().$(npc.getName() + ": " + dialogue.getInsufficientLevelMessage()));

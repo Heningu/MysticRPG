@@ -3,6 +3,8 @@ package eu.xaru.mysticrpg.quests;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -43,18 +45,33 @@ public class QuestManager {
                     String name = config.getString("name", "Unnamed Quest");
                     int levelRequirement = config.getInt("level_requirement", 1);
                     String typeStr = config.getString("type", "PVE").toUpperCase();
-                    Quest.QuestType type = Quest.QuestType.valueOf(typeStr);
+                    QuestType type = QuestType.valueOf(typeStr);
 
                     String details = config.getString("details", "");
-
                     List<String> prerequisites = config.getStringList("prerequisites");
 
-                    Map<String, Integer> objectives = new HashMap<>();
-                    ConfigurationSection objectivesSection = config.getConfigurationSection("objectives");
-                    if (objectivesSection != null) {
-                        for (String key : objectivesSection.getKeys(false)) {
-                            int value = objectivesSection.getInt(key);
-                            objectives.put(key, value);
+                    List<QuestPhase> phases = new ArrayList<>();
+                    ConfigurationSection phasesSection = config.getConfigurationSection("phases");
+                    if (phasesSection != null) {
+                        for (String phaseKey : phasesSection.getKeys(false)) {
+                            ConfigurationSection phSec = phasesSection.getConfigurationSection(phaseKey);
+                            String phaseName = phSec.getString("name", phaseKey);
+                            String dialogueStart = phSec.getString("dialogue_start", "");
+                            String dialogueEnd = phSec.getString("dialogue_end", "");
+                            List<String> objectives = phSec.getStringList("objectives");
+                            long timeLimit = phSec.getLong("time_limit", 0);
+                            Map<String, String> branches = new HashMap<>();
+                            ConfigurationSection branchSec = phSec.getConfigurationSection("branches");
+                            if (branchSec != null) {
+                                for (String b : branchSec.getKeys(false)) {
+                                    branches.put(b, branchSec.getString(b));
+                                }
+                            }
+                            boolean showChoices = phSec.getBoolean("show_choices", false);
+                            String nextPhase = phSec.getString("next_phase");
+
+                            QuestPhase phase = new QuestPhase(phaseName, dialogueStart, dialogueEnd, objectives, timeLimit, branches, showChoices, nextPhase);
+                            phases.add(phase);
                         }
                     }
 
@@ -67,7 +84,9 @@ public class QuestManager {
                         }
                     }
 
-                    Quest quest = new Quest(id, name, levelRequirement, type, details, prerequisites, objectives, rewards);
+                    String resetType = config.getString("reset_type", "none");
+
+                    Quest quest = new Quest(id, name, levelRequirement, type, details, prerequisites, phases, rewards, resetType);
                     quests.put(id, quest);
 
                     DebugLogger.getInstance().log(Level.INFO, "Loaded quest: " + id);

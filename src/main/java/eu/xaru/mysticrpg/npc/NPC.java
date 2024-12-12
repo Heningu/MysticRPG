@@ -1,60 +1,66 @@
 package eu.xaru.mysticrpg.npc;
 
+import eu.xaru.mysticrpg.guis.quests.QuestHandInGUI;
+import eu.xaru.mysticrpg.guis.quests.ShopGUI;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
+import eu.xaru.mysticrpg.quests.Quest;
 import eu.xaru.mysticrpg.quests.QuestModule;
+import eu.xaru.mysticrpg.quests.QuestPhase;
+import eu.xaru.mysticrpg.quests.QuestManager;
+import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.utils.Utils;
 import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.npc.NPCRegistry;
-import net.citizensnpcs.trait.FollowTrait;
 import net.citizensnpcs.trait.LookClose;
-import net.citizensnpcs.trait.SkinTrait;
-import org.bukkit.Bukkit;
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.UUID;
+import java.util.*;
 
 public class NPC {
 
+    private String id;
     private String name;
     private Location location;
-    private String behavior;
-    private String skin;
     private YamlConfiguration config;
     private File configFile;
 
-
     private final QuestModule questModule;
+    private final QuestManager questManager;
     private final PlayerDataCache playerDataCache;
     private final LevelModule levelModule;
 
     private final DialogueManager dialogueManager;
-
     private final JavaPlugin plugin;
     net.citizensnpcs.api.npc.NPC npcEntity;
 
-    public NPC(String name, Location location) {
+    public NPC(String id, String name, Location location) {
+        this.id = id;
         this.name = name;
         this.location = location;
-        this.behavior = "default";
-        this.questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
+        this.plugin = JavaPlugin.getPlugin(eu.xaru.mysticrpg.cores.MysticCore.class);
+
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         this.playerDataCache = saveModule.getPlayerDataCache();
         this.levelModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
-        this.dialogueManager = new DialogueManager(this);
-
-        this.plugin = JavaPlugin.getPlugin(eu.xaru.mysticrpg.cores.MysticCore.class);
+        this.questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
+        this.questManager = questModule.getQuestManager();
 
         loadConfig();
+
+        this.dialogueManager = new DialogueManager(this);
+        dialogueManager.loadDialogues();
         spawn();
     }
 
@@ -63,41 +69,19 @@ public class NPC {
         if (!npcsFolder.exists()) {
             npcsFolder.mkdirs();
         }
-        this.configFile = new File(npcsFolder, name + ".yml");
+        this.configFile = new File(npcsFolder, id + ".yml");
         if (!configFile.exists()) {
-            try {
-                configFile.createNewFile();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            try { configFile.createNewFile(); } catch (IOException e) { e.printStackTrace(); }
         }
         this.config = YamlConfiguration.loadConfiguration(configFile);
-        this.skin = config.getString("skin");
-        this.behavior = config.getString("behavior", "default");
-        dialogueManager.loadDialogues();
-    }
-
-    private void saveConfig() {
-        try {
-            config.save(configFile);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     public void spawn() {
         NPCRegistry registry = CitizensAPI.getNPCRegistry();
-        npcEntity = registry.createNPC(EntityType.PLAYER, name);
-
+        npcEntity = registry.createNPC(org.bukkit.entity.EntityType.PLAYER, name);
         npcEntity.setName(name);
-
         npcEntity.addTrait(new NPCInteractTrait(this));
-        npcEntity.addTrait(LookClose.class);
-        npcEntity.addTrait(FollowTrait.class);
-
-        if (skin != null && !skin.isEmpty()) {
-            setSkin(skin);
-        }
+        npcEntity.getOrAddTrait(LookClose.class).lookClose(true); // Always look at player
         npcEntity.spawn(location);
     }
 
@@ -107,67 +91,92 @@ public class NPC {
         }
     }
 
-    public void update() {
-        // Update any additional settings here if needed
-    }
-
     public void interact(Player player) {
+        PlayerData data = playerDataCache.getCachedPlayerData(player.getUniqueId());
+        if (data==null) {
+            player.sendMessage(Utils.getInstance().$("No player data found."));
+            return;
+        }
+
+        boolean handledQuest = false;
+
+        // Check active quests for submit_items_to_npc or talk_to_npc objectives
+        for (String questId : new ArrayList<>(data.getActiveQuests())) {
+            Quest quest = questManager.getQuest(questId);
+            if (quest == null) continue;
+            int phaseIndex = data.getQuestPhaseIndex().getOrDefault(questId,0);
+            if (phaseIndex>=quest.getPhases().size()) continue;
+            QuestPhase phase = quest.getPhases().get(phaseIndex);
+
+            for (String obj : phase.getObjectives()) {
+                if (obj.startsWith("talk_to_npc:")) {
+                    String npcId = obj.split(":")[1];
+                    if (npcId.equalsIgnoreCase(this.id)) {
+                        // Since this is the Hand in Wood phase, open GUI to hand in items
+                        Map<Material,Integer> requiredItems = new HashMap<>();
+                        requiredItems.put(Material.OAK_LOG,16);
+                        new QuestHandInGUI(player, questId, requiredItems, playerDataCache, questModule, obj).open();
+                        handledQuest = true;
+                        break;
+                    }
+                }
+                else if (obj.startsWith("submit_items_to_npc:")) {
+                    String npcId = obj.split(":")[1];
+                    if (npcId.equalsIgnoreCase(this.id)) {
+                        // Open QuestHandInGUI for item submission if such an objective existed
+                        Map<Material,Integer> requiredItems = new HashMap<>();
+                        requiredItems.put(Material.OAK_LOG,16);
+                        new QuestHandInGUI(player, questId, requiredItems, playerDataCache, questModule, obj).open();
+                        handledQuest = true;
+                        break;
+                    }
+                }
+            }
+            if (handledQuest) break;
+        }
+
+        if (handledQuest) return;
+
+        // If not handled as an active quest step, check if NPC has dialogues
         if (dialogueManager.hasDialogues()) {
             dialogueManager.startDialogue(player);
-        } else {
-            String message = config.getString("interaction.message", "Hello, %player%!");
-            message = message.replace("%player%", player.getName());
-            player.sendMessage(ChatColor.translateAlternateColorCodes('&', name + ": " + message));
-            // move npc to player pos + random
-            npcEntity.setMoveDestination(player.getLocation().add(Utils.getInstance().getRandomNumberInRange(-5, 5), 0, Utils.getInstance().getRandomNumberInRange(-5, 5)));
-            npcEntity.getNavigator().setTarget(player, true);
-            npcEntity.getNavigator().setStraightLineTarget(player.getLocation().add(Utils.getInstance().getRandomNumberInRange(-5, 5), 0, Utils.getInstance().getRandomNumberInRange(-5, 5)));
+            return;
         }
-    }
 
-    public net.citizensnpcs.api.npc.NPC getNpc() {
-        return npcEntity;
-    }
-
-    public void setSkin(String skinData) {
-        this.skin = skinData;
-        config.set("skin", skinData);
-        saveConfig();
-
-        if (npcEntity != null) {
-            npcEntity.removeTrait(SkinTrait.class);
-            SkinTrait skinTrait = npcEntity.getOrAddTrait(SkinTrait.class);
-            if (skinData.contains(":")) {
-                // Skin data is in the form of value:signature
-                String[] skinParts = skinData.split(":");
-                String value = skinParts[0];
-                String signature = skinParts[1];
-                skinTrait.setSkinPersistent(UUID.randomUUID().toString(), signature, value);
-            } else {
-                // Skin data is the name of a player
-                skinTrait.setSkinName(skinData);
-            }
-            if (npcEntity.isSpawned()) {
-                npcEntity.despawn();
-                npcEntity.spawn(location);
-            }
+        // If NPC is a merchant (from config) open ShopGUI
+        String behavior = getConfig().getString("behavior", "default");
+        if ("merchant".equalsIgnoreCase(behavior)) {
+            Map<String,Integer> shopItems = Map.of("iron_sword",100,"iron_pickaxe",200);
+            new ShopGUI(player, shopItems).open();
+            return;
         }
+
+        // Just greet if nothing else
+        String message = config.getString("interaction.message", "Hello, %player%!");
+        message = message.replace("%player%", player.getName());
+        player.sendMessage(ChatColor.translateAlternateColorCodes('&', name + ": " + message));
     }
 
-    public String getSkin() {
-        return skin;
-    }
+    public void sendQuestion(Player player, Dialogue dialogue) {
+        if (dialogue.getQuestion() == null) {
+            player.sendMessage(Utils.getInstance().$(name + ": I have nothing more to ask right now."));
+            return;
+        }
 
-    public String getName() {
-        return name;
-    }
+        player.sendMessage(Utils.getInstance().$(name + ": " + dialogue.getQuestion()));
 
-    public Location getLocation() {
-        return location;
-    }
+        TextComponent yesComponent = new TextComponent(ChatColor.GREEN +"[Yes]");
+        yesComponent.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/npcdialogue yes " + id + " " + dialogue.getId()));
 
-    public DialogueManager getDialogueManager() {
-        return dialogueManager;
+        TextComponent noComponent = new TextComponent(ChatColor.RED + "[No]");
+        noComponent.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/npcdialogue no " + id + " " + dialogue.getId()));
+
+        TextComponent message = new TextComponent();
+        message.addExtra(yesComponent);
+        message.addExtra(" ");
+        message.addExtra(noComponent);
+
+        player.spigot().sendMessage(message);
     }
 
     public YamlConfiguration getConfig() {
@@ -178,14 +187,11 @@ public class NPC {
         return plugin;
     }
 
-    public void setBehavior(String behavior) {
-        this.behavior = behavior;
-        config.set("behavior", behavior);
-        saveConfig();
-        update();
+    public String getName() {
+        return name;
     }
 
-    public String getBehavior() {
-        return behavior;
+    public DialogueManager getDialogueManager() {
+        return dialogueManager;
     }
 }
