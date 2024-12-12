@@ -7,12 +7,15 @@ import eu.xaru.mysticrpg.customs.items.ItemManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.*;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -20,13 +23,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class EquipmentManager implements Listener {
     private final JavaPlugin plugin;
     
-    private final EquipmentGUI equipmentGUI;
     private final ItemManager itemManager;
 
     public EquipmentManager(JavaPlugin plugin) {
         this.plugin = plugin;
- 
-        this.equipmentGUI = new EquipmentGUI();
 
         // Get the ItemManager from CustomItemModule
         CustomItemModule customItemModule = ModuleManager.getInstance().getModuleInstance(CustomItemModule.class);
@@ -37,18 +37,13 @@ public class EquipmentManager implements Listener {
         }
 
         // Register event listeners
-        Bukkit.getPluginManager().registerEvents(this, plugin);
-        Bukkit.getPluginManager().registerEvents(equipmentGUI, plugin);
-    }
+        Bukkit.getPluginManager().registerEvents(this, plugin);}
 
     /**
      * Provides access to the EquipmentGUI instance.
      *
      * @return The EquipmentGUI instance.
      */
-    public EquipmentGUI getEquipmentGUI() {
-        return equipmentGUI;
-    }
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
@@ -77,6 +72,20 @@ public class EquipmentManager implements Listener {
             }
         }
     }
+    @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        Player player = event.getPlayer();
+        Action action = event.getAction();
+        ItemStack item = event.getItem();
+
+        // Check if it's a right-click action and the player is holding an armor item
+        if ((action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) && isArmorItem(item)) {
+            // Cancel the event to prevent vanilla armor equipping
+            event.setCancelled(true);
+            player.sendMessage(ChatColor.RED + "You must use the equipment GUI to equip armor!");
+        }
+    }
+
 
     private boolean isArmorItem(ItemStack item) {
         if (item == null) return false;

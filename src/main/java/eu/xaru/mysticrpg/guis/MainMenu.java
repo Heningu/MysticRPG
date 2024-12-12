@@ -5,6 +5,7 @@ import eu.xaru.mysticrpg.auctionhouse.AuctionHouseModule;
 import eu.xaru.mysticrpg.auctionhouse.AuctionsGUI;
 import eu.xaru.mysticrpg.guis.auctionhouse.AuctionHouseMainMenu;
 import eu.xaru.mysticrpg.guis.player.CharacterGUI;
+import eu.xaru.mysticrpg.guis.player.EquipmentGUI;
 import eu.xaru.mysticrpg.guis.player.LevelingGUI;
 import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
@@ -90,6 +91,7 @@ public class MainMenu {
                 .setDisplayName(ChatColor.AQUA + "Equipment")
                 .addLoreLines("Manage your equipment here.")
                 .addAllItemFlags()
+                .addEnchantment(Enchantment.UNBREAKING,1,true)
         )
 
 
@@ -103,8 +105,8 @@ public class MainMenu {
                 if (window != null) {
                     window.close();
                 }
-                // Open the Equipment GUI
-                equipmentModule.getEquipmentManager().getEquipmentGUI().openEquipmentGUI(player);
+                EquipmentGUI equip = new EquipmentGUI();
+                equip.openEquipmentGUI(player);
             }
         }; // Ingredient E
 
@@ -229,6 +231,7 @@ public class MainMenu {
                         ""
                 )
                 .addAllItemFlags()
+                .addEnchantment(Enchantment.UNBREAKING,1,true)
         )
 
 
