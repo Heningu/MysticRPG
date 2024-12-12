@@ -33,7 +33,6 @@ public class LevelModule implements IBaseModule {
     private PlayerDataCache playerDataCache;
     private Map<Integer, LevelData> levelDataMap;
     private int maxLevel;
-    private LevelingMenu levelingMenu;
     private final EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
     private LevelUpListener levelUpListener;
 
@@ -63,8 +62,6 @@ public class LevelModule implements IBaseModule {
     @Override
     public void start() {
         // Initialize LevelingMenu here instead of in initialize method
-        this.levelingMenu = new LevelingMenu(JavaPlugin.getPlugin(MysticCore.class));
-
         DebugLogger.getInstance().log(Level.INFO, "LevelModule started", 0);
 
         // Register InventoryDragEvent for blocking dragging in leveling menus
@@ -245,10 +242,6 @@ public class LevelModule implements IBaseModule {
      */
     public void setLevelUpListener(LevelUpListener listener) {
         this.levelUpListener = listener;
-    }
-
-    public LevelingMenu getLevelingMenu() {
-        return levelingMenu;
     }
 
     /**

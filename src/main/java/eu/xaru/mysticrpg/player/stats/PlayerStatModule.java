@@ -33,7 +33,6 @@ public class PlayerStatModule implements IBaseModule {
 
     private PlayerDataCache playerDataCache;
     
-    private StatMenu statMenu;
     private final EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
 
     @Override
@@ -55,9 +54,6 @@ public class PlayerStatModule implements IBaseModule {
             DebugLogger.getInstance().error("PlayerDataCache not initialized. PlayerStatModule cannot function without it.");
             return;
         }
-
-        statMenu = new StatMenu(plugin);
-
         DebugLogger.getInstance().log(Level.INFO, "PlayerStatModule initialized", 0);
     }
 
@@ -86,7 +82,6 @@ public class PlayerStatModule implements IBaseModule {
                 if (displayName.startsWith("Increase ")) {
                     DebugLogger.getInstance().log("Passing attribute name to StatManager: " + displayName);
                     increaseAttribute(player, displayName);
-                    statMenu.openStatMenu(player); // Refresh the inventory to show updated stats
                 }
                 event.setCancelled(true); // Prevent item movement
             }
@@ -205,9 +200,5 @@ public class PlayerStatModule implements IBaseModule {
         attributes.put("MANA", 20);
         data.setAttributes(attributes);
         data.setAttributePoints(1);
-    }
-
-    public StatMenu getPlayerStatMenu() {
-        return statMenu;
     }
 }

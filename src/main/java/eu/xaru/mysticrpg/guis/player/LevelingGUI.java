@@ -19,6 +19,9 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.ItemFlag;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.SkullMeta;
 import org.jetbrains.annotations.NotNull;
 import xyz.xenondevs.invui.gui.PagedGui;
 import xyz.xenondevs.invui.item.Item;
@@ -44,39 +47,7 @@ public class LevelingGUI {
     private final PlayerDataCache playerDataCache;
 
     // The inventory is 9x6 = 54 slots
-    // Define the placeholders in your structure:
-    // "1 2 3 # # # G H I"
-    // "# # 4 # P # F # #"
-    // "# # 5 # # # E # #"
-    // "# # 6 7 8 9 D # #"
-    //
-    // Let's say:
-    // Row and column indexing (0-based):
-    // Row 0: # # # # # # # # #
-    // Row 1: 1(9), 2(10), 3(11), #12, #13, #14, G(15), H(16), I(17)
-    // Row 2: #18, #19, 4(20), #21, P(22), #23, F(24), #25, #26
-    // Row 3: #27, #28, 5(29), #30, #31, #32, E(33), #34, #35
-    // Row 4: #36, #37, 6(38), 7(39), 8(40), 9(41), D(42), #43, #44
-    // Row 5: C(45), >(46), #47,#48,#49,#50,#51,#52,#53
-    //
-    // Extract the slot indexes for '1','2','3','4','5','6','7','8','9','D','E','F','G','H','I':
-    // 1 -> slot 9
-    // 2 -> slot 10
-    // 3 -> slot 11
-    // 4 -> slot 20
-    // 5 -> slot 29
-    // 6 -> slot 38
-    // 7 -> slot 39
-    // 8 -> slot 40
-    // 9 -> slot 41
-    // D -> slot 42
-    // E -> slot 33
-    // F -> slot 24
-    // G -> slot 15
-    // H -> slot 16
-    // I -> slot 17
-    //
-    // Put them in an array in the order you want items to appear:
+    // Content slots (where level items go):
     private static final int[] CONTENT_SLOTS = {
             9, 10, 11, 20, 29, 38, 39, 40, 41, 42, 33, 24, 15, 16, 17
     };
@@ -135,6 +106,21 @@ public class LevelingGUI {
             levels.add(levelItem);
         }
 
+        // If the number of levels is not divisible by the content slot count (15),
+        // add filler items to fill the last page completely.
+        int itemsPerPage = CONTENT_SLOTS.length; // = 15
+        int remainder = levels.size() % itemsPerPage;
+        if (remainder != 0) {
+            int fillersNeeded = itemsPerPage - remainder;
+            Item filler = new SimpleItem(new ItemBuilder(Material.GRAY_STAINED_GLASS_PANE)
+                    .setDisplayName(" ")
+                    .addItemFlags(ItemFlag.values())
+            );
+            for (int i = 0; i < fillersNeeded; i++) {
+                levels.add(filler);
+            }
+        }
+
         // Static items
         Item back = new SimpleItem(new ItemBuilder(Material.BARRIER)
                 .setDisplayName(ChatColor.RED + "Go Back")
@@ -156,30 +142,30 @@ public class LevelingGUI {
 
         Item controler = new ChangePageItem();
         Item border = new SimpleItem(new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE).setDisplayName(" ").addAllItemFlags());
-        Item playerHead = new SimpleItem(new ItemBuilder(Material.PLAYER_HEAD)
-                .setDisplayName(ChatColor.GREEN + player.getName() + " - Level: " + playerLevel)
-                .addAllItemFlags());
+
+        // Create a player head with the player's skin
+        ItemStack headStack = new ItemStack(Material.PLAYER_HEAD);
+        SkullMeta skullMeta = (SkullMeta) headStack.getItemMeta();
+        skullMeta.setOwningPlayer(player);
+        skullMeta.setDisplayName(ChatColor.GREEN + player.getName() + " - Level: " + playerLevel);
+        skullMeta.addItemFlags(ItemFlag.values());
+        headStack.setItemMeta(skullMeta);
+        Item playerHead = new SimpleItem(headStack);
 
         int width = 9;
         int height = 6;
 
         // Create a PagedGui using ofItems. This will handle pagination.
-        // items are placed in CONTENT_SLOTS in order.
         PagedGui<Item> pagedGui = PagedGui.ofItems(width, height, levels, CONTENT_SLOTS);
 
-        // Now set static items by their slot indexes:
-        // Borders (#) - fill all '#' placeholders with border if needed
-        // According to our structure, we can place borders on all '#' slots.
-        // For demonstration, let's place borders on all '#' placeholders:
-        // '#' at positions: (just place border in all empty slots)
+        // Set all non-special & non-content slots to border
         for (int slot = 0; slot < width * height; slot++) {
-            // If this slot is not in content slots and not reserved for a special item, we can fill it with border
             if (!isSpecialSlot(slot) && !isContentSlot(slot)) {
                 pagedGui.setItem(slot, border);
             }
         }
 
-        // Set Player Head (P) at slot 22 (from your structure analysis)
+        // Set Player Head (P) at slot 22
         pagedGui.setItem(22, playerHead);
 
         // Set Back (C) at slot 45
@@ -188,9 +174,6 @@ public class LevelingGUI {
         // Set Controler (>) at slot 46
         pagedGui.setItem(46, controler);
 
-        // If you have other static items like a border or something else in specific slots, set them similarly.
-
-        // Bake the GUI after setting all items
         pagedGui.bake();
 
         Window window = Window.single()
@@ -209,9 +192,7 @@ public class LevelingGUI {
     }
 
     private boolean isSpecialSlot(int slot) {
-        // This method should return true if the slot is used for 'C','P','>','1','2', ... etc.
-        // Since we handle them individually, just check if slot is any of your known static placeholders
-        // For example: P(22), C(45), >(46)
+        // Special slots: P(22), C(45), >(46)
         return slot == 22 || slot == 45 || slot == 46;
     }
 

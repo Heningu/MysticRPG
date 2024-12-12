@@ -4,6 +4,7 @@ import eu.xaru.mysticrpg.auctionhouse.AuctionHouseModule;
 
 import eu.xaru.mysticrpg.auctionhouse.AuctionsGUI;
 import eu.xaru.mysticrpg.guis.auctionhouse.AuctionHouseMainMenu;
+import eu.xaru.mysticrpg.guis.player.CharacterGUI;
 import eu.xaru.mysticrpg.guis.player.LevelingGUI;
 import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
@@ -187,15 +188,36 @@ public class MainMenu {
         // Right part of the GUI
 
         Item character = new SimpleItem(new ItemBuilder(Material.BOOK)
-                .setDisplayName("Character")
+                .setDisplayName(ChatColor.GREEN + "Character")
                 .addLoreLines(
+                        "",
                         "See your attributes and use your",
                         "attribute points to let your",
                         "character grow. What trait do",
-                        "you prefer?"
+                        "you prefer?",
+                        ""
                 )
                 .addAllItemFlags()
-        ); // Ingredient A
+                .addEnchantment(Enchantment.UNBREAKING,1,true)
+        )
+
+
+
+        {
+            @Override
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
+                // Close the current GUI before opening the Equipment GUI
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window ?
+                        (Window) event.getView().getTopInventory().getHolder() : null;
+                if (window != null) {
+                    window.close();
+                }
+//                LevelingGUI leveling = new LevelingGUI();
+//                leveling.openLevelingGUI(player);
+                CharacterGUI chargui = new CharacterGUI();
+                chargui.openCharacterGUI(player);
+            }
+        };// Ingredient A
 
         Item leveling = new SimpleItem(new ItemBuilder(Material.EXPERIENCE_BOTTLE)
                 .setDisplayName(ChatColor.GREEN + "Leveling")
@@ -220,7 +242,6 @@ public class MainMenu {
                 if (window != null) {
                     window.close();
                 }
-                // Open the Equipment GUI
                 LevelingGUI leveling = new LevelingGUI();
                 leveling.openLevelingGUI(player);
             }
