@@ -4,6 +4,7 @@ import eu.xaru.mysticrpg.auctionhouse.AuctionHouseModule;
 
 import eu.xaru.mysticrpg.auctionhouse.AuctionsGUI;
 import eu.xaru.mysticrpg.guis.auctionhouse.AuctionHouseMainMenu;
+import eu.xaru.mysticrpg.guis.player.LevelingGUI;
 import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.player.stats.PlayerStatModule;
@@ -197,14 +198,33 @@ public class MainMenu {
         ); // Ingredient A
 
         Item leveling = new SimpleItem(new ItemBuilder(Material.EXPERIENCE_BOTTLE)
-                .setDisplayName("Leveling")
+                .setDisplayName(ChatColor.GREEN + "Leveling")
                 .addLoreLines(
-                        "Keep track of your character leveling.",
-                        "See what level you are, what levels are",
-                        "infront of you and what benefits you gain"
+                        "",
+                        ChatColor.GRAY + "Keep track of your character leveling.",
+                        ChatColor.GRAY + "See what level you are, what levels are",
+                        ChatColor.GRAY + "infront of you and what benefits you gain",
+                        ""
                 )
                 .addAllItemFlags()
-        ); // Ingredient L
+        )
+
+
+
+        {
+            @Override
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
+                // Close the current GUI before opening the Equipment GUI
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window ?
+                        (Window) event.getView().getTopInventory().getHolder() : null;
+                if (window != null) {
+                    window.close();
+                }
+                // Open the Equipment GUI
+                LevelingGUI leveling = new LevelingGUI();
+                leveling.openLevelingGUI(player);
+            }
+        };
 
         Item collections = new SimpleItem(new ItemBuilder(Material.ITEM_FRAME)
                 .setDisplayName("Collections")
@@ -312,11 +332,11 @@ public class MainMenu {
         // Header Item
 
         Item info = new SimpleItem(new ItemBuilder(Material.NETHER_STAR)
-                .setDisplayName("&6MysticRealm")
+                .setDisplayName(ChatColor.GOLD + "MysticRealm")
                 .addLoreLines(
                         ">----------------------------------------<",
-                        "This is the mystic realm!",
-                        "Here you can find all the important menus!",
+                        ChatColor.DARK_PURPLE + "This is the mystic realm!",
+                        ChatColor.GRAY + "Here you can find all the important menus!",
                         ">----------------------------------------<"
                 )
                 .addEnchantment(Enchantment.UNBREAKING,1,true)
