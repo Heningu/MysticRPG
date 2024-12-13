@@ -1,5 +1,6 @@
 package eu.xaru.mysticrpg.guis.quests;
 
+import eu.xaru.mysticrpg.quests.QuestManager;
 import eu.xaru.mysticrpg.quests.QuestModule;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
@@ -29,6 +30,7 @@ public class QuestHandInGUI {
     private final Map<Material, Integer> requiredItems;
     private final PlayerDataCache playerDataCache;
     private final QuestModule questModule;
+    private final QuestManager questManager;
     private final String objectiveKey;
 
     private Gui gui;
@@ -42,6 +44,7 @@ public class QuestHandInGUI {
         this.playerDataCache = playerDataCache;
         this.questModule = questModule;
         this.objectiveKey = objectiveKey;
+        this.questManager = questModule.getQuestManager();
     }
 
     public void open() {
@@ -167,7 +170,10 @@ public class QuestHandInGUI {
                 }
 
                 if (!allMet) {
-                    returnItemsToPlayer(clickPlayer);
+                    // Only return items if some were placed
+                    if (!collected.isEmpty()) {
+                        returnItemsToPlayer(clickPlayer);
+                    }
                     clickPlayer.sendMessage(Utils.getInstance().$("You didn't provide enough items!"));
                     clickPlayer.closeInventory();
                     return;
@@ -177,7 +183,7 @@ public class QuestHandInGUI {
 
                 PlayerData data = playerDataCache.getCachedPlayerData(clickPlayer.getUniqueId());
                 if (data != null) {
-                    questModule.updateObjectiveProgress(data, objectiveKey, 1);
+                    questManager.updateObjectiveProgress(data, objectiveKey, 1);
                 }
 
                 clickPlayer.sendMessage(Utils.getInstance().$("Quest phase completed!"));
@@ -185,6 +191,7 @@ public class QuestHandInGUI {
             }
         };
     }
+
 
     private void returnItemsToPlayer(Player player) {
         // Return all items from slots 0-25

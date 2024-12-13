@@ -7,6 +7,8 @@ import eu.xaru.mysticrpg.guis.auctionhouse.AuctionHouseMainMenu;
 import eu.xaru.mysticrpg.guis.player.CharacterGUI;
 import eu.xaru.mysticrpg.guis.player.EquipmentGUI;
 import eu.xaru.mysticrpg.guis.player.LevelingGUI;
+import eu.xaru.mysticrpg.guis.quests.QuestGUI;
+import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.player.stats.PlayerStatModule;
@@ -38,7 +40,6 @@ public class MainMenu {
     private final QuestModule questModule;
     private final FriendsModule friendsModule;
     private final PartyModule partyModule;
-
 
     private final Gui gui;
 
@@ -322,7 +323,21 @@ public class MainMenu {
                         "Current pinned Quest: TBI"
                 )
                 .addAllItemFlags()
-        ); // Ingredient 5
+        )
+        {
+            @Override
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
+                // Close the current GUI before opening the Equipment GUI
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window ?
+                        (Window) event.getView().getTopInventory().getHolder() : null;
+                if (window != null) {
+                    window.close();
+                }
+                questModule.openQuestGUI(player);
+
+
+            }
+        }; // Ingredient 5
 
         // Middle of the GUI
 
