@@ -39,4 +39,10 @@ public class Quest {
     public List<QuestPhase> getPhases() { return phases; }
     public Map<String, Object> getRewards() { return rewards; }
     public String getResetType() { return resetType; }
+    public QuestPhase getPhase(int index) {
+        if (index >= 0 && index < phases.size()) {
+            return phases.get(index);
+        }
+        return null;
+    }
 }

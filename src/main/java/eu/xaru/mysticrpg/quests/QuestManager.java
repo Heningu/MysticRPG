@@ -106,6 +106,9 @@ public class QuestManager {
         }
     }
 
+
+
+
     public Quest getQuest(String id) {
         return quests.get(id);
     }
@@ -338,6 +341,138 @@ public class QuestManager {
         }
     }
 
+    public String getFormattedCurrentObjective(UUID playerUUID) {
+        PlayerData data = playerDataCache.getCachedPlayerData(playerUUID);
+        if (data == null) {
+            DebugLogger.getInstance().warning("PlayerData not found for UUID: " + playerUUID);
+            return "No quest data available.";
+        }
+
+        String pinnedQuestId = data.getPinnedQuest();
+        if (pinnedQuestId == null || pinnedQuestId.isEmpty()) {
+            return "No pinned quest.";
+        }
+
+        Quest quest = getQuest(pinnedQuestId);
+        if (quest == null) {
+            DebugLogger.getInstance().warning("Quest with ID " + pinnedQuestId + " not found.");
+            return "Pinned quest not found.";
+        }
+
+        int phaseIndex = data.getQuestPhaseIndex().getOrDefault(pinnedQuestId, 0);
+        QuestPhase currentPhase = quest.getPhase(phaseIndex);
+        if (currentPhase == null) {
+            return "No current phase.";
+        }
+
+        Map<String, Integer> progressMap = data.getQuestProgress().getOrDefault(pinnedQuestId, new HashMap<>());
+
+        // Iterate through objectives and find the first incomplete one
+        for (String objective : currentPhase.getObjectives()) {
+            int required = 1; // Default requirement
+            String[] parts = objective.split(":");
+            if (parts[0].equals("collect_item") || parts[0].equals("kill_mob")) {
+                if (parts.length < 3) continue; // Skip malformed objectives
+                required = Integer.parseInt(parts[2]);
+            }
+
+            int current = progressMap.getOrDefault(objective, 0);
+            if (parts[0].equals("talk_to_npc") || parts[0].equals("go_to_location")) {
+                if (current < 1) { // These objectives typically require completion once
+                    return ObjectiveFormatter.formatObjective(objective, current);
+                }
+            } else {
+                if (current < required) {
+                    return ObjectiveFormatter.formatObjective(objective, current);
+                }
+            }
+        }
+
+        // If all objectives are complete, return a completion message
+        return "All objectives completed!";
+    }
+
+    /**
+     * Retrieves all formatted objectives of the pinned quest's current phase.
+     *
+     * @param playerUUID The UUID of the player.
+     * @return A list of formatted objective strings.
+     */
+    public List<String> getAllFormattedCurrentObjectives(UUID playerUUID) {
+        PlayerData data = playerDataCache.getCachedPlayerData(playerUUID);
+        if (data == null) {
+            DebugLogger.getInstance().warning("PlayerData not found for UUID: " + playerUUID);
+            return Collections.singletonList("No quest data available.");
+        }
+
+        String pinnedQuestId = data.getPinnedQuest();
+        if (pinnedQuestId == null || pinnedQuestId.isEmpty()) {
+            return Collections.singletonList("No pinned quest.");
+        }
+
+        Quest quest = getQuest(pinnedQuestId);
+        if (quest == null) {
+            DebugLogger.getInstance().warning("Quest with ID " + pinnedQuestId + " not found.");
+            return Collections.singletonList("Pinned quest not found.");
+        }
+
+        int phaseIndex = data.getQuestPhaseIndex().getOrDefault(pinnedQuestId, 0);
+        QuestPhase currentPhase = quest.getPhase(phaseIndex);
+        if (currentPhase == null) {
+            return Collections.singletonList("No current phase.");
+        }
+
+        Map<String, Integer> progressMap = data.getQuestProgress().getOrDefault(pinnedQuestId, new HashMap<>());
+        List<String> formattedObjectives = new ArrayList<>();
+
+        for (String objective : currentPhase.getObjectives()) {
+            int required = 1; // Default requirement
+            String[] parts = objective.split(":");
+            if (parts[0].equals("collect_item") || parts[0].equals("kill_mob")) {
+                if (parts.length < 3) continue; // Skip malformed objectives
+                required = Integer.parseInt(parts[2]);
+            }
+
+            int current = progressMap.getOrDefault(objective, 0);
+            formattedObjectives.add(ObjectiveFormatter.formatObjective(objective, current));
+        }
+
+        return formattedObjectives;
+    }
+
+    // Modify the existing getCurrentObjective to use formatted objectives
+    /**
+     * Retrieves the formatted current objective of the pinned quest for a specific player.
+     *
+     * @param playerUUID The UUID of the player.
+     * @return The formatted current objective as a string, or an appropriate message if not found.
+     */
+    public String getCurrentObjective(UUID playerUUID) {
+        List<String> formattedObjectives = getAllFormattedCurrentObjectives(playerUUID);
+        if (formattedObjectives.isEmpty()) {
+            return "No objectives available.";
+        }
+
+        // Option 1: Show the first incomplete objective
+        for (String obj : formattedObjectives) {
+            if (!obj.contains("/")) { // For objectives like "Talk to NPC" or "Go to Location"
+                return obj;
+            } else if (obj.endsWith("/")) {
+                return obj;
+            } else {
+                // Assuming the first one that's not completed
+                if (!obj.contains("Completed") && !obj.equals("All objectives completed!")) {
+                    return obj;
+                }
+            }
+        }
+
+        // Option 2: If all are complete
+        return "All objectives completed!";
+    }
+
+
+
     public void sendQuestProgress(CommandSender sender, Player target) {
         PlayerData data = playerDataCache.getCachedPlayerData(target.getUniqueId());
         if (data == null) {
@@ -450,4 +585,57 @@ public class QuestManager {
 
         sender.sendMessage(Utils.getInstance().$("Quest " + quest.getName() + " has been reset for " + target.getName()));
     }
+
+
+    /**
+     * Retrieves the current progress of the active phase for a specific player's quest.
+     *
+     * @param playerUUID The UUID of the player.
+     * @param questId    The ID of the quest.
+     * @return A map where the keys are objective identifiers and the values are the current progress counts.
+     *         Returns null if the player data is not found or the quest is not active.
+     */
+    public Map<String, Integer> getCurrentPhaseProgress(UUID playerUUID, String questId) {
+        // Retrieve the player's data
+        PlayerData data = playerDataCache.getCachedPlayerData(playerUUID);
+        if (data == null) {
+            DebugLogger.getInstance().warning("PlayerData not found for UUID: " + playerUUID);
+            return null;
+        }
+
+        // Check if the quest is active for the player
+        if (!data.getActiveQuests().contains(questId)) {
+            DebugLogger.getInstance().log("Player " + playerUUID + " does not have quest " + questId + " active.");
+            return null;
+        }
+
+        // Retrieve the quest
+        Quest quest = getQuest(questId);
+        if (quest == null) {
+            DebugLogger.getInstance().warning("Quest with ID " + questId + " not found.");
+            return null;
+        }
+
+        // Get the current phase index
+        int phaseIndex = data.getQuestPhaseIndex().getOrDefault(questId, 0);
+        if (phaseIndex >= quest.getPhases().size()) {
+            DebugLogger.getInstance().warning("Phase index " + phaseIndex + " out of bounds for quest " + questId);
+            return null;
+        }
+
+        // Get the current phase
+        QuestPhase currentPhase = quest.getPhases().get(phaseIndex);
+
+        // Get the progress map for the quest
+        Map<String, Integer> progressMap = data.getQuestProgress().getOrDefault(questId, new HashMap<>());
+
+        // Prepare the current phase progress
+        Map<String, Integer> currentPhaseProgress = new HashMap<>();
+        for (String objective : currentPhase.getObjectives()) {
+            currentPhaseProgress.put(objective, progressMap.getOrDefault(objective, 0));
+        }
+
+        return currentPhaseProgress;
+    }
+
 }

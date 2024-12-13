@@ -39,4 +39,7 @@ public class QuestPhase {
     public Map<String, String> getBranches() { return branches; }
     public boolean isShowChoices() { return showChoices; }
     public String getNextPhase() { return nextPhase; }
+    public String getObjectivesAsString() {
+        return String.join(", ", objectives);
+    }
 }

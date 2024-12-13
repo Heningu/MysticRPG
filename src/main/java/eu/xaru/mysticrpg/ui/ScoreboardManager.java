@@ -325,10 +325,6 @@ public class ScoreboardManager {
 //        if (pinnedQuestId != null && questManager != null) {
 //            Quest pinnedQuest = questManager.getQuest(pinnedQuestId);
 //            if (pinnedQuest != null) {
-//                // Quest Name
-//                String questNameEntry = ChatColor.AQUA + pinnedQuest.getName();
-//                objective.getScore(questNameEntry).setScore(3);
-//                newEntries.add(questNameEntry);
 //
 //                // Objective and Progress
 //                Map<String, Integer> objectivesMap = pinnedQuest.getObjectives();
@@ -368,9 +364,23 @@ public class ScoreboardManager {
         // SPACEHOLDER FOR QUEST
 
 
-        String noPinnedQuestEntry = "   う " + ChatColor.RED + "No Pinned Quest";
-        objective.getScore(noPinnedQuestEntry).setScore(3);
-        newEntries.add(noPinnedQuestEntry);
+        String pinnedQuestId = playerData.getPinnedQuest();
+
+        UUID playerUUID = player.getUniqueId();
+
+        String currentObjective = questManager.getCurrentObjective(playerUUID);
+
+
+
+        if (pinnedQuestId == null) {
+            String noPinnedQuestEntry = "   う " + ChatColor.RED + "No Pinned Quest";
+            objective.getScore(noPinnedQuestEntry).setScore(3);
+            newEntries.add(noPinnedQuestEntry);
+        } else {
+            String questID = "   う " + ChatColor.GREEN + currentObjective;
+            objective.getScore(questID).setScore(3);
+            newEntries.add(questID);
+        }
 
 
         String thirdemptyline = "    ";
