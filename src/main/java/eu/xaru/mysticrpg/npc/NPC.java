@@ -17,6 +17,7 @@ import net.citizensnpcs.api.npc.NPCRegistry;
 import net.citizensnpcs.trait.LookClose;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.TextComponent;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -112,10 +113,17 @@ public class NPC {
                 if (obj.startsWith("talk_to_npc:")) {
                     String npcId = obj.split(":")[1];
                     if (npcId.equalsIgnoreCase(this.id)) {
-                        // Since this is the Hand in Wood phase, open GUI to hand in items
-                        Map<Material,Integer> requiredItems = new HashMap<>();
-                        requiredItems.put(Material.OAK_LOG,16);
-                        new QuestHandInGUI(player, questId, requiredItems, playerDataCache, questModule, obj).open();
+                        // Send the message to the player
+                        String message = "Oh, you got the items for me?";
+                        player.sendMessage(ChatColor.translateAlternateColorCodes('&', message));
+
+                        // Schedule the GUI to open after 1 second (20 ticks)
+                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                            Map<Material, Integer> requiredItems = new HashMap<>();
+                            requiredItems.put(Material.OAK_LOG, 16);
+                            new QuestHandInGUI(player, questId, requiredItems, playerDataCache, questModule, obj).open();
+                        }, 20L); // 20 ticks = 1 second
+
                         handledQuest = true;
                         break;
                     }
@@ -123,10 +131,17 @@ public class NPC {
                 else if (obj.startsWith("submit_items_to_npc:")) {
                     String npcId = obj.split(":")[1];
                     if (npcId.equalsIgnoreCase(this.id)) {
-                        // Open QuestHandInGUI for item submission if such an objective existed
-                        Map<Material,Integer> requiredItems = new HashMap<>();
-                        requiredItems.put(Material.OAK_LOG,16);
-                        new QuestHandInGUI(player, questId, requiredItems, playerDataCache, questModule, obj).open();
+                        // Send the message to the player
+                        String message ="Oh, you got items for me?";
+                        player.sendMessage(ChatColor.translateAlternateColorCodes('&', message));
+
+                        // Schedule the GUI to open after 1 second (20 ticks)
+                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                            Map<Material, Integer> requiredItems = new HashMap<>();
+                            requiredItems.put(Material.OAK_LOG, 16);
+                            new QuestHandInGUI(player, questId, requiredItems, playerDataCache, questModule, obj).open();
+                        }, 20L); // 20 ticks = 1 second
+
                         handledQuest = true;
                         break;
                     }
