@@ -1,6 +1,7 @@
 package eu.xaru.mysticrpg.guis.quests;
 
 import eu.xaru.mysticrpg.auctionhouse.AuctionHouseModule;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.guis.MainMenu;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
@@ -22,6 +23,7 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import xyz.xenondevs.invui.gui.PagedGui;
 import xyz.xenondevs.invui.gui.structure.Markers;
@@ -31,10 +33,9 @@ import xyz.xenondevs.invui.item.builder.ItemBuilder;
 import xyz.xenondevs.invui.item.impl.SimpleItem;
 import xyz.xenondevs.invui.window.Window;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 public class QuestGUI {
 
@@ -42,6 +43,9 @@ public class QuestGUI {
     private final QuestManager questManager;
     private Player player;
     private boolean showingActiveQuests = true;
+    private static final Map<UUID, Long> pinCooldownMap = new ConcurrentHashMap<>();
+    private static final long COOLDOWN_DURATION_MS = TimeUnit.SECONDS.toMillis(5); // 5 seconds
+
 
     private final AuctionHouseModule auctionHouse;
     private final EquipmentModule equipmentModule;
@@ -71,6 +75,18 @@ public class QuestGUI {
             player.sendMessage(Utils.getInstance().$("No player data found."));
             return;
         }
+
+
+        Item hint = new SimpleItem(new ItemBuilder(Material.PAPER)
+                .setDisplayName("Useful Hint")
+                .addLoreLines(
+                        "",
+                        "You can pin a quest to your sideboard to keep",
+                        "track of your quest progress. To pin a quest,",
+                        "simply click on one.",
+                        ""
+                ));
+
 
 
         // Static items
@@ -129,13 +145,14 @@ public class QuestGUI {
                         "# x x x x x x x #",
                         "# x x x x x x x #",
                         "# x x x x x x x #",
-                        "B T # # # # # # #"
+                        "B T H # # # # # #"
                 )
                 .addIngredient('x', Markers.CONTENT_LIST_SLOT_HORIZONTAL)
                 .addIngredient('#', border)
                 .addIngredient('I', info)
                 .addIngredient('T', toggleItem)
                 .addIngredient('B', back)
+                .addIngredient('H', hint)
                 .setContent(questItems)
                 .build();
 
@@ -180,13 +197,40 @@ public class QuestGUI {
     }
 
     private void pinOrUnpinQuest(PlayerData data, Quest quest, Player player) {
+        UUID playerUUID = player.getUniqueId();
+        long currentTime = System.currentTimeMillis();
+
+        // Check for cooldown
+        if (pinCooldownMap.containsKey(playerUUID)) {
+            long lastActionTime = pinCooldownMap.get(playerUUID);
+            if (currentTime - lastActionTime < COOLDOWN_DURATION_MS) {
+                long timeLeft = (COOLDOWN_DURATION_MS - (currentTime - lastActionTime)) / 1000;
+                player.sendMessage(Utils.getInstance().$(ChatColor.YELLOW + "Please wait " + timeLeft + " seconds before pinning/unpinning another quest."));
+                return;
+            }
+        }
+
+        // If the quest is not active and the player is trying to pin it, deny
+        if (!quest.getId().equals(data.getPinnedQuest()) && !data.getActiveQuests().contains(quest.getId())) {
+            player.sendMessage(Utils.getInstance().$(ChatColor.RED + "You can only pin active quests."));
+            return;
+        }
+
         if (quest.getId().equals(data.getPinnedQuest())) {
             data.setPinnedQuest(null);
             player.sendMessage(Utils.getInstance().$("You have unpinned the quest: " + quest.getName()));
         } else {
+            // Ensure only one quest is pinned at a time
             data.setPinnedQuest(quest.getId());
             player.sendMessage(Utils.getInstance().$("You have pinned the quest: " + quest.getName()));
         }
+
+        // Add player to cooldown
+        pinCooldownMap.put(playerUUID, currentTime);
+        // Schedule removal of cooldown after 5 seconds
+
+        Plugin plugin = MysticCore.getPlugin(MysticCore.class);
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> pinCooldownMap.remove(playerUUID), 100L); // 100 ticks = 5 seconds
     }
 
     private ItemStackMeta getQuestItemMeta(PlayerData data, Quest quest, boolean showingActive) {
