@@ -53,29 +53,35 @@ public class QuestHandInGUI {
         //  - 'C' represents the confirm button at the last slot (2,8)
         String[] layout = {
                 "# # # # # # # # #",
-                "# # # # # # # # #",
+                "# X # # # # # # #",
                 "# # # # # # # # C"
         };
 
-        // We'll first add filler for '#' and the confirm item for 'C', then after build, replace '#' with clickable empty slots.
-        ItemProvider filler = new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE).setDisplayName(" ").addAllItemFlags();
+        // Create filler and confirm button items
+        ItemProvider filler = new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE)
+                .setDisplayName(" ")
+                .addAllItemFlags();
         Item confirmButton = createConfirmButton();
 
+        Item border = new SimpleItem(new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE)
+                .setDisplayName(" ")
+                .addAllItemFlags());
+
+        // Build the GUI structure
         gui = Gui.normal()
                 .setStructure(layout)
-                .addIngredient('#', filler)
+                .addIngredient('X', filler)
+                .addIngredient('#', border)
                 .addIngredient('C', confirmButton)
                 .build();
 
-        // After building, iterate over all slots except the confirm slot (which is at index 26)
-        // Structure is 3 rows of 9 = 27 slots total
-        // Confirm is last slot: index 2*9+8=26
+        // Replace filler '#' with interactive empty slots
         for (int i = 0; i < 27; i++) {
-            if (i == 26) continue; // confirm button slot
-            // Replace filler '#' with an empty slot item allowing item placement
+            if (i == 26) continue; // Skip confirm button slot
             gui.setItem(i, createEmptySlot(i));
         }
 
+        // Create and open the window
         window = Window.single()
                 .setViewer(player)
                 .setTitle(ChatColor.DARK_GREEN + "Hand in Items")
@@ -84,6 +90,12 @@ public class QuestHandInGUI {
         window.open();
     }
 
+    /**
+     * Creates an interactive empty slot where players can place items.
+     *
+     * @param slotIndex The index of the slot in the GUI.
+     * @return An interactive Item representing the empty slot.
+     */
     private Item createEmptySlot(int slotIndex) {
         return new SimpleItem(new ItemBuilder(Material.WHITE_STAINED_GLASS_PANE)
                 .setDisplayName(ChatColor.GRAY + "Empty Slot")
@@ -110,14 +122,19 @@ public class QuestHandInGUI {
                         // There is some item here, put it on cursor
                         clickPlayer.setItemOnCursor(currentItem.clone());
                         gui.setItem(slotIndex, createEmptySlot(slotIndex));
-                    } else {
-                        // Empty slot, do nothing
                     }
                 }
             }
         };
     }
 
+    /**
+     * Handles clicks on items placed in the GUI slots.
+     *
+     * @param slotIndex The index of the slot being interacted with.
+     * @param player    The player interacting with the slot.
+     * @param event     The inventory click event.
+     */
     private void handleSlotItemClick(int slotIndex, Player player, InventoryClickEvent event) {
         event.setCancelled(true);
         ItemStack cursorItem = player.getItemOnCursor();
@@ -139,30 +156,54 @@ public class QuestHandInGUI {
         }
     }
 
+    /**
+     * Creates the confirm button with the necessary click handling.
+     *
+     * @return The confirm button Item.
+     */
     private Item createConfirmButton() {
         return new SimpleItem(new ItemBuilder(Material.GREEN_WOOL)
                 .setDisplayName(ChatColor.GREEN + "Confirm Hand-In")
                 .addLoreLines("Click to confirm and submit items.")
-                .addAllItemFlags())
-        {
+                .addAllItemFlags()) {
             @Override
             public void handleClick(@NotNull ClickType clickType, @NotNull Player clickPlayer, @NotNull InventoryClickEvent event) {
                 event.setCancelled(true);
 
-                Map<Material,Integer> collected = new HashMap<>();
+                Map<Material, Integer> collected = new HashMap<>();
+                boolean hasUserAddedItems = false;
 
-                // Collect items from slots 0-25
+                // Collect items from slots 0-25, excluding placeholders
                 for (int i = 0; i < 26; i++) {
                     Item slotItem = gui.getItem(i);
-                    ItemStack stack = (slotItem != null) ? slotItem.getItemProvider().get(null) : null;
-                    if (stack != null && stack.getType() != Material.AIR) {
-                        collected.put(stack.getType(), collected.getOrDefault(stack.getType(), 0) + stack.getAmount());
+                    if (slotItem == null) continue;
+                    ItemProvider provider = slotItem.getItemProvider();
+                    if (provider == null) continue;
+                    ItemStack stack = provider.get(null);
+                    if (stack == null || stack.getType() == Material.AIR) continue;
+
+                    // Check if the item is a placeholder (Empty Slot)
+                    String displayName = stack.hasItemMeta() && stack.getItemMeta().hasDisplayName()
+                            ? stack.getItemMeta().getDisplayName()
+                            : "";
+                    if (displayName.equals(ChatColor.GRAY + "Empty Slot")) {
+                        continue; // Skip placeholder
                     }
+
+                    // This is a user-added item
+                    hasUserAddedItems = true;
+                    collected.put(stack.getType(), collected.getOrDefault(stack.getType(), 0) + stack.getAmount());
+                }
+
+                // If no user-added items were placed, simply close the GUI without doing anything
+                if (!hasUserAddedItems) {
+                    clickPlayer.closeInventory();
+                    return;
                 }
 
                 boolean allMet = true;
-                for (Map.Entry<Material,Integer> req : requiredItems.entrySet()) {
-                    int have = collected.getOrDefault(req.getKey(),0);
+                for (Map.Entry<Material, Integer> req : requiredItems.entrySet()) {
+                    int have = collected.getOrDefault(req.getKey(), 0);
                     if (have < req.getValue()) {
                         allMet = false;
                         break;
@@ -192,28 +233,58 @@ public class QuestHandInGUI {
         };
     }
 
-
+    /**
+     * Returns all user-added items back to the player's inventory.
+     *
+     * @param player The player to return items to.
+     */
     private void returnItemsToPlayer(Player player) {
-        // Return all items from slots 0-25
+        // Return all user-added items from slots 0-25
         for (int i = 0; i < 26; i++) {
             Item slotItem = gui.getItem(i);
-            if (slotItem != null) {
-                ItemStack stack = slotItem.getItemProvider().get(null);
-                if (stack != null && stack.getType() != Material.AIR) {
-                    player.getInventory().addItem(stack.clone());
-                }
+            if (slotItem == null) continue;
+            ItemProvider provider = slotItem.getItemProvider();
+            if (provider == null) continue;
+            ItemStack stack = provider.get(null);
+            if (stack == null || stack.getType() == Material.AIR) continue;
+
+            // Check if the item is a placeholder (Empty Slot)
+            String displayName = stack.hasItemMeta() && stack.getItemMeta().hasDisplayName()
+                    ? stack.getItemMeta().getDisplayName()
+                    : "";
+            if (displayName.equals(ChatColor.GRAY + "Empty Slot")
+            ) {
+                continue; // Skip placeholder
             }
+
+            player.getInventory().addItem(stack.clone());
         }
     }
 
+    /**
+     * Removes the required items from the GUI and returns any leftovers to the player's inventory.
+     *
+     * @param player The player performing the hand-in.
+     */
     private void removeRequiredItemsAndReturnLeftovers(Player player) {
-        Map<Material,Integer> toRemove = new HashMap<>(requiredItems);
+        Map<Material, Integer> toRemove = new HashMap<>(requiredItems);
 
         for (int i = 0; i < 26; i++) {
             Item slotItem = gui.getItem(i);
             if (slotItem == null) continue;
-            ItemStack stack = slotItem.getItemProvider().get(null);
+            ItemProvider provider = slotItem.getItemProvider();
+            if (provider == null) continue;
+            ItemStack stack = provider.get(null);
             if (stack == null || stack.getType() == Material.AIR) continue;
+
+            // Check if the item is a placeholder (Empty Slot)
+            String displayName = stack.hasItemMeta() && stack.getItemMeta().hasDisplayName()
+                    ? stack.getItemMeta().getDisplayName()
+                    : "";
+            if (displayName.equals(ChatColor.GRAY + "Empty Slot")
+            ) {
+                continue; // Skip placeholder
+            }
 
             Material mat = stack.getType();
             if (toRemove.containsKey(mat)) {
@@ -221,8 +292,9 @@ public class QuestHandInGUI {
                 int remove = Math.min(stack.getAmount(), needed);
                 stack.setAmount(stack.getAmount() - remove);
                 needed -= remove;
-                toRemove.put(mat, needed);
-                if (needed <= 0) {
+                if (needed > 0) {
+                    toRemove.put(mat, needed);
+                } else {
                     toRemove.remove(mat);
                 }
             }
@@ -240,15 +312,26 @@ public class QuestHandInGUI {
             }
         }
 
-        // Return all leftovers
+        // Return all leftovers (items that were not required)
         for (int i = 0; i < 26; i++) {
             Item slotItem = gui.getItem(i);
-            if (slotItem != null) {
-                ItemStack stack = slotItem.getItemProvider().get(null);
-                if (stack != null && stack.getType() != Material.AIR) {
-                    player.getInventory().addItem(stack.clone());
-                }
+            if (slotItem == null) continue;
+            ItemProvider provider = slotItem.getItemProvider();
+            if (provider == null) continue;
+            ItemStack stack = provider.get(null);
+            if (stack == null || stack.getType() == Material.AIR) continue;
+
+            // Check if the item is a placeholder (Empty Slot)
+            String displayName = stack.hasItemMeta() && stack.getItemMeta().hasDisplayName()
+                    ? stack.getItemMeta().getDisplayName()
+                    : "";
+            if (displayName.equals(ChatColor.GRAY + "Empty Slot")
+            ) {
+                continue; // Skip placeholder
             }
+
+            player.getInventory().addItem(stack.clone());
+            gui.setItem(i, createEmptySlot(i));
         }
     }
 }

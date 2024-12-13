@@ -7,6 +7,7 @@ import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
+import eu.xaru.mysticrpg.quests.QuestModule;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.utils.DebugLogger;
@@ -94,7 +95,7 @@ public class UIModule implements IBaseModule {
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(SaveModule.class, LevelModule.class);  // Depend on SaveModule and LevelModule
+        return List.of(SaveModule.class, LevelModule.class, QuestModule.class);  // Depend on SaveModule and LevelModule
     }
 
     @Override
