@@ -48,7 +48,7 @@ public class Dialogue {
         this.questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
         this.questManager = questModule.getQuestManager();
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
-        this.playerDataCache = saveModule.getPlayerDataCache();
+        this.playerDataCache = PlayerDataCache.getInstance();
     }
 
     public void start(Player player) {

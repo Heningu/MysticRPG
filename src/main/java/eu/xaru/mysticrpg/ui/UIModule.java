@@ -51,7 +51,7 @@ public class UIModule implements IBaseModule {
         Bukkit.getPluginManager().registerEvents(this.chatFormatter, plugin);
 
         if (saveModule != null && levelModule != null) {
-            PlayerDataCache playerDataCache = saveModule.getPlayerDataCache();
+            PlayerDataCache playerDataCache = PlayerDataCache.getInstance();
             this.actionBarManager = new ActionBarManager((MysticCore) plugin, playerDataCache);
             this.scoreboardManager = new ScoreboardManager(); // Initialize ScoreboardManager
             DebugLogger.getInstance().log(Level.INFO, "UIModule initialized successfully.", 0);

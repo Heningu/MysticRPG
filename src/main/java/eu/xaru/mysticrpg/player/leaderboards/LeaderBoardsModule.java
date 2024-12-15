@@ -56,7 +56,7 @@ public class LeaderBoardsModule implements IBaseModule {
         // Initialize the DatabaseManager from the SaveModule dependency
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         if (saveModule != null) {
-            this.databaseManager = saveModule.getDatabaseManager();
+            this.databaseManager = DatabaseManager.getInstance();
             if (this.databaseManager != null) {
                 this.leaderBoardsHelper = new LeaderBoardsHelper(databaseManager);
                 DebugLogger.getInstance().log(Level.INFO, "LeaderBoardsHelper initialized successfully.", 0);

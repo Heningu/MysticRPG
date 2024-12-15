@@ -1,419 +1,273 @@
-// File: eu/xaru/mysticrpg/storage/database/SQLiteRepository.java
 package eu.xaru.mysticrpg.storage.database;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import eu.xaru.mysticrpg.auctionhouse.Auction;
-import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.Callback;
-import eu.xaru.mysticrpg.storage.IDatabaseRepository;
 import eu.xaru.mysticrpg.utils.DebugLogger;
-import org.bukkit.inventory.ItemStack;
+import com.google.gson.Gson;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.sql.*;
 import java.util.*;
 import java.util.logging.Level;
 
-public class SQLiteRepository implements IDatabaseRepository {
+/**
+ * SQLite implementation of the IRepository interface with automatic schema migration.
+ *
+ * @param <T> The type of the data model.
+ */
+public class SQLiteRepository<T> extends BaseRepository<T> {
 
     private final Connection connection;
-    private final Gson gson;
+    private final String tableName;
+    private final String idField;
+    private final Gson gson = new Gson();
 
-    public SQLiteRepository(String databasePath) {
+    public SQLiteRepository(Class<T> type, String databasePath, String tableName, String idField) {
+        super(type);
+        this.tableName = tableName;
+        this.idField = idField;
+        this.connection = connect(databasePath);
+        initializeTable();
+    }
 
-        this.gson = new Gson(); // Initialize Gson
+    /**
+     * Establishes a connection to the SQLite database.
+     *
+     * @param databasePath The path to the SQLite database file.
+     * @return The Connection instance.
+     */
+    private Connection connect(String databasePath) {
         try {
-            connection = DriverManager.getConnection("jdbc:sqlite:" + databasePath);
-            initializeTables();
-            DebugLogger.getInstance().log(Level.INFO, "SQLiteRepository connected to SQLite database", 0);
+            Connection conn = DriverManager.getConnection("jdbc:sqlite:" + databasePath);
+            DebugLogger.getInstance().log(Level.INFO, "Connected to SQLite database at: " + databasePath, 0);
+            return conn;
         } catch (SQLException e) {
-            DebugLogger.getInstance().error("SQLiteRepository failed to connect to SQLite:", e);
+            DebugLogger.getInstance().error("Failed to connect to SQLite database at: " + databasePath, e);
             throw new RuntimeException(e);
         }
     }
 
-    private void initializeTables() throws SQLException {
-        Statement stmt = connection.createStatement();
+    /**
+     * Initializes the table by creating it if it doesn't exist and performing schema migrations.
+     */
+    private void initializeTable() {
+        try (Statement stmt = connection.createStatement()) {
+            // Create table if it does not exist
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append("CREATE TABLE IF NOT EXISTS ").append(tableName).append(" (");
+            sqlBuilder.append(idField).append(" TEXT PRIMARY KEY, ");
 
-        // Player Data Table
-        stmt.executeUpdate(
-                "CREATE TABLE IF NOT EXISTS playerData (" +
-                        "uuid TEXT PRIMARY KEY," +
-                        "balance REAL," +
-                        "xp INTEGER," +
-                        "level INTEGER," +
-                        "nextLevelXP INTEGER," +
-                        "currentHp INTEGER," +
-                        "attributes TEXT," + // JSON serialized string
-                        "unlockedRecipes TEXT," + // JSON serialized string
-                        "friendRequests TEXT," + // JSON serialized string
-                        "friends TEXT," + // JSON serialized string
-                        "blockedPlayers TEXT," + // JSON serialized string
-                        "blockingRequests INTEGER," +
-                        "attributePoints INTEGER," +
-                        "activeQuests TEXT," + // JSON serialized string
-                        "questProgress TEXT," + // JSON serialized string
-                        "completedQuests TEXT," + // JSON serialized string
-                        "pinnedQuest TEXT," +
-                        "pendingBalance REAL," +
-                        "pendingItems TEXT," + // JSON serialized string
-                        "remindersEnabled INTEGER" +
-                        ");"
-        );
+            // Add columns based on @Persist fields
+            int count = 0;
+            for (String key : persistFields.keySet()) {
+                Field field = persistFields.get(key);
+                String sqlType = getSQLType(field.getType());
+                sqlBuilder.append(key).append(" ").append(sqlType);
+                if (++count < persistFields.size()) {
+                    sqlBuilder.append(", ");
+                }
+            }
+            sqlBuilder.append(");");
+            stmt.execute(sqlBuilder.toString());
 
-        // Auctions Table
-        stmt.executeUpdate(
-                "CREATE TABLE IF NOT EXISTS auctions (" +
-                        "auctionId TEXT PRIMARY KEY," +
-                        "sellerUUID TEXT," +
-                        "itemData TEXT," + // Serialized ItemStack
-                        "price REAL," +
-                        "expirationTime INTEGER" +
-                        ");"
-        );
+            // Perform schema migration: add missing columns
+            String pragmaQuery = "PRAGMA table_info(" + tableName + ");";
+            ResultSet rs = stmt.executeQuery(pragmaQuery);
+            Set<String> existingColumns = new HashSet<>();
+            while (rs.next()) {
+                existingColumns.add(rs.getString("name"));
+            }
+            rs.close();
 
-        stmt.close();
+            // Add any missing columns
+            for (String key : persistFields.keySet()) {
+                if (!existingColumns.contains(key)) {
+                    String sqlType = getSQLType(persistFields.get(key).getType());
+                    String alterSQL = "ALTER TABLE " + tableName + " ADD COLUMN " + key + " " + sqlType + ";";
+                    stmt.execute(alterSQL);
+                    DebugLogger.getInstance().log(Level.INFO, "Added missing column '" + key + "' to table '" + tableName + "'.", 0);
+                }
+            }
+
+            DebugLogger.getInstance().log(Level.INFO, "Table '" + tableName + "' initialized and migrated successfully.", 0);
+        } catch (SQLException e) {
+            DebugLogger.getInstance().error("Failed to initialize or migrate table: " + tableName, e);
+            throw new RuntimeException(e);
+        }
     }
 
-    // Player Data Operations
+    /**
+     * Determines the SQL data type based on the Java field type.
+     *
+     * @param fieldType The Java field type.
+     * @return The corresponding SQL data type.
+     */
+    private String getSQLType(Class<?> fieldType) {
+        if (fieldType == int.class || fieldType == Integer.class ||
+                fieldType == long.class || fieldType == Long.class ||
+                fieldType == double.class || fieldType == Double.class ||
+                fieldType == float.class || fieldType == Float.class) {
+            return "REAL";
+        } else if (fieldType == boolean.class || fieldType == Boolean.class) {
+            return "INTEGER";
+        } else if (fieldType == String.class) {
+            return "TEXT";
+        } else {
+            // For complex types, store as JSON
+            return "TEXT";
+        }
+    }
 
     @Override
-    public void savePlayerData(PlayerData playerData, Callback<Void> callback) {
-        DebugLogger.getInstance().log(Level.INFO, "Saving player data for UUID: " + playerData.getUuid(), 0);
-        String sql = "INSERT INTO playerData (uuid, balance, xp, level, nextLevelXP, currentHp, attributes, unlockedRecipes, " +
-                "friendRequests, friends, blockedPlayers, blockingRequests, attributePoints, activeQuests, questProgress, " +
-                "completedQuests, pinnedQuest, pendingBalance, pendingItems, remindersEnabled) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-                "ON CONFLICT(uuid) DO UPDATE SET " +
-                "balance=excluded.balance, xp=excluded.xp, level=excluded.level, nextLevelXP=excluded.nextLevelXP, " +
-                "currentHp=excluded.currentHp, attributes=excluded.attributes, unlockedRecipes=excluded.unlockedRecipes, " +
-                "friendRequests=excluded.friendRequests, friends=excluded.friends, blockedPlayers=excluded.blockedPlayers, " +
-                "blockingRequests=excluded.blockingRequests, attributePoints=excluded.attributePoints, " +
-                "activeQuests=excluded.activeQuests, questProgress=excluded.questProgress, completedQuests=excluded.completedQuests, " +
-                "pinnedQuest=excluded.pinnedQuest, pendingBalance=excluded.pendingBalance, pendingItems=excluded.pendingItems, " +
-                "remindersEnabled=excluded.remindersEnabled;";
+    public void save(T entity, Callback<Void> callback) {
+        Map<String, Object> data = serialize(entity);
+        if (!data.containsKey(idField)) {
+            DebugLogger.getInstance().error("Entity does not contain the ID field: " + idField);
+            callback.onFailure(new IllegalArgumentException("Missing ID field"));
+            return;
+        }
+        Object idValue = data.get(idField);
 
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, playerData.getUuid());
-            pstmt.setDouble(2, playerData.getBalance());
-            pstmt.setInt(3, playerData.getXp());
-            pstmt.setInt(4, playerData.getLevel());
-            pstmt.setInt(5, playerData.getNextLevelXP());
-            pstmt.setInt(6, playerData.getCurrentHp());
-            pstmt.setString(7, serializeMap(playerData.getAttributes()));
-            pstmt.setString(8, serializeMapBoolean(playerData.getUnlockedRecipes()));
-            pstmt.setString(9, serializeSet(playerData.getFriendRequests()));
-            pstmt.setString(10, serializeSet(playerData.getFriends()));
-            pstmt.setString(11, serializeSet(playerData.getBlockedPlayers()));
-            pstmt.setInt(12, playerData.isBlockingRequests() ? 1 : 0);
-            pstmt.setInt(13, playerData.getAttributePoints());
-            pstmt.setString(14, serializeList(playerData.getActiveQuests()));
-            pstmt.setString(15, serializeQuestProgress(playerData.getQuestProgress()));
-            pstmt.setString(16, serializeList(playerData.getCompletedQuests()));
-            pstmt.setString(17, playerData.getPinnedQuest());
-            pstmt.setDouble(18, playerData.getPendingBalance());
-            pstmt.setString(19, serializeList(playerData.getPendingItems()));
-            pstmt.setInt(20, playerData.isRemindersEnabled() ? 1 : 0);
+        StringBuilder sqlBuilder = new StringBuilder();
+        sqlBuilder.append("INSERT INTO ").append(tableName).append(" (");
+        sqlBuilder.append(String.join(", ", data.keySet()));
+        sqlBuilder.append(") VALUES (");
+        sqlBuilder.append(String.join(", ", Collections.nCopies(data.size(), "?")));
+        sqlBuilder.append(") ON CONFLICT(").append(idField).append(") DO UPDATE SET ");
+        List<String> updates = new ArrayList<>();
+        for (String key : data.keySet()) {
+            if (!key.equals(idField)) {
+                updates.add(key + " = excluded." + key);
+            }
+        }
+        sqlBuilder.append(String.join(", ", updates));
+        sqlBuilder.append(";");
 
+        try (PreparedStatement pstmt = connection.prepareStatement(sqlBuilder.toString())) {
+            int index = 1;
+            for (String key : data.keySet()) {
+                Object value = data.get(key);
+                if (value instanceof Map || value instanceof Collection) {
+                    // Serialize complex types as JSON
+                    String json = gson.toJson(value);
+                    pstmt.setString(index++, json);
+                } else if (value instanceof Boolean) {
+                    pstmt.setInt(index++, (Boolean) value ? 1 : 0);
+                } else {
+                    pstmt.setObject(index++, value);
+                }
+            }
             pstmt.executeUpdate();
+            DebugLogger.getInstance().log(Level.INFO, "Entity saved successfully with ID: " + idValue, 0);
             callback.onSuccess(null);
-            DebugLogger.getInstance().log(Level.INFO, "Successfully saved player data for UUID: " + playerData.getUuid(), 0);
         } catch (SQLException e) {
-            DebugLogger.getInstance().error("Error saving player data for UUID: " + playerData.getUuid() + ".", e);
+            DebugLogger.getInstance().error("Error saving entity with ID: " + idValue, e);
             callback.onFailure(e);
         }
     }
 
     @Override
-    public void loadPlayerData(UUID uuid, Callback<PlayerData> callback) {
-        DebugLogger.getInstance().log(Level.INFO, "Loading player data for UUID: " + uuid, 0);
-        String sql = "SELECT * FROM playerData WHERE uuid = ?;";
+    public void load(UUID uuid, Callback<T> callback) {
+        String sql = "SELECT * FROM " + tableName + " WHERE " + idField + " = ?;";
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, uuid.toString());
             ResultSet rs = pstmt.executeQuery();
-
             if (rs.next()) {
-                PlayerData playerData = new PlayerData();
-                playerData.setUuid(rs.getString("uuid"));
-                playerData.setBalance(rs.getInt("balance"));
-                playerData.setXp(rs.getInt("xp"));
-                playerData.setLevel(rs.getInt("level"));
-                playerData.setNextLevelXP(rs.getInt("nextLevelXP"));
-                playerData.setCurrentHp(rs.getInt("currentHp"));
-                playerData.setAttributes(deserializeMap(rs.getString("attributes")));
-                playerData.setUnlockedRecipes(deserializeMapBoolean(rs.getString("unlockedRecipes")));
-                playerData.setFriendRequests(deserializeSet(rs.getString("friendRequests")));
-                playerData.setFriends(deserializeSet(rs.getString("friends")));
-                playerData.setBlockedPlayers(deserializeSet(rs.getString("blockedPlayers")));
-                playerData.setBlockingRequests(rs.getInt("blockingRequests") == 1);
-                playerData.setAttributePoints(rs.getInt("attributePoints"));
-                playerData.setActiveQuests(deserializeList(rs.getString("activeQuests")));
-                playerData.setQuestProgress(deserializeQuestProgress(rs.getString("questProgress")));
-                playerData.setCompletedQuests(deserializeList(rs.getString("completedQuests")));
-                playerData.setPinnedQuest(rs.getString("pinnedQuest"));
-                playerData.setPendingBalance(rs.getInt("pendingBalance"));
-                playerData.setPendingItems(deserializeList(rs.getString("pendingItems")));
-                playerData.setRemindersEnabled(rs.getInt("remindersEnabled") == 1);
-
-                callback.onSuccess(playerData);
-                DebugLogger.getInstance().log(Level.INFO, "Successfully loaded player data for UUID: " + uuid, 0);
+                Map<String, Object> data = new HashMap<>();
+                for (String key : persistFields.keySet()) {
+                    Object value = rs.getObject(key);
+                    if (value instanceof String && isComplexType(persistFields.get(key).getType())) {
+                        // Deserialize JSON to complex types
+                        Field field = persistFields.get(key);
+                        Type typeOfField = field.getGenericType();
+                        Object deserialized = gson.fromJson((String) value, typeOfField);
+                        data.put(key, deserialized);
+                    } else if (value instanceof Integer && persistFields.get(key).getType() == boolean.class) {
+                        data.put(key, ((Integer) value) != 0);
+                    } else {
+                        data.put(key, value);
+                    }
+                }
+                T entity = deserialize(data);
+                DebugLogger.getInstance().log(Level.INFO, "Entity loaded successfully with ID: " + uuid, 0);
+                callback.onSuccess(entity);
             } else {
-                DebugLogger.getInstance().log(Level.INFO, "No data found for UUID: " + uuid + ". Creating default data.", 0);
-                PlayerData newPlayerData = PlayerData.defaultData(uuid.toString());
-                savePlayerData(newPlayerData, new Callback<Void>() {
-                    @Override
-                    public void onSuccess(Void result) {
-                        DebugLogger.getInstance().log(Level.INFO, "Default player data created for UUID: " + uuid, 0);
-                        callback.onSuccess(newPlayerData);
-                    }
-
-                    @Override
-                    public void onFailure(Throwable throwable) {
-                        DebugLogger.getInstance().error("Failed to save default player data for UUID: " + uuid + ". ", throwable);
-                        callback.onFailure(throwable);
-                    }
-                });
+                DebugLogger.getInstance().log(Level.INFO, "No entity found with UUID: " + uuid, 0);
+                callback.onFailure(new NoSuchElementException("Entity not found"));
             }
         } catch (SQLException e) {
-            DebugLogger.getInstance().error("Error loading player data for UUID: " + uuid + ".", e);
+            DebugLogger.getInstance().error("Error loading entity with UUID: " + uuid, e);
             callback.onFailure(e);
         }
     }
 
     @Override
-    public void deletePlayerData(UUID uuid, Callback<Void> callback) {
-        DebugLogger.getInstance().log(Level.INFO, "Deleting player data for UUID: " + uuid, 0);
-        String sql = "DELETE FROM playerData WHERE uuid = ?;";
+    public void delete(UUID uuid, Callback<Void> callback) {
+        String sql = "DELETE FROM " + tableName + " WHERE " + idField + " = ?;";
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, uuid.toString());
-            pstmt.executeUpdate();
-            callback.onSuccess(null);
-            DebugLogger.getInstance().log(Level.INFO, "Successfully deleted player data for UUID: " + uuid, 0);
+            int affectedRows = pstmt.executeUpdate();
+            if (affectedRows > 0) {
+                DebugLogger.getInstance().log(Level.INFO, "Entity deleted successfully with UUID: " + uuid, 0);
+                callback.onSuccess(null);
+            } else {
+                DebugLogger.getInstance().log(Level.INFO, "No entity found to delete with UUID: " + uuid, 0);
+                callback.onFailure(new NoSuchElementException("Entity not found"));
+            }
         } catch (SQLException e) {
-            DebugLogger.getInstance().error("Error deleting player data for UUID: " + uuid + ".", e);
-            callback.onFailure(e);
-        }
-    }
-
-    // Auction Operations
-
-    @Override
-    public void saveAuction(Auction auction, Callback<Void> callback) {
-        DebugLogger.getInstance().log(Level.INFO, "Saving auction with ID: " + auction.getAuctionId(), 0);
-        String sql = "INSERT INTO auctions (auctionId, sellerUUID, itemData, price, expirationTime) " +
-                "VALUES (?, ?, ?, ?, ?) " +
-                "ON CONFLICT(auctionId) DO UPDATE SET " +
-                "sellerUUID=excluded.sellerUUID, itemData=excluded.itemData, price=excluded.price, expirationTime=excluded.expirationTime;";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, auction.getAuctionId().toString());
-            pstmt.setString(2, auction.getSeller().toString());
-            pstmt.setString(3, auction.getItemData()); // Ensure itemData is serialized
-            pstmt.setDouble(4, auction.getStartingPrice());
-            pstmt.setLong(5, auction.getEndTime());
-
-            pstmt.executeUpdate();
-            callback.onSuccess(null);
-            DebugLogger.getInstance().log(Level.INFO, "Successfully saved auction with ID: " + auction.getAuctionId(), 0);
-        } catch (SQLException e) {
-            DebugLogger.getInstance().error("Error saving auction with ID: " + auction.getAuctionId() + ".", e);
+            DebugLogger.getInstance().error("Error deleting entity with UUID: " + uuid, e);
             callback.onFailure(e);
         }
     }
 
     @Override
-    public void loadAuctions(Callback<List<Auction>> callback) {
-        DebugLogger.getInstance().log(Level.INFO, "Loading auctions from SQLite", 0);
-        List<Auction> auctions = new ArrayList<>();
-        String sql = "SELECT * FROM auctions;";
+    public void loadAll(Callback<List<T>> callback) {
+        List<T> entities = new ArrayList<>();
+        String sql = "SELECT * FROM " + tableName + ";";
         try (Statement stmt = connection.createStatement()) {
             ResultSet rs = stmt.executeQuery(sql);
             while (rs.next()) {
-                Auction auction = new Auction();
-                auction.setAuctionId(UUID.fromString(rs.getString("auctionId")));
-                auction.setSeller(UUID.fromString(rs.getString("sellerUUID")));
-                auction.setItemData(rs.getString("itemData")); // Deserialize if necessary
-                auction.setStartingPrice(rs.getInt("price"));
-                auction.setEndTime(rs.getLong("expirationTime"));
-                auctions.add(auction);
+                Map<String, Object> data = new HashMap<>();
+                for (String key : persistFields.keySet()) {
+                    Object value = rs.getObject(key);
+                    if (value instanceof String && isComplexType(persistFields.get(key).getType())) {
+                        // Deserialize JSON to complex types
+                        Field field = persistFields.get(key);
+                        Type typeOfField = field.getGenericType();
+                        Object deserialized = gson.fromJson((String) value, typeOfField);
+                        data.put(key, deserialized);
+                    } else if (value instanceof Integer && persistFields.get(key).getType() == boolean.class) {
+                        data.put(key, ((Integer) value) != 0);
+                    } else {
+                        data.put(key, value);
+                    }
+                }
+                T entity = deserialize(data);
+                if (entity != null) {
+                    entities.add(entity);
+                }
             }
-            callback.onSuccess(auctions);
-            DebugLogger.getInstance().log(Level.INFO, "Loaded " + auctions.size() + " auctions from SQLite", 0);
+            DebugLogger.getInstance().log(Level.INFO, "All entities loaded successfully. Total: " + entities.size(), 0);
+            callback.onSuccess(entities);
         } catch (SQLException e) {
-            DebugLogger.getInstance().error("Error loading auctions from SQLite:", e);
+            DebugLogger.getInstance().error("Error loading all entities.", e);
             callback.onFailure(e);
         }
     }
 
-    @Override
-    public void deleteAuction(UUID auctionId, Callback<Void> callback) {
-        DebugLogger.getInstance().log(Level.INFO, "Deleting auction with ID: " + auctionId, 0);
-        String sql = "DELETE FROM auctions WHERE auctionId = ?;";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, auctionId.toString());
-            pstmt.executeUpdate();
-            callback.onSuccess(null);
-            DebugLogger.getInstance().log(Level.INFO, "Successfully deleted auction with ID: " + auctionId, 0);
-        } catch (SQLException e) {
-            DebugLogger.getInstance().error("Error deleting auction with ID: " + auctionId + ".", e);
-            callback.onFailure(e);
-        }
-    }
-
-    // New Method: Load All Players
-
-    @Override
-    public void loadAllPlayers(Callback<List<PlayerData>> callback) {
-        DebugLogger.getInstance().log(Level.INFO, "Loading all player data from SQLite", 0);
-        List<PlayerData> allPlayers = new ArrayList<>();
-        String sql = "SELECT * FROM playerData;";
-        try (Statement stmt = connection.createStatement()) {
-            ResultSet rs = stmt.executeQuery(sql);
-            while (rs.next()) {
-                PlayerData playerData = new PlayerData();
-                playerData.setUuid(rs.getString("uuid"));
-                playerData.setBalance(rs.getInt("balance"));
-                playerData.setXp(rs.getInt("xp"));
-                playerData.setLevel(rs.getInt("level"));
-                playerData.setNextLevelXP(rs.getInt("nextLevelXP"));
-                playerData.setCurrentHp(rs.getInt("currentHp"));
-                playerData.setAttributes(deserializeMap(rs.getString("attributes")));
-                playerData.setUnlockedRecipes(deserializeMapBoolean(rs.getString("unlockedRecipes")));
-                playerData.setFriendRequests(deserializeSet(rs.getString("friendRequests")));
-                playerData.setFriends(deserializeSet(rs.getString("friends")));
-                playerData.setBlockedPlayers(deserializeSet(rs.getString("blockedPlayers")));
-                playerData.setBlockingRequests(rs.getInt("blockingRequests") == 1);
-                playerData.setAttributePoints(rs.getInt("attributePoints"));
-                playerData.setActiveQuests(deserializeList(rs.getString("activeQuests")));
-                playerData.setQuestProgress(deserializeQuestProgress(rs.getString("questProgress")));
-                playerData.setCompletedQuests(deserializeList(rs.getString("completedQuests")));
-                playerData.setPinnedQuest(rs.getString("pinnedQuest"));
-                playerData.setPendingBalance(rs.getInt("pendingBalance"));
-                playerData.setPendingItems(deserializeList(rs.getString("pendingItems")));
-                playerData.setRemindersEnabled(rs.getInt("remindersEnabled") == 1);
-
-                allPlayers.add(playerData);
-            }
-            callback.onSuccess(allPlayers);
-            DebugLogger.getInstance().log(Level.INFO, "Successfully loaded all player data. Total players: " + allPlayers.size(), 0);
-        } catch (SQLException e) {
-            DebugLogger.getInstance().error("Error loading all player data from SQLite:", e);
-            callback.onFailure(e);
-        }
-    }
-
-
-
-    // Utility serialization/deserialization methods using Gson
-
     /**
-     * Serializes a Map<String, Integer> to a JSON string.
+     * Checks if a field type is a complex type (not primitive or String).
      *
-     * @param map The map to serialize.
-     * @return JSON representation of the map.
+     * @param fieldType The field type.
+     * @return True if complex, false otherwise.
      */
-    private String serializeMap(Map<String, Integer> map) {
-        return gson.toJson(map);
-    }
-
-    /**
-     * Deserializes a JSON string to a Map<String, Integer>.
-     *
-     * @param data The JSON string.
-     * @return The resulting map.
-     */
-    private Map<String, Integer> deserializeMap(String data) {
-        if (data == null || data.isEmpty()) return new HashMap<>();
-        Type type = new TypeToken<Map<String, Integer>>() {}.getType();
-        return gson.fromJson(data, type);
-    }
-
-    /**
-     * Serializes a Map<String, Boolean> to a JSON string.
-     *
-     * @param map The map to serialize.
-     * @return JSON representation of the map.
-     */
-    private String serializeMapBoolean(Map<String, Boolean> map) {
-        return gson.toJson(map);
-    }
-
-    /**
-     * Deserializes a JSON string to a Map<String, Boolean>.
-     *
-     * @param data The JSON string.
-     * @return The resulting map.
-     */
-    private Map<String, Boolean> deserializeMapBoolean(String data) {
-        if (data == null || data.isEmpty()) return new HashMap<>();
-        Type type = new TypeToken<Map<String, Boolean>>() {}.getType();
-        return gson.fromJson(data, type);
-    }
-
-    /**
-     * Serializes a Set<String> to a JSON string.
-     *
-     * @param set The set to serialize.
-     * @return JSON representation of the set.
-     */
-    private String serializeSet(Set<String> set) {
-        return gson.toJson(set);
-    }
-
-    /**
-     * Deserializes a JSON string to a Set<String>.
-     *
-     * @param data The JSON string.
-     * @return The resulting set.
-     */
-    private Set<String> deserializeSet(String data) {
-        if (data == null || data.isEmpty()) return new HashSet<>();
-        Type type = new TypeToken<Set<String>>() {}.getType();
-        return gson.fromJson(data, type);
-    }
-
-    /**
-     * Serializes a List<String> to a JSON string.
-     *
-     * @param list The list to serialize.
-     * @return JSON representation of the list.
-     */
-    private String serializeList(List<String> list) {
-        return gson.toJson(list);
-    }
-
-    /**
-     * Deserializes a JSON string to a List<String>.
-     *
-     * @param data The JSON string.
-     * @return The resulting list.
-     */
-    private List<String> deserializeList(String data) {
-        if (data == null || data.isEmpty()) return new ArrayList<>();
-        Type type = new TypeToken<List<String>>() {}.getType();
-        return gson.fromJson(data, type);
-    }
-
-    /**
-     * Serializes a Map<String, Map<String, Integer>> to a JSON string.
-     *
-     * @param questProgress The map to serialize.
-     * @return JSON representation of the map.
-     */
-    private String serializeQuestProgress(Map<String, Map<String, Integer>> questProgress) {
-        return gson.toJson(questProgress);
-    }
-
-    /**
-     * Deserializes a JSON string to a Map<String, Map<String, Integer>>.
-     *
-     * @param data The JSON string.
-     * @return The resulting map.
-     */
-    private Map<String, Map<String, Integer>> deserializeQuestProgress(String data) {
-        if (data == null || data.isEmpty()) return new HashMap<>();
-        Type type = new TypeToken<Map<String, Map<String, Integer>>>() {}.getType();
-        return gson.fromJson(data, type);
+    private boolean isComplexType(Class<?> fieldType) {
+        return !(fieldType.isPrimitive() ||
+                fieldType == Integer.class ||
+                fieldType == Long.class ||
+                fieldType == Double.class ||
+                fieldType == Float.class ||
+                fieldType == Boolean.class ||
+                fieldType == String.class);
     }
 }

@@ -73,7 +73,7 @@ public class ScoreboardManager {
         }
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         if (saveModule != null) {
-            this.playerDataCache = saveModule.getPlayerDataCache();
+            this.playerDataCache = PlayerDataCache.getInstance();
         } else {
             this.playerDataCache = null;
             DebugLogger.getInstance().warning("[MysticRPG] SaveModule not found. Player data will not be loaded.");

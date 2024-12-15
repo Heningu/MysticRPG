@@ -6,6 +6,7 @@ import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.*;
+import eu.xaru.mysticrpg.storage.database.SaveHelper;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
@@ -37,7 +38,7 @@ public class AuctionHouseHelper {
         // Get SaveModule instance
         this.saveModule = ModuleManager.getInstance()
                 .getModuleInstance(SaveModule.class);
-        this.playerDataCache = saveModule.getPlayerDataCache();
+        this.playerDataCache = PlayerDataCache.getInstance();
 
         // Get plugin instance
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
@@ -220,7 +221,7 @@ public class AuctionHouseHelper {
     public List<Auction> getPlayerAuctions(UUID playerUUID) {
         long currentTime = System.currentTimeMillis();
         return activeAuctions.values().stream()
-                .filter(a -> a.getSeller().equals(playerUUID)
+                .filter(a -> a.getSellerUUID().equals(playerUUID)
                         && a.getEndTime() > currentTime)
                 .collect(Collectors.toList());
     }
@@ -243,7 +244,7 @@ public class AuctionHouseHelper {
      */
     public void cancelAuction(UUID auctionId, Player player) {
         Auction auction = activeAuctions.get(auctionId);
-        if (auction != null && auction.getSeller().equals(player.getUniqueId())) {
+        if (auction != null && auction.getSellerUUID().equals(player.getUniqueId())) {
             // Remove the auction
             activeAuctions.remove(auctionId);
 
@@ -348,7 +349,7 @@ public class AuctionHouseHelper {
                     bidder.sendMessage(Utils.getInstance().$("You are now the highest bidder on auction " + auctionId));
 
                     // Optionally notify seller
-                    Player seller = Bukkit.getPlayer(auction.getSeller());
+                    Player seller = Bukkit.getPlayer(auction.getSellerUUID());
                     if (seller != null && seller.isOnline()) {
                         seller.sendMessage(Utils.getInstance().$(bidder.getName() + " has placed a bid of $" + economyHelper.formatBalance(bidAmount) + " on your auction."));
                     }
@@ -414,7 +415,7 @@ public class AuctionHouseHelper {
                     new Object[]{buyer.getName(), price, auctionId});
 
             // Transfer money to seller
-            UUID sellerId = auction.getSeller();
+            UUID sellerId = auction.getSellerUUID();
             Player seller = Bukkit.getPlayer(sellerId);
             if (seller != null && seller.isOnline()) {
                 boolean deposited = economyHelper.depositBalance(seller, price);
@@ -494,7 +495,7 @@ public class AuctionHouseHelper {
             if (economyHelper.withdrawBalance(buyer, price)) {
 
                 // Transfer money to seller
-                UUID sellerId = auction.getSeller();
+                UUID sellerId = auction.getSellerUUID();
                 Player seller = Bukkit.getPlayer(sellerId);
                 if (!economyHelper.depositBalance(seller, price)) {
                     // Refund buyer if transfer fails

@@ -343,6 +343,9 @@ public class PetHelper implements Listener {
         PlayerData playerData = cache.getCachedPlayerData(player.getUniqueId());
         if (playerData != null) {
             Set<String> ownedPets = playerData.getOwnedPets();
+            if(ownedPets == null) {
+                ownedPets = new HashSet<>();
+            }
             return ownedPets.toArray(new String[0]);
         } else {
             return new String[0];

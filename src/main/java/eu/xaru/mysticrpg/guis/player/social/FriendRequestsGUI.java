@@ -38,7 +38,7 @@ public class FriendRequestsGUI {
 
     public FriendRequestsGUI() {
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
-        this.playerDataCache = saveModule.getPlayerDataCache();
+        this.playerDataCache = PlayerDataCache.getInstance();
         this.friendsHelper = new FriendsHelper(playerDataCache);
 
     }

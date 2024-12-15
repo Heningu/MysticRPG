@@ -26,7 +26,7 @@ public class DialogueManager {
     public DialogueManager(NPC npc) {
         this.npc = npc;
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
-        this.playerDataCache = saveModule.getPlayerDataCache();
+        this.playerDataCache = PlayerDataCache.getInstance();
         this.levelModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
 
         File npcsFolder = new File(JavaPlugin.getPlugin(eu.xaru.mysticrpg.cores.MysticCore.class).getDataFolder(), "npcs");

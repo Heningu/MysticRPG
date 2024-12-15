@@ -30,7 +30,7 @@ public class FriendOptionsGUI {
 
     public FriendOptionsGUI(OfflinePlayer target) {
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
-        this.playerDataCache = saveModule.getPlayerDataCache();
+        this.playerDataCache = PlayerDataCache.getInstance();
         this.friendsHelper = new FriendsHelper(playerDataCache);
         this.partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
         this.target = target; // Assign the target player

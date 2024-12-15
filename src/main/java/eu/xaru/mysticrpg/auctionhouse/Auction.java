@@ -1,28 +1,43 @@
 package eu.xaru.mysticrpg.auctionhouse;
 
-import java.util.Objects;
-import java.util.UUID;
-
-import org.bson.codecs.pojo.annotations.BsonIgnore;
-import org.bukkit.Bukkit;
-import org.bukkit.inventory.ItemStack;
-
+import eu.xaru.mysticrpg.storage.annotations.Persist;
 import eu.xaru.mysticrpg.customs.items.CustomItem;
 import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
-import eu.xaru.mysticrpg.storage.SaveHelper;
+import eu.xaru.mysticrpg.storage.database.SaveHelper;
+import org.bson.codecs.pojo.annotations.BsonIgnore;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+
+import java.util.UUID;
 
 /**
  * Represents an auction in the auction house.
  */
 public class Auction {
 
+    @Persist(key = "auctionId")
     private UUID auctionId;
-    private UUID seller;
+
+    @Persist(key = "sellerUUID")
+    private UUID sellerUUID;
+
+    @Persist(key = "itemData")
     private String itemData; // Serialized ItemStack
+
+    @Persist(key = "startingPrice")
     private int startingPrice;
+
+    @Persist(key = "currentBid")
     private int currentBid;
+
+    @Persist(key = "highestBidder")
     private UUID highestBidder;
+
+    @Persist(key = "endTime")
     private long endTime;
+
+    @Persist(key = "isBidItem")
     private boolean isBidItem; // Indicates if the auction allows bidding
 
     @BsonIgnore
@@ -36,9 +51,9 @@ public class Auction {
     }
 
     // Constructor for fixed-price auction
-    public Auction(UUID auctionId, UUID seller, ItemStack item, int price, long endTime) {
+    public Auction(UUID auctionId, UUID sellerUUID, ItemStack item, int price, long endTime) {
         this.auctionId = auctionId;
-        this.seller = seller;
+        this.sellerUUID = sellerUUID;
         this.item = item;
         this.startingPrice = price;
         this.currentBid = price;
@@ -48,9 +63,9 @@ public class Auction {
     }
 
     // Constructor for bidding auction
-    public Auction(UUID auctionId, UUID seller, ItemStack item, int startingPrice, long endTime, boolean isBidItem) {
+    public Auction(UUID auctionId, UUID sellerUUID, ItemStack item, int startingPrice, long endTime, boolean isBidItem) {
         this.auctionId = auctionId;
-        this.seller = seller;
+        this.sellerUUID = sellerUUID;
         this.item = item;
         this.startingPrice = startingPrice;
         this.currentBid = startingPrice;
@@ -59,10 +74,10 @@ public class Auction {
         this.isBidItem = isBidItem;
     }
 
-    // New constructor for CustomItem
-    public Auction(UUID auctionId, UUID seller, CustomItem customItem, int price, long endTime) {
+    // Constructor for CustomItem
+    public Auction(UUID auctionId, UUID sellerUUID, CustomItem customItem, int price, long endTime) {
         this.auctionId = auctionId;
-        this.seller = seller;
+        this.sellerUUID = sellerUUID;
         this.customItem = customItem;
         this.startingPrice = price;
         this.currentBid = price;
@@ -82,16 +97,17 @@ public class Auction {
         this.auctionId = auctionId;
     }
 
-    public UUID getSeller() {
-        return seller;
+    public UUID getSellerUUID() {
+        return sellerUUID;
     }
 
     public String getSellerName() {
-        return Objects.requireNonNull(Bukkit.getPlayer(seller)).getName();
+        Player seller = Bukkit.getPlayer(sellerUUID);
+        return seller != null ? seller.getName() : "Unknown";
     }
 
-    public void setSeller(UUID seller) {
-        this.seller = seller;
+    public void setSellerUUID(UUID sellerUUID) {
+        this.sellerUUID = sellerUUID;
     }
 
     public ItemStack getItem() {
@@ -177,10 +193,6 @@ public class Auction {
     private ItemStack deserializeItemStack(String data) {
         return SaveHelper.itemStackFromBase64(data);
     }
-
-    /**
-     * **Added Methods for Consistency with placeBid Method**
-     */
 
     /**
      * Gets the highest bid for the auction.

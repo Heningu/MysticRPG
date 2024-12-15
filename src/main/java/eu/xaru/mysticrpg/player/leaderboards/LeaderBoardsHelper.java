@@ -50,7 +50,7 @@ public class LeaderBoardsHelper {
      * @param callback The callback to handle the result.
      */
     public void getTopLevelPlayers(int limit, Callback<List<PlayerData>> callback) {
-        databaseManager.loadAllPlayers(new Callback<List<PlayerData>>() {
+        databaseManager.getPlayerRepository().loadAll(new Callback<List<PlayerData>>() {
             @Override
             public void onSuccess(List<PlayerData> allPlayers) {
                 if (allPlayers.isEmpty()) {

@@ -43,7 +43,7 @@ public class LevelModule implements IBaseModule {
         if (saveModule == null) {
             throw new IllegalStateException("SaveModule not initialized. LevelModule cannot function without it.");
         }
-        this.playerDataCache = saveModule.getPlayerDataCache();
+        this.playerDataCache = PlayerDataCache.getInstance();
 
         // Fetch levels data from the local Levels.json file
         this.levelDataMap = loadLevelsFromFile();

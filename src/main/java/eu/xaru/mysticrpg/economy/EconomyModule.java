@@ -35,7 +35,7 @@ public class EconomyModule implements IBaseModule {
 
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         if (saveModule != null) {
-            PlayerDataCache playerDataCache = saveModule.getPlayerDataCache();
+            PlayerDataCache playerDataCache = PlayerDataCache.getInstance();
             this.economyHelper = new EconomyHelper(playerDataCache);
             DebugLogger.getInstance().log(Level.INFO, "EconomyModule initialized successfully.", 0);
         } else {

@@ -62,7 +62,7 @@ public class DiscordModule implements IBaseModule, Listener {
         // Initialize PlayerDataCache
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         if (saveModule != null) {
-            playerDataCache = saveModule.getPlayerDataCache();
+            playerDataCache = PlayerDataCache.getInstance();
         }
 
         if (playerDataCache == null) {

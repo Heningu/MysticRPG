@@ -30,7 +30,7 @@ public class PlayerManagerModule implements IBaseModule {
             return;
         }
 
-        playerDataCache = saveModule.getPlayerDataCache();
+        playerDataCache = PlayerDataCache.getInstance();
         playerStatManager = new PlayerStatManager(playerDataCache);
 
         DebugLogger.getInstance().log(Level.INFO, "PlayerManagerModule initialized successfully.", 0);

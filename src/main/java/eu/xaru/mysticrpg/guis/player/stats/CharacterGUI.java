@@ -61,7 +61,7 @@ public class CharacterGUI {
 
     public CharacterGUI() {
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
-        this.playerDataCache = saveModule.getPlayerDataCache();
+        this.playerDataCache = PlayerDataCache.getInstance();
         this.playerStatModule = ModuleManager.getInstance().getModuleInstance(PlayerStatModule.class);
         this.auctionHouse = ModuleManager.getInstance().getModuleInstance(AuctionHouseModule.class);
         this.equipmentModule = ModuleManager.getInstance().getModuleInstance(EquipmentModule.class);

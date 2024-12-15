@@ -59,7 +59,7 @@ public class FriendsGUI {
 
     public FriendsGUI(){
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
-        this.playerDataCache = saveModule.getPlayerDataCache();
+        this.playerDataCache = PlayerDataCache.getInstance();
         this.auctionHouse = ModuleManager.getInstance().getModuleInstance(AuctionHouseModule.class);
         this.equipmentModule = ModuleManager.getInstance().getModuleInstance(EquipmentModule.class);
         this.levelingModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);

@@ -1,14 +1,18 @@
 package eu.xaru.mysticrpg.storage;
 
 import eu.xaru.mysticrpg.storage.database.DatabaseManager;
+import eu.xaru.mysticrpg.storage.database.IRepository;
 import eu.xaru.mysticrpg.utils.DebugLogger;
-import dev.jorel.commandapi.CommandAPICommand;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
 import java.util.logging.Level;
 
+/**
+ * PlayerDataCache manages cached player data, providing efficient access and modification.
+ */
 public class PlayerDataCache {
 
     private static PlayerDataCache instance;
@@ -21,6 +25,11 @@ public class PlayerDataCache {
         registerCheckCachedDataCommand();
     }
 
+    /**
+     * Initializes the singleton instance. Should be called once during plugin initialization.
+     *
+     * @param databaseManager The DatabaseManager instance.
+     */
     public static synchronized void initialize(DatabaseManager databaseManager) {
         if (instance == null) {
             instance = new PlayerDataCache(databaseManager);
@@ -29,6 +38,11 @@ public class PlayerDataCache {
         }
     }
 
+    /**
+     * Retrieves the singleton instance.
+     *
+     * @return The PlayerDataCache instance.
+     */
     public static PlayerDataCache getInstance() {
         if (instance == null) {
             throw new IllegalStateException("PlayerDataCache is not initialized. Call initialize() first.");
@@ -36,9 +50,15 @@ public class PlayerDataCache {
         return instance;
     }
 
+    /**
+     * Loads player data from the database and caches it.
+     *
+     * @param playerUUID The UUID of the player.
+     * @param callback   Callback for success or failure.
+     */
     public void loadPlayerData(UUID playerUUID, Callback<PlayerData> callback) {
         DebugLogger.getInstance().log(Level.INFO, "Attempting to load player data for UUID: " + playerUUID, 0);
-        databaseManager.loadPlayerData(playerUUID, new Callback<PlayerData>() {
+        databaseManager.getPlayerRepository().load(playerUUID, new Callback<PlayerData>() {
             @Override
             public void onSuccess(PlayerData playerData) {
                 cache.put(playerUUID, playerData);
@@ -54,10 +74,16 @@ public class PlayerDataCache {
         });
     }
 
+    /**
+     * Saves player data to the database.
+     *
+     * @param playerUUID The UUID of the player.
+     * @param callback   Callback for success or failure.
+     */
     public void savePlayerData(UUID playerUUID, Callback<Void> callback) {
         PlayerData playerData = cache.get(playerUUID);
         if (playerData != null) {
-            databaseManager.savePlayerData(playerData, new Callback<Void>() {
+            databaseManager.getPlayerRepository().save(playerData, new Callback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
                     DebugLogger.getInstance().log(Level.INFO, "Player data saved to database for UUID: " + playerUUID, 0);
@@ -77,6 +103,11 @@ public class PlayerDataCache {
         }
     }
 
+    /**
+     * Clears cached data for a specific player.
+     *
+     * @param playerUUID The UUID of the player.
+     */
     public void clearPlayerData(UUID playerUUID) {
         if (cache.containsKey(playerUUID)) {
             cache.remove(playerUUID);
@@ -84,6 +115,12 @@ public class PlayerDataCache {
         }
     }
 
+    /**
+     * Retrieves cached player data.
+     *
+     * @param playerUUID The UUID of the player.
+     * @return The PlayerData instance, or null if not found.
+     */
     public PlayerData getCachedPlayerData(UUID playerUUID) {
         PlayerData data = cache.get(playerUUID);
         if (data == null) {
@@ -93,6 +130,12 @@ public class PlayerDataCache {
         return data;
     }
 
+    /**
+     * Adds a friend to a player's friend list.
+     *
+     * @param playerUUID The UUID of the player.
+     * @param friendUUID The UUID of the friend to add.
+     */
     public void addFriend(UUID playerUUID, UUID friendUUID) {
         PlayerData playerData = cache.get(playerUUID);
         if (playerData != null) {
@@ -101,6 +144,12 @@ public class PlayerDataCache {
         }
     }
 
+    /**
+     * Removes a friend from a player's friend list.
+     *
+     * @param playerUUID The UUID of the player.
+     * @param friendUUID The UUID of the friend to remove.
+     */
     public void removeFriend(UUID playerUUID, UUID friendUUID) {
         PlayerData playerData = cache.get(playerUUID);
         if (playerData != null) {
@@ -109,6 +158,12 @@ public class PlayerDataCache {
         }
     }
 
+    /**
+     * Adds a friend request to a player's friend requests list.
+     *
+     * @param playerUUID    The UUID of the player.
+     * @param requesterUUID The UUID of the player sending the friend request.
+     */
     public void addFriendRequest(UUID playerUUID, UUID requesterUUID) {
         PlayerData playerData = cache.get(playerUUID);
         if (playerData != null) {
@@ -117,6 +172,12 @@ public class PlayerDataCache {
         }
     }
 
+    /**
+     * Removes a friend request from a player's friend requests list.
+     *
+     * @param playerUUID    The UUID of the player.
+     * @param requesterUUID The UUID of the player whose friend request is to be removed.
+     */
     public void removeFriendRequest(UUID playerUUID, UUID requesterUUID) {
         PlayerData playerData = cache.get(playerUUID);
         if (playerData != null) {
@@ -125,6 +186,12 @@ public class PlayerDataCache {
         }
     }
 
+    /**
+     * Blocks a player.
+     *
+     * @param blockerUUID The UUID of the player blocking.
+     * @param toBlockUUID The UUID of the player to block.
+     */
     public void blockPlayer(UUID blockerUUID, UUID toBlockUUID) {
         PlayerData playerData = cache.get(blockerUUID);
         if (playerData != null) {
@@ -133,6 +200,12 @@ public class PlayerDataCache {
         }
     }
 
+    /**
+     * Unblocks a player.
+     *
+     * @param blockerUUID   The UUID of the player unblocking.
+     * @param toUnblockUUID The UUID of the player to unblock.
+     */
     public void unblockPlayer(UUID blockerUUID, UUID toUnblockUUID) {
         PlayerData playerData = cache.get(blockerUUID);
         if (playerData != null) {
@@ -141,12 +214,20 @@ public class PlayerDataCache {
         }
     }
 
+    /**
+     * Retrieves all cached player UUIDs.
+     *
+     * @return A set of all cached player UUIDs.
+     */
     public Set<UUID> getAllCachedPlayerUUIDs() {
         return cache.keySet();
     }
 
+    /**
+     * Registers the /checkCachedData command for debugging purposes.
+     */
     private void registerCheckCachedDataCommand() {
-        new CommandAPICommand("checkCachedData")
+        new dev.jorel.commandapi.CommandAPICommand("checkCachedData")
                 .withAliases("checkCache")
                 .withPermission("mysticrpg.debug")
                 .executesPlayer((player, args) -> {
@@ -174,13 +255,5 @@ public class PlayerDataCache {
                     }
                 })
                 .register();
-    }
-
-    public int getPlayerLevel(UUID uuid) {
-        PlayerData playerData = getCachedPlayerData(uuid);
-        if (playerData != null) {
-            return playerData.getLevel();
-        }
-        return 1; // Default level
     }
 }

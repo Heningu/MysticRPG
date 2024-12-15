@@ -84,8 +84,7 @@ public class EquipmentGUI {
 
     public EquipmentGUI() {
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
-        PlayerDataCache pdc = ModuleManager.getInstance().getModuleInstance(eu.xaru.mysticrpg.storage.SaveModule.class).getPlayerDataCache();
-        this.playerDataCache = pdc;
+        this.playerDataCache = PlayerDataCache.getInstance();
         CustomItemModule cim = ModuleManager.getInstance().getModuleInstance(CustomItemModule.class);
         this.itemManager = cim != null ? cim.getItemManager() : null;
         this.customItemKey = new NamespacedKey(plugin, "custom_item_id");

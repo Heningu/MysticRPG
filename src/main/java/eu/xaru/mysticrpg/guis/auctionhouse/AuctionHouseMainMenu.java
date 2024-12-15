@@ -29,7 +29,7 @@ import xyz.xenondevs.invui.window.Window;
 /**
  * Represents the Main Menu GUI for the MysticRPG plugin using InvUI.
  */
-public class AuctionHouseMainMenu {
+public final class AuctionHouseMainMenu {
 
     private final Gui gui;
 
@@ -42,7 +42,6 @@ public class AuctionHouseMainMenu {
     private PartyModule partyModule;
     private AuctionHouseHelper auctionHouseHelper;
     private EconomyHelper economyHelper;
-
 
     public AuctionHouseMainMenu() {
 
@@ -65,7 +64,6 @@ public class AuctionHouseMainMenu {
      */
     public Gui buildGui() {
 
-
         Item filler = new SimpleItem(new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE));
 
         Item buy = new SimpleItem(new ItemBuilder(Material.CHEST)
@@ -76,23 +74,19 @@ public class AuctionHouseMainMenu {
                         ""
                 )
                 .addAllItemFlags()
-        )
-
-
-
-        {
+        ) {
             @Override
             public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
                 // Close the current GUI before opening the Equipment GUI
-                Window window = event.getView().getTopInventory().getHolder() instanceof Window ?
-                        (Window) event.getView().getTopInventory().getHolder() : null;
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window
+                        ? (Window) event.getView().getTopInventory().getHolder() : null;
                 if (window != null) {
                     window.close();
                 }
                 BuyGUI buyGUI = new BuyGUI();
                 buyGUI.openAuctionHouseBuyGUI(player);
             }
-        }; // Ingredient 1
+        }; 
 
         Item sell = new SimpleItem(new ItemBuilder(Material.NAME_TAG)
                 .setDisplayName(ChatColor.GREEN + "Sell your Item")
@@ -102,23 +96,19 @@ public class AuctionHouseMainMenu {
                         ""
                 )
                 .addAllItemFlags()
-        )
-
-
-
-        {
+        ) {
             @Override
             public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
                 // Close the current GUI before opening the Equipment GUI
-                Window window = event.getView().getTopInventory().getHolder() instanceof Window ?
-                        (Window) event.getView().getTopInventory().getHolder() : null;
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window
+                        ? (Window) event.getView().getTopInventory().getHolder() : null;
                 if (window != null) {
                     window.close();
                 }
                 SellGUI sellGUI = new SellGUI(auctionHouseHelper, economyHelper);
                 sellGUI.openSellGUI(player);
             }
-        }; // Ingredient 2
+        }; 
 
         Item currentoffers = new SimpleItem(new ItemBuilder(Material.BOOKSHELF)
                 .setDisplayName(ChatColor.GREEN + "Your current offers")
@@ -127,13 +117,12 @@ public class AuctionHouseMainMenu {
                         "Check what items you currently sell.",
                         ""
                 )
-                .addAllItemFlags())
-        {
+                .addAllItemFlags()) {
             @Override
             public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
-                // Close the current GUI before opening the Equipment GUI
-                Window window = event.getView().getTopInventory().getHolder() instanceof Window ?
-                        (Window) event.getView().getTopInventory().getHolder() : null;
+
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window
+                        ? (Window) event.getView().getTopInventory().getHolder() : null;
                 if (window != null) {
                     window.close();
                 }
@@ -142,9 +131,7 @@ public class AuctionHouseMainMenu {
             }
         };
 
-
-            // BACK BUTTON
-
+        // BACK BUTTON
         Item back = new SimpleItem(new ItemBuilder(Material.ARROW)
                 .setDisplayName(ChatColor.RED + "Go Back")
                 .addLoreLines(
@@ -154,47 +141,33 @@ public class AuctionHouseMainMenu {
                 )
                 .addAllItemFlags()
                 .addEnchantment(Enchantment.UNBREAKING, 1, true)
-        )
-
-
-
-        {
+        ) {
             @Override
             public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
                 // Close the current GUI before opening the Equipment GUI
-                Window window = event.getView().getTopInventory().getHolder() instanceof Window ?
-                        (Window) event.getView().getTopInventory().getHolder() : null;
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window
+                        ? (Window) event.getView().getTopInventory().getHolder() : null;
                 if (window != null) {
                     window.close();
                 }
 
-                MainMenu test = new MainMenu(auctionHouse,equipmentModule,levelingModule,playerStat,questModule,friendsModule,partyModule);
+                MainMenu test = new MainMenu(auctionHouse, equipmentModule, levelingModule, playerStat, questModule, friendsModule, partyModule);
                 test.openGUI(player);
             }
-        }; // Ingredient B
+        };
 
-
-
-
-
-        Gui builder = Gui.normal().setStructure(
-                        "# # # # # # # # #",
-                        "# 1 # # 2 # # 3 #",
-                        "# # # # # # # # #",
-                        "# # # # B # # # #"
-
-
-
-                )
+        return Gui.normal().setStructure(
+                "# # # # # # # # #",
+                "# 1 # # 2 # # 3 #",
+                "# # # # # # # # #",
+                "# # # # B # # # #"
+        )
                 .addIngredient('#', filler)
                 .addIngredient('1', buy)
                 .addIngredient('2', sell)
                 .addIngredient('3', currentoffers)
                 .addIngredient('B', back)
-
                 .build();
-
-        return builder;
 
     }
 
@@ -223,10 +196,8 @@ public class AuctionHouseMainMenu {
         return auctionHouseHelper;
     }
 
-
     public EconomyHelper getEconomyHelper() {
         return economyHelper;
     }
 
 }
-

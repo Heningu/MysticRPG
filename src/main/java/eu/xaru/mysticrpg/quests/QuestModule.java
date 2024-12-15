@@ -58,7 +58,7 @@ public class QuestModule implements IBaseModule {
         if (saveModule == null) {
             throw new IllegalStateException("SaveModule not initialized.");
         }
-        playerDataCache = saveModule.getPlayerDataCache();
+        playerDataCache = PlayerDataCache.getInstance();
 
         CustomItemModule customItemModule = ModuleManager.getInstance().getModuleInstance(CustomItemModule.class);
         if (customItemModule == null) {

@@ -44,7 +44,7 @@ public class PlayerStatModule implements IBaseModule {
         registerStatsCommand();
 
         if (saveModule != null) {
-            playerDataCache = saveModule.getPlayerDataCache();
+            playerDataCache = PlayerDataCache.getInstance();
         } else {
             DebugLogger.getInstance().error("SaveModule not initialized. PlayerStatModule cannot function without it.");
             return;

@@ -1,20 +1,19 @@
 package eu.xaru.mysticrpg.ui;
 
-import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.storage.PlayerDataCache;
-import eu.xaru.mysticrpg.storage.PlayerData;
-import eu.xaru.mysticrpg.storage.SaveModule;
-import eu.xaru.mysticrpg.utils.DebugLogger;
-import net.luckperms.api.LuckPerms;
-import net.luckperms.api.LuckPermsProvider;
-import net.luckperms.api.model.user.User;
+import java.util.UUID;
+
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 
-import java.util.UUID;
+import eu.xaru.mysticrpg.storage.PlayerData;
+import eu.xaru.mysticrpg.storage.PlayerDataCache;
+import eu.xaru.mysticrpg.utils.DebugLogger;
+import net.luckperms.api.LuckPerms;
+import net.luckperms.api.LuckPermsProvider;
+import net.luckperms.api.model.user.User;
 
 /**
  * ChatFormatter handles the formatting of chat messages to include player prefixes and suffixes.
@@ -29,13 +28,7 @@ public class ChatFormatter implements Listener {
      */
     public ChatFormatter() {
         this.luckPerms = LuckPermsProvider.get();
-        SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
-        if (saveModule != null) {
-            this.playerDataCache = saveModule.getPlayerDataCache();
-        } else {
-            this.playerDataCache = null;
-            DebugLogger.getInstance().warning("[MysticRPG] SaveModule not found. Chat formatting will not include player data.");
-        }
+        this.playerDataCache = PlayerDataCache.getInstance();
     }
 
     /**

@@ -36,7 +36,7 @@ public class InteractionGUI {
      */
     public InteractionGUI(TradeRequestManager tradeRequestManager) {
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
-        this.playerDataCache = saveModule.getPlayerDataCache();
+        this.playerDataCache = PlayerDataCache.getInstance();
         this.tradeRequestManager = tradeRequestManager;
         this.partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
         this.friendsHelper = new FriendsHelper(playerDataCache);

@@ -1,42 +1,97 @@
 package eu.xaru.mysticrpg.storage;
 
+import eu.xaru.mysticrpg.storage.annotations.Persist;
+
 import java.util.*;
 
+/**
+ * Represents a player's data with fields marked for persistence.
+ */
 public class PlayerData {
+    @Persist(key = "uuid")
     private String uuid;
+
+    @Persist
     private int balance;
+
+    @Persist
     private int xp;
+
+    @Persist
     private int level;
+
+    @Persist
     private int nextLevelXP;
+
+    @Persist
     private int currentHp;
+
+    @Persist
     private Map<String, Integer> attributes;
+
+    @Persist
     private Map<String, Boolean> unlockedRecipes;
+
+    @Persist
     private Set<String> friendRequests;
+
+    @Persist
     private Set<String> friends;
+
+    @Persist
     private Set<String> blockedPlayers;
+
+    @Persist
     private boolean blockingRequests;
+
+    @Persist
     private int attributePoints;
+
+    @Persist
     private List<String> activeQuests;
+
+    @Persist
     private Map<String, Map<String, Integer>> questProgress;
+
+    @Persist
     private List<String> completedQuests;
+
+    @Persist
     private String pinnedQuest;
-    private boolean remindersEnabled;
+
+    @Persist
     private int pendingBalance;
+
+    @Persist
     private List<String> pendingItems;
+
+    @Persist
+    private boolean remindersEnabled;
+
+    @Persist
     private Map<String, String> equipment;
-    private Set<String> ownedPets; // New field to store owned pet IDs
-    private String equippedPet;                     // Stores the ID of the currently equipped pet
 
-
+    @Persist
     private List<String> completedDialogues;
+
+    @Persist
     private Long discordId;
 
-    // Newly added fields for the enhanced quest system:
-    private Map<String, Integer> questPhaseIndex;   // Tracks the current phase of each active quest
-    private Map<String, Long> questStartTime;       // Tracks the start time of each quest phase for timed objectives
+    @Persist
+    private Map<String, Integer> questPhaseIndex;
+
+    @Persist
+    private Map<String, Long> questStartTime;
+
+    @Persist
+    private Set<String> ownedPets;
+
+    @Persist
+    private String equippedPet;
+
 
     public PlayerData() {
-        // Default constructor for MongoDB POJO codec
+        // Default constructor required for deserialization
     }
 
     public PlayerData(String uuid, int balance, int xp, int level, int nextLevelXP, int currentHp,
@@ -45,11 +100,9 @@ public class PlayerData {
                       boolean blockingRequests, int attributePoints, List<String> activeQuests,
                       Map<String, Map<String, Integer>> questProgress, List<String> completedQuests,
                       String pinnedQuest, int pendingBalance, List<String> pendingItems,
-                      boolean remindersEnabled, Long discordId, List<String> completedDialogues,
-                      Map<String, String> equipment,
-                      Map<String, Integer> questPhaseIndex,
-                      Map<String, Long> questStartTime,
-                      Set<String> ownedPets,String equippedPet) {
+                      boolean remindersEnabled, Map<String, String> equipment,
+                      List<String> completedDialogues, Long discordId,
+                      Map<String, Integer> questPhaseIndex, Map<String, Long> questStartTime, Set<String> ownedPets, String equippedPet) {
         this.uuid = uuid;
         this.balance = balance;
         this.xp = xp;
@@ -70,12 +123,12 @@ public class PlayerData {
         this.pendingBalance = pendingBalance;
         this.pendingItems = pendingItems;
         this.remindersEnabled = remindersEnabled;
-        this.discordId = discordId;
-        this.completedDialogues = completedDialogues;
         this.equipment = equipment;
+        this.completedDialogues = completedDialogues;
+        this.discordId = discordId;
         this.questPhaseIndex = questPhaseIndex;
         this.questStartTime = questStartTime;
-        this.ownedPets = ownedPets != null ? ownedPets : new HashSet<>();
+        this.ownedPets = ownedPets;
         this.equippedPet = equippedPet;
     }
 
@@ -100,12 +153,12 @@ public class PlayerData {
                 null,
                 0,
                 new ArrayList<>(),
-                true, // Reminders enabled by default
-                null,  // Discord ID initially null
-                new ArrayList<>(), // Initialize completedDialogues
-                new HashMap<>(), // equipment
-                new HashMap<>(), // questPhaseIndex
-                new HashMap<>(),  // questStartTime
+                true,
+                new HashMap<>(),
+                new ArrayList<>(),
+                null,
+                new HashMap<>(),
+                new HashMap<>(),
                 new HashSet<>(),
                 null
         );
@@ -118,12 +171,14 @@ public class PlayerData {
         if (!(friendRequests instanceof HashSet)) {
             friendRequests = new HashSet<>(friendRequests);
         }
-        if (!(ownedPets instanceof HashSet)) {
-            ownedPets = new HashSet<>(ownedPets);
-        }
         if (!(friends instanceof HashSet)) {
             friends = new HashSet<>(friends);
         }
+
+        if (!(ownedPets instanceof HashSet)) {
+            ownedPets = new HashSet<>(ownedPets);
+        }
+
         if (!(blockedPlayers instanceof HashSet)) {
             blockedPlayers = new HashSet<>(blockedPlayers);
         }
@@ -159,15 +214,7 @@ public class PlayerData {
         }
     }
 
-    // Getters and setters for all fields
-
-    public Map<String, String> getEquipment() {
-        return equipment;
-    }
-
-    public void setEquipment(Map<String, String> equipment) {
-        this.equipment = equipment;
-    }
+    // Getters and setters
 
     public String getUuid() {
         return uuid;
@@ -197,16 +244,29 @@ public class PlayerData {
         return level;
     }
 
+    public Set<String> getOwnedPets() {
+        return ownedPets;
+    }
+    public void setOwnedPets(Set<String> ownedPets) {
+        this.ownedPets = ownedPets;
+    }
+    public String getEquippedPet() {
+        return equippedPet;
+    }
+    public void setEquippedPet(String equippedPet) {
+        this.equippedPet = equippedPet;
+    }
+
+    public void setLevel(int level) {
+        this.level = level;
+    }
+
     public int getNextLevelXP() {
         return nextLevelXP;
     }
 
     public void setNextLevelXP(int nextLevelXP) {
         this.nextLevelXP = nextLevelXP;
-    }
-
-    public void setLevel(int level) {
-        this.level = level;
     }
 
     public int getCurrentHp() {
@@ -305,14 +365,6 @@ public class PlayerData {
         this.pinnedQuest = pinnedQuest;
     }
 
-    public boolean isRemindersEnabled() {
-        return remindersEnabled;
-    }
-
-    public void setRemindersEnabled(boolean remindersEnabled) {
-        this.remindersEnabled = remindersEnabled;
-    }
-
     public int getPendingBalance() {
         return pendingBalance;
     }
@@ -329,12 +381,20 @@ public class PlayerData {
         this.pendingItems = pendingItems;
     }
 
-    public Long getDiscordId() {
-        return discordId;
+    public boolean isRemindersEnabled() {
+        return remindersEnabled;
     }
 
-    public void setDiscordId(Long discordId) {
-        this.discordId = discordId;
+    public void setRemindersEnabled(boolean remindersEnabled) {
+        this.remindersEnabled = remindersEnabled;
+    }
+
+    public Map<String, String> getEquipment() {
+        return equipment;
+    }
+
+    public void setEquipment(Map<String, String> equipment) {
+        this.equipment = equipment;
     }
 
     public List<String> getCompletedDialogues() {
@@ -343,6 +403,14 @@ public class PlayerData {
 
     public void setCompletedDialogues(List<String> completedDialogues) {
         this.completedDialogues = completedDialogues;
+    }
+
+    public Long getDiscordId() {
+        return discordId;
+    }
+
+    public void setDiscordId(Long discordId) {
+        this.discordId = discordId;
     }
 
     public Map<String, Integer> getQuestPhaseIndex() {
@@ -359,19 +427,5 @@ public class PlayerData {
 
     public void setQuestStartTime(Map<String, Long> questStartTime) {
         this.questStartTime = questStartTime;
-    }
-    public Set<String> getOwnedPets() {
-        return ownedPets;
-    }
-
-    public void setOwnedPets(Set<String> ownedPets) {
-        this.ownedPets = ownedPets;
-    }
-    public String getEquippedPet() {
-        return equippedPet;
-    }
-
-    public void setEquippedPet(String equippedPet) {
-        this.equippedPet = equippedPet;
     }
 }

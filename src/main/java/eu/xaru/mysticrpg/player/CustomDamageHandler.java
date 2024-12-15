@@ -1,17 +1,12 @@
 package eu.xaru.mysticrpg.player;
 
-import eu.xaru.mysticrpg.cores.MysticCore;
-import eu.xaru.mysticrpg.enums.EModulePriority;
-import eu.xaru.mysticrpg.interfaces.IBaseModule;
-import eu.xaru.mysticrpg.managers.EventManager;
-import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.npc.NPCManager;
-import eu.xaru.mysticrpg.storage.PlayerData;
-import eu.xaru.mysticrpg.storage.PlayerDataCache;
-import eu.xaru.mysticrpg.storage.SaveModule;
-import eu.xaru.mysticrpg.ui.ActionBarManager;
-import eu.xaru.mysticrpg.utils.DebugLogger;
-import eu.xaru.mysticrpg.utils.Utils;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.logging.Level;
+
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -24,12 +19,18 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.logging.Level;
+import dev.jorel.commandapi.CommandAPICommand;
+import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.enums.EModulePriority;
+import eu.xaru.mysticrpg.interfaces.IBaseModule;
+import eu.xaru.mysticrpg.managers.EventManager;
+import eu.xaru.mysticrpg.managers.ModuleManager;
+import eu.xaru.mysticrpg.storage.PlayerData;
+import eu.xaru.mysticrpg.storage.PlayerDataCache;
+import eu.xaru.mysticrpg.storage.SaveModule;
+import eu.xaru.mysticrpg.ui.ActionBarManager;
+import eu.xaru.mysticrpg.utils.DebugLogger;
+import eu.xaru.mysticrpg.utils.Utils;
 
 public class CustomDamageHandler implements IBaseModule {
 
@@ -47,7 +48,7 @@ public class CustomDamageHandler implements IBaseModule {
         plugin = JavaPlugin.getPlugin(MysticCore.class);
 
         if (saveModule != null) {
-            playerDataCache = saveModule.getPlayerDataCache();
+            playerDataCache = PlayerDataCache.getInstance();
         } else {
             DebugLogger.getInstance().error("SaveModule not initialized. CustomDamageHandler cannot function without it.");
             return;
@@ -61,6 +62,43 @@ public class CustomDamageHandler implements IBaseModule {
         actionBarManager = new ActionBarManager((MysticCore) plugin, playerDataCache);
 
         DebugLogger.getInstance().log(Level.INFO, "CustomDamageHandler initialized", 0);
+
+
+        new CommandAPICommand("applydamage")
+                .withPermission("mysticrpg.command.applydamage")
+                .executesPlayer((player, args) -> {
+                    if (args.count() == 0) {
+                        player.sendMessage(ChatColor.RED + "Usage: /applydamage <amount>");
+                        return;
+                    }
+
+                    Double damageObj = (Double) args.get(0);
+                    if (damageObj == null) {
+                        player.sendMessage(ChatColor.RED + "Invalid damage value!");
+                        return;
+                    }
+                    applyCustomDamage(player, damageObj);
+                })
+                .register();
+
+        new CommandAPICommand("heal")
+                .withPermission("mysticrpg.command.heal")
+                .executesPlayer((player, args) -> {
+                    UUID playerUUID = player.getUniqueId();
+                    PlayerData playerData = playerDataCache.getCachedPlayerData(playerUUID);
+
+                    if (playerData == null) {
+                        DebugLogger.getInstance().error("No cached data found for player: " + player.getName());
+                        return;
+                    }
+
+                    int maxHp = playerData.getAttributes().getOrDefault("HP", playerData.getAttributes().getOrDefault("max_hp", 20));
+                    playerData.setCurrentHp(maxHp);
+                    actionBarManager.updateActionBar(player);
+                    player.sendMessage(ChatColor.GREEN + "You have been healed to full health.");
+                })
+                .register();
+
     }
 
     @Override

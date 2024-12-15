@@ -53,7 +53,7 @@ public class NPC {
         this.plugin = JavaPlugin.getPlugin(eu.xaru.mysticrpg.cores.MysticCore.class);
 
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
-        this.playerDataCache = saveModule.getPlayerDataCache();
+        this.playerDataCache = PlayerDataCache.getInstance();
         this.levelModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
         this.questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
         this.questManager = questModule.getQuestManager();
