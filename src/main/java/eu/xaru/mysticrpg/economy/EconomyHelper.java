@@ -4,6 +4,7 @@ import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
 import java.util.UUID;
@@ -11,187 +12,97 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class EconomyHelper {
-
     private final PlayerDataCache playerDataCache;
-    private static final Logger logger = Logger.getLogger(EconomyHelper.class.getName());
 
     public EconomyHelper(PlayerDataCache playerDataCache) {
         this.playerDataCache = playerDataCache;
     }
 
-    /**
-     * Retrieves the current balance of a player.
-     *
-     * @param player The player whose balance is to be retrieved.
-     * @return The current balance.
-     */
-    public int getBalance(Player player) {
-        PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
-        if (playerData == null) {
-            DebugLogger.getInstance().log(Level.WARNING, "PlayerData not found for player: {0}", player.getName());
-            return 0;
-        }
-        return playerData.getBalance();
+    // Get held gold
+    public int getHeldGold(Player player) {
+        PlayerData pd = playerDataCache.getCachedPlayerData(player.getUniqueId());
+        return pd != null ? pd.getHeldGold() : 0;
     }
 
-    /**
-     * Sets the balance of a player to a specific amount.
-     *
-     * @param player The player whose balance is to be set.
-     * @param amount The new balance amount.
-     */
-    public void setBalance(Player player, int amount) {
-        PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
-        if (playerData == null) {
-            DebugLogger.getInstance().log(Level.WARNING, "PlayerData not found for player: {0}", player.getName());
-            return;
-        }
-        playerData.setBalance(amount);
-        DebugLogger.getInstance().log(Level.INFO, "Set balance for player {0} to ${1}", new Object[]{player.getName(), amount});
+    // Set held gold
+    public void setHeldGold(Player player, int amount) {
+        PlayerData pd = playerDataCache.getCachedPlayerData(player.getUniqueId());
+        if (pd == null) return;
+        pd.setHeldGold(Math.max(amount, 0));
     }
 
-    /**
-     * Deposits a specified amount to a player's balance.
-     *
-     * @param player The player to deposit funds to.
-     * @param amount The amount to deposit.
-     * @return True if the deposit was successful, false otherwise.
-     */
-    public boolean depositBalance(Player player, int amount) {
+    // Add to held gold
+    public void addHeldGold(Player player, int amount) {
+        if (amount == 0) return;
+        PlayerData pd = playerDataCache.getCachedPlayerData(player.getUniqueId());
+        if (pd == null) return;
+        pd.setHeldGold(Math.max(pd.getHeldGold() + amount, 0));
+    }
+
+    // Get bank gold
+    public int getBankGold(Player player) {
+        PlayerData pd = playerDataCache.getCachedPlayerData(player.getUniqueId());
+        return pd != null ? pd.getBankGold() : 0;
+    }
+
+    // Set bank gold
+    public void setBankGold(Player player, int amount) {
+        PlayerData pd = playerDataCache.getCachedPlayerData(player.getUniqueId());
+        if (pd == null) return;
+        pd.setBankGold(Math.max(amount, 0));
+    }
+
+    // Add to bank gold
+    public void addBankGold(Player player, int amount) {
+        if (amount == 0) return;
+        PlayerData pd = playerDataCache.getCachedPlayerData(player.getUniqueId());
+        if (pd == null) return;
+        pd.setBankGold(Math.max(pd.getBankGold() + amount, 0));
+    }
+
+    // Deposit from held to bank
+    public boolean depositToBank(Player player, int amount) {
         if (amount <= 0) {
             player.sendMessage(Utils.getInstance().$("Deposit amount must be positive."));
-            DebugLogger.getInstance().log(Level.WARNING, "Attempted to deposit a non-positive amount: ${0} to player: {1}", new Object[]{amount, player.getName()});
             return false;
         }
 
-        PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
-        if (playerData == null) {
-            player.sendMessage(Utils.getInstance().$("Player data not found."));
-            DebugLogger.getInstance().log(Level.SEVERE, "PlayerData not found for player: {0}", player.getName());
+        int held = getHeldGold(player);
+        if (held < amount) {
+            player.sendMessage(Utils.getInstance().$("You don't have enough gold in your hands."));
             return false;
         }
 
-        int newBalance = playerData.getBalance() + amount;
-        playerData.setBalance(newBalance);
-
-        player.sendMessage(Utils.getInstance().$("Your balance has been increased by $" + formatBalance(amount) + ". New balance: $" + formatBalance(newBalance)));
-        DebugLogger.getInstance().log(Level.INFO, "Deposited ${0} to player {1}. New balance: ${2}", new Object[]{amount, player.getName(), newBalance});
+        setHeldGold(player, held - amount);
+        addBankGold(player, amount);
+        player.sendMessage(Utils.getInstance().$("You deposited " + amount + " gold into the bank."));
+        player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
         return true;
     }
 
-    /**
-     * Withdraws a specified amount from a player's balance.
-     *
-     * @param player The player to withdraw funds from.
-     * @param amount The amount to withdraw.
-     * @return True if the withdrawal was successful, false otherwise.
-     */
-    public boolean withdrawBalance(Player player, int amount) {
+    // Withdraw from bank to held
+    public boolean withdrawFromBank(Player player, int amount) {
         if (amount <= 0) {
             player.sendMessage(Utils.getInstance().$("Withdrawal amount must be positive."));
-            DebugLogger.getInstance().log(Level.WARNING, "Attempted to withdraw a non-positive amount: ${0} from player: {1}", new Object[]{amount, player.getName()});
             return false;
         }
 
-        PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
-        if (playerData == null) {
-            player.sendMessage(Utils.getInstance().$("Player data not found."));
-            DebugLogger.getInstance().log(Level.SEVERE, "PlayerData not found for player: {0}", player.getName());
+        int bank = getBankGold(player);
+        if (bank < amount) {
+            player.sendMessage(Utils.getInstance().$("You don't have enough gold in the bank."));
             return false;
         }
 
-        int currentBalance = playerData.getBalance();
-        if (currentBalance < amount) {
-            player.sendMessage(Utils.getInstance().$("Insufficient funds."));
-            DebugLogger.getInstance().log(Level.WARNING, "Player {0} has insufficient funds. Balance: ${1}, Attempted withdrawal: ${2}",
-                    new Object[]{player.getName(), currentBalance, amount});
-            return false;
-        }
-
-        int newBalance = currentBalance - amount;
-        playerData.setBalance(newBalance);
-
-        player.sendMessage(Utils.getInstance().$("Your balance has been decreased by $" + formatBalance(amount) + ". New balance: $" + formatBalance(newBalance)));
-        DebugLogger.getInstance().log(Level.INFO, "Withdrew ${0} from player {1}. New balance: ${2}", new Object[]{amount, player.getName(), newBalance});
+        setBankGold(player, bank - amount);
+        addHeldGold(player, amount);
+        player.sendMessage(Utils.getInstance().$("You withdrew " + amount + " gold from the bank."));
+        player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
         return true;
     }
 
-    /**
-     * Adds (or subtracts) balance for a player.
-     * This method is deprecated and should be replaced with depositBalance and withdrawBalance.
-     *
-     * @param player The player whose balance is to be adjusted.
-     * @param amount The amount to add (positive) or subtract (negative).
-     */
-    @Deprecated
-    public void addBalance(Player player, int amount) {
-        if (amount > 0) {
-            depositBalance(player, amount);
-        } else if (amount < 0) {
-            withdrawBalance(player, -amount);
-        }
-        // If amount == 0, do nothing
-    }
-
-    /**
-     * Sends money from one player to another.
-     *
-     * @param sender    The player sending money.
-     * @param receiver  The player receiving money.
-     * @param amount    The amount to send.
-     */
-    public void sendMoney(Player sender, Player receiver, int amount) {
-        if (amount <= 0) {
-            sender.sendMessage(Utils.getInstance().$("Amount must be positive."));
-            DebugLogger.getInstance().log(Level.WARNING, "Player {0} attempted to send a non-positive amount: ${1} to {2}",
-                    new Object[]{sender.getName(), amount, receiver.getName()});
-            return;
-        }
-
-        PlayerData senderData = playerDataCache.getCachedPlayerData(sender.getUniqueId());
-        PlayerData receiverData = playerDataCache.getCachedPlayerData(receiver.getUniqueId());
-
-        if (senderData == null || receiverData == null) {
-            sender.sendMessage(Utils.getInstance().$("Failed to find data for either sender or receiver."));
-            DebugLogger.getInstance().log(Level.SEVERE, "PlayerData not found for sender: {0} or receiver: {1}", new Object[]{sender.getName(), receiver.getName()});
-            return;
-        }
-
-        if (senderData.getBalance() >= amount) {
-            boolean withdrawn = withdrawBalance(sender, amount);
-            if (!withdrawn) {
-                sender.sendMessage(Utils.getInstance().$("Transaction failed: Unable to deduct money."));
-                DebugLogger.getInstance().log(Level.SEVERE, "Failed to withdraw ${0} from sender {1}", new Object[]{amount, sender.getName()});
-                return;
-            }
-
-            boolean deposited = depositBalance(receiver, amount);
-            if (!deposited) {
-                // Refund the sender if depositing fails
-                depositBalance(sender, amount);
-                sender.sendMessage(Utils.getInstance().$("Transaction failed: Unable to credit receiver."));
-                DebugLogger.getInstance().log(Level.SEVERE, "Failed to deposit ${0} to receiver {1}. Refunded ${0} to sender {2}",
-                        new Object[]{amount, receiver.getName(), sender.getName()});
-                return;
-            }
-
-            sender.sendMessage(Utils.getInstance().$("You sent $" + formatBalance(amount) + " to " + receiver.getName()));
-            receiver.sendMessage(Utils.getInstance().$("You received $" + formatBalance(amount) + " from " + sender.getName()));
-            DebugLogger.getInstance().log(Level.INFO, "Player {0} sent ${1} to player {2}", new Object[]{sender.getName(), amount, receiver.getName()});
-        } else {
-            sender.sendMessage(Utils.getInstance().$("Insufficient funds."));
-            DebugLogger.getInstance().log(Level.WARNING, "Player {0} has insufficient funds. Balance: ${1}, Attempted to send: ${2}",
-                    new Object[]{sender.getName(), senderData.getBalance(), amount});
-        }
-    }
-
-    /**
-     * Formats the balance into a readable string.
-     *
-     * @param balance The balance amount.
-     * @return A formatted string representing the balance.
-     */
-    public String formatBalance(int balance) {
-        return String.format("%d", balance);
+    // For formatting
+    public String formatGold(int amount) {
+        return String.valueOf(amount);
     }
 }
+

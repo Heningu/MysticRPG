@@ -12,7 +12,10 @@ public class PlayerData {
     private String uuid;
 
     @Persist
-    private int balance;
+    private int heldGold;
+
+    @Persist
+    private int bankGold;
 
     @Persist
     private int xp;
@@ -94,7 +97,7 @@ public class PlayerData {
         // Default constructor required for deserialization
     }
 
-    public PlayerData(String uuid, int balance, int xp, int level, int nextLevelXP, int currentHp,
+    public PlayerData(String uuid, int heldGold, int bankGold, int xp, int level, int nextLevelXP, int currentHp,
                       Map<String, Integer> attributes, Map<String, Boolean> unlockedRecipes,
                       Set<String> friendRequests, Set<String> friends, Set<String> blockedPlayers,
                       boolean blockingRequests, int attributePoints, List<String> activeQuests,
@@ -104,7 +107,8 @@ public class PlayerData {
                       List<String> completedDialogues, Long discordId,
                       Map<String, Integer> questPhaseIndex, Map<String, Long> questStartTime, Set<String> ownedPets, String equippedPet) {
         this.uuid = uuid;
-        this.balance = balance;
+        this.bankGold = bankGold;
+        this.heldGold = heldGold;
         this.xp = xp;
         this.level = level;
         this.nextLevelXP = nextLevelXP;
@@ -135,7 +139,8 @@ public class PlayerData {
     public static PlayerData defaultData(String uuid) {
         return new PlayerData(
                 uuid,
-                0,
+                0, // heldGold default
+                0, // bankGold default
                 0,
                 1,
                 100,
@@ -224,12 +229,20 @@ public class PlayerData {
         this.uuid = uuid;
     }
 
-    public int getBalance() {
-        return balance;
+    public int getHeldGold() {
+        return heldGold;
     }
 
-    public void setBalance(int balance) {
-        this.balance = balance;
+    public void setHeldGold(int heldGold) {
+        this.heldGold = heldGold;
+    }
+
+    public int getBankGold() {
+        return bankGold;
+    }
+
+    public void setBankGold(int bankGold) {
+        this.bankGold = bankGold;
     }
 
     public int getXp() {

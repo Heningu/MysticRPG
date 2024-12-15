@@ -295,7 +295,7 @@ public class ScoreboardManager {
         newEntries.add(xpEntry);
 
         // Balance
-        int balance = economyHelper.getBalance(player);
+        int balance = economyHelper.getHeldGold(player);
         String balanceEntry = ChatColor.YELLOW + "   い " + ChatColor.WHITE + balance + ChatColor.GOLD + " Gold";
         objective.getScore(balanceEntry).setScore(10);
         newEntries.add(balanceEntry);

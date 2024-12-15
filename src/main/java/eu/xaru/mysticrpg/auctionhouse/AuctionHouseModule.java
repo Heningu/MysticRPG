@@ -30,7 +30,7 @@ import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import eu.xaru.mysticrpg.guis.auctionhouse.AuctionHouseMainMenu;
+// import eu.xaru.mysticrpg.guis.auctionhouse.AuctionHouseMainMenu;
 
 /**
  * AuctionHouseModule handles the initialization and management
@@ -43,12 +43,12 @@ public class AuctionHouseModule implements IBaseModule {
     private static final String INVENTORY_SELL = "Auction House - Sell";
     private static final String INVENTORY_YOUR_AUCTIONS = "Your Auctions";
 
-    private AuctionHouseHelper auctionHouseHelper;
+    // private AuctionHouseHelper auctionHouseHelper;
     private EventManager eventManager;
     private EconomyHelper economyHelper;
     private SaveModule saveModule;
     
-    private AuctionHouseMainMenu auctionsGUI;
+    // private AuctionHouseMainMenu auctionsGUI;
     private MysticCore plugin;
     private CustomItemModule customItemModule;
     private static final Logger loggerModule = Logger.getLogger(AuctionHouseModule.class.getName());
@@ -74,10 +74,10 @@ public class AuctionHouseModule implements IBaseModule {
         this.customItemModule = ModuleManager.getInstance()
                 .getModuleInstance(CustomItemModule.class);
         // Instantiate AuctionHouseHelper once
-        this.auctionHouseHelper = new AuctionHouseHelper(economyHelper);
+      //  this.auctionHouseHelper = new AuctionHouseHelper(economyHelper);
 
         // Instantiate AuctionsGUI with necessary dependencies
-        this.auctionsGUI = new AuctionHouseMainMenu();
+        //this.auctionsGUI = new AuctionHouseMainMenu();
 
         loggerModule.log(Level.INFO, "AuctionHouseModule initialized");
     }
@@ -118,7 +118,7 @@ public class AuctionHouseModule implements IBaseModule {
      * @param player The player to open the GUI for.
      */
     public void openAuctionGUI(Player player) {
-        auctionsGUI.openAuctionsGUI(player);
+      //  auctionsGUI.openAuctionsGUI(player);
     }
 
     /**
@@ -178,9 +178,9 @@ public class AuctionHouseModule implements IBaseModule {
     }
 
 
-    public AuctionHouseMainMenu getAuctionsGUI() {
-        return auctionsGUI;
-    }
+//    public AuctionHouseMainMenu getAuctionsGUI() {
+//        return auctionsGUI;
+//    }
 
 
     /**
@@ -212,7 +212,7 @@ public class AuctionHouseModule implements IBaseModule {
         }
 
         UUID sellerId = player.getUniqueId();
-        auctionHouseHelper.addAuction(sellerId, customItem, price, /* duration */ 86400000L); // Example duration: 1 day
+        //auctionHouseHelper.addAuction(sellerId, customItem, price, /* duration */ 86400000L); // Example duration: 1 day
 
         player.sendMessage(Utils.getInstance().$("Your item has been listed in the Auction House."));
     }

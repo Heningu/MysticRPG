@@ -254,7 +254,6 @@ public class PlayerDataCache {
 
                     if (playerData != null) {
                         player.sendMessage(Utils.getInstance().$("Your cached data:"));
-                        player.sendMessage(Utils.getInstance().$("Balance: " + playerData.getBalance()));
                         player.sendMessage(Utils.getInstance().$("XP: " + playerData.getXp()));
                         player.sendMessage(Utils.getInstance().$("Level: " + playerData.getLevel()));
                         player.sendMessage(Utils.getInstance().$("Next Level XP: " + playerData.getNextLevelXP()));

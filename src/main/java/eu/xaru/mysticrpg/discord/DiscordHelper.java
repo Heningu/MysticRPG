@@ -193,7 +193,7 @@ public class DiscordHelper extends ListenerAdapter {
     private void sendEmbeddedPlayerInfo(SlashCommandInteractionEvent event, UUID playerUUID, PlayerData playerData) {
         String username = getUsernameFromUUID(playerUUID);
         int level = playerData.getLevel();
-        int balance = playerData.getBalance();
+        int balance = playerData.getBankGold();
 
         EmbedBuilder embed = new EmbedBuilder();
         embed.setTitle("Minecraft Account Information");

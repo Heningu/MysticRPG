@@ -353,7 +353,7 @@ public class MobManager implements Listener {
 
                 if (random.nextDouble() <= currencyChance) {
                     if (economyHelper != null) {
-                        economyHelper.addBalance(killer, currencyReward);
+                        economyHelper.addHeldGold(killer, currencyReward);
                         killer.sendMessage(Utils.getInstance().$("You have received $" + currencyReward + " for killing " + mobInstance.getCustomMob().getName() + "!"));
                     } else {
                         killer.sendMessage(Utils.getInstance().$("Economy system is not available. Cannot reward currency."));

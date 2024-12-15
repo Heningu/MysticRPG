@@ -266,7 +266,7 @@ public class QuestManager {
         if (rewards != null) {
             if (rewards.containsKey("currency")) {
                 int amount = ((Number) rewards.get("currency")).intValue();
-                data.setBalance(data.getBalance() + amount);
+                data.setHeldGold(data.getHeldGold() + amount);
             }
             if (rewards.containsKey("experience")) {
                 int xp = ((Number) rewards.get("experience")).intValue();
