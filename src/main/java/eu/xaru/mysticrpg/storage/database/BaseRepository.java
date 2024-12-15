@@ -126,4 +126,8 @@ public abstract class BaseRepository<T> implements IRepository<T> {
 
     @Override
     public abstract void loadAll(Callback<List<T>> callback);
+
+    // loadByDiscordId will be implemented in subclasses
+    @Override
+    public abstract void loadByDiscordId(long discordId, Callback<T> callback);
 }

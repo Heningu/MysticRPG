@@ -163,6 +163,41 @@ public class MongoRepository<T> extends BaseRepository<T> {
         });
     }
 
+    @Override
+    public void loadByDiscordId(long discordId, Callback<T> callback) {
+        collection.find(Filters.eq("discordId", discordId))
+                .first()
+                .subscribe(new Subscriber<Document>() {
+                    private T entity;
+
+                    @Override
+                    public void onSubscribe(Subscription s) {
+                        s.request(1);
+                    }
+
+                    @Override
+                    public void onNext(Document doc) {
+                        if (doc != null) {
+                            entity = deserialize(doc);
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable t) {
+                        callback.onFailure(t);
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        if (entity != null) {
+                            callback.onSuccess(entity);
+                        } else {
+                            callback.onFailure(new NoSuchElementException("No entity found with discordId: " + discordId));
+                        }
+                    }
+                });
+    }
+
     /**
      * Deserializes a MongoDB Document to an entity.
      *

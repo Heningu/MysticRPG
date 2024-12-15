@@ -130,6 +130,24 @@ public class PlayerDataCache {
         return data;
     }
 
+
+
+    public void loadPlayerDataByDiscordId(long discordId, Callback<PlayerData> callback) {
+        databaseManager.getPlayerRepository().loadByDiscordId(discordId, new Callback<PlayerData>() {
+            @Override
+            public void onSuccess(PlayerData playerData) {
+                UUID playerUUID = UUID.fromString(playerData.getUuid());
+                cache.put(playerUUID, playerData);
+                callback.onSuccess(playerData);
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                callback.onFailure(throwable);
+            }
+        });
+    }
+
     /**
      * Adds a friend to a player's friend list.
      *

@@ -57,7 +57,6 @@ public class SQLiteRepository<T> extends BaseRepository<T> {
             sqlBuilder.append("CREATE TABLE IF NOT EXISTS ").append(tableName).append(" (");
             sqlBuilder.append(idField).append(" TEXT PRIMARY KEY, ");
 
-            // Add columns based on @Persist fields
             int count = 0;
             for (String key : persistFields.keySet()) {
                 Field field = persistFields.get(key);
@@ -79,7 +78,6 @@ public class SQLiteRepository<T> extends BaseRepository<T> {
             }
             rs.close();
 
-            // Add any missing columns
             for (String key : persistFields.keySet()) {
                 if (!existingColumns.contains(key)) {
                     String sqlType = getSQLType(persistFields.get(key).getType());
@@ -173,21 +171,7 @@ public class SQLiteRepository<T> extends BaseRepository<T> {
             pstmt.setString(1, uuid.toString());
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
-                Map<String, Object> data = new HashMap<>();
-                for (String key : persistFields.keySet()) {
-                    Object value = rs.getObject(key);
-                    if (value instanceof String && isComplexType(persistFields.get(key).getType())) {
-                        // Deserialize JSON to complex types
-                        Field field = persistFields.get(key);
-                        Type typeOfField = field.getGenericType();
-                        Object deserialized = gson.fromJson((String) value, typeOfField);
-                        data.put(key, deserialized);
-                    } else if (value instanceof Integer && persistFields.get(key).getType() == boolean.class) {
-                        data.put(key, ((Integer) value) != 0);
-                    } else {
-                        data.put(key, value);
-                    }
-                }
+                Map<String, Object> data = extractDataFromResultSet(rs);
                 T entity = deserialize(data);
                 DebugLogger.getInstance().log(Level.INFO, "Entity loaded successfully with ID: " + uuid, 0);
                 callback.onSuccess(entity);
@@ -227,21 +211,7 @@ public class SQLiteRepository<T> extends BaseRepository<T> {
         try (Statement stmt = connection.createStatement()) {
             ResultSet rs = stmt.executeQuery(sql);
             while (rs.next()) {
-                Map<String, Object> data = new HashMap<>();
-                for (String key : persistFields.keySet()) {
-                    Object value = rs.getObject(key);
-                    if (value instanceof String && isComplexType(persistFields.get(key).getType())) {
-                        // Deserialize JSON to complex types
-                        Field field = persistFields.get(key);
-                        Type typeOfField = field.getGenericType();
-                        Object deserialized = gson.fromJson((String) value, typeOfField);
-                        data.put(key, deserialized);
-                    } else if (value instanceof Integer && persistFields.get(key).getType() == boolean.class) {
-                        data.put(key, ((Integer) value) != 0);
-                    } else {
-                        data.put(key, value);
-                    }
-                }
+                Map<String, Object> data = extractDataFromResultSet(rs);
                 T entity = deserialize(data);
                 if (entity != null) {
                     entities.add(entity);
@@ -253,6 +223,53 @@ public class SQLiteRepository<T> extends BaseRepository<T> {
             DebugLogger.getInstance().error("Error loading all entities.", e);
             callback.onFailure(e);
         }
+    }
+
+    @Override
+    public void loadByDiscordId(long discordId, Callback<T> callback) {
+        String sql = "SELECT * FROM " + tableName + " WHERE discordId = ? LIMIT 1;";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setLong(1, discordId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                Map<String, Object> data = extractDataFromResultSet(rs);
+                T entity = deserialize(data);
+                if (entity != null) {
+                    callback.onSuccess(entity);
+                } else {
+                    callback.onFailure(new NoSuchElementException("No entity found with discordId: " + discordId));
+                }
+            } else {
+                callback.onFailure(new NoSuchElementException("No entity found with discordId: " + discordId));
+            }
+        } catch (SQLException e) {
+            callback.onFailure(e);
+        }
+    }
+
+    /**
+     * Extracts the data from a ResultSet row into a Map for deserialization.
+     *
+     * @param rs The ResultSet positioned at the current row.
+     * @return A Map with field names and their corresponding values.
+     */
+    private Map<String, Object> extractDataFromResultSet(ResultSet rs) throws SQLException {
+        Map<String, Object> data = new HashMap<>();
+        for (String key : persistFields.keySet()) {
+            Object value = rs.getObject(key);
+            if (value instanceof String && isComplexType(persistFields.get(key).getType())) {
+                // Deserialize JSON to complex types
+                Field field = persistFields.get(key);
+                Type typeOfField = field.getGenericType();
+                Object deserialized = gson.fromJson((String) value, typeOfField);
+                data.put(key, deserialized);
+            } else if (value instanceof Integer && persistFields.get(key).getType() == boolean.class) {
+                data.put(key, ((Integer) value) != 0);
+            } else {
+                data.put(key, value);
+            }
+        }
+        return data;
     }
 
     /**

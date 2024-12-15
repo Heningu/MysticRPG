@@ -195,16 +195,15 @@ public class QuestManager {
         long start = data.getQuestStartTime().getOrDefault(quest.getId(),0L);
         if (phase.getTimeLimit() > 0 && System.currentTimeMillis()-start > phase.getTimeLimit()) {
             resetQuestForPlayer(data, quest.getId());
-            Player player = Bukkit.getPlayer(data.getUuid());
-            if (player!=null) player.sendMessage(Utils.getInstance().$("You ran out of time to complete the phase! Quest failed."));
+            Player player = Bukkit.getPlayer(UUID.fromString(data.getUuid()));
+            if (player != null) player.sendMessage(Utils.getInstance().$("You ran out of time to complete the phase! Quest failed."));
             return;
         }
 
         if (QuestObjectivesHelper.areAllObjectivesComplete(phase, progress)) {
-            Player player = Bukkit.getPlayer(data.getUuid());
-            if (player!=null) {
+            Player player = Bukkit.getPlayer(UUID.fromString(data.getUuid()));
+            if (player != null) {
                 // Show user feedback for phase completion
-                // Send a chat message indicating phase completed
                 player.sendMessage(Utils.getInstance().$("Phase completed!"));
 
                 if (!phase.getDialogueEnd().isEmpty()) {
@@ -226,7 +225,7 @@ public class QuestManager {
             }
 
             if (phase.isShowChoices() && phase.getBranches() != null && !phase.getBranches().isEmpty()) {
-                if (player!=null) {
+                if (player != null) {
                     player.sendMessage(Utils.getInstance().$("Please choose your path:"));
                     for (Map.Entry<String,String> e : phase.getBranches().entrySet()) {
                         player.sendMessage(Utils.getInstance().$("[Choice: "+e.getKey()+"] /questchoose "+quest.getId()+" "+e.getKey()));
@@ -234,12 +233,12 @@ public class QuestManager {
                 }
             } else if (phase.getNextPhase() == null && (phase.getBranches() == null || phase.getBranches().isEmpty())) {
                 completeQuest(player, data, quest);
-            } else if (phase.getNextPhase()!=null) {
+            } else if (phase.getNextPhase() != null) {
                 int nextIndex = getPhaseIndexByName(quest, phase.getNextPhase());
                 data.getQuestPhaseIndex().put(quest.getId(), nextIndex);
                 data.getQuestStartTime().put(quest.getId(), System.currentTimeMillis());
-                Player p = Bukkit.getPlayer(data.getUuid());
-                if (p!=null && !quest.getPhases().get(nextIndex).getDialogueStart().isEmpty()) {
+                Player p = Bukkit.getPlayer(UUID.fromString(data.getUuid()));
+                if (p != null && !quest.getPhases().get(nextIndex).getDialogueStart().isEmpty()) {
                     p.sendMessage(Utils.getInstance().$(quest.getPhases().get(nextIndex).getDialogueStart()));
                 }
             }
@@ -273,21 +272,24 @@ public class QuestManager {
                 int xp = ((Number) rewards.get("experience")).intValue();
                 data.setXp(data.getXp() + xp);
             }
-            if (rewards.containsKey("items")) {
+            if (rewards.containsKey("items") && player != null) {
                 List<String> items = (List<String>) rewards.get("items");
-                if (player != null) {
-                    for (String itemId : items) {
-                        CustomItem customItem = itemManager.getCustomItem(itemId);
-                        if (customItem != null) {
-                            player.getInventory().addItem(customItem.toItemStack());
-                            player.sendMessage(Utils.getInstance().$("You have received: " + customItem.getName()));
-                        }
+                for (String itemId : items) {
+                    CustomItem customItem = itemManager.getCustomItem(itemId);
+                    if (customItem != null) {
+                        player.getInventory().addItem(customItem.toItemStack());
+                        player.sendMessage(Utils.getInstance().$("You have received: " + customItem.getName()));
                     }
                 }
             }
         }
 
-        if (player!=null) {
+        // If player is null here, try retrieving again (just in case)
+        if (player == null) {
+            player = Bukkit.getPlayer(UUID.fromString(data.getUuid()));
+        }
+
+        if (player != null) {
             player.sendMessage(Utils.getInstance().$("You have completed the quest: " + quest.getName()));
             player.sendTitle(Utils.getInstance().$("Quest Completed!"), Utils.getInstance().$(quest.getName()), 10, 70, 20);
             player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);

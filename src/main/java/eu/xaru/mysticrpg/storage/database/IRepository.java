@@ -15,4 +15,7 @@ public interface IRepository<T> {
     void load(UUID uuid, Callback<T> callback);
     void delete(UUID uuid, Callback<Void> callback);
     void loadAll(Callback<List<T>> callback);
+
+    // Added method to load by Discord ID
+    void loadByDiscordId(long discordId, Callback<T> callback);
 }
