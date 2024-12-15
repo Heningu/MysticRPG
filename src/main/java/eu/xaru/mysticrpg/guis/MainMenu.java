@@ -129,7 +129,21 @@ public class MainMenu {
                         "exploring the Mystic Realm."
                 )
                 .addAllItemFlags()
-        ); // Ingredient G
+        )       {
+            @Override
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
+                // Close the current GUI before opening the Equipment GUI
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window ?
+                        (Window) event.getView().getTopInventory().getHolder() : null;
+                if (window != null) {
+                    window.close();
+                }
+//                LevelingGUI leveling = new LevelingGUI();
+//                leveling.openLevelingGUI(player);
+                PetGUI petGUI = new PetGUI();
+                petGUI.openPetGUI(player);
+            }
+        }; // Ingredient G
 
         Item mounts = new SimpleItem(new ItemBuilder(Material.DRAGON_HEAD)
                 .setDisplayName("Mounts")
@@ -201,11 +215,7 @@ public class MainMenu {
                 )
                 .addAllItemFlags()
                 .addEnchantment(Enchantment.UNBREAKING,1,true)
-        )
-
-
-
-        {
+        ){
             @Override
             public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
                 // Close the current GUI before opening the Equipment GUI

@@ -314,55 +314,21 @@ public class ScoreboardManager {
         objective.getScore(yourRank).setScore(7);
         newEntries.add(yourRank);
 
-        String yourpet = "   シ NO PET";
-        objective.getScore(yourpet).setScore(5);
-        newEntries.add(yourpet);
 
+        String petID = playerData.getEquippedPet();
 
-//        // Pinned quest
-//
-//        String pinnedQuestId = playerData.getPinnedQuest();
-//        if (pinnedQuestId != null && questManager != null) {
-//            Quest pinnedQuest = questManager.getQuest(pinnedQuestId);
-//            if (pinnedQuest != null) {
-//
-//                // Objective and Progress
-//                Map<String, Integer> objectivesMap = pinnedQuest.getObjectives();
-//                Map<String, Integer> progressMap = playerData.getQuestProgress().getOrDefault(pinnedQuestId, new HashMap<>());
-//
-//                int scoreIndex = 7;
-//                for (Map.Entry<String, Integer> entry : objectivesMap.entrySet()) {
-//                    String objectiveKey = entry.getKey();
-//                    int required = entry.getValue();
-//                    int currentProgress = progressMap.getOrDefault(objectiveKey, 0);
-//
-//                    // Cap currentProgress at required
-//                    currentProgress = Math.min(currentProgress, required);
-//
-//                    // Format the objectiveKey
-//                    String formattedObjective = formatObjectiveKey(objectiveKey);
-//
-//                    // Ensure uniqueness by adding color codes
-//                    String objectiveDisplay = "   う " + ChatColor.GRAY + formattedObjective + ": " + ChatColor.WHITE + currentProgress + "/" + required;
-//                    objective.getScore(objectiveDisplay).setScore(scoreIndex);
-//                    newEntries.add(objectiveDisplay);
-//                    scoreIndex--;
-//                    if (scoreIndex < 2) break; // Adjusted to fit in the scoreboard
-//                }
-//            } else {
-//                String noPinnedQuestEntry = "   う " + ChatColor.RED + "No Pinned Quest";
-//                objective.getScore(noPinnedQuestEntry).setScore(3);
-//                newEntries.add(noPinnedQuestEntry);
-//            }
-//        } else {
-//            String noPinnedQuestEntry = "   う " + ChatColor.RED + "No Pinned Quest";
-//            objective.getScore(noPinnedQuestEntry).setScore(3);
-//            newEntries.add(noPinnedQuestEntry);
-//        }
+        if (petID != null) {
 
+            String formattedName = formatPetName(petID);
+            String yourpet = "   シ "+ formattedName;
+            objective.getScore(yourpet).setScore(5);
+            newEntries.add(yourpet);
+        } else {
 
-        // SPACEHOLDER FOR QUEST
-
+            String yourpet = "   シ " + ChatColor.RED + "No Pet";
+            objective.getScore(yourpet).setScore(5);
+            newEntries.add(yourpet);
+        }
 
         String pinnedQuestId = playerData.getPinnedQuest();
 
@@ -486,6 +452,29 @@ public class ScoreboardManager {
         if (playerData == null) return 1;
         return playerData.getLevel();
     }
+
+    /**
+     * Converts a pet ID to a nicely formatted, readable name.
+     *
+     * @param petId The pet ID to format.
+     * @return The formatted pet name.
+     */
+    public String formatPetName(String petId) {
+        if (petId == null || petId.isEmpty()) {
+            return "Unknown Pet";
+        }
+        String[] words = petId.split("_");
+        StringBuilder formattedName = new StringBuilder();
+        for (String word : words) {
+            if (word.length() > 0) {
+                formattedName.append(Character.toUpperCase(word.charAt(0)))
+                        .append(word.substring(1).toLowerCase())
+                        .append(" ");
+            }
+        }
+        return formattedName.toString().trim();
+    }
+
 
     /**
      * Cleans up all Scoreboard Teams and objectives managed by this ScoreboardManager.

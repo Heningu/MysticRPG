@@ -24,6 +24,9 @@ public class PlayerData {
     private int pendingBalance;
     private List<String> pendingItems;
     private Map<String, String> equipment;
+    private Set<String> ownedPets; // New field to store owned pet IDs
+    private String equippedPet;                     // Stores the ID of the currently equipped pet
+
 
     private List<String> completedDialogues;
     private Long discordId;
@@ -45,7 +48,8 @@ public class PlayerData {
                       boolean remindersEnabled, Long discordId, List<String> completedDialogues,
                       Map<String, String> equipment,
                       Map<String, Integer> questPhaseIndex,
-                      Map<String, Long> questStartTime) {
+                      Map<String, Long> questStartTime,
+                      Set<String> ownedPets,String equippedPet) {
         this.uuid = uuid;
         this.balance = balance;
         this.xp = xp;
@@ -71,6 +75,8 @@ public class PlayerData {
         this.equipment = equipment;
         this.questPhaseIndex = questPhaseIndex;
         this.questStartTime = questStartTime;
+        this.ownedPets = ownedPets != null ? ownedPets : new HashSet<>();
+        this.equippedPet = equippedPet;
     }
 
     public static PlayerData defaultData(String uuid) {
@@ -99,7 +105,9 @@ public class PlayerData {
                 new ArrayList<>(), // Initialize completedDialogues
                 new HashMap<>(), // equipment
                 new HashMap<>(), // questPhaseIndex
-                new HashMap<>()  // questStartTime
+                new HashMap<>(),  // questStartTime
+                new HashSet<>(),
+                null
         );
     }
 
@@ -109,6 +117,9 @@ public class PlayerData {
     public void ensureMutableCollections() {
         if (!(friendRequests instanceof HashSet)) {
             friendRequests = new HashSet<>(friendRequests);
+        }
+        if (!(ownedPets instanceof HashSet)) {
+            ownedPets = new HashSet<>(ownedPets);
         }
         if (!(friends instanceof HashSet)) {
             friends = new HashSet<>(friends);
@@ -348,5 +359,19 @@ public class PlayerData {
 
     public void setQuestStartTime(Map<String, Long> questStartTime) {
         this.questStartTime = questStartTime;
+    }
+    public Set<String> getOwnedPets() {
+        return ownedPets;
+    }
+
+    public void setOwnedPets(Set<String> ownedPets) {
+        this.ownedPets = ownedPets;
+    }
+    public String getEquippedPet() {
+        return equippedPet;
+    }
+
+    public void setEquippedPet(String equippedPet) {
+        this.equippedPet = equippedPet;
     }
 }
