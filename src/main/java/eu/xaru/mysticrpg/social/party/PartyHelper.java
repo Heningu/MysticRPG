@@ -43,7 +43,6 @@ public class PartyHelper {
 
         Party party = playerPartyMap.get(inviter.getUniqueId());
         if (party == null) {
-            // Create a new party
             party = new Party(inviter.getUniqueId());
             playerPartyMap.put(inviter.getUniqueId(), party);
         }
@@ -58,27 +57,26 @@ public class PartyHelper {
 
         invitee.sendMessage(Utils.getInstance().$(inviter.getName() + " has invited you to join their party."));
 
-        // Using TextComponent for clickable [Accept] and [Decline] messages
+        // Create clickable messages
         TextComponent acceptButton = new TextComponent("[Accept]");
         acceptButton.setColor(net.md_5.bungee.api.ChatColor.GREEN);
         acceptButton.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/party accept"));
-        acceptButton.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder("Click to accept the party invitation.").create()));
+        acceptButton.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, TextComponent.fromLegacyText("Click to accept the party invitation.")));
 
         TextComponent declineButton = new TextComponent("[Decline]");
         declineButton.setColor(net.md_5.bungee.api.ChatColor.RED);
         declineButton.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/party decline"));
-        declineButton.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder("Click to decline the party invitation.").create()));
+        declineButton.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, TextComponent.fromLegacyText("Click to decline the party invitation.")));
 
-        TextComponent separator = new TextComponent(" ");
-
-        TextComponent message = new TextComponent();
+        TextComponent message = new TextComponent(" ");
         message.addExtra(acceptButton);
-        message.addExtra(separator);
+        message.addExtra(" ");
         message.addExtra(declineButton);
 
-        invitee.spigot().sendMessage(ChatMessageType.valueOf(Utils.getInstance().$(String.valueOf(message))));
+        // Send the clickable message
+        invitee.spigot().sendMessage(ChatMessageType.CHAT, message);
 
-        // Schedule a task to remove the invitation after a timeout (e.g., 60 seconds)
+        // Schedule invitation timeout
         Bukkit.getScheduler().runTaskLater(JavaPlugin.getProvidingPlugin(getClass()), () -> {
             if (pendingInvitations.containsKey(invitee.getUniqueId())) {
                 pendingInvitations.remove(invitee.getUniqueId());
@@ -214,16 +212,6 @@ public class PartyHelper {
     public void handleEntityDeath(EntityDeathEvent event, Player killer) {
         // XP sharing is handled in MobManager
     }
-
-    /**
-     * Opens the party GUI for the player.
-     *
-     * @param player The player.
-     */
-    public void openPartyGUI(Player player) {
-        PartyGUI.openPartyGUI(player, this);
-    }
-
     /**
      * Gets the party of a player.
      *

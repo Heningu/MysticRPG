@@ -2,13 +2,11 @@ package eu.xaru.mysticrpg.guis;
 
 import eu.xaru.mysticrpg.auctionhouse.AuctionHouseModule;
 
-import eu.xaru.mysticrpg.auctionhouse.AuctionsGUI;
 import eu.xaru.mysticrpg.guis.auctionhouse.AuctionHouseMainMenu;
-import eu.xaru.mysticrpg.guis.player.CharacterGUI;
+import eu.xaru.mysticrpg.guis.player.social.PartyGUI;
+import eu.xaru.mysticrpg.guis.player.stats.CharacterGUI;
 import eu.xaru.mysticrpg.guis.player.EquipmentGUI;
-import eu.xaru.mysticrpg.guis.player.LevelingGUI;
-import eu.xaru.mysticrpg.guis.quests.QuestGUI;
-import eu.xaru.mysticrpg.managers.ModuleManager;
+import eu.xaru.mysticrpg.guis.player.stats.LevelingGUI;
 import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.player.stats.PlayerStatModule;
@@ -366,7 +364,27 @@ public class MainMenu {
                         "Click here to manage your current Party."
                 )
                 .addAllItemFlags()
-        ); // Ingredient 2
+        )
+        {
+            @Override
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
+                // Close the current GUI before opening the Equipment GUI
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window ?
+                        (Window) event.getView().getTopInventory().getHolder() : null;
+                if (window != null) {
+                    window.close();
+                }
+
+                PartyGUI partygui = new PartyGUI(partyModule.getPartyHelper());
+                partygui.openPartyGUI(player);
+
+
+            }
+        };
+
+
+
+        // Ingredient 2
 
         // Header Item
 

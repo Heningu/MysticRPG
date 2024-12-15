@@ -92,16 +92,6 @@ public class PartyModule implements IBaseModule {
                 .register();
     }
 
-    /**
-     * Public method to open the Party GUI for a player.
-     *
-     * @param player The player for whom the Party GUI should be opened.
-     */
-    public void openPartyGUI(Player player) {
-        PartyGUI.openPartyGUI(player, partyHelper);
-    }
-
-
     private void registerEvents() {
         // Handle player disconnect
         eventManager.registerEvent(org.bukkit.event.player.PlayerQuitEvent.class, event -> {
@@ -116,16 +106,6 @@ public class PartyModule implements IBaseModule {
             if (killer != null) {
                 // XP sharing is handled in MobManager
             }
-        });
-
-        // Handle InventoryClickEvent for PartyGUI
-        eventManager.registerEvent(org.bukkit.event.inventory.InventoryClickEvent.class, event -> {
-            PartyGUI.handleInventoryClick(event, partyHelper);
-        });
-
-        // Handle InventoryCloseEvent for PartyGUI
-        eventManager.registerEvent(org.bukkit.event.inventory.InventoryCloseEvent.class, event -> {
-            PartyGUI.handleInventoryClose(event);
         });
     }
 }

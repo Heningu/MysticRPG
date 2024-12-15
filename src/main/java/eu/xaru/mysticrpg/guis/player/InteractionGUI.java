@@ -1,6 +1,9 @@
 package eu.xaru.mysticrpg.guis.player;
 
+import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.interaction.trading.TradeRequestManager;
+import eu.xaru.mysticrpg.social.party.PartyHelper;
+import eu.xaru.mysticrpg.social.party.PartyModule;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -19,6 +22,7 @@ import xyz.xenondevs.invui.window.Window;
 public class InteractionGUI {
 
     private final TradeRequestManager tradeRequestManager;
+    private final PartyModule partyModule;
 
     /**
      * Constructor to initialize InteractionGUI.
@@ -27,6 +31,7 @@ public class InteractionGUI {
      */
     public InteractionGUI(TradeRequestManager tradeRequestManager) {
         this.tradeRequestManager = tradeRequestManager;
+        this.partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
     }
 
     /**
@@ -57,13 +62,26 @@ public class InteractionGUI {
                         "Click here to invite the player to a party"
                 )
                 .addAllItemFlags()
-        );
+        )
+        {
+            @Override
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player clickPlayer, @NotNull InventoryClickEvent event) {
+
+                PartyHelper partyHelper = partyModule.getPartyHelper();
+                partyHelper.invitePlayer(player, target);
+
+
+                clickPlayer.playSound(clickPlayer.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+
+            }
+        };
 
         Item trade = new SimpleItem(new ItemBuilder(Material.CHEST_MINECART)
-                .setDisplayName(ChatColor.GREEN + "Trade")
+                .setDisplayName(ChatColor.RED + "❌ Trade")
                 .addLoreLines(
                         "",
-                        "Click here to trade with the player"
+                        "Click here to trade with the player",
+                        "Will be implemented in the future."
                 )
                 .addAllItemFlags()
         )
@@ -71,8 +89,8 @@ public class InteractionGUI {
             @Override
             public void handleClick(@NotNull ClickType clickType, @NotNull Player clickPlayer, @NotNull InventoryClickEvent event) {
 
-                // Start trade request here
-                sendTradeRequest(clickPlayer, target);
+                // Implemented but bugged. Needs to be fixed before proper use
+                // sendTradeRequest(clickPlayer, target);
 
                 clickPlayer.playSound(clickPlayer.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
             }

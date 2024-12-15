@@ -1,4 +1,4 @@
-package eu.xaru.mysticrpg.guis.player;
+package eu.xaru.mysticrpg.guis.player.stats;
 
 import eu.xaru.mysticrpg.auctionhouse.AuctionHouseModule;
 import eu.xaru.mysticrpg.guis.MainMenu;
