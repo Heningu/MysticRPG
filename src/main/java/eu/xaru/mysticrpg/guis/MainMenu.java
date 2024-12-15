@@ -3,6 +3,7 @@ package eu.xaru.mysticrpg.guis;
 import eu.xaru.mysticrpg.auctionhouse.AuctionHouseModule;
 
 import eu.xaru.mysticrpg.guis.auctionhouse.AuctionHouseMainMenu;
+import eu.xaru.mysticrpg.guis.player.social.FriendsGUI;
 import eu.xaru.mysticrpg.guis.player.social.PartyGUI;
 import eu.xaru.mysticrpg.guis.player.stats.CharacterGUI;
 import eu.xaru.mysticrpg.guis.player.EquipmentGUI;
@@ -347,7 +348,22 @@ public class MainMenu {
                         "Currently online: TBI"
                 )
                 .addAllItemFlags()
-        ); // Ingredient 4
+        )        {
+            @Override
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
+                // Close the current GUI before opening the Equipment GUI
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window ?
+                        (Window) event.getView().getTopInventory().getHolder() : null;
+                if (window != null) {
+                    window.close();
+                }
+
+                FriendsGUI friendsGUI = new FriendsGUI();
+                friendsGUI.openFriendsGUI(player);
+
+
+            }
+        }; // Ingredient 4
 
         Item guilds = new SimpleItem(new ItemBuilder(Material.WHITE_BANNER)
                 .setDisplayName("Guilds")

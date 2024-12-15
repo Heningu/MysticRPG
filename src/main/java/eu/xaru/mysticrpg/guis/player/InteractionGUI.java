@@ -2,8 +2,11 @@ package eu.xaru.mysticrpg.guis.player;
 
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.interaction.trading.TradeRequestManager;
+import eu.xaru.mysticrpg.social.friends.FriendsHelper;
 import eu.xaru.mysticrpg.social.party.PartyHelper;
 import eu.xaru.mysticrpg.social.party.PartyModule;
+import eu.xaru.mysticrpg.storage.PlayerDataCache;
+import eu.xaru.mysticrpg.storage.SaveModule;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -23,6 +26,8 @@ public class InteractionGUI {
 
     private final TradeRequestManager tradeRequestManager;
     private final PartyModule partyModule;
+    private final PlayerDataCache playerDataCache;
+    private FriendsHelper friendsHelper;
 
     /**
      * Constructor to initialize InteractionGUI.
@@ -30,8 +35,12 @@ public class InteractionGUI {
      * @param tradeRequestManager The TradeRequestManager instance.
      */
     public InteractionGUI(TradeRequestManager tradeRequestManager) {
+        SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
+        this.playerDataCache = saveModule.getPlayerDataCache();
         this.tradeRequestManager = tradeRequestManager;
         this.partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
+        this.friendsHelper = new FriendsHelper(playerDataCache);
+
     }
 
     /**
@@ -53,7 +62,18 @@ public class InteractionGUI {
                         "Click here to add the player as a friend"
                 )
                 .addAllItemFlags()
-        );
+        )        {
+            @Override
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player clickPlayer, @NotNull InventoryClickEvent event) {
+
+                friendsHelper.sendFriendRequest(player, target);
+
+
+                clickPlayer.playSound(clickPlayer.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window ? (Window) event.getView().getTopInventory().getHolder() : null;
+                window.close();
+            }
+        };
 
         Item inviteToParty = new SimpleItem(new ItemBuilder(Material.CAKE)
                 .setDisplayName(ChatColor.GREEN + "Invite To Party")
@@ -72,7 +92,8 @@ public class InteractionGUI {
 
 
                 clickPlayer.playSound(clickPlayer.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
-
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window ? (Window) event.getView().getTopInventory().getHolder() : null;
+                window.close();
             }
         };
 
