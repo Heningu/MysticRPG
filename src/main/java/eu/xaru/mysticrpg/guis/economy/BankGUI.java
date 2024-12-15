@@ -38,7 +38,7 @@ public class BankGUI {
         // #########
         // I = Info, D = Deposit, W = Withdraw, # = border, spaces = empty
         Structure structure = new Structure(
-                "#########",
+   "#########",
                 "#I   D W#",
                 "#########"
         );

@@ -35,8 +35,8 @@ public class YourAuctionsGUI {
     private final AuctionHouseMainMenu mainGUI;
     private EconomyModule economyModule;
 
-    public YourAuctionsGUI() {
-        this.mainGUI = ModuleManager.getInstance().getModuleInstance(AuctionHouseModule.class).getAuctionsGUI();
+    public YourAuctionsGUI(AuctionHouseMainMenu mainGUI) {
+        this.mainGUI = mainGUI;
         this.economyModule = ModuleManager.getInstance().getModuleInstance(EconomyModule.class);
     }
 
@@ -61,9 +61,9 @@ public class YourAuctionsGUI {
             String type;
 
             if (auction.isBidItem()) {
-                type = ChatColor.GRAY + "Current Bid: $" + economyModule.getEconomyHelper().formatBalance(auction.getCurrentBid());
+                type = ChatColor.GRAY + "Current Bid: $" + economyModule.getEconomyHelper().formatGold(auction.getCurrentBid());
             } else {
-                type = ChatColor.GRAY + "Price: $" + economyModule.getEconomyHelper().formatBalance(auction.getStartingPrice());
+                type = ChatColor.GRAY + "Price: $" + economyModule.getEconomyHelper().formatGold(auction.getStartingPrice());
             }
 
 

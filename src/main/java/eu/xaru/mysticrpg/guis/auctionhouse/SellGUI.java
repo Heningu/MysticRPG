@@ -152,7 +152,7 @@ public class SellGUI {
         public ItemProvider getItemProvider() {
             int price = priceMap.getOrDefault(player.getUniqueId(), 100);
             return new ItemBuilder(Material.PAPER)
-                    .setDisplayName(Utils.getInstance().$("Current Price: $" + economyHelper.formatBalance(price)))
+                    .setDisplayName(Utils.getInstance().$("Current Price: $" + economyHelper.formatGold(price)))
                     .addLoreLines(Utils.getInstance().$("Right-click to set custom price"));
         }
 

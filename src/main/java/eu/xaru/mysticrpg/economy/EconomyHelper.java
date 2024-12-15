@@ -2,14 +2,9 @@ package eu.xaru.mysticrpg.economy;
 
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
-import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
-
-import java.util.UUID;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class EconomyHelper {
     private final PlayerDataCache playerDataCache;
@@ -18,20 +13,18 @@ public class EconomyHelper {
         this.playerDataCache = playerDataCache;
     }
 
-    // Get held gold
+    // Held gold methods (not used by auctions anymore, but we keep them)
     public int getHeldGold(Player player) {
         PlayerData pd = playerDataCache.getCachedPlayerData(player.getUniqueId());
         return pd != null ? pd.getHeldGold() : 0;
     }
 
-    // Set held gold
     public void setHeldGold(Player player, int amount) {
         PlayerData pd = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (pd == null) return;
         pd.setHeldGold(Math.max(amount, 0));
     }
 
-    // Add to held gold
     public void addHeldGold(Player player, int amount) {
         if (amount == 0) return;
         PlayerData pd = playerDataCache.getCachedPlayerData(player.getUniqueId());
@@ -39,20 +32,18 @@ public class EconomyHelper {
         pd.setHeldGold(Math.max(pd.getHeldGold() + amount, 0));
     }
 
-    // Get bank gold
+    // Bank gold methods - these are what we now use for auctions
     public int getBankGold(Player player) {
         PlayerData pd = playerDataCache.getCachedPlayerData(player.getUniqueId());
         return pd != null ? pd.getBankGold() : 0;
     }
 
-    // Set bank gold
     public void setBankGold(Player player, int amount) {
         PlayerData pd = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (pd == null) return;
         pd.setBankGold(Math.max(amount, 0));
     }
 
-    // Add to bank gold
     public void addBankGold(Player player, int amount) {
         if (amount == 0) return;
         PlayerData pd = playerDataCache.getCachedPlayerData(player.getUniqueId());
@@ -60,7 +51,6 @@ public class EconomyHelper {
         pd.setBankGold(Math.max(pd.getBankGold() + amount, 0));
     }
 
-    // Deposit from held to bank
     public boolean depositToBank(Player player, int amount) {
         if (amount <= 0) {
             player.sendMessage(Utils.getInstance().$("Deposit amount must be positive."));
@@ -80,7 +70,6 @@ public class EconomyHelper {
         return true;
     }
 
-    // Withdraw from bank to held
     public boolean withdrawFromBank(Player player, int amount) {
         if (amount <= 0) {
             player.sendMessage(Utils.getInstance().$("Withdrawal amount must be positive."));
@@ -100,9 +89,8 @@ public class EconomyHelper {
         return true;
     }
 
-    // For formatting
     public String formatGold(int amount) {
         return String.valueOf(amount);
     }
-}
 
+}

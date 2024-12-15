@@ -42,10 +42,10 @@ import java.util.stream.Collectors;
  */
 public class BuyGUI {
 
-    private final AuctionHouseMainMenu mainGUI;
+    private AuctionHouseMainMenu mainGUI = null;
 
-    public BuyGUI() {
-        this.mainGUI = ModuleManager.getInstance().getModuleInstance(AuctionHouseModule.class).getAuctionsGUI();
+    public BuyGUI(AuctionHouseMainMenu mainGUI) {
+        this.mainGUI = mainGUI;
     }
 
     public void openAuctionHouseBuyGUI(Player player) {

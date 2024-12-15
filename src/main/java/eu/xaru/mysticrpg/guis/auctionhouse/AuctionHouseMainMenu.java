@@ -42,8 +42,10 @@ public final class AuctionHouseMainMenu {
     private PartyModule partyModule;
     private AuctionHouseHelper auctionHouseHelper;
     private EconomyHelper economyHelper;
+    private AuctionHouseMainMenu auctionHouseMainMenu;
 
     public AuctionHouseMainMenu() {
+
 
         this.gui = buildGui();
         this.auctionHouse = ModuleManager.getInstance().getModuleInstance(AuctionHouseModule.class);
@@ -55,6 +57,8 @@ public final class AuctionHouseMainMenu {
         this.partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
         this.auctionHouseHelper = new AuctionHouseHelper(ModuleManager.getInstance().getModuleInstance(EconomyModule.class).getEconomyHelper());
         this.economyHelper = ModuleManager.getInstance().getModuleInstance(EconomyModule.class).getEconomyHelper();
+        this.auctionHouseMainMenu = this;
+
     }
 
     /**
@@ -83,7 +87,7 @@ public final class AuctionHouseMainMenu {
                 if (window != null) {
                     window.close();
                 }
-                BuyGUI buyGUI = new BuyGUI();
+                BuyGUI buyGUI = new BuyGUI(auctionHouseMainMenu);
                 buyGUI.openAuctionHouseBuyGUI(player);
             }
         }; 
@@ -126,7 +130,7 @@ public final class AuctionHouseMainMenu {
                 if (window != null) {
                     window.close();
                 }
-                YourAuctionsGUI yourAuctionsgui = new YourAuctionsGUI();
+                YourAuctionsGUI yourAuctionsgui = new YourAuctionsGUI(auctionHouseMainMenu);
                 yourAuctionsgui.openAuctionHouseYourAuctionsGUI(player);
             }
         };

@@ -60,7 +60,7 @@ public class EconomyModule implements IBaseModule {
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(SaveModule.class);  // Depend on SaveModule for player data cache
+        return List.of(SaveModule.class);
     }
 
     @Override
@@ -68,11 +68,7 @@ public class EconomyModule implements IBaseModule {
         return EModulePriority.HIGH;
     }
 
-    /**
-     * Registers economy-related commands.
-     */
     private void registerCommands() {
-        // /balance command
         new CommandAPICommand("balance")
                 .executesPlayer((player, args) -> {
                     int held = economyHelper.getHeldGold(player);
@@ -83,7 +79,6 @@ public class EconomyModule implements IBaseModule {
                 })
                 .register();
 
-        // /money command
         new CommandAPICommand("money")
                 .withSubcommand(new CommandAPICommand("balance")
                         .executesPlayer((player, args) -> {
@@ -105,7 +100,6 @@ public class EconomyModule implements IBaseModule {
                                     player.sendMessage(Utils.getInstance().$(ChatColor.RED + "Amount must be positive."));
                                     return;
                                 }
-                                // We send from player's held gold to target's held gold
                                 int senderHeld = economyHelper.getHeldGold(player);
                                 if (senderHeld < amount) {
                                     player.sendMessage(Utils.getInstance().$(ChatColor.RED + "You do not have enough gold to send."));
@@ -125,7 +119,6 @@ public class EconomyModule implements IBaseModule {
                         }))
                 .register();
 
-        // /economy command (admin)
         new CommandAPICommand("economy")
                 .withPermission("economy.admin")
                 .withSubcommand(new CommandAPICommand("setheld")
@@ -171,11 +164,6 @@ public class EconomyModule implements IBaseModule {
                 .register();
     }
 
-    /**
-     * Getter for EconomyHelper.
-     *
-     * @return The EconomyHelper instance.
-     */
     public EconomyHelper getEconomyHelper() {
         return economyHelper;
     }

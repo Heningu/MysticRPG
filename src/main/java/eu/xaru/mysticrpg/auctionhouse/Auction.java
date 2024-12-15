@@ -11,9 +11,6 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.UUID;
 
-/**
- * Represents an auction in the auction house.
- */
 public class Auction {
 
     @Persist(key = "auctionId")
@@ -23,7 +20,7 @@ public class Auction {
     private UUID sellerUUID;
 
     @Persist(key = "itemData")
-    private String itemData; // Serialized ItemStack
+    private String itemData;
 
     @Persist(key = "startingPrice")
     private int startingPrice;
@@ -38,19 +35,17 @@ public class Auction {
     private long endTime;
 
     @Persist(key = "isBidItem")
-    private boolean isBidItem; // Indicates if the auction allows bidding
+    private boolean isBidItem;
 
     @BsonIgnore
-    private ItemStack item; // Transient field, not stored directly in MongoDB
+    private ItemStack item;
 
     @BsonIgnore
-    private CustomItem customItem; // New field for CustomItem
+    private CustomItem customItem;
 
-    // Required for MongoDB POJO codec
     public Auction() {
     }
 
-    // Constructor for fixed-price auction
     public Auction(UUID auctionId, UUID sellerUUID, ItemStack item, int price, long endTime) {
         this.auctionId = auctionId;
         this.sellerUUID = sellerUUID;
@@ -62,7 +57,6 @@ public class Auction {
         this.isBidItem = false;
     }
 
-    // Constructor for bidding auction
     public Auction(UUID auctionId, UUID sellerUUID, ItemStack item, int startingPrice, long endTime, boolean isBidItem) {
         this.auctionId = auctionId;
         this.sellerUUID = sellerUUID;
@@ -74,7 +68,6 @@ public class Auction {
         this.isBidItem = isBidItem;
     }
 
-    // Constructor for CustomItem
     public Auction(UUID auctionId, UUID sellerUUID, CustomItem customItem, int price, long endTime) {
         this.auctionId = auctionId;
         this.sellerUUID = sellerUUID;
@@ -83,11 +76,9 @@ public class Auction {
         this.currentBid = price;
         this.endTime = endTime;
         this.isBidItem = false;
-        this.item = customItem.toItemStack(); // Convert CustomItem to ItemStack
+        this.item = customItem.toItemStack();
         this.itemData = serializeItemStack(this.item);
     }
-
-    // Getters and setters
 
     public UUID getAuctionId() {
         return auctionId;
@@ -171,7 +162,6 @@ public class Auction {
         this.item = deserializeItemStack(itemData);
     }
 
-    // Getter and Setter for customItem
     public CustomItem getCustomItem() {
         if (customItem == null && item != null) {
             customItem = CustomItemUtils.fromItemStack(item);
@@ -185,7 +175,6 @@ public class Auction {
         this.itemData = serializeItemStack(this.item);
     }
 
-    // Serialization methods
     private String serializeItemStack(ItemStack item) {
         return SaveHelper.itemStackToBase64(item);
     }
@@ -194,20 +183,10 @@ public class Auction {
         return SaveHelper.itemStackFromBase64(data);
     }
 
-    /**
-     * Gets the highest bid for the auction.
-     *
-     * @return The current highest bid.
-     */
     public int getHighestBid() {
         return this.getCurrentBid();
     }
 
-    /**
-     * Sets the highest bid for the auction.
-     *
-     * @param highestBid The new highest bid amount.
-     */
     public void setHighestBid(int highestBid) {
         this.setCurrentBid(highestBid);
     }
