@@ -1,4 +1,4 @@
-package eu.xaru.mysticrpg.storage.database;
+package eu.xaru.mysticrpg.storage;
 
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.auctionhouse.Auction;

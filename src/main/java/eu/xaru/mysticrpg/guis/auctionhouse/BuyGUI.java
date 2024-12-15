@@ -1,44 +1,33 @@
 package eu.xaru.mysticrpg.guis.auctionhouse;
 
+import eu.xaru.mysticrpg.auctionhouse.Auction;
 import eu.xaru.mysticrpg.auctionhouse.AuctionHouseModule;
-import eu.xaru.mysticrpg.auctionhouse.AuctionsGUI;
 import eu.xaru.mysticrpg.customs.items.Category;
-import eu.xaru.mysticrpg.guis.MainMenu;
-import eu.xaru.mysticrpg.guis.admin.MobGUI;
+import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
+import eu.xaru.mysticrpg.guis.ChangePageItem;
 import eu.xaru.mysticrpg.guis.globalbuttons.CategoryTabItem;
 import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
-import eu.xaru.mysticrpg.player.leveling.LevelModule;
-import eu.xaru.mysticrpg.player.stats.PlayerStatModule;
-import eu.xaru.mysticrpg.quests.QuestModule;
-import eu.xaru.mysticrpg.social.friends.FriendsModule;
-import eu.xaru.mysticrpg.social.party.PartyModule;
-import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
-import org.bukkit.Sound;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.jetbrains.annotations.NotNull;
 import xyz.xenondevs.invui.gui.Gui;
 import xyz.xenondevs.invui.gui.PagedGui;
 import xyz.xenondevs.invui.gui.TabGui;
 import xyz.xenondevs.invui.gui.structure.Markers;
 import xyz.xenondevs.invui.item.Item;
-import xyz.xenondevs.invui.item.ItemProvider;
 import xyz.xenondevs.invui.item.builder.ItemBuilder;
 import xyz.xenondevs.invui.item.impl.SimpleItem;
-import xyz.xenondevs.invui.item.impl.controlitem.ControlItem;
 import xyz.xenondevs.invui.window.Window;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * This example places the pagination controls (next/prev page) in the outer TabGui,
@@ -53,13 +42,13 @@ import java.util.UUID;
  */
 public class BuyGUI {
 
-    private final AuctionsGUI mainGUI;
+    private final AuctionHouseMainMenu mainGUI;
 
-    public BuyGUI(){
+    public BuyGUI() {
         this.mainGUI = ModuleManager.getInstance().getModuleInstance(AuctionHouseModule.class).getAuctionsGUI();
     }
 
-    public void openAuctionHouseBuyGUI(Player player){
+    public void openAuctionHouseBuyGUI(Player player) {
 
         if (!mainGUI.getAuctionHouseHelper().areAuctionsLoaded()) {
             player.sendMessage(Utils.getInstance().$(ChatColor.RED + "Please wait, auctions are still loading."));
@@ -67,11 +56,7 @@ public class BuyGUI {
         }
 
         UUID playerId = player.getUniqueId();
-        Category selectedCategory = mainGUI.getBuyGuiSelectedCategoryMap().get(playerId);
-        if (selectedCategory == null) {
-            selectedCategory = Category.EVERYTHING;
-            mainGUI.getBuyGuiSelectedCategoryMap().put(playerId, selectedCategory);
-        }
+        //Category selectedCategory = mainGUI.getBuyGuiSelectedCategoryMap().computeIfAbsent(playerId, k -> Category.EVERYTHING);
 
         // Border
         Item border = new SimpleItem(new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE)
@@ -134,14 +119,14 @@ public class BuyGUI {
                         "B # # # s # # # #"
                 )
                 .addIngredient('#', border)
-                .addIngredient('0', new CategoryTabItem(0,"Everything", Material.STICK))
-                .addIngredient('1', new CategoryTabItem(1,"Weapons", Material.DIAMOND_SWORD))
-                .addIngredient('2', new CategoryTabItem(2,"Armor", Material.DIAMOND_HELMET))
-                .addIngredient('3', new CategoryTabItem(3,"Magic", Material.BLAZE_ROD))
-                .addIngredient('4', new CategoryTabItem(4,"CONSUMABLE", Material.GOLDEN_APPLE))
-                .addIngredient('5', new CategoryTabItem(5,"ACCESSORY", Material.HEART_OF_THE_SEA))
-                .addIngredient('6', new CategoryTabItem(6,"TOOL", Material.STONE_PICKAXE))
-                .addIngredient('7', new CategoryTabItem(7,"ARTIFACT", Material.NETHER_STAR))
+                .addIngredient('0', new CategoryTabItem(0,"WEAPON", Material.STICK))
+                .addIngredient('1', new CategoryTabItem(1,"ARMOR", Material.DIAMOND_SWORD))
+                .addIngredient('2', new CategoryTabItem(2,"MAGIC", Material.DIAMOND_HELMET))
+                .addIngredient('3', new CategoryTabItem(3,"CONSUMABLE", Material.BLAZE_ROD))
+                .addIngredient('4', new CategoryTabItem(4,"ACCESSORY", Material.GOLDEN_APPLE))
+                .addIngredient('5', new CategoryTabItem(5,"TOOL", Material.HEART_OF_THE_SEA))
+                .addIngredient('6', new CategoryTabItem(6,"ARTIFACT", Material.STONE_PICKAXE))
+                .addIngredient('7', new CategoryTabItem(7,"EVERYTHING", Material.NETHER_STAR))
                 .addIngredient('8', new CategoryTabItem(8,"QUEST", Material.ENCHANTED_BOOK))
                 .addIngredient('x', Markers.CONTENT_LIST_SLOT_HORIZONTAL)
                 .addIngredient('B', back)
@@ -161,20 +146,26 @@ public class BuyGUI {
         window.open();
     }
 
-    /**
-     * Creates a PagedGui for the category with random items, 7x4 area:
-     * "x x x x x x x"
-     * "x x x x x x x"
-     * "x x x x x x x"
-     * "x x x x x x x"
-     * No pagination controls here. We rely on the outer GUI to handle paging.
-     */
-    private PagedGui<Item> createPagedGuiForCategory(Category category){
-        int totalItems = 50;
-        List<Item> auctionItems = generateRandomItemsForCategory(category, totalItems);
+    private PagedGui<Item> createPagedGuiForCategory(Category category) {
+        List<Auction> allAuctions = mainGUI.getAuctionHouseHelper().getActiveAuctions();
+        List<Item> auctionItems = new ArrayList<>();
 
-        // Just content slots (28 slots)
-        PagedGui<Item> pagedGui = PagedGui.items()
+        // Filter auctions by category
+        for (Auction auction : allAuctions) {
+            ItemStack auctionItem = auction.getItem();
+            
+            // Skip if not a custom item
+            if (!CustomItemUtils.isCustomItem(auctionItem)) continue;
+            
+            Category itemCategory = CustomItemUtils.getCategory(auctionItem);
+            
+            // If category is EVERYTHING or matches the current category
+            if (category == Category.EVERYTHING || category == itemCategory) {
+                auctionItems.add(createAuctionDisplayItem(auction));
+            }
+        }
+
+        return PagedGui.items()
                 .setStructure(
                         "x x x x x x x",
                         "x x x x x x x",
@@ -184,95 +175,37 @@ public class BuyGUI {
                 .addIngredient('x', Markers.CONTENT_LIST_SLOT_HORIZONTAL)
                 .setContent(auctionItems)
                 .build();
-
-        return pagedGui;
     }
 
-    /**
-     * Generate random items for demonstration
-     */
-    private List<Item> generateRandomItemsForCategory(Category category, int count) {
-        List<Item> items = new ArrayList<>(count);
-        Random random = new Random(category.ordinal());
-        Material[] mats = Material.values();
+    private Item createAuctionDisplayItem(Auction auction) {
+        ItemStack originalItem = auction.getItem().clone();
+        ItemMeta meta = originalItem.getItemMeta();
+        List<String> lore = meta.hasLore() ? meta.getLore() : new ArrayList<>();
 
-        for (int i = 0; i < count; i++) {
-            Material m;
-            do {
-                m = mats[random.nextInt(mats.length)];
-            } while (m.isAir() || !m.isItem());
+        // Add auction information to lore
+        lore.add("");
+        lore.add(ChatColor.GRAY + "Seller: " + ChatColor.YELLOW + auction.getSellerName());
+        lore.add(ChatColor.GRAY + "Price: " + ChatColor.GOLD + auction.getCurrentBid() + " coins");
+        lore.add("");
+        lore.add(ChatColor.YELLOW + "Click to purchase!");
 
-            ItemBuilder builder = new ItemBuilder(m)
-                    .setDisplayName(ChatColor.YELLOW + category.name() + " Item #" + (i+1))
-                    .addLoreLines(ChatColor.GRAY + "A random item for " + category.name(),
-                            ChatColor.GRAY + "Item number " + (i+1),
-                            ChatColor.GRAY + "Page demonstration item.");
-            items.add(new SimpleItem(builder));
-        }
+        meta.setLore(lore);
+        originalItem.setItemMeta(meta);
 
-        return items;
-    }
-
-
-    /**
-     * Handles pagination controls - Left-click to go back, Right-click to go forward.
-     * Currently, pagination isn't implemented, so these actions will notify the player.
-     */
-    public class ChangePageItem extends ControlItem<TabGui> {
-
-        @Override
-        public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
-            TabGui tabGui = getGui();
-            Gui currentTab = tabGui.getTabs().get(tabGui.getCurrentTab());
-
-            if (currentTab instanceof PagedGui<?> paged) {
-                if(clickType == ClickType.LEFT) {
-                    if (paged.hasPreviousPage()) {
-                        paged.goBack();
-                        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
-                    } else {
-                        player.sendMessage(ChatColor.RED + "No previous page!");
-                        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 1, 0.5f);
-                    }
-                } else if(clickType == ClickType.RIGHT) {
-                    if (paged.hasNextPage()) {
-                        paged.goForward();
-                        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
-                    } else {
-                        player.sendMessage(ChatColor.RED + "No next page!");
-                    }
+        return new SimpleItem(new ItemBuilder(originalItem)) {
+            @Override
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
+                // Handle purchase
+                mainGUI.getAuctionHouseHelper().purchaseAuction(player, auction.getAuctionId());
+                
+                // Refresh the GUI to show updated auctions
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window ?
+                        (Window) event.getView().getTopInventory().getHolder() : null;
+                if (window != null) {
+                    window.close();
                 }
-                notifyWindows();
+                openAuctionHouseBuyGUI(player);
             }
-        }
-
-        @Override
-        public ItemProvider getItemProvider(TabGui gui) {
-            Gui currentTab = gui.getTabs().get(gui.getCurrentTab());
-            List<String> lore = new ArrayList<>();
-            if (currentTab instanceof PagedGui<?> paged) {
-
-                        lore.add( ChatColor.GRAY + "Current page: " + (paged.getCurrentPage() + 1) + " from " + (paged.getPageAmount()) + " pages" );
-                        if (paged.hasPreviousPage()) {
-                            lore.add( ChatColor.GRAY + "Click " + ChatColor.GOLD + "LEFT_CLICK" + ChatColor.GRAY + " to go back." );
-                        }
-                        if (paged.hasNextPage()) {
-                            lore.add( ChatColor.GRAY + "Click " + ChatColor.GOLD + "RIGHT_CLICK" + ChatColor.GRAY + " to go forward." );
-                        }
-
-            } else {
-                lore.add( ChatColor.GRAY + "No pagination available." );
-            }
-
-            return new ItemBuilder(Material.ARROW)
-                    .setDisplayName("Switch pages")
-                    .addLoreLines(
-                            lore.toArray(new String[0])
-                    )
-                    .addEnchantment(Enchantment.UNBREAKING,1,true)
-                    .addAllItemFlags();
-        }
-
+        };
     }
-
 }

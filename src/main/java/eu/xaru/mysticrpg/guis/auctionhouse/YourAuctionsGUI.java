@@ -2,7 +2,7 @@ package eu.xaru.mysticrpg.guis.auctionhouse;
 
 import eu.xaru.mysticrpg.auctionhouse.Auction;
 import eu.xaru.mysticrpg.auctionhouse.AuctionHouseModule;
-import eu.xaru.mysticrpg.auctionhouse.AuctionsGUI;
+import eu.xaru.mysticrpg.economy.EconomyModule;
 import eu.xaru.mysticrpg.guis.admin.MobGUI;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.Utils;
@@ -32,11 +32,12 @@ import java.util.stream.Collectors;
  */
 public class YourAuctionsGUI {
 
-    private final AuctionsGUI mainGUI;
+    private final AuctionHouseMainMenu mainGUI;
+    private EconomyModule economyModule;
 
     public YourAuctionsGUI() {
         this.mainGUI = ModuleManager.getInstance().getModuleInstance(AuctionHouseModule.class).getAuctionsGUI();
-
+        this.economyModule = ModuleManager.getInstance().getModuleInstance(EconomyModule.class);
     }
 
     /**
@@ -60,9 +61,9 @@ public class YourAuctionsGUI {
             String type;
 
             if (auction.isBidItem()) {
-                type = ChatColor.GRAY + "Current Bid: $" + mainGUI.getEconomyHelper().formatBalance(auction.getCurrentBid());
+                type = ChatColor.GRAY + "Current Bid: $" + economyModule.getEconomyHelper().formatBalance(auction.getCurrentBid());
             } else {
-                type = ChatColor.GRAY + "Price: $" + mainGUI.getEconomyHelper().formatBalance(auction.getStartingPrice());
+                type = ChatColor.GRAY + "Price: $" + economyModule.getEconomyHelper().formatBalance(auction.getStartingPrice());
             }
 
 

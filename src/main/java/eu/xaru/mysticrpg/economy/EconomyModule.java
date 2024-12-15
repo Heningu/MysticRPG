@@ -68,7 +68,7 @@ public class EconomyModule implements IBaseModule {
 
     @Override
     public EModulePriority getPriority() {
-        return EModulePriority.NORMAL;
+        return EModulePriority.HIGH;
     }
 
     /**

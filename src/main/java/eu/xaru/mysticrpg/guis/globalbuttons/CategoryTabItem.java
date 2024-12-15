@@ -1,5 +1,6 @@
 package eu.xaru.mysticrpg.guis.globalbuttons;
 
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import xyz.xenondevs.invui.gui.TabGui;

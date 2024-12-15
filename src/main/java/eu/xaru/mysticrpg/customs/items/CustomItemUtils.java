@@ -1,7 +1,9 @@
 package eu.xaru.mysticrpg.customs.items;
 
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.customs.items.powerstones.PowerStone;
 import eu.xaru.mysticrpg.customs.items.powerstones.PowerStoneManager;
+import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
@@ -328,6 +330,22 @@ public class CustomItemUtils {
      */
     public static Category[] getAllCategories() {
         return itemManager.getAllCategories();
+    }
+
+    /**
+     * Converts an ItemStack to a CustomItem.
+     *
+     * @param itemStack The ItemStack to convert.
+     * @return The corresponding CustomItem, or null if not a CustomItem.
+     */
+    public static CustomItem fromItemStack(ItemStack itemStack) {
+        NamespacedKey idKey = new NamespacedKey(MysticCore.getInstance(), "custom_item_id");
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta != null && meta.getPersistentDataContainer().has(idKey, PersistentDataType.STRING)) {
+            String id = meta.getPersistentDataContainer().get(idKey, PersistentDataType.STRING);
+            return ModuleManager.getInstance().getModuleInstance(CustomItemModule.class).getCustomItemById(id);
+        }
+        return null; // Not a CustomItem
     }
 
     // Additional utility methods can be added here if needed

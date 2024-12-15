@@ -9,6 +9,7 @@ import com.mongodb.client.result.UpdateResult;
 import com.mongodb.reactivestreams.client.*;
 import eu.xaru.mysticrpg.auctionhouse.Auction;
 import eu.xaru.mysticrpg.storage.Callback;
+import eu.xaru.mysticrpg.storage.IDatabaseRepository;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bson.UuidRepresentation;
@@ -24,7 +25,7 @@ import java.util.logging.Level;
 
 import static org.bson.codecs.configuration.CodecRegistries.*;
 
-public class MongoRepository implements eu.xaru.mysticrpg.storage.database.IDatabaseRepository {
+public class MongoRepository implements IDatabaseRepository {
 
     private final MongoCollection<PlayerData> playerCollection;
     private final MongoCollection<Auction> auctionCollection;

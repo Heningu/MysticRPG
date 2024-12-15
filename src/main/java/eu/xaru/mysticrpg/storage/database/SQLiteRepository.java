@@ -6,6 +6,7 @@ import com.google.gson.reflect.TypeToken;
 import eu.xaru.mysticrpg.auctionhouse.Auction;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.Callback;
+import eu.xaru.mysticrpg.storage.IDatabaseRepository;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.inventory.ItemStack;
 
@@ -14,7 +15,7 @@ import java.sql.*;
 import java.util.*;
 import java.util.logging.Level;
 
-public class SQLiteRepository implements eu.xaru.mysticrpg.storage.database.IDatabaseRepository {
+public class SQLiteRepository implements IDatabaseRepository {
 
     private final Connection connection;
     private final Gson gson;

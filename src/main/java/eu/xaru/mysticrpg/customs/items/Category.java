@@ -9,5 +9,6 @@ public enum Category {
     TOOL,
     ARTIFACT,
     EVERYTHING, //
-    QUEST_ITEM
+    QUEST,
+    MISC // Added MISC category
 }

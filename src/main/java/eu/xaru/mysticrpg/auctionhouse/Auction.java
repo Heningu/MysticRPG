@@ -1,10 +1,15 @@
 package eu.xaru.mysticrpg.auctionhouse;
 
-import eu.xaru.mysticrpg.storage.SaveHelper;
-import org.bukkit.inventory.ItemStack;
-import org.bson.codecs.pojo.annotations.BsonIgnore;
-
+import java.util.Objects;
 import java.util.UUID;
+
+import org.bson.codecs.pojo.annotations.BsonIgnore;
+import org.bukkit.Bukkit;
+import org.bukkit.inventory.ItemStack;
+
+import eu.xaru.mysticrpg.customs.items.CustomItem;
+import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
+import eu.xaru.mysticrpg.storage.SaveHelper;
 
 /**
  * Represents an auction in the auction house.
@@ -22,6 +27,9 @@ public class Auction {
 
     @BsonIgnore
     private ItemStack item; // Transient field, not stored directly in MongoDB
+
+    @BsonIgnore
+    private CustomItem customItem; // New field for CustomItem
 
     // Required for MongoDB POJO codec
     public Auction() {
@@ -51,6 +59,19 @@ public class Auction {
         this.isBidItem = isBidItem;
     }
 
+    // New constructor for CustomItem
+    public Auction(UUID auctionId, UUID seller, CustomItem customItem, int price, long endTime) {
+        this.auctionId = auctionId;
+        this.seller = seller;
+        this.customItem = customItem;
+        this.startingPrice = price;
+        this.currentBid = price;
+        this.endTime = endTime;
+        this.isBidItem = false;
+        this.item = customItem.toItemStack(); // Convert CustomItem to ItemStack
+        this.itemData = serializeItemStack(this.item);
+    }
+
     // Getters and setters
 
     public UUID getAuctionId() {
@@ -63,6 +84,10 @@ public class Auction {
 
     public UUID getSeller() {
         return seller;
+    }
+
+    public String getSellerName() {
+        return Objects.requireNonNull(Bukkit.getPlayer(seller)).getName();
     }
 
     public void setSeller(UUID seller) {
@@ -128,6 +153,20 @@ public class Auction {
     public void setItemData(String itemData) {
         this.itemData = itemData;
         this.item = deserializeItemStack(itemData);
+    }
+
+    // Getter and Setter for customItem
+    public CustomItem getCustomItem() {
+        if (customItem == null && item != null) {
+            customItem = CustomItemUtils.fromItemStack(item);
+        }
+        return customItem;
+    }
+
+    public void setCustomItem(CustomItem customItem) {
+        this.customItem = customItem;
+        this.item = customItem.toItemStack();
+        this.itemData = serializeItemStack(this.item);
     }
 
     // Serialization methods

@@ -1,6 +1,9 @@
 package eu.xaru.mysticrpg.auctionhouse;
 
 import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.customs.items.CustomItem;
+import eu.xaru.mysticrpg.customs.items.CustomItemModule;
+import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.economy.EconomyModule;
 import eu.xaru.mysticrpg.enums.EModulePriority;
@@ -10,6 +13,7 @@ import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
+
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -25,6 +29,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import eu.xaru.mysticrpg.guis.auctionhouse.AuctionHouseMainMenu;
 
 /**
  * AuctionHouseModule handles the initialization and management
@@ -42,8 +48,9 @@ public class AuctionHouseModule implements IBaseModule {
     private EconomyHelper economyHelper;
     private SaveModule saveModule;
     
-    private AuctionsGUI auctionsGUI;
+    private AuctionHouseMainMenu auctionsGUI;
     private MysticCore plugin;
+    private CustomItemModule customItemModule;
     private static final Logger loggerModule = Logger.getLogger(AuctionHouseModule.class.getName());
 
 
@@ -64,15 +71,13 @@ public class AuctionHouseModule implements IBaseModule {
             return;
         }
 
+        this.customItemModule = ModuleManager.getInstance()
+                .getModuleInstance(CustomItemModule.class);
         // Instantiate AuctionHouseHelper once
         this.auctionHouseHelper = new AuctionHouseHelper(economyHelper);
 
         // Instantiate AuctionsGUI with necessary dependencies
-        this.auctionsGUI = new AuctionsGUI(
-                auctionHouseHelper,
-                economyHelper,
-                plugin
-        );
+        this.auctionsGUI = new AuctionHouseMainMenu();
 
         loggerModule.log(Level.INFO, "AuctionHouseModule initialized");
     }
@@ -113,7 +118,7 @@ public class AuctionHouseModule implements IBaseModule {
      * @param player The player to open the GUI for.
      */
     public void openAuctionGUI(Player player) {
-        auctionsGUI.openMainGUI(player);
+        auctionsGUI.openAuctionsGUI(player);
     }
 
     /**
@@ -128,17 +133,11 @@ public class AuctionHouseModule implements IBaseModule {
             String inventoryTitle = ChatColor.stripColor(event.getView().getTitle());
             if (inventoryTitle == null) return;
 
-            if (isAuctionHouseInventory(inventoryTitle)) {
-                auctionsGUI.handleInventoryClick(event);
-            }
         });
 
         // Register InventoryDragEvent for AuctionsGUI
         eventManager.registerEvent(InventoryDragEvent.class, event -> {
             String inventoryTitle = ChatColor.stripColor(event.getView().getTitle());
-            if (isAuctionHouseInventory(inventoryTitle)) {
-                auctionsGUI.handleInventoryDrag(event);
-            }
         });
 
         // Register InventoryCloseEvent for AuctionsGUI
@@ -162,7 +161,6 @@ public class AuctionHouseModule implements IBaseModule {
         eventManager.registerEvent(AsyncPlayerChatEvent.class, event -> {
             // Sanitize the message using Utils (assuming it handles such operations)
             event.setMessage(Utils.getInstance().$(event.getMessage()));
-            auctionsGUI.handlePlayerChat(event);
         });
     }
 
@@ -180,7 +178,7 @@ public class AuctionHouseModule implements IBaseModule {
     }
 
 
-    public AuctionsGUI getAuctionsGUI() {
+    public AuctionHouseMainMenu getAuctionsGUI() {
         return auctionsGUI;
     }
 
@@ -193,16 +191,30 @@ public class AuctionHouseModule implements IBaseModule {
      */
     private void handleSellInventoryClose(InventoryCloseEvent event, Player player) {
         // Delay the check to the next tick to ensure pendingPriceInput is updated
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (!auctionsGUI.isPendingPriceInput(player.getUniqueId())) {
-                // Return the item in slot 22 to the player
-                ItemStack item = event.getInventory().getItem(22);
-                if (item != null && item.getType() != Material.AIR) {
-                    player.getInventory().addItem(item);
-                }
-                // Remove the item from the sellingItems map
-                auctionsGUI.removeSellingItem(player.getUniqueId());
-            }
-        }, 1L);
+//        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+//            if (!auctionsGUI.isPendingPriceInput(player.getUniqueId())) {
+//                // Return the item in slot 22 to the player
+//                ItemStack item = event.getInventory().getItem(22);
+//                if (item != null && item.getType() != Material.AIR) {
+//                    player.getInventory().addItem(item);
+//                }
+//                // Remove the item from the sellingItems map
+//                auctionsGUI.removeSellingItem(player.getUniqueId());
+//            }
+//        }, 1L);
     }
+
+    public void sellItem(Player player, ItemStack itemStack, int price) {
+        CustomItem customItem = CustomItemUtils.fromItemStack(itemStack);
+        if (customItem == null) {
+            // Convert normal ItemStack to CustomItem
+            customItem = customItemModule.createCustomItemFromItemStack(itemStack);
+        }
+
+        UUID sellerId = player.getUniqueId();
+        auctionHouseHelper.addAuction(sellerId, customItem, price, /* duration */ 86400000L); // Example duration: 1 day
+
+        player.sendMessage(Utils.getInstance().$("Your item has been listed in the Auction House."));
+    }
+
 }

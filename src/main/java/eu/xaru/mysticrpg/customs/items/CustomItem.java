@@ -41,6 +41,7 @@ public class CustomItem {
     private final boolean usePowerStones;
     private final int powerStoneSlots;
 
+    // Adjust constructor to handle null attributes for normal items
     public CustomItem(String id, String name, Material material, Rarity rarity, Category category, int customModelData,
                       List<String> lore, Map<String, AttributeData> attributes, Map<String, Integer> enchantments,
                       boolean enchantedEffect, boolean useTierSystem, int itemLevel, int itemMaxLevel,
@@ -52,14 +53,14 @@ public class CustomItem {
         this.rarity = rarity;
         this.category = category;
         this.customModelData = customModelData;
-        this.lore = lore;
-        this.attributes = attributes;
-        this.enchantments = enchantments;
+        this.lore = lore != null ? lore : Collections.emptyList();
+        this.attributes = attributes != null ? attributes : Collections.emptyMap();
+        this.enchantments = enchantments != null ? enchantments : Collections.emptyMap();
         this.enchantedEffect = enchantedEffect;
         this.useTierSystem = useTierSystem;
         this.itemLevel = itemLevel;
         this.itemMaxLevel = itemMaxLevel;
-        this.tierAttributes = tierAttributes;
+        this.tierAttributes = tierAttributes != null ? tierAttributes : Collections.emptyMap();
         this.usePowerStones = usePowerStones;
         this.powerStoneSlots = powerStoneSlots;
         this.armorType = armorType;

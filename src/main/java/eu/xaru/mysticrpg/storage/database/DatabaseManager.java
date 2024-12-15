@@ -1,6 +1,7 @@
 package eu.xaru.mysticrpg.storage.database;
 
 import eu.xaru.mysticrpg.storage.Callback;
+import eu.xaru.mysticrpg.storage.IDatabaseRepository;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.auctionhouse.Auction;
 import eu.xaru.mysticrpg.utils.DebugLogger;
@@ -13,7 +14,7 @@ import java.util.logging.Level;
 public class DatabaseManager {
 
     private static DatabaseManager instance;
-    private eu.xaru.mysticrpg.storage.database.IDatabaseRepository repository;
+    private IDatabaseRepository repository;
 
     private DatabaseManager() {
         initializeRepository();

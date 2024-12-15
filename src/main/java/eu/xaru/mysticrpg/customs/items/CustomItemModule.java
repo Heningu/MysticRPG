@@ -1,5 +1,20 @@
 package eu.xaru.mysticrpg.customs.items;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+import java.util.logging.Level;
+
+import org.bukkit.NamespacedKey;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.java.JavaPlugin;
+
 import dev.jorel.commandapi.CommandAPICommand;
 import dev.jorel.commandapi.arguments.ArgumentSuggestions;
 import dev.jorel.commandapi.arguments.StringArgument;
@@ -12,19 +27,6 @@ import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
-import org.bukkit.ChatColor;
-import org.bukkit.NamespacedKey;
-import org.bukkit.entity.Player;
-import org.bukkit.event.EventPriority;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.plugin.java.JavaPlugin;
-
-import java.util.List;
-import java.util.logging.Level;
 
 public class CustomItemModule implements IBaseModule {
 
@@ -87,6 +89,40 @@ public class CustomItemModule implements IBaseModule {
 
     public ItemManager getItemManager() {
         return itemManager;
+    }
+
+    public CustomItem getCustomItemById(String id) {
+        return itemManager.getCustomItem(id);
+    }
+
+    /**
+     * Creates a CustomItem from a normal ItemStack.
+     *
+     * @param itemStack The ItemStack to convert.
+     * @return The created CustomItem.
+     */
+    public CustomItem createCustomItemFromItemStack(ItemStack itemStack) {
+        String id = generateUniqueIdForItemStack(itemStack);
+        String name = itemStack.getItemMeta() != null ? itemStack.getItemMeta().getDisplayName() : itemStack.getType().toString();
+        // Assign default rarity and category if needed
+        Rarity rarity = Rarity.COMMON;
+        Category category = Category.MISC;
+
+        CustomItem customItem = new CustomItem(
+            id, name, itemStack.getType(), rarity, category, 0,
+            Collections.emptyList(), Collections.emptyMap(), Collections.emptyMap(),
+            false, false, 1, 1, null,
+            false, 0, null);
+
+        // Optionally store the custom item in a map for future reference
+        // customItems.put(id, customItem);
+
+        return customItem;
+    }
+
+    private String generateUniqueIdForItemStack(ItemStack itemStack) {
+        // Generate a unique ID based on item properties
+        return "item_" + UUID.randomUUID().toString();
     }
 
     private void registerCommands() {

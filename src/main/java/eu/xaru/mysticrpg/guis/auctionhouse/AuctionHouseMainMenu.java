@@ -1,6 +1,17 @@
 package eu.xaru.mysticrpg.guis.auctionhouse;
 
+import org.bukkit.ChatColor;
+import org.bukkit.Material;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.jetbrains.annotations.NotNull;
+
+import eu.xaru.mysticrpg.auctionhouse.AuctionHouseHelper;
 import eu.xaru.mysticrpg.auctionhouse.AuctionHouseModule;
+import eu.xaru.mysticrpg.economy.EconomyHelper;
+import eu.xaru.mysticrpg.economy.EconomyModule;
 import eu.xaru.mysticrpg.guis.MainMenu;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
@@ -9,13 +20,6 @@ import eu.xaru.mysticrpg.player.stats.PlayerStatModule;
 import eu.xaru.mysticrpg.quests.QuestModule;
 import eu.xaru.mysticrpg.social.friends.FriendsModule;
 import eu.xaru.mysticrpg.social.party.PartyModule;
-import org.bukkit.ChatColor;
-import org.bukkit.Material;
-import org.bukkit.enchantments.Enchantment;
-import org.bukkit.entity.Player;
-import org.bukkit.event.inventory.ClickType;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.jetbrains.annotations.NotNull;
 import xyz.xenondevs.invui.gui.Gui;
 import xyz.xenondevs.invui.item.Item;
 import xyz.xenondevs.invui.item.builder.ItemBuilder;
@@ -36,7 +40,8 @@ public class AuctionHouseMainMenu {
     private QuestModule questModule;
     private FriendsModule friendsModule;
     private PartyModule partyModule;
-
+    private AuctionHouseHelper auctionHouseHelper;
+    private EconomyHelper economyHelper;
 
 
     public AuctionHouseMainMenu() {
@@ -49,6 +54,8 @@ public class AuctionHouseMainMenu {
         this.questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
         this.friendsModule = ModuleManager.getInstance().getModuleInstance(FriendsModule.class);
         this.partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
+        this.auctionHouseHelper = new AuctionHouseHelper(ModuleManager.getInstance().getModuleInstance(EconomyModule.class).getEconomyHelper());
+        this.economyHelper = ModuleManager.getInstance().getModuleInstance(EconomyModule.class).getEconomyHelper();
     }
 
     /**
@@ -108,8 +115,8 @@ public class AuctionHouseMainMenu {
                 if (window != null) {
                     window.close();
                 }
-                // Open the Equipment GUI
-                // equipmentModule.getEquipmentManager().getEquipmentGUI().openEquipmentGUI(player);
+                SellGUI sellGUI = new SellGUI(auctionHouseHelper, economyHelper);
+                sellGUI.openSellGUI(player);
             }
         }; // Ingredient 2
 
@@ -204,6 +211,22 @@ public class AuctionHouseMainMenu {
         window.open();
     }
 
+    public Gui getGui() {
+        return gui;
+    }
+
+    public AuctionHouseModule getAuctionHouse() {
+        return auctionHouse;
+    }
+
+    public AuctionHouseHelper getAuctionHouseHelper() {
+        return auctionHouseHelper;
+    }
+
+
+    public EconomyHelper getEconomyHelper() {
+        return economyHelper;
+    }
 
 }
 

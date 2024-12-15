@@ -1,6 +1,8 @@
 package eu.xaru.mysticrpg.auctionhouse;
 
 import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.customs.items.CustomItem;
+import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.*;
@@ -88,12 +90,10 @@ public class AuctionHouseHelper {
      * @param duration The duration in milliseconds.
      * @return The UUID of the newly created auction.
      */
-    public UUID addAuction(UUID seller, ItemStack item,
-                           int price, long duration) {
+    public UUID addAuction(UUID seller, CustomItem customItem, int price, long duration) {
         long endTime = System.currentTimeMillis() + duration;
         UUID auctionId = UUID.randomUUID();
-        Auction auction = new Auction(auctionId, seller,
-                item, price, endTime);
+        Auction auction = new Auction(auctionId, seller, customItem, price, endTime);
         activeAuctions.put(auctionId, auction);
         DebugLogger.getInstance().log(Level.INFO, "Auction added to activeAuctions with ID: " + auctionId, 0);
 
@@ -388,11 +388,6 @@ public class AuctionHouseHelper {
         }
     }
 
-
-
-
-
-
     /**
      * Attempts to purchase an auction.
      *
@@ -484,4 +479,61 @@ public class AuctionHouseHelper {
         }
 
     }
+
+    /**
+     * Purchases an auction by auctionId.
+     *
+     * @param buyer     The player making the purchase.
+     * @param auctionId The UUID of the auction.
+     */
+    public void purchaseAuction(Player buyer, UUID auctionId) {
+        Auction auction = activeAuctions.get(auctionId);
+        if (auction != null && !auction.isBidItem()) {
+            int price = auction.getStartingPrice();
+
+            if (economyHelper.withdrawBalance(buyer, price)) {
+
+                // Transfer money to seller
+                UUID sellerId = auction.getSeller();
+                Player seller = Bukkit.getPlayer(sellerId);
+                if (!economyHelper.depositBalance(seller, price)) {
+                    // Refund buyer if transfer fails
+                    economyHelper.depositBalance(buyer, price);
+                    buyer.sendMessage(Utils.getInstance().$("Transaction failed. Please try again later."));
+                    return;
+                }
+
+                // Give item to buyer
+                CustomItem customItem = auction.getCustomItem();
+                if (customItem != null) {
+                    ItemStack itemStack = customItem.toItemStack();
+                    buyer.getInventory().addItem(itemStack);
+                } else {
+                    buyer.getInventory().addItem(auction.getItem());
+                }
+
+                buyer.sendMessage(Utils.getInstance().$("You have purchased " + auction.getItem().getType() + " for $" + economyHelper.formatBalance(price)));
+
+                // Remove auction
+                activeAuctions.remove(auctionId);
+                saveModule.deleteAuction(auctionId, new Callback<Void>() {
+                    @Override
+                    public void onSuccess(Void result) {
+                        // Auction deleted successfully
+                    }
+                    @Override
+                    public void onFailure(Throwable throwable) {
+                        // Handle error
+                    }
+                });
+
+            } else {
+                buyer.sendMessage(Utils.getInstance().$("You do not have enough money to purchase this item."));
+            }
+
+        } else {
+            buyer.sendMessage(Utils.getInstance().$("This auction is not available for purchase."));
+        }
+    }
+
 }
