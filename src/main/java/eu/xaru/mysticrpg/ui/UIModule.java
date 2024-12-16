@@ -2,7 +2,10 @@ package eu.xaru.mysticrpg.ui;
 
 import dev.jorel.commandapi.CommandAPICommand;
 import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.economy.EconomyHelper;
+import eu.xaru.mysticrpg.economy.EconomyModule;
 import eu.xaru.mysticrpg.enums.EModulePriority;
+import eu.xaru.mysticrpg.guis.economy.BankSubGUI;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
@@ -14,6 +17,7 @@ import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -27,24 +31,23 @@ import java.util.logging.Level;
 public class UIModule implements IBaseModule {
 
     private ActionBarManager actionBarManager;
+    private final EconomyModule economyModule;
+    private final EconomyHelper economyHelper;
     private ScoreboardManager scoreboardManager;
 
     private final JavaPlugin plugin;
     private final EventManager eventManager;
     private ChatFormatter chatFormatter;
 
-
-    /**
-     * Constructs a new UIModule instance.
-     */
     public UIModule() {
-        this.plugin = JavaPlugin.getPlugin(MysticCore.class); // Assuming MysticCore is the main class
+        this.plugin = JavaPlugin.getPlugin(MysticCore.class);
         this.eventManager = new EventManager(plugin);
+        this.economyModule = ModuleManager.getInstance().getModuleInstance(EconomyModule.class);
+        this.economyHelper = economyModule.getEconomyHelper();
     }
 
     @Override
     public void initialize() {
-
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         LevelModule levelModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
         this.chatFormatter = new ChatFormatter();
@@ -53,22 +56,20 @@ public class UIModule implements IBaseModule {
         if (saveModule != null && levelModule != null) {
             PlayerDataCache playerDataCache = PlayerDataCache.getInstance();
             this.actionBarManager = new ActionBarManager((MysticCore) plugin, playerDataCache);
-            this.scoreboardManager = new ScoreboardManager(); // Initialize ScoreboardManager
+            this.scoreboardManager = new ScoreboardManager();
             DebugLogger.getInstance().log(Level.INFO, "UIModule initialized successfully.", 0);
         } else {
             DebugLogger.getInstance().severe("[MysticRPG] SaveModule or LevelModule is not initialized. UIModule cannot function without them.");
             return;
         }
 
-        // Register event listeners using EventManager
         registerEventListeners();
 
-        // Register LevelModule's level-up callback to update ScoreboardManager
         if (levelModule != null) {
             levelModule.setLevelUpListener(player -> {
                 if (scoreboardManager != null) {
-                    scoreboardManager.createOrUpdateTeam(player); // Ensure team is updated first
-                    scoreboardManager.updatePlayerScoreboard(player); // Then update scoreboard
+                    scoreboardManager.createOrUpdateTeam(player);
+                    scoreboardManager.updatePlayerScoreboard(player);
                 }
             });
         }
@@ -95,7 +96,7 @@ public class UIModule implements IBaseModule {
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of(SaveModule.class, LevelModule.class, QuestModule.class);  // Depend on SaveModule and LevelModule
+        return List.of(SaveModule.class, LevelModule.class, QuestModule.class);
     }
 
     @Override
@@ -103,13 +104,7 @@ public class UIModule implements IBaseModule {
         return EModulePriority.LOW;
     }
 
-    /**
-     * Registers the /name and /refreshname commands using CommandAPI.
-     * Since prefixes are managed via the scoreboard teams, /name informs players accordingly.
-     * /refreshname allows admins to manually update a player's display name and side scoreboard.
-     */
     private void registerCommands() {
-        // Parent /name command
         new CommandAPICommand("name")
                 .withPermission("mysticrpg.debug")
                 .executes((sender, args) -> {
@@ -117,15 +112,14 @@ public class UIModule implements IBaseModule {
                 })
                 .register();
 
-        // Optional: /refreshname <player> command for manual updates
         new CommandAPICommand("refreshname")
                 .withPermission("mysticrpg.debug")
                 .withArguments(new dev.jorel.commandapi.arguments.PlayerArgument("target"))
                 .executes((sender, args) -> {
                     Player target = (Player) args.get("target");
                     if (scoreboardManager != null) {
-                        scoreboardManager.createOrUpdateTeam(target); // Update team first
-                        scoreboardManager.updatePlayerScoreboard(target); // Then update scoreboard
+                        scoreboardManager.createOrUpdateTeam(target);
+                        scoreboardManager.updatePlayerScoreboard(target);
                         sender.sendMessage(ChatColor.GREEN + "Refreshed scoreboard for " + target.getName());
                         target.sendMessage(ChatColor.GREEN + "Your scoreboard has been refreshed by " + sender.getName());
                     } else {
@@ -135,75 +129,50 @@ public class UIModule implements IBaseModule {
                 .register();
     }
 
-    /**
-     * Registers event listeners for player join and quit events.
-     */
     private void registerEventListeners() {
-        // Handle PlayerJoinEvent
         eventManager.registerEvent(PlayerJoinEvent.class, event -> {
             Player player = event.getPlayer();
-
-            // Assign the per-player scoreboard and add the player to all teams
             if (scoreboardManager != null) {
                 scoreboardManager.createScoreboardForPlayer(player);
                 scoreboardManager.addNewPlayer(player);
             }
-
-            // Update display name with current level and prefix is handled within ScoreboardManager
         });
 
-        // Handle PlayerQuitEvent
         eventManager.registerEvent(PlayerQuitEvent.class, event -> {
             Player player = event.getPlayer();
-
-            // Remove the player from all scoreboards and clean up
             if (scoreboardManager != null) {
                 scoreboardManager.removePlayer(player);
             }
         });
+
+        eventManager.registerEvent(AsyncPlayerChatEvent.class, event -> {
+            Player player = event.getPlayer();
+            // Check if this player is waiting for custom amount input in BankSubGUI
+            if (BankSubGUI.isAwaitingInput(player.getUniqueId())) {
+                event.setCancelled(true); // prevent message from showing in public chat
+                String message = event.getMessage();
+                // Handle input
+                BankSubGUI.handleChatInput(player, message, economyHelper);
+            }
+        });
     }
 
-    /**
-     * Retrieves the ScoreboardManager instance.
-     *
-     * @return The ScoreboardManager.
-     */
     public ScoreboardManager getScoreboardManager() {
         return this.scoreboardManager;
     }
 
-    /**
-     * Retrieves the ActionBarManager instance.
-     *
-     * @return The ActionBarManager.
-     */
     public ActionBarManager getActionBarManager() {
         return actionBarManager;
     }
 
-    /**
-     * Sets the ActionBarManager instance.
-     *
-     * @param actionBarManager The ActionBarManager to set.
-     */
     public void setActionBarManager(ActionBarManager actionBarManager) {
         this.actionBarManager = actionBarManager;
     }
 
-    /**
-     * Retrieves the ChatFormatter instance.
-     *
-     * @return The ChatFormatter.
-     */
     public ChatFormatter getChatFormatter() {
         return chatFormatter;
     }
 
-    /**
-     * Sets the ChatFormatter instance.
-     *
-     * @param chatFormatter The ChatFormatter to set.
-     */
     public void setChatFormatter(ChatFormatter chatFormatter) {
         this.chatFormatter = chatFormatter;
     }

@@ -1,101 +1,96 @@
 package eu.xaru.mysticrpg.discord;
 
-import dev.jorel.commandapi.CommandAPICommand;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.ModuleManager;
+import eu.xaru.mysticrpg.player.leaderboards.LeaderboardType;
+import eu.xaru.mysticrpg.storage.Callback;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
-import eu.xaru.mysticrpg.storage.Callback;
+import eu.xaru.mysticrpg.storage.database.DatabaseManager;
 import eu.xaru.mysticrpg.utils.DebugLogger;
-import eu.xaru.mysticrpg.utils.Utils;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.event.Listener;
 
+import java.awt.*;
+import java.util.*;
 import java.util.List;
-import java.util.UUID;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
-/**
- * DiscordModule handles Discord-related functionalities, including linking and unlinking Discord accounts,
- * and providing administrative controls over these actions.
- */
 public class DiscordModule implements IBaseModule, Listener {
 
     private final JavaPlugin plugin;
-    
+
     private DiscordHelper discordHelper;
     private PlayerDataCache playerDataCache;
+    private DatabaseManager databaseManager;
+
+    private final Map<LeaderboardType, LeaderboardMessageData> leaderboardEmbeds = new HashMap<>();
 
     public DiscordModule() {
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
     }
 
-    // Ensure this method is public
     public JavaPlugin getPlugin() {
         return this.plugin;
     }
 
-    /**
-     * Retrieves the PlayerDataCache instance.
-     *
-     * @return The PlayerDataCache.
-     */
     public PlayerDataCache getPlayerDataCache() {
         return this.playerDataCache;
     }
 
     @Override
     public void initialize() {
-        // Initialize logger
-
-
-        // Initialize DiscordHelper
-        discordHelper = new DiscordHelper( this);
-
-        // Initialize PlayerDataCache
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         if (saveModule != null) {
             playerDataCache = PlayerDataCache.getInstance();
+            databaseManager = DatabaseManager.getInstance();
         }
 
-        if (playerDataCache == null) {
-            DebugLogger.getInstance().error("SaveModule or PlayerDataCache not initialized. DiscordModule cannot function without it.");
+        if (playerDataCache == null || databaseManager == null) {
+            DebugLogger.getInstance().error("SaveModule or PlayerDataCache or DatabaseManager not initialized. DiscordModule cannot function without it.");
             return;
         }
 
-        // Register commands
-        registerCommands();
+        discordHelper = new DiscordHelper(this);
 
-        // Register event listeners if needed
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
-
         DebugLogger.getInstance().log(Level.INFO, "DiscordModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
-        // Start Discord bot or any other startup logic
         discordHelper.startBot();
+
+        // Register /leaderboard command after JDA is ready
+        String guildId = plugin.getConfig().getString("discordGuildId");
+        if (guildId != null && !guildId.isEmpty()) {
+            discordHelper.getJDA().getGuildById(guildId)
+                    .updateCommands()
+                    .addCommands(
+                            net.dv8tion.jda.api.interactions.commands.build.Commands.slash("leaderboard", "Show a specific leaderboard")
+                                    .addOption(net.dv8tion.jda.api.interactions.commands.OptionType.STRING, "type", "Type of leaderboard (LEVEL/RICH)", true)
+                    ).queue();
+        }
+
         DebugLogger.getInstance().log(Level.INFO, "DiscordModule started.", 0);
     }
 
     @Override
     public void stop() {
-        // Shutdown Discord bot or any other cleanup logic
         discordHelper.shutdownBot();
         DebugLogger.getInstance().log(Level.INFO, "DiscordModule stopped.", 0);
     }
 
     @Override
     public void unload() {
-        // Additional unload logic if necessary
         DebugLogger.getInstance().log(Level.INFO, "DiscordModule unloaded.", 0);
     }
 
@@ -109,146 +104,9 @@ public class DiscordModule implements IBaseModule, Listener {
         return EModulePriority.NORMAL;
     }
 
-    /**
-     * Registers all Discord-related commands, including link, unlink, and check.
-     * The unlink command is enhanced to allow admins to unlink other players.
-     */
-    private void registerCommands() {
-        // Main command: /discord
-        new CommandAPICommand("discord")
-                // Subcommand: /discord link
-                .withSubcommand(new CommandAPICommand("link")
-                        .executesPlayer((player, args) -> {
-                            String code = discordHelper.generateUniqueCode(player.getUniqueId());
-                            if (code != null) {
-                                player.sendMessage(Utils.getInstance().$("Use this code to link your Discord account: " + code));
-                                // Optionally, send the code via other means (e.g., GUI)
-                                DebugLogger.getInstance().log(Level.INFO, "Generated linking code for player " + player.getName() + ": " + code, 0);
-                            } else {
-                                player.sendMessage(Utils.getInstance().$("Failed to generate a linking code. Please try again later."));
-                                DebugLogger.getInstance().error("Failed to generate linking code for player " + player.getName());
-                            }
-                        }))
-                // Subcommand: /discord unlink (unlink self)
-                .withSubcommand(new CommandAPICommand("unlink")
-                        .withPermission("mysticrpg.discord.unlink")
-                        .executesPlayer((player, args) -> {
-                            UUID playerUUID = player.getUniqueId();
-                            PlayerData playerData = playerDataCache.getCachedPlayerData(playerUUID);
-                            if (playerData != null && playerData.getDiscordId() != null) {
-                                playerData.setDiscordId(null);
-                                playerDataCache.savePlayerData(playerUUID, new Callback<Void>() {
-                                    @Override
-                                    public void onSuccess(Void result) {
-                                        player.sendMessage(Utils.getInstance().$("Your Discord account has been unlinked."));
-                                        DebugLogger.getInstance().log(Level.INFO, "Unlinked Discord ID for player " + player.getName(), 0);
-                                    }
-
-                                    @Override
-                                    public void onFailure(Throwable throwable) {
-                                        player.sendMessage(Utils.getInstance().$("Failed to unlink your Discord account. Please try again later."));
-                                        DebugLogger.getInstance().error("Failed to unlink Discord ID for player " + player.getName() + ": ", throwable);
-                                    }
-                                });
-                            } else {
-                                player.sendMessage(Utils.getInstance().$("You do not have a Discord account linked."));
-                            }
-                        }))
-                // Subcommand: /discord unlink <username> (unlink others)
-                .withSubcommand(new CommandAPICommand("unlink")
-                        .withPermission("mysticrpg.discord.unlink")
-                        .withArguments(new dev.jorel.commandapi.arguments.StringArgument("username"))
-                        .executesPlayer((player, args) -> {
-                            String targetUsername = (String) args.get("username");
-                            if (targetUsername == null || targetUsername.trim().isEmpty()) {
-                                player.sendMessage(Utils.getInstance().$("Please provide a valid username."));
-                                return;
-                            }
-                            final String finalTargetUsername = targetUsername.trim();
-
-                            // Player is attempting to unlink another player
-                            if (player.hasPermission("mysticrpg.discord.unlink.others")) {
-                                OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(finalTargetUsername);
-                                if (!offlinePlayer.hasPlayedBefore() && !offlinePlayer.isOnline()) {
-                                    player.sendMessage(Utils.getInstance().$("User \"" + finalTargetUsername + "\" does not exist."));
-                                    return;
-                                }
-                                UUID targetUUID = offlinePlayer.getUniqueId();
-                                PlayerData targetPlayerData = playerDataCache.getCachedPlayerData(targetUUID);
-                                if (targetPlayerData != null && targetPlayerData.getDiscordId() != null) {
-                                    targetPlayerData.setDiscordId(null);
-                                    playerDataCache.savePlayerData(targetUUID, new Callback<Void>() {
-                                        @Override
-                                        public void onSuccess(Void result) {
-                                            player.sendMessage(Utils.getInstance().$("Discord account for user \"" + finalTargetUsername + "\" has been unlinked."));
-                                            DebugLogger.getInstance().log(Level.INFO, "Unlinked Discord ID for player " + finalTargetUsername + " by admin " + player.getName(), 0);
-                                            // Notify the target player if online
-                                            Player targetPlayer = Bukkit.getPlayer(targetUUID);
-                                            if (targetPlayer != null && targetPlayer.isOnline()) {
-                                                targetPlayer.sendMessage(Utils.getInstance().$("Your Discord account has been unlinked by an administrator."));
-                                            }
-                                        }
-
-                                        @Override
-                                        public void onFailure(Throwable throwable) {
-                                            player.sendMessage(Utils.getInstance().$("Failed to unlink Discord account for user \"" + finalTargetUsername + "\". Please try again later."));
-                                            DebugLogger.getInstance().error("Failed to unlink Discord ID for player " + finalTargetUsername + ": ", throwable);
-                                        }
-                                    });
-                                } else {
-                                    player.sendMessage(Utils.getInstance().$("User \"" + finalTargetUsername + "\" does not have a Discord account linked."));
-                                }
-                            } else {
-                                player.sendMessage(Utils.getInstance().$("You do not have permission to unlink other players."));
-                                DebugLogger.getInstance().log(Level.WARNING, "Player " + player.getName() + " attempted to unlink other players without permission.", 0);
-                            }
-                        }))
-                // Subcommand: /discord check "USERNAME"
-                .withSubcommand(new CommandAPICommand("check")
-                        .withPermission("mysticrpg.discord.check")
-                        .withArguments(new dev.jorel.commandapi.arguments.StringArgument("username"))
-                        .executesPlayer((player, args) -> {
-                            String username = (String) args.get("username");
-                            if (username == null || username.trim().isEmpty()) {
-                                player.sendMessage(Utils.getInstance().$("Please provide a valid username."));
-                                return;
-                            }
-                            username = username.trim();
-
-                            // Attempt to get the OfflinePlayer
-                            OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(username);
-
-                            // Check if the player has played before or is online
-                            if (!offlinePlayer.hasPlayedBefore() && !offlinePlayer.isOnline()) {
-                                player.sendMessage(Utils.getInstance().$("User \"" + username + "\" does not exist."));
-                                return;
-                            }
-
-                            UUID uuid = offlinePlayer.getUniqueId();
-
-                            PlayerData playerData = playerDataCache.getCachedPlayerData(uuid);
-                            if (playerData != null && playerData.getDiscordId() != null) {
-                                player.sendMessage(Utils.getInstance().$("USERNAME: \"" + username + "\""));
-                                player.sendMessage(Utils.getInstance().$("UUID: \"" + uuid.toString() + "\""));
-                                player.sendMessage(Utils.getInstance().$("DISCORD_ID: \"" + playerData.getDiscordId() + "\""));
-                            } else {
-                                player.sendMessage(Utils.getInstance().$("User \"" + username + "\" is not linked with Discord."));
-                            }
-                        }))
-                .register();
-    }
-
-    /**
-     * Method to handle linking from Discord bot.
-     * This should be called by DiscordHelper when a successful link is performed.
-     *
-     * @param discordId The Discord user ID.
-     * @param code      The unique linking code.
-     */
     public void handleDiscordLinking(long discordId, String code) {
         UUID playerUUID = discordHelper.getPlayerUUIDByCode(code);
         if (playerUUID != null) {
-            // Check if the Discord ID is already linked to another player
             boolean alreadyLinked = playerDataCache.getAllCachedPlayerUUIDs().stream()
                     .anyMatch(uuid -> {
                         PlayerData data = playerDataCache.getCachedPlayerData(uuid);
@@ -257,7 +115,6 @@ public class DiscordModule implements IBaseModule, Listener {
 
             if (alreadyLinked) {
                 DebugLogger.getInstance().error("Discord ID " + discordId + " is already linked to another Minecraft account.");
-                // Optionally, notify the Discord user via the bot
                 return;
             }
 
@@ -267,11 +124,10 @@ public class DiscordModule implements IBaseModule, Listener {
                 playerDataCache.savePlayerData(playerUUID, new Callback<Void>() {
                     @Override
                     public void onSuccess(Void result) {
-                        Player player = Bukkit.getPlayer(playerUUID);
+                        org.bukkit.entity.Player player = Bukkit.getPlayer(playerUUID);
                         if (player != null && player.isOnline()) {
-                            player.sendMessage(Utils.getInstance().$("Your Discord account has been successfully linked!"));
+                            player.sendMessage("Your Discord account has been successfully linked!");
                         }
-                        // Update discordIdToUUIDMap
                         discordHelper.getDiscordIdToUUIDMap().put(discordId, playerUUID);
                         DebugLogger.getInstance().log(Level.INFO, "Linked Discord ID " + discordId + " with player UUID " + playerUUID, 0);
                     }
@@ -281,11 +137,105 @@ public class DiscordModule implements IBaseModule, Listener {
                         DebugLogger.getInstance().error("Failed to save Discord linking for player UUID " + playerUUID + ": ", throwable);
                     }
                 });
+
             } else {
                 DebugLogger.getInstance().error("No player found for linking code: " + code);
             }
         } else {
             DebugLogger.getInstance().error("Invalid or expired linking code: " + code);
+        }
+    }
+
+    public void updateLeaderboardEmbed(LeaderboardType type, List<PlayerData> topPlayers) {
+        LeaderboardMessageData msgData = leaderboardEmbeds.get(type);
+        if (msgData == null) return; // No embed for this type
+
+        EmbedBuilder embed = buildLeaderboardEmbed(type, topPlayers);
+
+        discordHelper.getJDA().getTextChannelById(msgData.channelId)
+                .retrieveMessageById(msgData.messageId)
+                .queue(message -> message.editMessageEmbeds(embed.build()).queue(),
+                        failure -> DebugLogger.getInstance().error("Failed to update leaderboard embed message: " + failure.getMessage()));
+    }
+
+    public void createLeaderboardEmbed(LeaderboardType type, SlashCommandInteractionEvent event) {
+        event.deferReply(true).queue(); // Defer ephemerally
+        databaseManager.getPlayerRepository().loadAll(new Callback<List<PlayerData>>() {
+            @Override
+            public void onSuccess(List<PlayerData> allPlayers) {
+                List<PlayerData> sortedPlayers = sortPlayers(allPlayers, type);
+
+                EmbedBuilder embed = buildLeaderboardEmbed(type, sortedPlayers);
+
+                // Send normal channel message
+                event.getChannel().sendMessageEmbeds(embed.build()).queue(message -> {
+                    long channelId = message.getChannel().getIdLong();
+                    long messageId = message.getIdLong();
+                    leaderboardEmbeds.put(type, new LeaderboardMessageData(channelId, messageId));
+                    DebugLogger.getInstance().log(Level.INFO, "Created leaderboard embed for " + type + " at message " + messageId, 0);
+
+                    // Remove the ephemeral "thinking" message
+                    event.getHook().deleteOriginal().queue();
+                }, failure -> {
+                    event.getHook().editOriginal("Failed to create leaderboard message in channel.").queue();
+                    DebugLogger.getInstance().error("Failed to send leaderboard embed message: " + failure.getMessage());
+                });
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                event.getHook().editOriginal("Failed to fetch leaderboard data.").queue();
+                DebugLogger.getInstance().error("Failed to fetch leaderboard data for Discord embed: ", throwable);
+            }
+        });
+    }
+
+    private List<PlayerData> sortPlayers(List<PlayerData> allPlayers, LeaderboardType type) {
+        if (type == LeaderboardType.LEVEL) {
+            return allPlayers.stream()
+                    .sorted(Comparator.comparingInt(PlayerData::getLevel).reversed())
+                    .limit(5)
+                    .collect(Collectors.toList());
+        } else {
+            return allPlayers.stream()
+                    .sorted((p1, p2) -> Integer.compare(p2.getBankGold(), p1.getBankGold()))
+                    .limit(5)
+                    .collect(Collectors.toList());
+        }
+    }
+
+    private EmbedBuilder buildLeaderboardEmbed(LeaderboardType type, List<PlayerData> topPlayers) {
+        EmbedBuilder embed = new EmbedBuilder();
+        embed.setTitle(type == LeaderboardType.LEVEL ? "Top Level Players" : "Top Rich Players");
+        embed.setColor(Color.GREEN);
+
+        int rank = 1;
+        for (PlayerData pd : topPlayers) {
+            UUID playerUUID = UUID.fromString(pd.getUuid());
+            OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerUUID);
+            String playerName = (offlinePlayer.hasPlayedBefore() && offlinePlayer.getName() != null) ? offlinePlayer.getName() : "Unknown";
+
+            if (type == LeaderboardType.LEVEL) {
+                embed.addField("#" + rank, playerName + " - Level " + pd.getLevel(), false);
+            } else {
+                embed.addField("#" + rank, playerName + " - Gold " + pd.getBankGold(), false);
+            }
+            rank++;
+        }
+
+        for (; rank <= 5; rank++) {
+            embed.addField("#" + rank, "N/A", false);
+        }
+
+        return embed;
+    }
+
+    private static class LeaderboardMessageData {
+        long channelId;
+        long messageId;
+        public LeaderboardMessageData(long channelId, long messageId) {
+            this.channelId = channelId;
+            this.messageId = messageId;
         }
     }
 }

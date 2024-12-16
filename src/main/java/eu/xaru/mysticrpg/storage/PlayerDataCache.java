@@ -68,11 +68,36 @@ public class PlayerDataCache {
 
             @Override
             public void onFailure(Throwable throwable) {
-                DebugLogger.getInstance().error("Failed to load player data for UUID: " + playerUUID + ". ", throwable);
-                callback.onFailure(throwable);
+                // If no entity is found, create default data
+                if (throwable instanceof NoSuchElementException) {
+                    // Create default player data
+                    PlayerData defaultData = PlayerData.defaultData(playerUUID.toString());
+                    // Ensure collections are mutable
+                    defaultData.ensureMutableCollections();
+
+                    // Save the new data to DB
+                    databaseManager.getPlayerRepository().save(defaultData, new Callback<Void>() {
+                        @Override
+                        public void onSuccess(Void result) {
+                            cache.put(playerUUID, defaultData);
+                            DebugLogger.getInstance().log(Level.INFO, "Created and saved default data for new player UUID: " + playerUUID, 0);
+                            callback.onSuccess(defaultData);
+                        }
+
+                        @Override
+                        public void onFailure(Throwable saveThrowable) {
+                            DebugLogger.getInstance().error("Failed to create default player data for UUID: " + playerUUID, saveThrowable);
+                            callback.onFailure(saveThrowable);
+                        }
+                    });
+                } else {
+                    DebugLogger.getInstance().error("Failed to load player data for UUID: " + playerUUID + ". ", throwable);
+                    callback.onFailure(throwable);
+                }
             }
         });
     }
+
 
     /**
      * Saves player data to the database.

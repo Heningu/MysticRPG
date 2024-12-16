@@ -4,131 +4,121 @@ import dev.jorel.commandapi.CommandAPICommand;
 import dev.jorel.commandapi.arguments.StringArgument;
 import dev.jorel.commandapi.arguments.ArgumentSuggestions;
 import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.discord.DiscordModule;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.Callback;
 import eu.xaru.mysticrpg.storage.PlayerData;
-import eu.xaru.mysticrpg.storage.database.DatabaseManager;
 import eu.xaru.mysticrpg.storage.SaveModule;
+import eu.xaru.mysticrpg.storage.database.DatabaseManager;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
-import org.bukkit.ChatColor;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.logging.Level;
 
-/**
- * The main module class for managing Leaderboards.
- * Handles initialization, command registration, and event handling.
- */
 public class LeaderBoardsModule implements IBaseModule {
 
     private MysticCore plugin;
     private EventManager eventManager;
-    
+
     private DatabaseManager databaseManager;
     private LeaderBoardsHelper leaderBoardsHelper;
 
-    /**
-     * Initializes the LeaderBoardsModule by setting up necessary components.
-     */
     @Override
     public void initialize() {
-        // Retrieve the debug logger
-
-
         DebugLogger.getInstance().log(Level.INFO, "Initializing LeaderBoardsModule...", 0);
 
-        // Retrieve the main plugin instance
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
-
-        // Initialize the event manager
         this.eventManager = new EventManager(plugin);
 
-        // Initialize the DatabaseManager from the SaveModule dependency
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         if (saveModule != null) {
             this.databaseManager = DatabaseManager.getInstance();
             if (this.databaseManager != null) {
                 this.leaderBoardsHelper = new LeaderBoardsHelper(databaseManager);
                 DebugLogger.getInstance().log(Level.INFO, "LeaderBoardsHelper initialized successfully.", 0);
+
+                // Set DiscordUpdateHandler if needed from DiscordModule
+                this.leaderBoardsHelper.setDiscordUpdateHandler((type, topPlayers) -> {
+                    // Update Discord embed if DiscordModule is available
+                    DiscordModule discordModule = ModuleManager.getInstance().getModuleInstance(DiscordModule.class);
+                    if (discordModule != null) {
+                        discordModule.updateLeaderboardEmbed(type, topPlayers);
+                    }
+                });
+
             } else {
                 DebugLogger.getInstance().log("DatabaseManager is not initialized in SaveModule. LeaderBoardsModule will not function.");
-                throw new IllegalStateException("DatabaseManager is null in SaveModule.");
+                throw new IllegalStateException("DatabaseManager is null.");
             }
         } else {
-            DebugLogger.getInstance().error("SaveModule not initialized. LeaderBoardsModule will not function without it.");
+            DebugLogger.getInstance().error("SaveModule not initialized. LeaderBoardsModule cannot function without it.");
             throw new IllegalStateException("SaveModule is not loaded.");
         }
-
-        // Optionally load persisted holograms
-        // leaderBoardsHelper.loadPersistedHolograms();
 
         DebugLogger.getInstance().log(Level.INFO, "LeaderBoardsModule initialization complete.", 0);
     }
 
-    /**
-     * Starts the LeaderBoardsModule by registering commands and event handlers.
-     */
     @Override
     public void start() {
         registerCommands();
-        // Currently, no event handlers are needed for the leaderboard functionality
+
+        // Delay hologram loading to ensure DecentHolograms is ready
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (leaderBoardsHelper != null) {
+                leaderBoardsHelper.loadHologramsFromFile();
+                DebugLogger.getInstance().log(Level.INFO, "Holograms loaded from file after delay.", 0);
+            }
+        }, 120L); // 6 seconds delay (60 ticks), adjust if needed
+
+        // Refresh all scoreboards every 1 min
+        Bukkit.getScheduler().runTaskTimer(plugin, this::updateAllScoreboards, 1200L, 1200L);
+
+        DebugLogger.getInstance().log(Level.INFO, "LeaderBoardsModule started.", 0);
     }
 
-    /**
-     * Stops the LeaderBoardsModule. Placeholder for any necessary cleanup.
-     */
+    private void updateAllScoreboards() {
+        // Update all scoreboards (level, rich, etc.)
+        DebugLogger.getInstance().log(Level.INFO, "All scoreboards refreshed.", 0);
+    }
+
     @Override
     public void stop() {
-        // Any necessary cleanup can be performed here
+        DebugLogger.getInstance().log(Level.INFO, "LeaderBoardsModule stopped", 0);
     }
 
-    /**
-     * Unloads the LeaderBoardsModule. Placeholder for any necessary unload actions.
-     */
     @Override
     public void unload() {
-        // Any necessary unload actions can be performed here
+        if (leaderBoardsHelper != null) {
+            leaderBoardsHelper.saveHologramsToFile();
+        }
+        DebugLogger.getInstance().log(Level.INFO, "LeaderBoardsModule unloaded", 0);
     }
 
-    /**
-     * Specifies the dependencies required by the LeaderBoardsModule.
-     *
-     * @return A list of module classes that LeaderBoardsModule depends on.
-     */
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of( SaveModule.class);
+        return List.of(SaveModule.class);
     }
 
-    /**
-     * Specifies the priority level of the LeaderBoardsModule.
-     *
-     * @return The module priority.
-     */
     @Override
     public EModulePriority getPriority() {
         return EModulePriority.LOW;
     }
 
-    /**
-     * Registers the leaderboard commands using the CommandAPI.
-     * Includes commands to display leaderboards and manage holograms.
-     */
     private void registerCommands() {
-        // Root command: /leaderboards or /lb
         new CommandAPICommand("leaderboards")
                 .withAliases("lb")
-                // Subcommand: /leaderboards (without additional arguments)
                 .executesPlayer((player, args) -> {
                     player.sendMessage(ChatColor.GOLD + "Fetching top level players. Please wait...");
                     if (leaderBoardsHelper != null) {
@@ -162,17 +152,21 @@ public class LeaderBoardsModule implements IBaseModule {
                         DebugLogger.getInstance().error("LeaderBoardsHelper is null. Cannot fetch leaderboards.");
                     }
                 })
-                // Subcommand: /leaderboards holospawn <ID>
                 .withSubcommand(new CommandAPICommand("holospawn")
-                        .withArguments(new StringArgument("ID")
-                                .replaceSuggestions(ArgumentSuggestions.strings(info -> leaderBoardsHelper.getAllHologramIds().toArray(new String[0]))))
-                        .withPermission("mysticrpg.leaderboards.holospawn") // Permission check
+                        .withArguments(new StringArgument("ID"))
+                        .withArguments(new StringArgument("type")
+                                .replaceSuggestions(ArgumentSuggestions.strings("LEVEL", "RICH")))
+                        .withPermission("mysticrpg.leaderboards.holospawn")
                         .executesPlayer((player, args) -> {
                             String id = (String) args.get("ID");
+                            String typeStr = (String) args.get("type");
+                            LeaderboardType type = LeaderboardType.valueOf(typeStr.toUpperCase(Locale.ROOT));
+
                             Location location = player.getLocation();
                             try {
-                                leaderBoardsHelper.spawnHologram(id, location);
-                                player.sendMessage(ChatColor.GREEN + "Hologram '" + id + "' spawned at your location.");
+                                leaderBoardsHelper.spawnHologram(id, location, type, true);
+                                player.sendMessage(ChatColor.GREEN + "Hologram '" + id + "' (" + type + ") spawned at your location.");
+                                leaderBoardsHelper.saveHologramsToFile();
                             } catch (IllegalArgumentException e) {
                                 player.sendMessage(ChatColor.RED + "Error spawning hologram:" + e.getMessage());
                                 DebugLogger.getInstance().error("Error spawning hologram '" + id + "':", e);
@@ -181,16 +175,21 @@ public class LeaderBoardsModule implements IBaseModule {
                                 DebugLogger.getInstance().error("Unexpected error spawning hologram '" + id + "':", e);
                             }
                         }))
-                // Subcommand: /leaderboards holoremove <ID>
                 .withSubcommand(new CommandAPICommand("holoremove")
                         .withArguments(new StringArgument("ID")
-                                .replaceSuggestions(ArgumentSuggestions.strings(info -> leaderBoardsHelper.getAllHologramIds().toArray(new String[0]))))
-                        .withPermission("mysticrpg.leaderboards.holoremove") // Permission check
+                                .replaceSuggestions(ArgumentSuggestions.strings(info -> {
+                                    if (leaderBoardsHelper != null) {
+                                        return leaderBoardsHelper.getAllHologramIds().toArray(new String[0]);
+                                    }
+                                    return new String[0];
+                                })))
+                        .withPermission("mysticrpg.leaderboards.holoremove")
                         .executesPlayer((player, args) -> {
                             String id = (String) args.get("ID");
                             try {
                                 leaderBoardsHelper.removeHologram(id);
                                 player.sendMessage(ChatColor.GREEN + "Hologram '" + id + "' has been removed.");
+                                leaderBoardsHelper.saveHologramsToFile();
                             } catch (IllegalArgumentException e) {
                                 player.sendMessage(ChatColor.RED + "Error removing hologram:" + e.getMessage());
                                 DebugLogger.getInstance().error("Error removing hologram '" + id + "':", e);
@@ -204,14 +203,10 @@ public class LeaderBoardsModule implements IBaseModule {
         DebugLogger.getInstance().log(Level.INFO, "LeaderBoardsModule commands registered.", 0);
     }
 
-    /**
-     * Cleanup method to remove all holograms when the plugin is disabled.
-     * Should be called from the plugin's onDisable method.
-     */
     public void cleanup() {
         if (leaderBoardsHelper != null) {
-            leaderBoardsHelper.removeAllHolograms();
-            DebugLogger.getInstance().log(Level.INFO, "All holograms have been removed during cleanup.", 0);
+            leaderBoardsHelper.saveHologramsToFile();
+            DebugLogger.getInstance().log(Level.INFO, "Holograms saved during cleanup.", 0);
         }
     }
 }

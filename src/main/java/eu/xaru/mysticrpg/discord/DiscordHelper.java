@@ -1,5 +1,6 @@
 package eu.xaru.mysticrpg.discord;
 
+import eu.xaru.mysticrpg.player.leaderboards.LeaderboardType;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.Callback;
 import eu.xaru.mysticrpg.utils.DebugLogger;
@@ -23,10 +24,9 @@ public class DiscordHelper extends ListenerAdapter {
     private final DiscordModule discordModule;
     private JDA jda;
 
-    // Map to store code to UUID mappings
+    // code -> UUID linking map
     private final Map<String, UUID> codeToUUIDMap = new ConcurrentHashMap<>();
-
-    // Map to store Discord ID to UUID mappings for reverse lookup
+    // discordId -> UUID linking map
     private final Map<Long, UUID> discordIdToUUIDMap = new ConcurrentHashMap<>();
 
     public DiscordHelper(DiscordModule discordModule) {
@@ -68,10 +68,13 @@ public class DiscordHelper extends ListenerAdapter {
 
     public void shutdownBot() {
         if (jda != null) {
-            // Use shutdownNow() to ensure no lingering tasks remain
             jda.shutdownNow();
             DebugLogger.getInstance().log(Level.INFO, "Discord bot shut down.", 0);
         }
+    }
+
+    public JDA getJDA() {
+        return jda;
     }
 
     public String generateUniqueCode(UUID playerUUID) {
@@ -86,7 +89,7 @@ public class DiscordHelper extends ListenerAdapter {
         Bukkit.getScheduler().runTaskLaterAsynchronously(discordModule.getPlugin(), () -> {
             codeToUUIDMap.remove(finalCode);
             DebugLogger.getInstance().log(Level.INFO, "Linking code expired and removed: " + finalCode, 0);
-        }, 20 * 60 * 5); // Expires after 5 minutes
+        }, 20 * 60 * 5);
 
         return code;
     }
@@ -114,6 +117,22 @@ public class DiscordHelper extends ListenerAdapter {
             handleLinkCommand(event);
         } else if (event.getName().equals("me")) {
             handleMeCommand(event);
+        } else if (event.getName().equals("leaderboard")) {
+            String typeStr = event.getOption("type").getAsString().toUpperCase();
+            LeaderboardType type;
+            try {
+                type = LeaderboardType.valueOf(typeStr);
+            } catch (IllegalArgumentException e) {
+                event.reply("Invalid leaderboard type. Use LEVEL or RICH.").queue();
+                return;
+            }
+
+            if (!event.getMember().hasPermission(net.dv8tion.jda.api.Permission.ADMINISTRATOR)) {
+                event.reply("You do not have permission to use this command.").queue();
+                return;
+            }
+
+            discordModule.createLeaderboardEmbed(type, event);
         }
     }
 
@@ -139,7 +158,6 @@ public class DiscordHelper extends ListenerAdapter {
         UUID playerUUID = discordIdToUUIDMap.get(discordId);
 
         if (playerUUID == null) {
-            // Not in memory, load from DB by discordId
             discordModule.getPlayerDataCache().loadPlayerDataByDiscordId(discordId, new Callback<PlayerData>() {
                 @Override
                 public void onSuccess(PlayerData playerData) {
@@ -156,7 +174,6 @@ public class DiscordHelper extends ListenerAdapter {
                 }
             });
         } else {
-            // Already in memory, try cache or load by UUID
             PlayerData playerData = discordModule.getPlayerDataCache().getCachedPlayerData(playerUUID);
             if (playerData != null) {
                 sendEmbeddedPlayerInfo(event, playerUUID, playerData);
@@ -178,18 +195,12 @@ public class DiscordHelper extends ListenerAdapter {
         }
     }
 
-    /**
-     * Attempt to get the player's username from the server's offline player data.
-     */
     private String getUsernameFromUUID(UUID playerUUID) {
         OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerUUID);
         String name = offlinePlayer.getName();
         return name != null ? name : "Unknown";
     }
 
-    /**
-     * Sends an embedded message with the player's information: username, level, balance.
-     */
     private void sendEmbeddedPlayerInfo(SlashCommandInteractionEvent event, UUID playerUUID, PlayerData playerData) {
         String username = getUsernameFromUUID(playerUUID);
         int level = playerData.getLevel();

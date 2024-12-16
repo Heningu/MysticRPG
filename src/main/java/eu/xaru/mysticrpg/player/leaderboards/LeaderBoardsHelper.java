@@ -7,48 +7,65 @@ import eu.xaru.mysticrpg.storage.Callback;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.database.DatabaseManager;
 import eu.xaru.mysticrpg.utils.DebugLogger;
-import org.bukkit.ChatColor;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.configuration.InvalidConfigurationException;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-/**
- * Helper class for handling leaderboard-related operations and hologram management.
- */
 public class LeaderBoardsHelper {
 
     private final DatabaseManager databaseManager;
-    
+
     private final Map<String, HologramData> holograms = new HashMap<>();
 
-    /**
-     * Constructor for LeaderBoardsHelper.
-     *
-     * @param databaseManager The DatabaseManager instance for database interactions.
-               The DebugLoggerModule for logging.
-     */
+    private File hologramsFile;
+    private YamlConfiguration hologramsConfig;
+
+    private DiscordUpdateHandler discordUpdateHandler;
+
     public LeaderBoardsHelper(DatabaseManager databaseManager) {
         if (databaseManager == null) {
             throw new IllegalArgumentException("DatabaseManager cannot be null.");
         }
 
         this.databaseManager = databaseManager;
- 
+
+        File leaderboardsFolder = new File(MysticCore.getInstance().getDataFolder(), "leaderboards");
+        if (!leaderboardsFolder.exists()) {
+            leaderboardsFolder.mkdirs();
+        }
+
+        hologramsFile = new File(leaderboardsFolder, "holograms.yml");
+        if (!hologramsFile.exists()) {
+            try {
+                hologramsFile.createNewFile();
+            } catch (IOException e) {
+                DebugLogger.getInstance().error("Failed to create holograms.yml file:", e);
+            }
+        }
+
+        hologramsConfig = new YamlConfiguration();
+        try {
+            hologramsConfig.load(hologramsFile);
+        } catch (IOException | InvalidConfigurationException e) {
+            DebugLogger.getInstance().error("Failed to load holograms.yml:", e);
+        }
     }
 
-    /**
-     * Retrieves the top players based on their level.
-     *
-     * @param limit    The number of top players to retrieve.
-     * @param callback The callback to handle the result.
-     */
+    public void setDiscordUpdateHandler(DiscordUpdateHandler handler) {
+        this.discordUpdateHandler = handler;
+    }
+
     public void getTopLevelPlayers(int limit, Callback<List<PlayerData>> callback) {
         databaseManager.getPlayerRepository().loadAll(new Callback<List<PlayerData>>() {
             @Override
@@ -57,7 +74,6 @@ public class LeaderBoardsHelper {
                     callback.onSuccess(List.of());
                     return;
                 }
-                // Sort players by level in descending order
                 List<PlayerData> sortedPlayers = allPlayers.stream()
                         .sorted(Comparator.comparingInt(PlayerData::getLevel).reversed())
                         .limit(limit)
@@ -67,98 +83,98 @@ public class LeaderBoardsHelper {
 
             @Override
             public void onFailure(Throwable throwable) {
-                DebugLogger.getInstance().error("Failed to load all players for leaderboards: ", throwable);
+                DebugLogger.getInstance().error("Failed to load players for level leaderboards: ", throwable);
                 callback.onFailure(throwable);
             }
         });
     }
 
-    /**
-     * Spawns a hologram at the given location with the specified ID.
-     * The hologram is offset vertically to appear above the player's head.
-     * Immediately populates the hologram with top 5 players' data.
-     *
-     * @param id       Unique identifier for the hologram.
-     * @param location Location to spawn the hologram.
-     */
-    public void spawnHologram(String id, Location location) {
+    public void getTopRichPlayers(int limit, Callback<List<PlayerData>> callback) {
+        databaseManager.getPlayerRepository().loadAll(new Callback<List<PlayerData>>() {
+            @Override
+            public void onSuccess(List<PlayerData> allPlayers) {
+                if (allPlayers.isEmpty()) {
+                    callback.onSuccess(List.of());
+                    return;
+                }
+                List<PlayerData> sortedPlayers = allPlayers.stream()
+                        .sorted((p1, p2) -> Integer.compare(p2.getBankGold(), p1.getBankGold()))
+                        .limit(limit)
+                        .collect(Collectors.toList());
+                callback.onSuccess(sortedPlayers);
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                DebugLogger.getInstance().error("Failed to load players for rich leaderboards: ", throwable);
+                callback.onFailure(throwable);
+            }
+        });
+    }
+
+    public void spawnHologram(String id, Location location, LeaderboardType type, boolean applyOffset) {
         if (holograms.containsKey(id)) {
             throw new IllegalArgumentException("Hologram with ID '" + id + "' already exists.");
         }
 
-        // Offset the location upwards to appear above the player's head
-        Location adjustedLocation = location.clone().add(0, 2, 0); // Adjust Y as needed
+        Location spawnLocation = location.clone();
+        if (applyOffset) {
+            // Only add the offset if this is a new hologram from the command
+            spawnLocation.add(0, 2, 0);
+        }
 
-        // Create the hologram using DHAPI
-        Hologram hologram = DHAPI.createHologram(id, adjustedLocation);
+        Hologram hologram = DHAPI.createHologram(id, spawnLocation);
 
         if (hologram == null) {
             throw new IllegalArgumentException("Failed to create hologram with ID: " + id);
         }
 
-        // Initialize hologram with 7 lines
         initializeHologramLines(id, hologram);
+        updateHologramContent(id, hologram, type);
 
-        // Immediately populate the hologram with data
-        updateHologramContent(id, hologram);
-
-        // Schedule periodic updates every 60 seconds
         BukkitTask updateTask = new BukkitRunnable() {
             @Override
             public void run() {
-                updateHologramContent(id, hologram);
+                updateHologramContent(id, hologram, type);
             }
-        }.runTaskTimer(MysticCore.getInstance(), 600L, 600L); // 600L = 30 seconds
+        }.runTaskTimer(MysticCore.getInstance(), 600L, 600L);
 
-        // Store hologram data
-        HologramData hologramData = new HologramData(id, hologram, updateTask);
+        HologramData hologramData = new HologramData(id, hologram, updateTask, type, spawnLocation);
         holograms.put(id, hologramData);
+        DebugLogger.getInstance().log(Level.INFO, "Hologram spawned with ID: " + id + " at " + spawnLocation, 0);
 
-        DebugLogger.getInstance().log(Level.INFO, "Hologram spawned with ID: " + id + " at " + adjustedLocation, 0);
+        // Save after spawning
+        saveHologramsToFile();
     }
 
-    /**
-     * Removes the hologram with the specified ID.
-     *
-     * @param id Unique identifier for the hologram.
-     */
+
     public void removeHologram(String id) {
         HologramData hologramData = holograms.get(id);
         if (hologramData == null) {
             throw new IllegalArgumentException("No hologram found with ID: " + id);
         }
 
-        // Cancel the update task
         hologramData.cancelUpdateTask();
-
-        // Remove the hologram using DHAPI by ID
         DHAPI.removeHologram(id);
-
-        // Remove from the map
         holograms.remove(id);
 
         DebugLogger.getInstance().log(Level.INFO, "Hologram with ID: " + id + " has been removed.", 0);
+
+        // Save after removing
+        saveHologramsToFile();
     }
 
-    /**
-     * Initializes the hologram with 7 predefined lines.
-     *
-     * @param id       Unique identifier for the hologram.
-     * @param hologram The hologram instance to initialize.
-     */
     private void initializeHologramLines(String id, Hologram hologram) {
-        // Define the 7 lines
         List<String> initialLines = List.of(
-                ChatColor.GREEN + "=== Leaderboard ===", // Line 0: Title
-                ChatColor.YELLOW + "#1: ",               // Line 1: Top player
-                ChatColor.YELLOW + "#2: ",               // Line 2
-                ChatColor.YELLOW + "#3: ",               // Line 3
-                ChatColor.YELLOW + "#4: ",               // Line 4
-                ChatColor.YELLOW + "#5: ",               // Line 5
-                ChatColor.GREEN + "=================="    // Line 6: Separator
+                ChatColor.GREEN + "=== Leaderboard ===",
+                ChatColor.YELLOW + "#1: ",
+                ChatColor.YELLOW + "#2: ",
+                ChatColor.YELLOW + "#3: ",
+                ChatColor.YELLOW + "#4: ",
+                ChatColor.YELLOW + "#5: ",
+                ChatColor.GREEN + "=================="
         );
 
-        // Add the 7 lines to the hologram
         for (String line : initialLines) {
             DHAPI.addHologramLine(hologram, line);
         }
@@ -166,54 +182,56 @@ public class LeaderBoardsHelper {
         DebugLogger.getInstance().log(Level.INFO, "Initialized hologram '" + id + "' with 7 lines.", 0);
     }
 
-    /**
-     * Updates the content of the specified hologram.
-     * Populates the top 5 players' data into the hologram.
-     *
-     * @param id       Unique identifier for the hologram.
-     * @param hologram The hologram instance to update.
-     */
-    private void updateHologramContent(String id, Hologram hologram) {
-        getTopLevelPlayers(5, new Callback<List<PlayerData>>() {
+    private void updateHologramContent(String id, Hologram hologram, LeaderboardType type) {
+        Callback<List<PlayerData>> callback = new Callback<List<PlayerData>>() {
             @Override
             public void onSuccess(List<PlayerData> topPlayers) {
-                // Always set the title and separator
                 try {
-                    DHAPI.setHologramLine(hologram, 0, ChatColor.GREEN + "=== Leaderboard ===");
+                    String title = (type == LeaderboardType.LEVEL) ? "=== Top Level ===" : "=== Top Rich ===";
+                    DHAPI.setHologramLine(hologram, 0, ChatColor.GREEN + title);
                     DHAPI.setHologramLine(hologram, 6, ChatColor.GREEN + "==================");
                 } catch (IllegalArgumentException e) {
                     DebugLogger.getInstance().error("Failed to set static lines for hologram '" + id + "':", e);
                 }
 
-                // Update top 5 player lines
                 for (int i = 0; i < 5; i++) {
                     if (i < topPlayers.size()) {
                         PlayerData pd = topPlayers.get(i);
                         UUID playerUUID = UUID.fromString(pd.getUuid());
                         OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerUUID);
                         String playerName = (offlinePlayer.hasPlayedBefore() && offlinePlayer.getName() != null) ? offlinePlayer.getName() : "Unknown";
-                        String lineContent = ChatColor.YELLOW + "#" + (i + 1) + ": " + playerName + " - Level " + pd.getLevel();
+
+                        String lineContent;
+                        if (type == LeaderboardType.LEVEL) {
+                            lineContent = ChatColor.YELLOW + "#" + (i + 1) + ": " + playerName + " - Level " + pd.getLevel();
+                        } else {
+                            lineContent = ChatColor.YELLOW + "#" + (i + 1) + ": " + playerName + " - Gold " + pd.getBankGold();
+                        }
+
                         try {
                             DHAPI.setHologramLine(hologram, i + 1, lineContent);
                         } catch (IllegalArgumentException e) {
                             DebugLogger.getInstance().error("Failed to set hologram line " + (i + 1) + " for hologram '" + id + "':", e);
                         }
                     } else {
-                        // If there are fewer than 5 players, display "N/A"
                         try {
-                            DHAPI.setHologramLine(hologram, i + 1, ChatColor.YELLOW + "#" + (i + 1) + ": " + "N/A");
+                            DHAPI.setHologramLine(hologram, i + 1, ChatColor.YELLOW + "#" + (i + 1) + ": N/A");
                         } catch (IllegalArgumentException e) {
                             DebugLogger.getInstance().error("Failed to set hologram line " + (i + 1) + " for hologram '" + id + "':", e);
                         }
                     }
                 }
 
-                DebugLogger.getInstance().log(Level.INFO, "Hologram with ID: " + id + " has been updated with top players.", 0);
+                DebugLogger.getInstance().log(Level.INFO, "Hologram with ID: " + id + " has been updated.", 0);
+
+                // Update Discord embed if available
+                if (discordUpdateHandler != null) {
+                    discordUpdateHandler.updateDiscordEmbed(type, topPlayers);
+                }
             }
 
             @Override
             public void onFailure(Throwable throwable) {
-                // Display an error message on the first player line
                 try {
                     DHAPI.setHologramLine(hologram, 1, ChatColor.RED + "Error fetching data.");
                 } catch (IllegalArgumentException e) {
@@ -222,22 +240,19 @@ public class LeaderBoardsHelper {
 
                 DebugLogger.getInstance().error("Failed to update hologram with ID: " + id + ". ", throwable);
             }
-        });
+        };
+
+        if (type == LeaderboardType.LEVEL) {
+            getTopLevelPlayers(5, callback);
+        } else {
+            getTopRichPlayers(5, callback);
+        }
     }
 
-    /**
-     * Retrieves a list of all current hologram IDs.
-     *
-     * @return List of hologram IDs.
-     */
     public List<String> getAllHologramIds() {
         return new ArrayList<>(holograms.keySet());
     }
 
-    /**
-     * Removes all holograms managed by this helper.
-     * Should be called during plugin disable to clean up.
-     */
     public void removeAllHolograms() {
         for (String id : new ArrayList<>(holograms.keySet())) {
             try {
@@ -248,18 +263,87 @@ public class LeaderBoardsHelper {
         }
     }
 
-    /**
-     * Inner class to store hologram data.
-     */
+    public void saveHologramsToFile() {
+        // Start fresh with a new YamlConfiguration to avoid stale data
+        YamlConfiguration newConfig = new YamlConfiguration();
+        newConfig.createSection("holograms");
+
+        for (Map.Entry<String, HologramData> entry : holograms.entrySet()) {
+            String id = entry.getKey();
+            HologramData data = entry.getValue();
+            String path = "holograms." + id;
+            newConfig.set(path + ".world", data.location.getWorld().getName());
+            newConfig.set(path + ".x", data.location.getX());
+            newConfig.set(path + ".y", data.location.getY());
+            newConfig.set(path + ".z", data.location.getZ());
+            newConfig.set(path + ".type", data.type.toString());
+        }
+
+        try {
+            newConfig.save(hologramsFile);
+            DebugLogger.getInstance().log(Level.INFO, "Holograms saved to holograms.yml", 0);
+        } catch (IOException e) {
+            DebugLogger.getInstance().error("Failed to save holograms.yml:", e);
+        }
+    }
+
+    public void loadHologramsFromFile() {
+        if (!hologramsFile.exists()) return;
+        YamlConfiguration loadConfig = new YamlConfiguration();
+        try {
+            loadConfig.load(hologramsFile);
+        } catch (IOException | InvalidConfigurationException e) {
+            DebugLogger.getInstance().error("Failed to load holograms.yml:", e);
+            return;
+        }
+
+        if (!loadConfig.isConfigurationSection("holograms")) {
+            DebugLogger.getInstance().log(Level.INFO, "No holograms found in holograms.yml", 0);
+            return;
+        }
+
+        for (String id : loadConfig.getConfigurationSection("holograms").getKeys(false)) {
+            String worldName = loadConfig.getString("holograms." + id + ".world");
+            double x = loadConfig.getDouble("holograms." + id + ".x");
+            double y = loadConfig.getDouble("holograms." + id + ".y");
+            double z = loadConfig.getDouble("holograms." + id + ".z");
+            String typeStr = loadConfig.getString("holograms." + id + ".type", "LEVEL");
+            LeaderboardType type = LeaderboardType.valueOf(typeStr);
+
+            if (Bukkit.getWorld(worldName) == null) {
+                DebugLogger.getInstance().error("World '" + worldName + "' not found for hologram '" + id + "'");
+                continue;
+            }
+
+            Location loc = new Location(Bukkit.getWorld(worldName), x, y, z);
+
+            try {
+                // Spawn and save them into the `holograms` map
+                spawnHologram(id, loc, type, false);
+            } catch (Exception e) {
+                DebugLogger.getInstance().error("Failed to spawn hologram '" + id + "':", e);
+            }
+        }
+        DebugLogger.getInstance().log(Level.INFO, "Holograms loaded from file.", 0);
+    }
+
+    public interface DiscordUpdateHandler {
+        void updateDiscordEmbed(LeaderboardType type, List<PlayerData> topPlayers);
+    }
+
     private static class HologramData {
         private final String id;
         private final Hologram hologram;
         private final BukkitTask updateTask;
+        private final LeaderboardType type;
+        private final Location location;
 
-        public HologramData(String id, Hologram hologram, BukkitTask updateTask) {
+        public HologramData(String id, Hologram hologram, BukkitTask updateTask, LeaderboardType type, Location location) {
             this.id = id;
             this.hologram = hologram;
             this.updateTask = updateTask;
+            this.type = type;
+            this.location = location;
         }
 
         public void cancelUpdateTask() {

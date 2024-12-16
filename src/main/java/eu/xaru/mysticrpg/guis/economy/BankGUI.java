@@ -1,6 +1,8 @@
 package eu.xaru.mysticrpg.guis.economy;
 
 import eu.xaru.mysticrpg.economy.EconomyHelper;
+import eu.xaru.mysticrpg.economy.EconomyModule;
+import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.Utils;
 import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Material;
@@ -23,12 +25,14 @@ import xyz.xenondevs.invui.window.Window;
 public class BankGUI {
 
     private final Player player;
+    private final EconomyModule economy;
     private final EconomyHelper economyHelper;
     private Window window;
 
-    public BankGUI(Player player, EconomyHelper economyHelper) {
+    public BankGUI(Player player) {
         this.player = player;
-        this.economyHelper = economyHelper;
+        this.economy = ModuleManager.getInstance().getModuleInstance(EconomyModule.class);
+        this.economyHelper = economy.getEconomyHelper();
     }
 
     public void open() {
@@ -38,9 +42,9 @@ public class BankGUI {
         // #########
         // I = Info, D = Deposit, W = Withdraw, # = border, spaces = empty
         Structure structure = new Structure(
-   "#########",
-                "#I   D W#",
-                "#########"
+   "# # # # # # # # #",
+                "# # I # D # W # #",
+                "# # # # # # # # #"
         );
 
         // Add ingredients
