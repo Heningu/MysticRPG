@@ -463,7 +463,7 @@ public class CustomMobModule implements IBaseModule, Listener {
                         }))
                 .withSubcommand(new CommandAPICommand("gui")
                         .executesPlayer((player, args) -> {
-                            MobGUI mobGUI = new MobGUI(mobManager);
+                            MobGUI mobGUI = new MobGUI();
                             mobGUI.openMobGUI(player);
                         }))
                 .withSubcommand(new CommandAPICommand("reload")

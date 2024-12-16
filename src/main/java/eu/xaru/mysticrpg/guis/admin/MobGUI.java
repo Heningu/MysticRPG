@@ -2,7 +2,10 @@ package eu.xaru.mysticrpg.guis.admin;
 
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.customs.mobs.CustomMob;
+import eu.xaru.mysticrpg.customs.mobs.CustomMobModule;
 import eu.xaru.mysticrpg.customs.mobs.MobManager;
+import eu.xaru.mysticrpg.guis.player.social.FriendsGUI;
+import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -33,14 +36,11 @@ public class MobGUI {
 
     private final MobManager mobManager;
     private final JavaPlugin plugin;
+    private final CustomMobModule customMobModule;
 
-    /**
-     * Constructor for the MobGUI.
-     *
-     * @param mobManager The MobManager instance to access mob configurations and spawning.
-     */
-    public MobGUI(MobManager mobManager) {
-        this.mobManager = mobManager;
+    public MobGUI() {
+        this.customMobModule = ModuleManager.getInstance().getModuleInstance(CustomMobModule.class);
+        this.mobManager = customMobModule.getMobManager();
         this.plugin = JavaPlugin.getPlugin(MysticCore.class); // Ensure MysticCore is your main class
     }
 
@@ -50,7 +50,33 @@ public class MobGUI {
      * @param player The player to open the GUI for.
      */
     public void openMobGUI(Player player) {
+
+
+        Item back = new SimpleItem(new ItemBuilder(Material.BARRIER)
+                .setDisplayName(ChatColor.RED + "Back to AdminGUI")
+                .addLoreLines(
+                        "Click to get back to the admin gui"
+                )
+                .addAllItemFlags()
+        ){
+            @Override
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
+                // Close the current GUI before opening the Equipment GUI
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window ?
+                        (Window) event.getView().getTopInventory().getHolder() : null;
+                if (window != null) {
+                    window.close();
+                }
+
+                AdminGUI adming = new AdminGUI();
+                adming.openAdminGUI(player);
+
+
+            }
+        };
+
         // Retrieve all registered mob configurations
+
         Map<String, CustomMob> mobConfigurations = mobManager.getMobConfigurations();
         int mobCount = mobConfigurations.size();
 
@@ -112,11 +138,12 @@ public class MobGUI {
                         "# # # # # # # # #",
                         "# x x x x x x x #",
                         "# x x x x x x x #",
-                        "> # # # # # # # #"
+                        "B > # # # # # # #"
                 )
                 .addIngredient('x', Markers.CONTENT_LIST_SLOT_HORIZONTAL) // where paged items should be put
                 .addIngredient('#', border)
                 .addIngredient('>', controler)
+                .addIngredient('B', back)
                 .setContent(mobItems)
                 .build();
 
