@@ -1,17 +1,22 @@
 package eu.xaru.mysticrpg.player;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.logging.Level;
-
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.Particle;
-import org.bukkit.Sound;
+import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.enums.EModulePriority;
+import eu.xaru.mysticrpg.interfaces.IBaseModule;
+import eu.xaru.mysticrpg.managers.EventManager;
+import eu.xaru.mysticrpg.managers.ModuleManager;
+import eu.xaru.mysticrpg.player.stats.PlayerStats;
+import eu.xaru.mysticrpg.player.stats.PlayerStatsManager;
+import eu.xaru.mysticrpg.player.stats.StatCalculations;
+import eu.xaru.mysticrpg.player.stats.StatType;
+import eu.xaru.mysticrpg.player.stats.events.PlayerStatsChangedEvent;
+import eu.xaru.mysticrpg.storage.PlayerData;
+import eu.xaru.mysticrpg.storage.PlayerDataCache;
+import eu.xaru.mysticrpg.storage.SaveModule;
+import eu.xaru.mysticrpg.utils.DebugLogger;
+import eu.xaru.mysticrpg.utils.Utils;
+import org.bukkit.*;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -19,135 +24,73 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
-import dev.jorel.commandapi.CommandAPICommand;
-import eu.xaru.mysticrpg.cores.MysticCore;
-import eu.xaru.mysticrpg.enums.EModulePriority;
-import eu.xaru.mysticrpg.interfaces.IBaseModule;
-import eu.xaru.mysticrpg.managers.EventManager;
-import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.storage.PlayerData;
-import eu.xaru.mysticrpg.storage.PlayerDataCache;
-import eu.xaru.mysticrpg.storage.SaveModule;
-import eu.xaru.mysticrpg.ui.ActionBarManager;
-import eu.xaru.mysticrpg.utils.DebugLogger;
-import eu.xaru.mysticrpg.utils.Utils;
+import java.util.*;
+import java.util.logging.Level;
 
 public class CustomDamageHandler implements IBaseModule {
 
     private PlayerDataCache playerDataCache;
-    
+    private PlayerStatsManager statsManager;
     private final EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
     private final Map<UUID, Long> lastDamageTime = new HashMap<>();
     private JavaPlugin plugin;
-    private ActionBarManager actionBarManager;
 
     @Override
     public void initialize() {
-        
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         plugin = JavaPlugin.getPlugin(MysticCore.class);
 
         if (saveModule != null) {
             playerDataCache = PlayerDataCache.getInstance();
         } else {
-            DebugLogger.getInstance().error("SaveModule not initialized. CustomDamageHandler cannot function without it.");
+            DebugLogger.getInstance().error("SaveModule not initialized. CustomDamageHandler cannot function.");
             return;
         }
 
         if (playerDataCache == null) {
-            DebugLogger.getInstance().error("PlayerDataCache not initialized. CustomDamageHandler cannot function without it.");
+            DebugLogger.getInstance().error("PlayerDataCache not initialized. CustomDamageHandler cannot function.");
             return;
         }
 
-        actionBarManager = new ActionBarManager((MysticCore) plugin, playerDataCache);
+        // Retrieve PlayerStatsManager
+        this.statsManager = ModuleManager.getInstance().getModuleInstance(eu.xaru.mysticrpg.player.stats.StatsModule.class).getStatsManager();
 
         DebugLogger.getInstance().log(Level.INFO, "CustomDamageHandler initialized", 0);
-
-
-        new CommandAPICommand("applydamage")
-                .withPermission("mysticrpg.command.applydamage")
-                .executesPlayer((player, args) -> {
-                    if (args.count() == 0) {
-                        player.sendMessage(ChatColor.RED + "Usage: /applydamage <amount>");
-                        return;
-                    }
-
-                    Double damageObj = (Double) args.get(0);
-                    if (damageObj == null) {
-                        player.sendMessage(ChatColor.RED + "Invalid damage value!");
-                        return;
-                    }
-                    applyCustomDamage(player, damageObj);
-                })
-                .register();
-
-        new CommandAPICommand("heal")
-                .withPermission("mysticrpg.command.heal")
-                .executesPlayer((player, args) -> {
-                    UUID playerUUID = player.getUniqueId();
-                    PlayerData playerData = playerDataCache.getCachedPlayerData(playerUUID);
-
-                    if (playerData == null) {
-                        DebugLogger.getInstance().error("No cached data found for player: " + player.getName());
-                        return;
-                    }
-
-                    int maxHp = playerData.getAttributes().getOrDefault("HP", playerData.getAttributes().getOrDefault("max_hp", 20));
-                    playerData.setCurrentHp(maxHp);
-                    actionBarManager.updateActionBar(player);
-                    player.sendMessage(ChatColor.GREEN + "You have been healed to full health.");
-                })
-                .register();
-
     }
 
     @Override
     public void start() {
         DebugLogger.getInstance().log(Level.INFO, "CustomDamageHandler started", 0);
 
-        // Register EntityDamageByEntityEvent first to handle damage from mobs and players specifically
+        // Damage from entities
         eventManager.registerEvent(EntityDamageByEntityEvent.class, event -> {
-            if (event.getEntity() instanceof Player) {
-                Player player = (Player) event.getEntity();
-                if (event.isCancelled()) return;
+            if (!(event.getEntity() instanceof Player victim)) return;
+            if (event.isCancelled()) return;
 
-                DebugLogger.getInstance().log(Level.INFO, "EntityDamageByEntityEvent", 0);
+            Entity damager = event.getDamager();
+            double rawDamage = event.getFinalDamage();
 
-                // Handle only entity-related damage here
-                handleDamage(player, event, event.getFinalDamage());
-                triggerHurtAnimation(player, true);
-
-                // Cancel the event to prevent actual health damage
-                event.setCancelled(true);
-            }
+            double finalDamage = calculateDamage(damager, victim, rawDamage);
+            applyDamageAndEffects(victim, finalDamage, damager);
+            event.setCancelled(true);
         });
 
-        // Register EntityDamageEvent for handling environmental damage and other non-entity damage types
+        // Environmental damage
         eventManager.registerEvent(EntityDamageEvent.class, event -> {
-            if (event instanceof EntityDamageByEntityEvent) {
-                // Skip processing as this is already handled in EntityDamageByEntityEvent
-                return;
-            }
+            if (event instanceof EntityDamageByEntityEvent) return;
+            if (!(event.getEntity() instanceof Player victim)) return;
+            if (event.isCancelled()) return;
 
-            if (event.getEntity() instanceof Player) {
-                Player player = (Player) event.getEntity();
-                EntityDamageEvent.DamageCause cause = event.getCause();
-                DebugLogger.getInstance().log("EntityDamageEvent %s", cause);
-
-                switch (cause) {
-                    case FALL, FIRE_TICK, LAVA, DROWNING:
-                        // Handle environmental damage
-                        handleDamage(player, event, event.getFinalDamage());
-                        triggerHurtAnimation(player, false);
-                        break;
-                    case ENTITY_ATTACK:
-                        // Ignore this, as it is handled by EntityDamageByEntityEvent
-                        break;
-                    default:
-                        // Cancel all other damage causes
-                        event.setCancelled(true);
-                        break;
-                }
+            EntityDamageEvent.DamageCause cause = event.getCause();
+            switch (cause) {
+                case FALL, FIRE, FIRE_TICK, LAVA, DROWNING, SUFFOCATION, VOID, LIGHTNING, HOT_FLOOR:
+                    double finalDamage = event.getFinalDamage();
+                    applyDamageAndEffects(victim, finalDamage, null);
+                    event.setCancelled(true);
+                    break;
+                default:
+                    event.setCancelled(true);
+                    break;
             }
         });
 
@@ -157,108 +100,88 @@ public class CustomDamageHandler implements IBaseModule {
             public void run() {
                 regenerateHealth();
             }
-        }.runTaskTimer(plugin, 20, 20); // Schedule task to run every second (20 ticks)
+        }.runTaskTimer(plugin, 20, 20); // every second
     }
 
-    private void handleDamage(Player player, EntityDamageEvent event, double damage) {
-        UUID playerUUID = player.getUniqueId();
-        PlayerData playerData = playerDataCache.getCachedPlayerData(playerUUID);
-
-        if (playerData == null) {
-            DebugLogger.getInstance().error("No cached data found for player: " + player.getName());
-            return;
-        }
-
-        // Deduct custom HP based on the actual damage
-        int currentHp = playerData.getCurrentHp();
-        int maxHp = playerData.getAttributes().getOrDefault("HP", 20);
-        int customDamage = (int) Math.round(damage);
-
-        // Adjust custom HP
-        currentHp -= customDamage;
-        if (currentHp < 0) currentHp = 0;
-        playerData.setCurrentHp(currentHp);
-
-        // Update the action bar after taking damage
-        actionBarManager.updateActionBar(player);
-
-        // Log the damage event
-        DebugLogger.getInstance().log("Player " + player.getName() + " took " + damage + " damage. Current HP: " + currentHp);
-        if (currentHp <= 0) {
-            // Handle player death
-            Location spawnLocation = player.getWorld().getSpawnLocation();
-            player.teleport(spawnLocation);
-            player.sendMessage(Utils.getInstance().$("You Died"));
-            DebugLogger.getInstance().log("Player " + player.getName() + " died and was teleported to spawn.");
-
-            // Reset player's health to max for respawn
-            playerData.setCurrentHp(maxHp);
-        }
-
-        // Record last damage time for regeneration purposes
-        lastDamageTime.put(playerUUID, System.currentTimeMillis());
-
-        // Cancel the actual event to prevent health loss from Minecraft's default system
-        event.setCancelled(true);
-    }
-
-    // Helper method to trigger hurt animation manually
-    private void triggerHurtAnimation(Player player, boolean isEntityDamage) {
-        // Play hurt sound effect
-        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_HURT, 1.0f, 1.0f);
-
-        // Display damage indicator particles
-        player.getWorld().spawnParticle(Particle.DAMAGE_INDICATOR, player.getLocation(), 10);
-
-        // Apply knockback only if the damage was caused by an entity
-        if (isEntityDamage) {
-            // Apply slight knockback to simulate damage (hurt effect)
-            Vector knockback = player.getLocation().getDirection().multiply(-0.3);
-            player.setVelocity(knockback);
-        }
-    }
 
     public void applyCustomDamage(Player player, double damage) {
-        UUID playerUUID = player.getUniqueId();
-        PlayerData playerData = playerDataCache.getCachedPlayerData(playerUUID);
+        // Treat this like environmental damage (no damager)
+        applyDamageAndEffects(player, damage, null);
+    }
 
-        if (playerData == null) {
-            DebugLogger.getInstance().error("No cached data found for player: " + player.getName());
+    private double calculateDamage(Entity damager, Player victim, double baseDamage) {
+        PlayerStats victimStats = statsManager.loadStats(victim);
+
+        double finalDamage = baseDamage;
+        if (damager instanceof Player attacker) {
+            PlayerStats attackerStats = statsManager.loadStats(attacker);
+            double strength = attackerStats.getEffectiveStat(StatType.STRENGTH);
+            double critChance = attackerStats.getEffectiveStat(StatType.CRIT_CHANCE);
+            double critDamage = attackerStats.getEffectiveStat(StatType.CRIT_DAMAGE);
+
+            finalDamage = StatCalculations.calculatePhysicalDamage(finalDamage, strength);
+            finalDamage = StatCalculations.calculateCritDamage(finalDamage, critChance, critDamage);
+        }
+
+        double defense = victimStats.getEffectiveStat(StatType.DEFENSE);
+        finalDamage = StatCalculations.calculateDamageTaken(finalDamage, defense);
+
+        return finalDamage;
+    }
+
+    private void applyDamageAndEffects(Player victim, double damage, Entity damager) {
+        UUID victimUUID = victim.getUniqueId();
+        PlayerData victimData = playerDataCache.getCachedPlayerData(victimUUID);
+        if (victimData == null) {
+            DebugLogger.getInstance().error("No cached data found for player: " + victim.getName());
             return;
         }
 
-        // Deduct custom HP based on the actual damage
-        int currentHp = playerData.getCurrentHp();
-        int customDamage = (int) Math.round(damage);
-
-        // Adjust custom HP
-        currentHp -= customDamage;
+        int currentHp = victimData.getCurrentHp();
+        int dealtDamage = (int) Math.round(damage);
+        currentHp -= dealtDamage;
         if (currentHp < 0) currentHp = 0;
-        playerData.setCurrentHp(currentHp);
+        victimData.setCurrentHp(currentHp);
 
-        // Update the action bar after taking damage
-        actionBarManager.updateActionBar(player);
+        DebugLogger.getInstance().log("Player " + victim.getName() + " took " + damage + " damage. Current HP: " + currentHp);
 
-        // Log the damage event
-        DebugLogger.getInstance().log("Player " + player.getName() + " took " + damage + " damage. Current HP: " + currentHp);
         if (currentHp <= 0) {
-            // Handle player death
-            Location spawnLocation = player.getWorld().getSpawnLocation();
-            player.teleport(spawnLocation);
-            player.sendMessage(Utils.getInstance().$("You Died"));
-            DebugLogger.getInstance().log("Player " + player.getName() + " died and was teleported to spawn.");
-
-            // Reset player's health to max for respawn
-            int maxHp = playerData.getAttributes().getOrDefault("HP", 20);
-            playerData.setCurrentHp(maxHp);
+            handleDeath(victim);
+        } else {
+            triggerHurtEffects(victim, damager);
         }
 
-        // Record last damage time for regeneration purposes
-        lastDamageTime.put(playerUUID, System.currentTimeMillis());
+        lastDamageTime.put(victimUUID, System.currentTimeMillis());
+
+        // Fire event so UI can update instantly
+        Bukkit.getPluginManager().callEvent(new PlayerStatsChangedEvent(victim));
     }
 
+    private void handleDeath(Player player) {
+        PlayerData data = playerDataCache.getCachedPlayerData(player.getUniqueId());
+        if (data == null) return;
 
+        int maxHp = data.getAttributes().getOrDefault("HEALTH", 20);
+        Location spawnLocation = player.getWorld().getSpawnLocation();
+        player.teleport(spawnLocation);
+        player.sendMessage(Utils.getInstance().$("You Died"));
+        DebugLogger.getInstance().log("Player " + player.getName() + " died and was teleported to spawn.");
 
+        data.setCurrentHp(maxHp);
+
+        // Fire event for UI update
+        Bukkit.getPluginManager().callEvent(new PlayerStatsChangedEvent(player));
+    }
+
+    private void triggerHurtEffects(Player victim, Entity damager) {
+        victim.playSound(victim.getLocation(), Sound.ENTITY_PLAYER_HURT, 1.0f, 1.0f);
+        victim.getWorld().spawnParticle(Particle.DAMAGE_INDICATOR, victim.getLocation().add(0,1,0), 10);
+
+        if (damager != null && damager != victim) {
+            Vector knockback = victim.getLocation().toVector().subtract(damager.getLocation().toVector()).normalize().multiply(0.4);
+            victim.setVelocity(knockback);
+        }
+    }
 
     private void regenerateHealth() {
         Set<UUID> playerUUIDs = playerDataCache.getAllCachedPlayerUUIDs();
@@ -270,20 +193,21 @@ public class CustomDamageHandler implements IBaseModule {
             if (player == null || !player.isOnline()) continue;
 
             int currentHp = playerData.getCurrentHp();
-            int maxHp = playerData.getAttributes().getOrDefault("HP", 20);
+            int maxHp = playerData.getAttributes().getOrDefault("HEALTH", 20);
 
-            // Check if we need to regenerate
             if (currentHp < maxHp) {
                 long lastDamage = lastDamageTime.getOrDefault(playerUUID, 0L);
                 if (System.currentTimeMillis() - lastDamage >= 5000) {
-                    // Start regenerating HP
-                    currentHp += 1; // Regenerate 1 HP per second
-                    if (currentHp > maxHp) currentHp = maxHp;
-                    playerData.setCurrentHp(currentHp);
-                    DebugLogger.getInstance().log("Regenerated 1 HP for player " + player.getName() + ". Current HP: " + currentHp);
+                    PlayerStats stats = statsManager.loadStats(player);
+                    double regenAmount = stats.getEffectiveStat(StatType.HEALTH_REGEN);
+                    int newHp = currentHp + (int) Math.round(regenAmount);
+                    if (newHp > maxHp) newHp = maxHp;
+                    playerData.setCurrentHp(newHp);
 
-                    // Update the action bar after regeneration
-                    actionBarManager.updateActionBar(player);
+                    DebugLogger.getInstance().log("Regenerated " + regenAmount + " HP for player " + player.getName() + ". Current HP: " + newHp);
+
+                    // Fire event for UI update
+                    Bukkit.getPluginManager().callEvent(new PlayerStatsChangedEvent(player));
                 }
             }
         }
@@ -301,7 +225,7 @@ public class CustomDamageHandler implements IBaseModule {
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of( SaveModule.class);
+        return List.of(SaveModule.class);
     }
 
     @Override
@@ -309,5 +233,3 @@ public class CustomDamageHandler implements IBaseModule {
         return EModulePriority.LOW;
     }
 }
-
-

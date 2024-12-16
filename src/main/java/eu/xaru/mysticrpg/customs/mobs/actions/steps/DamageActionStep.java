@@ -5,7 +5,6 @@ import eu.xaru.mysticrpg.customs.mobs.actions.ActionStep;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.CustomDamageHandler;
 import eu.xaru.mysticrpg.utils.DebugLogger;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -27,7 +26,7 @@ public class DamageActionStep implements ActionStep {
                 return;
             }
             if (livingTarget instanceof Player playerTarget) {
-                // Apply custom damage to the player
+                // Apply custom damage to the player using our new CustomDamageHandler
                 CustomDamageHandler customDamageHandler = ModuleManager.getInstance().getModuleInstance(CustomDamageHandler.class);
                 if (customDamageHandler != null) {
                     customDamageHandler.applyCustomDamage(playerTarget, damageAmount);
@@ -35,7 +34,7 @@ public class DamageActionStep implements ActionStep {
                     DebugLogger.getInstance().warning("CustomDamageHandler is not loaded. Cannot apply custom damage.");
                 }
             } else {
-                // For non-player entities, apply default damage
+                // For non-player entities, apply default vanilla damage
                 livingTarget.damage(damageAmount, mobInstance.getEntity());
             }
         } else {

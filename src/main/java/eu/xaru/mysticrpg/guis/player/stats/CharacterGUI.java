@@ -5,7 +5,7 @@ import eu.xaru.mysticrpg.guis.MainMenu;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
-import eu.xaru.mysticrpg.player.stats.PlayerStatModule;
+import eu.xaru.mysticrpg.player.stats.StatsModule;
 import eu.xaru.mysticrpg.quests.QuestModule;
 import eu.xaru.mysticrpg.social.friends.FriendsModule;
 import eu.xaru.mysticrpg.social.party.PartyModule;
@@ -32,41 +32,27 @@ import xyz.xenondevs.invui.window.Window;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Refactored to use StatsModule and PlayerStatsManager
+ */
 public class CharacterGUI {
 
     private final PlayerDataCache playerDataCache;
-    private final PlayerStatModule playerStatModule;
+    private final StatsModule statsModule;
     private final AuctionHouseModule auctionHouse;
     private final EquipmentModule equipmentModule;
     private final LevelModule levelingModule;
-    private final PlayerStatModule playerStat;
     private final QuestModule questModule;
     private final FriendsModule friendsModule;
     private final PartyModule partyModule;
 
-    // Slots layout (9x6)
-    // Row 0: # # # # H # # # #
-    // Row 1: # V # I # D # S #
-    // Row 2: # v # i # d # s #
-    // Row 3: # # # # # # # # #
-    // Row 4: # # # # # # # # #
-    // Row 5: # # # # # # # # A
-    // H = Player Head (4)
-    // V = Vitality (10), v = Increase Vitality (19)
-    // I = Intelligence (12), i = Increase Intelligence (21)
-    // D = Dexterity (14), d = Increase Dexterity (23)
-    // S = Strength (16), s = Increase Strength (25)
-    // A = Attribute Points (53)
-    // '#' are fillers
-
     public CharacterGUI() {
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         this.playerDataCache = PlayerDataCache.getInstance();
-        this.playerStatModule = ModuleManager.getInstance().getModuleInstance(PlayerStatModule.class);
+        this.statsModule = ModuleManager.getInstance().getModuleInstance(StatsModule.class);
         this.auctionHouse = ModuleManager.getInstance().getModuleInstance(AuctionHouseModule.class);
         this.equipmentModule = ModuleManager.getInstance().getModuleInstance(EquipmentModule.class);
         this.levelingModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
-        this.playerStat = ModuleManager.getInstance().getModuleInstance(PlayerStatModule.class);
         this.questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
         this.friendsModule = ModuleManager.getInstance().getModuleInstance(FriendsModule.class);
         this.partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
@@ -83,35 +69,32 @@ public class CharacterGUI {
         Map<String, Integer> attributes = data.getAttributes();
         int attributePoints = data.getAttributePoints();
 
-        // Create Player Head Item with player's skin
-        Item playerHead = createPlayerHead(player, attributes);
+        int health = attributes.getOrDefault("HEALTH", 20);
+        int defense = attributes.getOrDefault("DEFENSE", 0);
+        int strength = attributes.getOrDefault("STRENGTH", 1);
+        int intelligence = attributes.getOrDefault("INTELLIGENCE", 1);
 
-        // Create Attribute Items
-        Item vitalityItem = createStatItem("Vitality", attributes.getOrDefault("Vitality", 0), attributes.getOrDefault("HP", 0));
-        Item intelligenceItem = createStatItem("Intelligence", attributes.getOrDefault("Intelligence", 0), attributes.getOrDefault("MANA", 0));
-        Item dexterityItem = createStatItem("Dexterity", attributes.getOrDefault("Dexterity", 0), attributes.getOrDefault("AttackDamageDex", 0));
-        Item strengthItem = createStatItem("Strength", attributes.getOrDefault("Strength", 0), attributes.getOrDefault("AttackDamage", 0));
+        Item playerHead = createPlayerHead(player, health, defense, strength, intelligence);
+        Item healthItem = createStatItem("Health", health, "Increases your maximum HP.");
+        Item defenseItem = createStatItem("Defense", defense, "Reduces incoming damage.");
+        Item strengthItem = createStatItem("Strength", strength, "Increases your damage output.");
+        Item intelligenceItem = createStatItem("Intelligence", intelligence, "Increases your mana or magic damage.");
 
-        // Create Increment Buttons
-        Item vitalityButton = createIncrementButton(attributePoints, "Vitality");
-        Item intelligenceButton = createIncrementButton(attributePoints, "Intelligence");
-        Item dexterityButton = createIncrementButton(attributePoints, "Dexterity");
-        Item strengthButton = createIncrementButton(attributePoints, "Strength");
+        Item healthButton = createIncrementButton(attributePoints, "HEALTH", player);
+        Item defenseButton = createIncrementButton(attributePoints, "DEFENSE", player);
+        Item strengthButton = createIncrementButton(attributePoints, "STRENGTH", player);
+        Item intelligenceButton = createIncrementButton(attributePoints, "INTELLIGENCE", player);
 
-        // Attribute Points Item
         Item attributePointsItem = new SimpleItem(new ItemBuilder(Material.NETHER_STAR)
-                .setDisplayName(Utils.getInstance().$("Attribute Points"))
-                .addLoreLines(Utils.getInstance().$("Points: " + attributePoints))
+                .setDisplayName(ChatColor.YELLOW + "Attribute Points")
+                .addLoreLines(ChatColor.WHITE + "Points: " + attributePoints)
                 .addAllItemFlags());
 
-
-        // Static items
         Item back = new SimpleItem(new ItemBuilder(Material.BARRIER)
                 .setDisplayName(ChatColor.RED + "Go Back")
-                .addLoreLines("", "Click to get back to the main menu.", "")
+                .addLoreLines("", "Click to go back to the main menu.", "")
                 .addAllItemFlags()
-                .addEnchantment(Enchantment.UNBREAKING, 1, true))
-        {
+                .addEnchantment(Enchantment.UNBREAKING, 1, true)) {
             @Override
             public void handleClick(@NotNull ClickType clickType, @NotNull Player clickPlayer, @NotNull InventoryClickEvent event) {
                 Window window = event.getView().getTopInventory().getHolder() instanceof Window ? (Window) event.getView().getTopInventory().getHolder() : null;
@@ -119,40 +102,42 @@ public class CharacterGUI {
                     window.close();
                 }
 
-                MainMenu mainMenu = new MainMenu(auctionHouse, equipmentModule, levelingModule, playerStat, questModule, friendsModule, partyModule);
+                MainMenu mainMenu = new MainMenu(auctionHouse, equipmentModule, levelingModule,statsModule, questModule, friendsModule, partyModule);
                 mainMenu.openGUI(clickPlayer);
             }
         };
 
-
-        // Filler
         Item filler = new SimpleItem(new ItemBuilder(Material.WHITE_STAINED_GLASS_PANE)
                 .setDisplayName(" ")
                 .addAllItemFlags());
 
-        // Build the GUI
         Gui gui = Gui.normal()
                 .setStructure(
-                        "# # # # H # # # #",
-                        "# V # I # D # S #",
-                        "# v # i # d # s #",
+                        "# # # # X # # # #",
+                        "# h # i # d # s #",
+                        "# H # I # D # ^ #",
                         "# # # # # # # # #",
                         "# # # # # # # # #",
                         "B # # # # # # # A"
                 )
                 .addIngredient('#', filler)
-                .addIngredient('H', playerHead)
-                .addIngredient('V', vitalityItem)
-                .addIngredient('I', intelligenceItem)
-                .addIngredient('D', dexterityItem)
-                .addIngredient('S', strengthItem)
-                .addIngredient('v', vitalityButton)
-                .addIngredient('i', intelligenceButton)
-                .addIngredient('d', dexterityButton)
-                .addIngredient('s', strengthButton)
+                .addIngredient('X', playerHead)
+                .addIngredient('h', healthItem)
+                .addIngredient('i', intelligenceItem)
+                .addIngredient('d', defenseItem)
+                .addIngredient('s', strengthItem)
+                .addIngredient('H', healthButton)
+                .addIngredient('I', intelligenceButton)
+                .addIngredient('D', defenseButton)
+                .addIngredient('S', strengthButton)
                 .addIngredient('A', attributePointsItem)
                 .addIngredient('B', back)
                 .build();
+
+        gui.setItem(19, healthButton);
+        gui.setItem(21, intelligenceButton);
+        gui.setItem(23, defenseButton);
+        gui.setItem(25, strengthButton);
 
         Window window = Window.single()
                 .setViewer(player)
@@ -162,18 +147,16 @@ public class CharacterGUI {
         window.open();
     }
 
-    private Item createPlayerHead(Player player, Map<String, Integer> attributes) {
+    private Item createPlayerHead(Player player, int health, int defense, int strength, int intelligence) {
         ItemStack headStack = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta skullMeta = (SkullMeta) headStack.getItemMeta();
         skullMeta.setOwningPlayer(player);
-        skullMeta.setDisplayName(Utils.getInstance().$(player.getName()));
+        skullMeta.setDisplayName(ChatColor.GREEN + player.getName());
         skullMeta.setLore(java.util.Arrays.asList(
-                Utils.getInstance().$("Vitality: " + attributes.getOrDefault("Vitality", 0)),
-                Utils.getInstance().$("Intelligence: " + attributes.getOrDefault("Intelligence", 0)),
-                Utils.getInstance().$("Dexterity: " + attributes.getOrDefault("Dexterity", 0)),
-                Utils.getInstance().$("Strength: " + attributes.getOrDefault("Strength", 0)),
-                Utils.getInstance().$("HP: " + attributes.getOrDefault("HP", 0)),
-                Utils.getInstance().$("Mana: " + attributes.getOrDefault("MANA", 0))
+                ChatColor.YELLOW + "Health: " + ChatColor.WHITE + health,
+                ChatColor.YELLOW + "Defense: " + ChatColor.WHITE + defense,
+                ChatColor.YELLOW + "Strength: " + ChatColor.WHITE + strength,
+                ChatColor.YELLOW + "Intelligence: " + ChatColor.WHITE + intelligence
         ));
         skullMeta.addItemFlags(ItemFlag.values());
         headStack.setItemMeta(skullMeta);
@@ -181,51 +164,48 @@ public class CharacterGUI {
         return new SimpleItem(headStack);
     }
 
-    private Item createStatItem(String name, int attribute, int stat) {
-        return new SimpleItem(new ItemBuilder(getMaterialForAttribute(name))
-                .setDisplayName(Utils.getInstance().$(name))
+    private Item createStatItem(String name, int value, String description) {
+        Material mat;
+        switch (name.toUpperCase()) {
+            case "HEALTH": mat = Material.REDSTONE; break;
+            case "DEFENSE": mat = Material.SHIELD; break;
+            case "STRENGTH": mat = Material.IRON_SWORD; break;
+            case "INTELLIGENCE": mat = Material.ENCHANTED_BOOK; break;
+            default: mat = Material.BARRIER; break;
+        }
+
+        return new SimpleItem(new ItemBuilder(mat)
+                .setDisplayName(ChatColor.AQUA + name)
                 .addLoreLines(
-                        Utils.getInstance().$("Attribute: " + attribute),
-                        Utils.getInstance().$("Stat: " + stat)
+                        ChatColor.GRAY + description,
+                        "",
+                        ChatColor.YELLOW + "Current " + name + ": " + ChatColor.WHITE + value
                 )
                 .addAllItemFlags());
     }
 
-    private Material getMaterialForAttribute(String name) {
-        switch (name) {
-            case "Vitality":
-                return Material.APPLE;
-            case "Intelligence":
-                return Material.DRAGON_BREATH;
-            case "Dexterity":
-                return Material.ARROW;
-            case "Strength":
-                return Material.IRON_SWORD;
-            default:
-                return Material.BARRIER;
-        }
-    }
+    private Item createIncrementButton(int attributePoints, String attributeName, Player player) {
+        boolean canIncrease = attributePoints > 0;
+        Material buttonMaterial = canIncrease ? Material.SUNFLOWER : Material.BEDROCK;
+        ChatColor color = canIncrease ? ChatColor.GREEN : ChatColor.RED;
+        String displayName = color + "Increase " + attributeName;
 
-    private Item createIncrementButton(int attributePoints, String attributeName) {
-        Material buttonMaterial = attributePoints > 0 ? Material.SUNFLOWER : Material.BEDROCK;
-        String displayName = attributePoints > 0 ? Utils.getInstance().$("Increase " + attributeName) : Utils.getInstance().$("[NO POINTS]");
         return new SimpleItem(new ItemBuilder(buttonMaterial)
                 .setDisplayName(displayName)
-                .addAllItemFlags())
-        {
+                .addLoreLines(canIncrease ? ChatColor.GRAY + "Click to spend 1 attribute point" : ChatColor.RED + "No attribute points available")
+                .addAllItemFlags()) {
             @Override
-            public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
-                if (attributePoints > 0) {
-                    // Increase the attribute using PlayerStatModule logic
-                    if (playerStatModule != null) {
-                        playerStatModule.increaseAttribute(player, "Increase " + attributeName);
-                        // Re-open GUI to show updated stats
-                        openCharacterGUI(player);
-                    } else {
-                        player.sendMessage(ChatColor.RED + "Stat module not found.");
-                    }
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player clickPlayer, @NotNull InventoryClickEvent event) {
+                if (!canIncrease) {
+                    clickPlayer.sendMessage(ChatColor.RED + "You have no attribute points left!");
+                    return;
+                }
+
+                if (statsModule != null) {
+                    statsModule.getStatsManager().increaseBaseAttribute(clickPlayer, attributeName);
+                    openCharacterGUI(clickPlayer);
                 } else {
-                    player.sendMessage(ChatColor.RED + "No attribute points available.");
+                    clickPlayer.sendMessage(ChatColor.RED + "Stats module not found.");
                 }
             }
         };

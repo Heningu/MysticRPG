@@ -5,7 +5,7 @@ import eu.xaru.mysticrpg.guis.MainMenu;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
-import eu.xaru.mysticrpg.player.stats.PlayerStatModule;
+import eu.xaru.mysticrpg.player.stats.StatsModule;
 import eu.xaru.mysticrpg.quests.QuestModule;
 import eu.xaru.mysticrpg.social.friends.FriendsModule;
 import eu.xaru.mysticrpg.social.party.PartyModule;
@@ -13,7 +13,7 @@ import eu.xaru.mysticrpg.storage.LevelData;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
-import org.bukkit.ChatColor;
+import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
@@ -31,26 +31,19 @@ import xyz.xenondevs.invui.item.impl.SimpleItem;
 import xyz.xenondevs.invui.item.impl.controlitem.ControlItem;
 import xyz.xenondevs.invui.window.Window;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 public class LevelingGUI {
     private final AuctionHouseModule auctionHouse;
     private final EquipmentModule equipmentModule;
     private final LevelModule levelingModule;
-    private final PlayerStatModule playerStat;
     private final QuestModule questModule;
     private final FriendsModule friendsModule;
+    private final StatsModule statsModule;
     private final PartyModule partyModule;
     private final PlayerDataCache playerDataCache;
 
-    // The inventory is 9x6 = 54 slots
-    // Content slots (where level items go):
-    private static final int[] CONTENT_SLOTS = {
-            9, 10, 11, 20, 29, 38, 39, 40, 41, 42, 33, 24, 15, 16, 17
-    };
+    private static final int[] CONTENT_SLOTS = {9, 10, 11, 20, 29, 38, 39, 40, 41, 42, 33, 24, 15, 16, 17};
 
     public LevelingGUI() {
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
@@ -58,7 +51,7 @@ public class LevelingGUI {
         this.auctionHouse = ModuleManager.getInstance().getModuleInstance(AuctionHouseModule.class);
         this.equipmentModule = ModuleManager.getInstance().getModuleInstance(EquipmentModule.class);
         this.levelingModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
-        this.playerStat = ModuleManager.getInstance().getModuleInstance(PlayerStatModule.class);
+        this.statsModule = ModuleManager.getInstance().getModuleInstance(StatsModule.class);
         this.questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
         this.friendsModule = ModuleManager.getInstance().getModuleInstance(FriendsModule.class);
         this.partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
@@ -83,32 +76,43 @@ public class LevelingGUI {
             Material material = playerLevel >= level ? Material.LIME_STAINED_GLASS_PANE : Material.RED_STAINED_GLASS_PANE;
             String displayName = ChatColor.GREEN + "Level " + level;
 
+            // Assume levelData rewards only contain keys like "HEALTH" and "AttributePoints"
+            // For example: "HEALTH": +5, "AttributePoints": +1
             ItemBuilder itemBuilder = new ItemBuilder(material)
                     .setDisplayName(displayName)
-                    .addLoreLines(ChatColor.GRAY + "Required XP: " + levelData.getXpRequired())
-                    .addLoreLines(ChatColor.YELLOW + "Rewards:");
+                    .addLoreLines(ChatColor.GRAY + "XP Required: " + levelData.getXpRequired(), "")
+                    .addLoreLines(ChatColor.YELLOW + "On Reaching Level " + level + ":");
 
-            for (Map.Entry<String, Integer> rewardEntry : levelData.getRewards().entrySet()) {
-                itemBuilder.addLoreLines(ChatColor.AQUA + rewardEntry.getKey() + ": " + rewardEntry.getValue());
+            Map<String, Integer> rewards = levelData.getRewards();
+            if (rewards != null) {
+                int hpReward = rewards.getOrDefault("HEALTH", 0);
+                int apReward = rewards.getOrDefault("AttributePoints", 0);
+                if (hpReward > 0) {
+                    itemBuilder.addLoreLines(ChatColor.AQUA + "+ " + hpReward + " Max Health");
+                }
+                if (apReward > 0) {
+                    itemBuilder.addLoreLines(ChatColor.AQUA + "+ " + apReward + " Attribute Points");
+                }
             }
 
             if (playerLevel >= level) {
                 itemBuilder.addEnchantment(Enchantment.UNBREAKING, 1, true)
-                        .addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
+                        .addItemFlags(ItemFlag.HIDE_ENCHANTS);
+                itemBuilder.addLoreLines("", ChatColor.GREEN + "You have reached this level!");
+            } else {
+                itemBuilder.addLoreLines("", ChatColor.RED + "Not reached yet.");
             }
 
             Item levelItem = new SimpleItem(itemBuilder) {
                 @Override
                 public void handleClick(@NotNull ClickType clickType, @NotNull Player clickPlayer, @NotNull InventoryClickEvent event) {
-                    // Handle level item click if needed
+                    // No direct interaction needed here
                 }
             };
             levels.add(levelItem);
         }
 
-        // If the number of levels is not divisible by the content slot count (15),
-        // add filler items to fill the last page completely.
-        int itemsPerPage = CONTENT_SLOTS.length; // = 15
+        int itemsPerPage = CONTENT_SLOTS.length;
         int remainder = levels.size() % itemsPerPage;
         if (remainder != 0) {
             int fillersNeeded = itemsPerPage - remainder;
@@ -121,13 +125,11 @@ public class LevelingGUI {
             }
         }
 
-        // Static items
         Item back = new SimpleItem(new ItemBuilder(Material.BARRIER)
                 .setDisplayName(ChatColor.RED + "Go Back")
-                .addLoreLines("", "Click to get back to the main menu.", "")
+                .addLoreLines("", "Click to go back to the main menu.", "")
                 .addAllItemFlags()
-                .addEnchantment(Enchantment.UNBREAKING, 1, true))
-        {
+                .addEnchantment(Enchantment.UNBREAKING, 1, true)) {
             @Override
             public void handleClick(@NotNull ClickType clickType, @NotNull Player clickPlayer, @NotNull InventoryClickEvent event) {
                 Window window = event.getView().getTopInventory().getHolder() instanceof Window ? (Window) event.getView().getTopInventory().getHolder() : null;
@@ -135,7 +137,7 @@ public class LevelingGUI {
                     window.close();
                 }
 
-                MainMenu mainMenu = new MainMenu(auctionHouse, equipmentModule, levelingModule, playerStat, questModule, friendsModule, partyModule);
+                MainMenu mainMenu = new MainMenu(auctionHouse, equipmentModule, levelingModule, statsModule, questModule, friendsModule, partyModule);
                 mainMenu.openGUI(clickPlayer);
             }
         };
@@ -143,7 +145,7 @@ public class LevelingGUI {
         Item controler = new ChangePageItem();
         Item border = new SimpleItem(new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE).setDisplayName(" ").addAllItemFlags());
 
-        // Create a player head with the player's skin
+        // Player head
         ItemStack headStack = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta skullMeta = (SkullMeta) headStack.getItemMeta();
         skullMeta.setOwningPlayer(player);
@@ -155,23 +157,21 @@ public class LevelingGUI {
         int width = 9;
         int height = 6;
 
-        // Create a PagedGui using ofItems. This will handle pagination.
         PagedGui<Item> pagedGui = PagedGui.ofItems(width, height, levels, CONTENT_SLOTS);
 
-        // Set all non-special & non-content slots to border
         for (int slot = 0; slot < width * height; slot++) {
             if (!isSpecialSlot(slot) && !isContentSlot(slot)) {
                 pagedGui.setItem(slot, border);
             }
         }
 
-        // Set Player Head (P) at slot 22
+        // Player Head at slot 22
         pagedGui.setItem(22, playerHead);
 
-        // Set Back (C) at slot 45
+        // Back at slot 45
         pagedGui.setItem(45, back);
 
-        // Set Controler (>) at slot 46
+        // Page controller at slot 46
         pagedGui.setItem(46, controler);
 
         pagedGui.bake();
@@ -192,7 +192,7 @@ public class LevelingGUI {
     }
 
     private boolean isSpecialSlot(int slot) {
-        // Special slots: P(22), C(45), >(46)
+        // Special slots: P(22), B(45), > (46)
         return slot == 22 || slot == 45 || slot == 46;
     }
 

@@ -145,7 +145,7 @@ public class PlayerData {
                 1,
                 100,
                 20,
-                new HashMap<>(Map.of("HP", 20, "MANA", 10, "Vitality", 1, "Intelligence", 1, "Dexterity", 1, "Strength", 1)),
+                new HashMap<>(Map.of("HEALTH", 20, "DEFENSE", 0, "STRENGTH", 1, "INTELLIGENCE", 1, "CRIT_CHANCE", 5, "CRIT_DAMAGE", 10, "ATTACK_SPEED",0,"HEALTH_REGEN",1,"MOVEMENT_SPEED",0,"MANA",10)),
                 new HashMap<>(),
                 new HashSet<>(),
                 new HashSet<>(),

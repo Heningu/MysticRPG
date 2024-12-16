@@ -10,6 +10,7 @@ import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
+import eu.xaru.mysticrpg.player.stats.PlayerStatsManager;
 import eu.xaru.mysticrpg.quests.QuestModule;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
@@ -25,9 +26,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.List;
 import java.util.logging.Level;
 
-/**
- * UIModule handles the user interface components such as commands and display names.
- */
 public class UIModule implements IBaseModule {
 
     private ActionBarManager actionBarManager;
@@ -50,12 +48,18 @@ public class UIModule implements IBaseModule {
     public void initialize() {
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         LevelModule levelModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
+
         this.chatFormatter = new ChatFormatter();
         Bukkit.getPluginManager().registerEvents(this.chatFormatter, plugin);
 
         if (saveModule != null && levelModule != null) {
             PlayerDataCache playerDataCache = PlayerDataCache.getInstance();
-            this.actionBarManager = new ActionBarManager((MysticCore) plugin, playerDataCache);
+
+            // Get PlayerStatsManager from StatsModule
+            var statsModule = ModuleManager.getInstance().getModuleInstance(eu.xaru.mysticrpg.player.stats.StatsModule.class);
+            PlayerStatsManager statsManager = statsModule.getStatsManager();
+
+            this.actionBarManager = new ActionBarManager(MysticCore.getPlugin(MysticCore.class), playerDataCache, statsManager);
             this.scoreboardManager = new ScoreboardManager();
             DebugLogger.getInstance().log(Level.INFO, "UIModule initialized successfully.", 0);
         } else {
@@ -70,6 +74,7 @@ public class UIModule implements IBaseModule {
                 if (scoreboardManager != null) {
                     scoreboardManager.createOrUpdateTeam(player);
                     scoreboardManager.updatePlayerScoreboard(player);
+                    // After level up, the player's stats changed. We fire an event indirectly by updating PlayerData and calling a PlayerStatsChangedEvent if needed.
                 }
             });
         }
@@ -147,11 +152,9 @@ public class UIModule implements IBaseModule {
 
         eventManager.registerEvent(AsyncPlayerChatEvent.class, event -> {
             Player player = event.getPlayer();
-            // Check if this player is waiting for custom amount input in BankSubGUI
             if (BankSubGUI.isAwaitingInput(player.getUniqueId())) {
-                event.setCancelled(true); // prevent message from showing in public chat
+                event.setCancelled(true);
                 String message = event.getMessage();
-                // Handle input
                 BankSubGUI.handleChatInput(player, message, economyHelper);
             }
         });

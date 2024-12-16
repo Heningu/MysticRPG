@@ -6,7 +6,7 @@ import eu.xaru.mysticrpg.guis.MainMenu;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
-import eu.xaru.mysticrpg.player.stats.PlayerStatModule;
+import eu.xaru.mysticrpg.player.stats.StatsModule;
 import eu.xaru.mysticrpg.quests.Quest;
 import eu.xaru.mysticrpg.quests.QuestManager;
 import eu.xaru.mysticrpg.quests.QuestModule;
@@ -50,7 +50,7 @@ public class QuestGUI {
     private final AuctionHouseModule auctionHouse;
     private final EquipmentModule equipmentModule;
     private final LevelModule levelingModule;
-    private final PlayerStatModule playerStat;
+    private final StatsModule playerStat;
     private final QuestModule questModule;
     private final FriendsModule friendsModule;
     private final PartyModule partyModule;
@@ -62,7 +62,7 @@ public class QuestGUI {
         this.auctionHouse = ModuleManager.getInstance().getModuleInstance(AuctionHouseModule.class);
         this.equipmentModule = ModuleManager.getInstance().getModuleInstance(EquipmentModule.class);
         this.levelingModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
-        this.playerStat = ModuleManager.getInstance().getModuleInstance(PlayerStatModule.class);
+        this.playerStat = ModuleManager.getInstance().getModuleInstance(StatsModule.class);
         this.questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
         this.friendsModule = ModuleManager.getInstance().getModuleInstance(FriendsModule.class);
         this.partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);

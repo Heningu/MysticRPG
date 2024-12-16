@@ -8,6 +8,7 @@ import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
+import eu.xaru.mysticrpg.player.stats.events.PlayerStatsChangedEvent;
 import eu.xaru.mysticrpg.storage.*;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
@@ -22,12 +23,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
-/**
- * LevelModule handles player leveling up, XP management, and level-up rewards.
- */
 public class LevelModule implements IBaseModule {
 
     private PlayerDataCache playerDataCache;
@@ -38,14 +34,12 @@ public class LevelModule implements IBaseModule {
 
     @Override
     public void initialize() {
-
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         if (saveModule == null) {
             throw new IllegalStateException("SaveModule not initialized. LevelModule cannot function without it.");
         }
         this.playerDataCache = PlayerDataCache.getInstance();
 
-        // Fetch levels data from the local Levels.json file
         this.levelDataMap = loadLevelsFromFile();
         if (this.levelDataMap != null && !this.levelDataMap.isEmpty()) {
             DebugLogger.getInstance().log("Levels loaded from Levels.json successfully.");
@@ -61,15 +55,13 @@ public class LevelModule implements IBaseModule {
 
     @Override
     public void start() {
-        // Initialize LevelingMenu here instead of in initialize method
         DebugLogger.getInstance().log(Level.INFO, "LevelModule started", 0);
 
-        // Register InventoryDragEvent for blocking dragging in leveling menus
         eventManager.registerEvent(InventoryDragEvent.class, event -> {
             String inventoryTitle = event.getView().getTitle();
             if ("Leveling Menu".equals(inventoryTitle)) {
                 DebugLogger.getInstance().log("Player is dragging items in the Leveling Menu.");
-                event.setCancelled(true); // Prevent item movement
+                event.setCancelled(true);
             }
         });
     }
@@ -86,17 +78,14 @@ public class LevelModule implements IBaseModule {
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of( SaveModule.class); // Dependencies for this module
+        return List.of(SaveModule.class);
     }
 
     @Override
     public EModulePriority getPriority() {
-        return EModulePriority.NORMAL; // Standard priority
+        return EModulePriority.NORMAL;
     }
 
-    /**
-     * Registers the /levels commands using CommandAPI.
-     */
     private void registerLevelsCommand() {
         new CommandAPICommand("leveling")
                 .withSubcommand(new CommandAPICommand("give")
@@ -122,12 +111,6 @@ public class LevelModule implements IBaseModule {
                 .register();
     }
 
-    /**
-     * Adds XP to the player and handles leveling up.
-     *
-     * @param player The player to add XP to.
-     * @param amount The amount of XP to add.
-     */
     public void addXp(Player player, int amount) {
         PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (playerData == null) {
@@ -138,34 +121,36 @@ public class LevelModule implements IBaseModule {
         if (playerData.getLevel() < maxLevel) {
             int newXp = playerData.getXp() + amount;
             playerData.setXp(newXp);
+            player.sendMessage(Utils.getInstance().$("You gained " + amount + " XP!"));
 
-            // Send a message to the player with color codes
-            player.sendMessage(Utils.getInstance().$("You gained " + + amount + " XP!"));
-
+            // Level up logic
             while (playerData.getLevel() < maxLevel && newXp >= getLevelThreshold(playerData.getLevel() + 1)) {
                 newXp -= getLevelThreshold(playerData.getLevel() + 1);
                 playerData.setLevel(playerData.getLevel() + 1);
                 playerData.setXp(newXp);
 
-                // Send level-up message to the player
-                player.sendMessage(Utils.getInstance().$("Congratulations! You reached level "  + playerData.getLevel()  + "!"));
+                player.sendMessage(Utils.getInstance().$("Congratulations! You reached level " + playerData.getLevel() + "!"));
+
+                // Apply stat scaling based on new level
+                applyLevelScaling(playerData);
 
                 // Apply level up rewards
                 LevelData levelData = levelDataMap.get(playerData.getLevel());
                 if (levelData != null) {
                     levelData.getRewards().forEach((stat, value) -> applyReward(playerData, stat, value));
-
-                    // Execute level up commands
                     String command = levelData.getCommand();
                     if (command != null) {
                         Bukkit.getServer().dispatchCommand(Bukkit.getServer().getConsoleSender(), command.replace("{player}", player.getName()));
                     }
                 }
 
-                // Notify listeners about the level up
+                // Notify listeners
                 if (levelUpListener != null) {
                     levelUpListener.onPlayerLevelUp(player);
                 }
+
+                // Stats changed, fire event
+                Bukkit.getPluginManager().callEvent(new PlayerStatsChangedEvent(player));
             }
 
             playerDataCache.savePlayerData(player.getUniqueId(), new Callback<>() {
@@ -182,12 +167,6 @@ public class LevelModule implements IBaseModule {
         }
     }
 
-    /**
-     * Sets the player's XP to a specific amount.
-     *
-     * @param player The player whose XP to set.
-     * @param amount The amount of XP to set.
-     */
     public void setXp(Player player, int amount) {
         PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (playerData == null) {
@@ -200,20 +179,35 @@ public class LevelModule implements IBaseModule {
     }
 
     private void applyReward(PlayerData playerData, String stat, int value) {
-        switch (stat) {
-            case "HP":
-                playerData.getAttributes().put("HP", playerData.getAttributes().getOrDefault("HP", 0) + value);
-                break;
-            case "Strength":
-                playerData.getAttributes().put("Strength", playerData.getAttributes().getOrDefault("Strength", 0) + value);
-                break;
-            case "AttributePoints":
-                playerData.setAttributePoints(playerData.getAttributePoints() + value);
-                break;
-            // Add other stats and attributes here as needed
-            default:
-                playerData.getAttributes().put(stat, playerData.getAttributes().getOrDefault(stat, 0) + value);
-                break;
+        playerData.getAttributes().put(stat, playerData.getAttributes().getOrDefault(stat, 0) + value);
+    }
+
+    /**
+     * Applies scaling formulas to the player's attributes based on their new level.
+     * For example:
+     * HEALTH = 20 + level*2
+     * MANA = 10 + level
+     * STRENGTH = 1 + (level/2)
+     * DEFENSE, CRIT_CHANCE, etc. can also be scaled.
+     */
+    private void applyLevelScaling(PlayerData playerData) {
+        int level = playerData.getLevel();
+        Map<String, Integer> attrs = playerData.getAttributes();
+
+        // Example scaling formulas
+        attrs.put("HEALTH", 20 + level * 2);
+        attrs.put("MANA", 10 + level);
+        attrs.put("STRENGTH", 1 + (int)(level * 0.5));
+        // You can scale other attributes similarly:
+        // attrs.put("DEFENSE", 0 + level);
+        // attrs.put("CRIT_DAMAGE", 10 + level);
+        // etc.
+
+        // Update current HP to not exceed new max
+        int currentHp = playerData.getCurrentHp();
+        int maxHp = attrs.get("HEALTH");
+        if (currentHp > maxHp) {
+            playerData.setCurrentHp(maxHp);
         }
     }
 
@@ -235,23 +229,14 @@ public class LevelModule implements IBaseModule {
         return levelData != null ? levelData.getRewards() : Collections.emptyMap();
     }
 
-    /**
-     * Sets the LevelUpListener.
-     *
-     * @param listener The listener to set.
-     */
     public void setLevelUpListener(LevelUpListener listener) {
         this.levelUpListener = listener;
     }
 
-    /**
-     * Interface for listening to player level-up events.
-     */
     public interface LevelUpListener {
         void onPlayerLevelUp(Player player);
     }
 
-    // Helper method to load levels from a local JSON file (Levels.json)
     private Map<Integer, LevelData> loadLevelsFromFile() {
         Map<Integer, LevelData> levels = new HashMap<>();
         try (InputStream inputStream = getClass().getResourceAsStream("/leveling/Levels.json")) {
@@ -264,7 +249,6 @@ public class LevelModule implements IBaseModule {
                 String jsonContent = scanner.useDelimiter("\\A").next();
                 Document document = Document.parse(jsonContent);
 
-                // Parse the levels from JSON
                 for (String key : document.keySet()) {
                     int level = Integer.parseInt(key);
                     Document levelDataDoc = document.get(key, Document.class);

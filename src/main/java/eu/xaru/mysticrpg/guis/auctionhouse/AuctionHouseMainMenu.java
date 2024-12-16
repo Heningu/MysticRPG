@@ -1,5 +1,6 @@
 package eu.xaru.mysticrpg.guis.auctionhouse;
 
+import eu.xaru.mysticrpg.player.stats.StatsModule;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
@@ -16,7 +17,6 @@ import eu.xaru.mysticrpg.guis.MainMenu;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
-import eu.xaru.mysticrpg.player.stats.PlayerStatModule;
 import eu.xaru.mysticrpg.quests.QuestModule;
 import eu.xaru.mysticrpg.social.friends.FriendsModule;
 import eu.xaru.mysticrpg.social.party.PartyModule;
@@ -36,7 +36,7 @@ public final class AuctionHouseMainMenu {
     private AuctionHouseModule auctionHouse;
     private EquipmentModule equipmentModule;
     private LevelModule levelingModule;
-    private PlayerStatModule playerStat;
+    private StatsModule playerStat;
     private QuestModule questModule;
     private FriendsModule friendsModule;
     private PartyModule partyModule;
@@ -51,7 +51,7 @@ public final class AuctionHouseMainMenu {
         this.auctionHouse = ModuleManager.getInstance().getModuleInstance(AuctionHouseModule.class);
         this.equipmentModule = ModuleManager.getInstance().getModuleInstance(EquipmentModule.class);
         this.levelingModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
-        this.playerStat = ModuleManager.getInstance().getModuleInstance(PlayerStatModule.class);
+        this.playerStat = ModuleManager.getInstance().getModuleInstance(StatsModule.class);
         this.questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
         this.friendsModule = ModuleManager.getInstance().getModuleInstance(FriendsModule.class);
         this.partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
