@@ -76,6 +76,10 @@ public class InteractionModule implements IBaseModule {
             Player interactingPlayer = event.getPlayer();
             if (interactingPlayer.isSneaking()) {
                 if (event.getRightClicked() instanceof Player targetPlayer) {
+                    if (net.citizensnpcs.api.CitizensAPI.getNPCRegistry().isNPC(targetPlayer)) {
+                        // This is an NPC, not a real player, so we return and do nothing
+                        return;
+                    }
                     boolean isInCombat = false; // Template check for the future
 
                     if (!isInCombat) {

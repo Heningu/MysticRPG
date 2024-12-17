@@ -92,6 +92,12 @@ public class PlayerData {
     @Persist
     private String equippedPet;
 
+    @Persist
+    private List<String> unlockedTitles;
+
+    @Persist
+    private String currentTitle;
+
 
     public PlayerData() {
         // Default constructor required for deserialization
@@ -105,7 +111,7 @@ public class PlayerData {
                       String pinnedQuest, int pendingBalance, List<String> pendingItems,
                       boolean remindersEnabled, Map<String, String> equipment,
                       List<String> completedDialogues, Long discordId,
-                      Map<String, Integer> questPhaseIndex, Map<String, Long> questStartTime, Set<String> ownedPets, String equippedPet) {
+                      Map<String, Integer> questPhaseIndex, Map<String, Long> questStartTime, Set<String> ownedPets, String equippedPet, List<String> unlockedTitles, String currentTitle) {
         this.uuid = uuid;
         this.bankGold = bankGold;
         this.heldGold = heldGold;
@@ -134,6 +140,8 @@ public class PlayerData {
         this.questStartTime = questStartTime;
         this.ownedPets = ownedPets;
         this.equippedPet = equippedPet;
+        this.unlockedTitles = unlockedTitles;
+        this.currentTitle = currentTitle;
     }
 
     public static PlayerData defaultData(String uuid) {
@@ -165,6 +173,8 @@ public class PlayerData {
                 new HashMap<>(),
                 new HashMap<>(),
                 new HashSet<>(),
+                null,
+                new ArrayList<>(),
                 null
         );
     }
@@ -220,6 +230,24 @@ public class PlayerData {
     }
 
     // Getters and setters
+
+
+    public List<String> getUnlockedTitles() {
+        return unlockedTitles;
+    }
+
+    public void setUnlockedTitles(List<String> unlockedTitles) {
+        this.unlockedTitles = unlockedTitles;
+    }
+
+    public String getCurrentTitle() {
+        return currentTitle;
+    }
+
+    public void setCurrentTitle(String currentTitle) {
+        this.currentTitle = currentTitle;
+    }
+
 
     public String getUuid() {
         return uuid;

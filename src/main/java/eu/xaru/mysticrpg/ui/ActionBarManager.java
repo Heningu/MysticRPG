@@ -9,6 +9,7 @@ import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
+import net.citizensnpcs.api.CitizensAPI;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
@@ -28,7 +29,7 @@ public class ActionBarManager implements Listener {
         this.statsManager = statsManager;
 
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
-        startActionBarTask(); // Start the repeating task to keep the actionbar visible
+        startActionBarTask();
     }
 
     public void updateActionBar(Player player) {
@@ -50,21 +51,20 @@ public class ActionBarManager implements Listener {
     @EventHandler
     public void onPlayerStatsChanged(PlayerStatsChangedEvent event) {
         Player player = event.getPlayer();
+        if (CitizensAPI.getNPCRegistry().isNPC(player)) return;
         updateActionBar(player);
     }
 
-    /**
-     * Continuously update the action bar for all online players at a fixed interval,
-     * ensuring the action bar never disappears.
-     */
     private void startActionBarTask() {
         new BukkitRunnable() {
             @Override
             public void run() {
                 for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
-                    updateActionBar(onlinePlayer);
+                    if (!CitizensAPI.getNPCRegistry().isNPC(onlinePlayer)) {
+                        updateActionBar(onlinePlayer);
+                    }
                 }
             }
-        }.runTaskTimer(plugin, 0L, 40L); // refresh every 2 seconds (40 ticks)
+        }.runTaskTimer(plugin, 0L, 40L);
     }
 }
