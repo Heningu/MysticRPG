@@ -6,6 +6,7 @@ import dev.jorel.commandapi.arguments.StringArgument;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
 import eu.xaru.mysticrpg.customs.items.effects.Effect;
+import eu.xaru.mysticrpg.customs.items.effects.EffectRegistry; // Import the EffectRegistry
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
@@ -29,7 +30,6 @@ import java.util.logging.Level;
 
 public class PowerStoneModule implements IBaseModule {
 
-    
     private EventManager eventManager;
     private PowerStoneManager powerStoneManager;
 
@@ -37,12 +37,13 @@ public class PowerStoneModule implements IBaseModule {
 
     @Override
     public void initialize() {
-
-
         plugin = JavaPlugin.getPlugin(MysticCore.class);
-        eventManager = new EventManager(plugin);
 
+        eventManager = new EventManager(plugin);
         powerStoneManager = new PowerStoneManager();
+
+        // Initialize and register all effects
+        EffectRegistry.initializeEffects(); // <-- Registering effects here
 
         registerCommands();
         registerEventHandlers();
@@ -120,7 +121,6 @@ public class PowerStoneModule implements IBaseModule {
             if (cursorItem == null || cursorItem.getType().isAir()) return;
             if (clickedItem == null || clickedItem.getType().isAir()) return;
 
-            // Debug logging
             DebugLogger.getInstance().log(Level.INFO, "InventoryClickEvent: Player " + player.getName() +
                     " clicked with " + cursorItem.getType() + " on " + clickedItem.getType(), 0);
 
@@ -174,7 +174,6 @@ public class PowerStoneModule implements IBaseModule {
 
             if (cursorItem == null || cursorItem.getType().isAir()) return;
 
-            // Debug logging
             DebugLogger.getInstance().log(Level.INFO, "InventoryDragEvent: Player " + player.getName() +
                     " dragged " + cursorItem.getType(), 0);
 

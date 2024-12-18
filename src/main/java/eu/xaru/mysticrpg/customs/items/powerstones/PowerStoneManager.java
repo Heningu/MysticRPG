@@ -3,10 +3,10 @@ package eu.xaru.mysticrpg.customs.items.powerstones;
 import eu.xaru.mysticrpg.customs.items.effects.DeconstructEffect;
 import eu.xaru.mysticrpg.customs.items.effects.Effect;
 import eu.xaru.mysticrpg.customs.items.effects.FieryEffect;
+import eu.xaru.mysticrpg.customs.items.effects.GreedEffect;   // Import GreedEffect
+import eu.xaru.mysticrpg.customs.items.effects.EnlightenedEffect; // Import EnlightenedEffect if you have it
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.utils.DebugLogger;
-import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -30,10 +30,13 @@ public class PowerStoneManager {
     }
 
     private void initializeEffects() {
-        // Register effects
+        // Register default effects
         registerEffect(new FieryEffect());
         registerEffect(new DeconstructEffect());
-        // Add more effects as needed
+
+        // Register your GREED and ENLIGHTENED effects here
+        registerEffect(new GreedEffect());
+        registerEffect(new EnlightenedEffect()); // if you are also using enlightened
     }
 
     private void loadPowerStones() {

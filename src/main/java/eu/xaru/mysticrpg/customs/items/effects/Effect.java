@@ -10,4 +10,20 @@ public interface Effect {
     void apply(EntityDamageByEntityEvent event, Player player);
 
     void apply(ItemStack itemStack, Player player);
+
+    /**
+     * Returns the XP multiplier provided by this effect.
+     * Default is 1.0 (no change).
+     */
+    default double getXpMultiplier() {
+        return 1.0;
+    }
+
+    /**
+     * Returns the Gold multiplier provided by this effect.
+     * Default is 1.0 (no change).
+     */
+    default double getGoldMultiplier() {
+        return 1.0;
+    }
 }
