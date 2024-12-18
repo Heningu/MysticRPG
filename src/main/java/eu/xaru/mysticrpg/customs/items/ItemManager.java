@@ -2,7 +2,6 @@ package eu.xaru.mysticrpg.customs.items;
 
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.utils.DebugLogger;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.configuration.ConfigurationSection;
@@ -68,11 +67,10 @@ public class ItemManager {
                         category = Category.valueOf(categoryName);
                     } catch (IllegalArgumentException e) {
                         DebugLogger.getInstance().warning("Invalid category '" + categoryName + "' for item " + id + " in file: " + file.getName() + ". Defaulting to TOOL.");
-                        category = Category.TOOL; // Default category
+                        category = Category.TOOL;
                     }
 
                     int customModelData = config.getInt("custom_model_data", 0);
-
                     List<String> lore = config.getStringList("lore");
 
                     Map<String, Integer> enchantments = new HashMap<>();
@@ -145,10 +143,10 @@ public class ItemManager {
                                         continue;
                                     }
                                     Map<String, AttributeData> tierAttrs = new HashMap<>();
-                                    ConfigurationSection attributesSection = tierAttributesSection.getConfigurationSection(tierKey);
-                                    if (attributesSection != null) {
-                                        for (String attrKey : attributesSection.getKeys(false)) {
-                                            ConfigurationSection attrConfig = attributesSection.getConfigurationSection(attrKey);
+                                    ConfigurationSection levelAttributesSection = tierAttributesSection.getConfigurationSection(tierKey);
+                                    if (levelAttributesSection != null) {
+                                        for (String attrKey : levelAttributesSection.getKeys(false)) {
+                                            ConfigurationSection attrConfig = levelAttributesSection.getConfigurationSection(attrKey);
                                             if (attrConfig != null) {
                                                 double value = attrConfig.getDouble("value", 0);
                                                 String operationStr = attrConfig.getString("operation", "ADD_NUMBER").toUpperCase();
@@ -163,7 +161,7 @@ public class ItemManager {
                                                 tierAttrs.put(attrKey, attributeData);
                                             } else {
                                                 // If only a value is provided
-                                                double value = attributesSection.getDouble(attrKey, 0);
+                                                double value = levelAttributesSection.getDouble(attrKey, 0);
                                                 AttributeData attributeData = new AttributeData(value, AttributeModifier.Operation.ADD_NUMBER);
                                                 tierAttrs.put(attrKey, attributeData);
                                             }
@@ -182,9 +180,16 @@ public class ItemManager {
                     // Read armor_type
                     String armorType = config.getString("armor_type", null);
 
+                    // Read set (for armor pieces)
+                    String setId = config.getString("set", null);
+                    if (setId != null && category != Category.ARMOR) {
+                        DebugLogger.getInstance().warning("Set defined for non-armor item '" + id + "' in file: " + file.getName() + ". Ignoring set.");
+                        setId = null;
+                    }
+
                     CustomItem customItem = new CustomItem(id, name, material, rarity, category, customModelData, lore,
                             attributes, enchantments, enchantedEffect, useTierSystem, itemLevel, itemMaxLevel, tierAttributes,
-                            usePowerStones, powerStoneSlots, armorType);
+                            usePowerStones, powerStoneSlots, armorType, setId);
 
                     customItems.put(id, customItem);
                     DebugLogger.getInstance().log(Level.INFO, "Loaded custom item: " + id);
@@ -195,43 +200,21 @@ public class ItemManager {
         }
     }
 
-        /**
-         * Retrieves a custom item by its ID.
-         *
-         * @param id The ID of the custom item.
-         * @return The CustomItem object, or null if not found.
-         */
-        public CustomItem getCustomItem (String id){
-            return customItems.get(id);
-        }
-
-        /**
-         * Retrieves all custom items.
-         *
-         * @return A collection of all CustomItem objects.
-         */
-        public Collection<CustomItem> getAllCustomItems () {
-            return customItems.values();
-        }
-
-        /**
-         * Retrieves all custom items belonging to a specific category.
-         *
-         * @param category The category to filter by.
-         * @return A list of custom items in the specified category.
-         */
-        public List<CustomItem> getItemsByCategory (Category category){
-            return customItems.values().stream()
-                    .filter(item -> item.getCategory() == category)
-                    .collect(Collectors.toList());
-        }
-
-        /**
-         * Retrieves all categories available in the system.
-         *
-         * @return An array of all categories.
-         */
-        public Category[] getAllCategories () {
-            return Category.values();
-        }
+    public CustomItem getCustomItem(String id) {
+        return customItems.get(id);
     }
+
+    public Collection<CustomItem> getAllCustomItems() {
+        return customItems.values();
+    }
+
+    public List<CustomItem> getItemsByCategory(Category category) {
+        return customItems.values().stream()
+                .filter(item -> item.getCategory() == category)
+                .collect(Collectors.toList());
+    }
+
+    public Category[] getAllCategories() {
+        return Category.values();
+    }
+}

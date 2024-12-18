@@ -1,10 +1,17 @@
 package eu.xaru.mysticrpg.customs.items;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
-import java.util.logging.Level;
-
+import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.customs.items.powerstones.PowerStoneManager;
+import eu.xaru.mysticrpg.customs.items.powerstones.PowerStoneModule;
+import eu.xaru.mysticrpg.enums.EModulePriority;
+import eu.xaru.mysticrpg.interfaces.IBaseModule;
+import eu.xaru.mysticrpg.managers.EventManager;
+import eu.xaru.mysticrpg.managers.ModuleManager;
+import eu.xaru.mysticrpg.utils.DebugLogger;
+import eu.xaru.mysticrpg.utils.Utils;
+import dev.jorel.commandapi.CommandAPICommand;
+import dev.jorel.commandapi.arguments.ArgumentSuggestions;
+import dev.jorel.commandapi.arguments.StringArgument;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventPriority;
@@ -15,36 +22,24 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import dev.jorel.commandapi.CommandAPICommand;
-import dev.jorel.commandapi.arguments.ArgumentSuggestions;
-import dev.jorel.commandapi.arguments.StringArgument;
-import eu.xaru.mysticrpg.cores.MysticCore;
-import eu.xaru.mysticrpg.customs.items.powerstones.PowerStoneManager;
-import eu.xaru.mysticrpg.customs.items.powerstones.PowerStoneModule;
-import eu.xaru.mysticrpg.enums.EModulePriority;
-import eu.xaru.mysticrpg.interfaces.IBaseModule;
-import eu.xaru.mysticrpg.managers.EventManager;
-import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.utils.DebugLogger;
-import eu.xaru.mysticrpg.utils.Utils;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+import java.util.logging.Level;
 
 public class CustomItemModule implements IBaseModule {
 
     private ItemManager itemManager;
-    
+
     private EventManager eventManager;
     private JavaPlugin plugin;
     private PowerStoneManager powerStoneManager;
 
     @Override
     public void initialize() {
-
-
         plugin = JavaPlugin.getPlugin(MysticCore.class);
 
         itemManager = new ItemManager();
-
-        // Initialize EventManager
         eventManager = new EventManager(plugin);
 
         // Get PowerStoneManager instance
@@ -55,8 +50,6 @@ public class CustomItemModule implements IBaseModule {
         powerStoneManager = powerStoneModule.getPowerStoneManager();
 
         registerCommands();
-
-        // Register event handlers
         registerEventHandlers();
 
         DebugLogger.getInstance().log(Level.INFO, "CustomItemModule initialized successfully.", 0);
@@ -79,7 +72,7 @@ public class CustomItemModule implements IBaseModule {
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of( PowerStoneModule.class);
+        return List.of(PowerStoneModule.class);
     }
 
     @Override
@@ -97,31 +90,27 @@ public class CustomItemModule implements IBaseModule {
 
     /**
      * Creates a CustomItem from a normal ItemStack.
-     *
-     * @param itemStack The ItemStack to convert.
-     * @return The created CustomItem.
+     * This is a fallback method used if we want to generate a custom item from an existing stack.
      */
     public CustomItem createCustomItemFromItemStack(ItemStack itemStack) {
         String id = generateUniqueIdForItemStack(itemStack);
-        String name = itemStack.getItemMeta() != null ? itemStack.getItemMeta().getDisplayName() : itemStack.getType().toString();
-        // Assign default rarity and category if needed
+        String name = (itemStack.getItemMeta() != null && itemStack.getItemMeta().hasDisplayName()) ?
+                itemStack.getItemMeta().getDisplayName() : itemStack.getType().toString();
+
+        // Default rarity and category
         Rarity rarity = Rarity.COMMON;
         Category category = Category.MISC;
 
-        CustomItem customItem = new CustomItem(
-            id, name, itemStack.getType(), rarity, category, 0,
-            Collections.emptyList(), Collections.emptyMap(), Collections.emptyMap(),
-            false, false, 1, 1, null,
-            false, 0, null);
-
-        // Optionally store the custom item in a map for future reference
-        // customItems.put(id, customItem);
-
-        return customItem;
+        // No tier system, no sets, no enchantments by default
+        return new CustomItem(
+                id, name, itemStack.getType(), rarity, category, 0,
+                Collections.emptyList(), Collections.emptyMap(), Collections.emptyMap(),
+                false, false, 1, 1, Collections.emptyMap(),
+                false, 0, null, null
+        );
     }
 
     private String generateUniqueIdForItemStack(ItemStack itemStack) {
-        // Generate a unique ID based on item properties
         return "item_" + UUID.randomUUID().toString();
     }
 
@@ -169,7 +158,6 @@ public class CustomItemModule implements IBaseModule {
             if (cursorItem == null || cursorItem.getType().isAir()) return;
             if (clickedItem == null || clickedItem.getType().isAir()) return;
 
-            // Debug logging
             DebugLogger.getInstance().log(Level.INFO, "InventoryClickEvent: Player " + player.getName() +
                     " clicked with " + cursorItem.getType() + " on " + clickedItem.getType(), 0);
 
@@ -200,7 +188,6 @@ public class CustomItemModule implements IBaseModule {
 
             if (cursorItem == null || cursorItem.getType().isAir()) return;
 
-            // Debug logging
             DebugLogger.getInstance().log(Level.INFO, "InventoryDragEvent: Player " + player.getName() +
                     " dragged " + cursorItem.getType(), 0);
 

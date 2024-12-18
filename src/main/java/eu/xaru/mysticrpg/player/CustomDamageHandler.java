@@ -9,6 +9,7 @@ import eu.xaru.mysticrpg.player.stats.PlayerStats;
 import eu.xaru.mysticrpg.player.stats.PlayerStatsManager;
 import eu.xaru.mysticrpg.player.stats.StatCalculations;
 import eu.xaru.mysticrpg.player.stats.StatType;
+import eu.xaru.mysticrpg.player.stats.StatsModule;
 import eu.xaru.mysticrpg.player.stats.events.PlayerStatsChangedEvent;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
@@ -34,6 +35,7 @@ public class CustomDamageHandler implements IBaseModule {
     private final EventManager eventManager = new EventManager(JavaPlugin.getPlugin(MysticCore.class));
     private final Map<UUID, Long> lastDamageTime = new HashMap<>();
     private JavaPlugin plugin;
+    private StatsModule statsModule;
 
     @Override
     public void initialize() {
@@ -52,8 +54,13 @@ public class CustomDamageHandler implements IBaseModule {
             return;
         }
 
-        // Retrieve PlayerStatsManager
-        this.statsManager = ModuleManager.getInstance().getModuleInstance(eu.xaru.mysticrpg.player.stats.StatsModule.class).getStatsManager();
+        this.statsModule = ModuleManager.getInstance().getModuleInstance(StatsModule.class);
+        if (statsModule == null) {
+            DebugLogger.getInstance().error("StatsModule not found. CustomDamageHandler cannot function properly.");
+            return;
+        }
+
+        this.statsManager = statsModule.getStatsManager();
 
         DebugLogger.getInstance().log(Level.INFO, "CustomDamageHandler initialized", 0);
     }
@@ -62,7 +69,6 @@ public class CustomDamageHandler implements IBaseModule {
     public void start() {
         DebugLogger.getInstance().log(Level.INFO, "CustomDamageHandler started", 0);
 
-        // Damage from entities
         eventManager.registerEvent(EntityDamageByEntityEvent.class, event -> {
             if (!(event.getEntity() instanceof Player victim)) return;
             if (event.isCancelled()) return;
@@ -75,7 +81,6 @@ public class CustomDamageHandler implements IBaseModule {
             event.setCancelled(true);
         });
 
-        // Environmental damage
         eventManager.registerEvent(EntityDamageEvent.class, event -> {
             if (event instanceof EntityDamageByEntityEvent) return;
             if (!(event.getEntity() instanceof Player victim)) return;
@@ -83,14 +88,12 @@ public class CustomDamageHandler implements IBaseModule {
 
             EntityDamageEvent.DamageCause cause = event.getCause();
             switch (cause) {
-                case FALL, FIRE, FIRE_TICK, LAVA, DROWNING, SUFFOCATION, VOID, LIGHTNING, HOT_FLOOR:
+                case FALL, FIRE, FIRE_TICK, LAVA, DROWNING, SUFFOCATION, VOID, LIGHTNING, HOT_FLOOR -> {
                     double finalDamage = event.getFinalDamage();
                     applyDamageAndEffects(victim, finalDamage, null);
                     event.setCancelled(true);
-                    break;
-                default:
-                    event.setCancelled(true);
-                    break;
+                }
+                default -> event.setCancelled(true);
             }
         });
 
@@ -105,16 +108,16 @@ public class CustomDamageHandler implements IBaseModule {
 
 
     public void applyCustomDamage(Player player, double damage) {
-        // Treat this like environmental damage (no damager)
         applyDamageAndEffects(player, damage, null);
     }
 
     private double calculateDamage(Entity damager, Player victim, double baseDamage) {
-        PlayerStats victimStats = statsManager.loadStats(victim);
+        // Load current stats AFTER recalculation to ensure we have updated temp stats
+        PlayerStats victimStats = statsModule.recalculatePlayerStatsFor(victim);
 
         double finalDamage = baseDamage;
         if (damager instanceof Player attacker) {
-            PlayerStats attackerStats = statsManager.loadStats(attacker);
+            PlayerStats attackerStats = statsModule.recalculatePlayerStatsFor(attacker);
             double strength = attackerStats.getEffectiveStat(StatType.STRENGTH);
             double critChance = attackerStats.getEffectiveStat(StatType.CRIT_CHANCE);
             double critDamage = attackerStats.getEffectiveStat(StatType.CRIT_DAMAGE);
@@ -137,10 +140,18 @@ public class CustomDamageHandler implements IBaseModule {
             return;
         }
 
+        // Recalculate stats so we have updated max HP
+        PlayerStats victimStats = statsModule.recalculatePlayerStatsFor(victim);
+        int maxHp = (int) victimStats.getEffectiveStat(StatType.HEALTH);
+
         int currentHp = victimData.getCurrentHp();
         int dealtDamage = (int) Math.round(damage);
         currentHp -= dealtDamage;
         if (currentHp < 0) currentHp = 0;
+
+        // Clamp HP to max
+        if (currentHp > maxHp) currentHp = maxHp;
+
         victimData.setCurrentHp(currentHp);
 
         DebugLogger.getInstance().log("Player " + victim.getName() + " took " + damage + " damage. Current HP: " + currentHp);
@@ -161,14 +172,16 @@ public class CustomDamageHandler implements IBaseModule {
         PlayerData data = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (data == null) return;
 
-        int maxHp = data.getAttributes().getOrDefault("HEALTH", 20);
+        // Recalculate stats for updated max HP
+        PlayerStats stats = statsModule.recalculatePlayerStatsFor(player);
+        int maxHp = (int) stats.getEffectiveStat(StatType.HEALTH);
+
         Location spawnLocation = player.getWorld().getSpawnLocation();
         player.teleport(spawnLocation);
         player.sendMessage(Utils.getInstance().$("You Died"));
         DebugLogger.getInstance().log("Player " + player.getName() + " died and was teleported to spawn.");
 
-        data.setCurrentHp(maxHp);
-
+        data.setCurrentHp(maxHp); // Restore to full HP on death
         // Fire event for UI update
         Bukkit.getPluginManager().callEvent(new PlayerStatsChangedEvent(player));
     }
@@ -192,13 +205,21 @@ public class CustomDamageHandler implements IBaseModule {
             Player player = Bukkit.getPlayer(playerUUID);
             if (player == null || !player.isOnline()) continue;
 
+            // Recalculate stats for updated max HP
+            PlayerStats stats = statsModule.recalculatePlayerStatsFor(player);
+            int maxHp = (int) stats.getEffectiveStat(StatType.HEALTH);
+
             int currentHp = playerData.getCurrentHp();
-            int maxHp = playerData.getAttributes().getOrDefault("HEALTH", 20);
+
+            // If somehow currentHp > maxHp, clamp it
+            if (currentHp > maxHp) {
+                currentHp = maxHp;
+                playerData.setCurrentHp(currentHp);
+            }
 
             if (currentHp < maxHp) {
                 long lastDamage = lastDamageTime.getOrDefault(playerUUID, 0L);
                 if (System.currentTimeMillis() - lastDamage >= 5000) {
-                    PlayerStats stats = statsManager.loadStats(player);
                     double regenAmount = stats.getEffectiveStat(StatType.HEALTH_REGEN);
                     int newHp = currentHp + (int) Math.round(regenAmount);
                     if (newHp > maxHp) newHp = maxHp;

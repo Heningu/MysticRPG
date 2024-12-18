@@ -1,6 +1,10 @@
 package eu.xaru.mysticrpg.customs.items;
 
 import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.customs.items.powerstones.PowerStoneManager;
+import eu.xaru.mysticrpg.customs.items.powerstones.PowerStoneModule;
+import eu.xaru.mysticrpg.managers.ModuleManager;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -15,7 +19,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.logging.Level;
 
 public class CustomItem {
 
@@ -30,6 +34,7 @@ public class CustomItem {
     private final Map<String, Integer> enchantments;
     private final boolean enchantedEffect;
     private final String armorType;
+    private final String setId; // null if not part of a set
 
     // Fields for tier system
     private final boolean useTierSystem;
@@ -41,12 +46,11 @@ public class CustomItem {
     private final boolean usePowerStones;
     private final int powerStoneSlots;
 
-    // Adjust constructor to handle null attributes for normal items
     public CustomItem(String id, String name, Material material, Rarity rarity, Category category, int customModelData,
                       List<String> lore, Map<String, AttributeData> attributes, Map<String, Integer> enchantments,
                       boolean enchantedEffect, boolean useTierSystem, int itemLevel, int itemMaxLevel,
                       Map<Integer, Map<String, AttributeData>> tierAttributes,
-                      boolean usePowerStones, int powerStoneSlots, String armorType) {
+                      boolean usePowerStones, int powerStoneSlots, String armorType, String setId) {
         this.id = id;
         this.name = name;
         this.material = material;
@@ -64,6 +68,7 @@ public class CustomItem {
         this.usePowerStones = usePowerStones;
         this.powerStoneSlots = powerStoneSlots;
         this.armorType = armorType;
+        this.setId = setId; // Set from constructor
     }
 
     public String getId() {
@@ -116,6 +121,14 @@ public class CustomItem {
         return lore;
     }
 
+    public String getSetId() {
+        return setId;
+    }
+
+    /**
+     * Attempts to convert an attribute name (like "HEALTH" or "DEFENSE") to a Bukkit Attribute.
+     * If "GENERIC_HEALTH" fails, tries just "HEALTH".
+     */
     public Attribute getAttributeByName(String name) {
         try {
             return Attribute.valueOf("GENERIC_" + name);
@@ -124,7 +137,6 @@ public class CustomItem {
             try {
                 return Attribute.valueOf(name);
             } catch (IllegalArgumentException ex) {
-                // Log an error message
                 System.err.println("Invalid attribute name: " + name + " for item: " + id);
                 return null;
             }
@@ -147,53 +159,58 @@ public class CustomItem {
 
     // Method to create ItemStack with specified tier
     public ItemStack toItemStack(int currentTier) {
+        DebugLogger.getInstance().log(Level.INFO, "Creating ItemStack for custom item " + id + " at tier " + currentTier);
+
         ItemStack itemStack = new ItemStack(material);
         ItemMeta meta = itemStack.getItemMeta();
 
         if (meta != null) {
-            // Set display name to just the item name
-            String displayName = Utils.getInstance().$(name);
-            meta.setDisplayName(displayName);
-
-            // Set lore
-            List<String> finalLore = new ArrayList<>();
-
-            // First line: Rarity
-            finalLore.add(rarity.getColor() + rarity.name());
-
-            // Second line: Category
-            finalLore.add(ChatColor.GRAY + "Category: " + category.name());
-
-            // Third line: Tier stars (if applicable)
-            if (useTierSystem) {
-                String tierStars = getTierStars(currentTier, itemMaxLevel);
-                finalLore.add(Utils.getInstance().$(tierStars));
-            }
-
-            // Add Free Powerstone Slots if applicable
-            if (usePowerStones) {
-                int freeSlots = powerStoneSlots; // Initially, all slots are free
-                finalLore.add(Utils.getInstance().$("Free Powerstone Slots: " + freeSlots));
-            }
-
-            // Add a blank line
-            finalLore.add("");
-
-            // Add the actual lore/description
-            if (lore != null && !lore.isEmpty()) {
-                finalLore.addAll(lore.stream()
-                        .map(line -> Utils.getInstance().$(line))
-                        .collect(Collectors.toList()));
-            }
-
-            meta.setLore(finalLore);
+            meta.setDisplayName(Utils.getInstance().$(name));
 
             // Set CustomModelData
             if (customModelData > 0) {
                 meta.setCustomModelData(customModelData);
             }
 
-            // Add enchanted effect without actual enchantments
+            NamespacedKey idKey = new NamespacedKey(JavaPlugin.getPlugin(MysticCore.class), "custom_item_id");
+            meta.getPersistentDataContainer().set(idKey, PersistentDataType.STRING, id);
+
+            NamespacedKey categoryKey = new NamespacedKey(JavaPlugin.getPlugin(MysticCore.class), "custom_item_category");
+            meta.getPersistentDataContainer().set(categoryKey, PersistentDataType.STRING, category.name());
+
+            if (useTierSystem) {
+                NamespacedKey tierKey = new NamespacedKey(JavaPlugin.getPlugin(MysticCore.class), "custom_item_tier");
+                meta.getPersistentDataContainer().set(tierKey, PersistentDataType.INTEGER, currentTier);
+
+                NamespacedKey maxTierKey = new NamespacedKey(JavaPlugin.getPlugin(MysticCore.class), "custom_item_max_tier");
+                meta.getPersistentDataContainer().set(maxTierKey, PersistentDataType.INTEGER, itemMaxLevel);
+            }
+
+            if (usePowerStones) {
+                NamespacedKey powerStoneSlotsKey = new NamespacedKey(JavaPlugin.getPlugin(MysticCore.class), "power_stone_slots");
+                meta.getPersistentDataContainer().set(powerStoneSlotsKey, PersistentDataType.INTEGER, powerStoneSlots);
+            }
+
+            if (setId != null && !setId.isEmpty()) {
+                NamespacedKey setKey = new NamespacedKey(JavaPlugin.getPlugin(MysticCore.class), "custom_item_set");
+                meta.getPersistentDataContainer().set(setKey, PersistentDataType.STRING, setId);
+            }
+
+            Map<String, AttributeData> finalAttributes = useTierSystem ?
+                    tierAttributes.getOrDefault(currentTier, attributes) : attributes;
+
+            StringBuilder sb = new StringBuilder();
+            DebugLogger.getInstance().log(Level.INFO, "Final attributes for item " + id + " at tier " + currentTier + ":");
+            for (Map.Entry<String, AttributeData> attr : finalAttributes.entrySet()) {
+                double value = attr.getValue().getValue();
+                DebugLogger.getInstance().log(Level.INFO, " - " + attr.getKey().toUpperCase() + ": " + value);
+                if (sb.length() > 0) sb.append(";");
+                sb.append(attr.getKey().toUpperCase()).append(":").append(value);
+            }
+
+            NamespacedKey statsKey = new NamespacedKey(JavaPlugin.getPlugin(MysticCore.class), "custom_item_attributes");
+            meta.getPersistentDataContainer().set(statsKey, PersistentDataType.STRING, sb.toString());
+
             if (enchantedEffect) {
                 meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
                 itemStack.setItemMeta(meta);
@@ -202,112 +219,29 @@ public class CustomItem {
                 itemStack.setItemMeta(meta);
             }
 
-            // Add enchantments
-            if (enchantments != null && !enchantments.isEmpty()) {
-                enchantments.forEach((enchantKey, level) -> {
-                    org.bukkit.enchantments.Enchantment enchantment = org.bukkit.enchantments.Enchantment.getByKey(org.bukkit.NamespacedKey.minecraft(enchantKey.toLowerCase()));
+            if (!enchantments.isEmpty()) {
+                for (Map.Entry<String, Integer> enchantEntry : enchantments.entrySet()) {
+                    org.bukkit.enchantments.Enchantment enchantment =
+                            org.bukkit.enchantments.Enchantment.getByKey(org.bukkit.NamespacedKey.minecraft(enchantEntry.getKey().toLowerCase()));
                     if (enchantment != null) {
-                        itemStack.addUnsafeEnchantment(enchantment, level);
-                    }
-                });
-            }
-
-            // Clear all attribute modifiers, including default ones
-            meta.setAttributeModifiers(null);
-
-            // Add attributes for the current tier
-            Map<String, AttributeData> attributesForTier;
-            if (useTierSystem) {
-                attributesForTier = tierAttributes.getOrDefault(currentTier, attributes);
-            } else {
-                attributesForTier = attributes;
-            }
-
-            if (attributesForTier != null && !attributesForTier.isEmpty()) {
-                for (Map.Entry<String, AttributeData> entry : attributesForTier.entrySet()) {
-                    String attrName = entry.getKey().toUpperCase();
-                    AttributeData attributeData = entry.getValue();
-
-                    Attribute attribute = getAttributeByName(attrName);
-                    if (attribute != null && attributeData != null) {
-                        AttributeModifier modifier = new AttributeModifier(
-                                UUID.randomUUID(),
-                                attribute.name(),
-                                attributeData.getValue(),
-                                attributeData.getOperation(),
-                                getEquipmentSlot()
-                        );
-                        meta.addAttributeModifier(attribute, modifier);
+                        itemStack.addUnsafeEnchantment(enchantment, enchantEntry.getValue());
                     }
                 }
             }
 
-            // Store item ID in PersistentDataContainer
-            NamespacedKey idKey = new NamespacedKey(JavaPlugin.getPlugin(MysticCore.class), "custom_item_id");
-            meta.getPersistentDataContainer().set(idKey, PersistentDataType.STRING, id);
-
-            // Store category in PersistentDataContainer
-            NamespacedKey categoryKey = new NamespacedKey(JavaPlugin.getPlugin(MysticCore.class), "custom_item_category");
-            meta.getPersistentDataContainer().set(categoryKey, PersistentDataType.STRING, category.name());
-
-            // Store current tier in PersistentDataContainer if tier system is used
-            if (useTierSystem) {
-                NamespacedKey tierKey = new NamespacedKey(JavaPlugin.getPlugin(MysticCore.class), "custom_item_tier");
-                meta.getPersistentDataContainer().set(tierKey, PersistentDataType.INTEGER, currentTier);
-
-                // Store max tier
-                NamespacedKey maxTierKey = new NamespacedKey(JavaPlugin.getPlugin(MysticCore.class), "custom_item_max_tier");
-                meta.getPersistentDataContainer().set(maxTierKey, PersistentDataType.INTEGER, itemMaxLevel);
-            }
-
-            // Store power stone slots if used
-            if (usePowerStones) {
-                NamespacedKey powerStoneSlotsKey = new NamespacedKey(JavaPlugin.getPlugin(MysticCore.class), "power_stone_slots");
-                meta.getPersistentDataContainer().set(powerStoneSlotsKey, PersistentDataType.INTEGER, powerStoneSlots);
-            }
+            PowerStoneManager powerStoneManager = ModuleManager.getInstance().getModuleInstance(PowerStoneModule.class).getPowerStoneManager();
+            Set<String> appliedPowerStones = new HashSet<>();
+            CustomItemUtils.updateItemLore(meta, this, appliedPowerStones, currentTier, powerStoneManager);
 
             itemStack.setItemMeta(meta);
+        } else {
+            DebugLogger.getInstance().log(Level.WARNING, "ItemMeta is null for item " + id);
         }
 
         return itemStack;
     }
 
-    // Overloaded method for initial item creation with starting tier
     public ItemStack toItemStack() {
         return toItemStack(itemLevel);
-    }
-
-    private String getTierStars(int currentTier, int maxTier) {
-        StringBuilder stars = new StringBuilder();
-        for (int i = 0; i < currentTier; i++) {
-            stars.append("★");
-        }
-        for (int i = currentTier; i < maxTier; i++) {
-            stars.append("☆");
-        }
-        return stars.toString();
-    }
-
-    /**
-     * Formats the remaining time into a human-readable string.
-     *
-     * @param millis The time in milliseconds.
-     * @return A formatted string representing the time left.
-     */
-    private String formatTimeLeft(long millis) {
-        if (millis < 0) {
-            return ChatColor.RED + "Expired";
-        }
-        long seconds = millis / 1000 % 60;
-        long minutes = millis / (1000 * 60) % 60;
-        long hours = millis / (1000 * 60 * 60) % 24;
-        long days = millis / (1000 * 60 * 60 * 24);
-
-        StringBuilder sb = new StringBuilder();
-        if (days > 0) sb.append(days).append("d ");
-        if (hours > 0 || days > 0) sb.append(hours).append("h ");
-        if (minutes > 0 || hours > 0 || days > 0) sb.append(minutes).append("m ");
-        sb.append(seconds).append("s");
-        return sb.toString();
     }
 }

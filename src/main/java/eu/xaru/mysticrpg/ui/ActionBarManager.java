@@ -1,9 +1,11 @@
 package eu.xaru.mysticrpg.ui;
 
 import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.stats.PlayerStats;
 import eu.xaru.mysticrpg.player.stats.PlayerStatsManager;
 import eu.xaru.mysticrpg.player.stats.StatType;
+import eu.xaru.mysticrpg.player.stats.StatsModule; // Ensure this import matches your package structure
 import eu.xaru.mysticrpg.player.stats.events.PlayerStatsChangedEvent;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
@@ -18,15 +20,24 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.util.logging.Level;
+
 public class ActionBarManager implements Listener {
     private final MysticCore plugin;
     private final PlayerDataCache playerDataCache;
     private final PlayerStatsManager statsManager;
+    private final StatsModule statsModule;
 
     public ActionBarManager(MysticCore plugin, PlayerDataCache playerDataCache, PlayerStatsManager statsManager) {
         this.plugin = plugin;
         this.playerDataCache = playerDataCache;
         this.statsManager = statsManager;
+
+        // Get StatsModule instance so we can recalculate stats with temp attributes
+        this.statsModule = ModuleManager.getInstance().getModuleInstance(StatsModule.class);
+        if (statsModule == null) {
+            DebugLogger.getInstance().log(Level.SEVERE, "StatsModule not found. ActionBarManager cannot recalculate stats.");
+        }
 
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
         startActionBarTask();
@@ -39,7 +50,18 @@ public class ActionBarManager implements Listener {
             return;
         }
 
-        PlayerStats stats = statsManager.loadStats(player);
+        // Recalculate player's stats to include temp stats from equipment
+        PlayerStats stats;
+        if (statsModule != null) {
+            // Use the recalculation method to get up-to-date temp stats
+            stats = statsModule.recalculatePlayerStatsFor(player);
+        } else {
+            // Fallback if StatsModule is not available (Not recommended)
+            // This will only show base stats
+            DebugLogger.getInstance().log(Level.WARNING, "StatsModule is null, cannot recalc stats for ActionBar.");
+            stats = statsManager.loadStats(player);
+        }
+
         int currentHp = data.getCurrentHp();
         int maxHp = (int) stats.getEffectiveStat(StatType.HEALTH);
         int mana = (int) stats.getEffectiveStat(StatType.MANA);
