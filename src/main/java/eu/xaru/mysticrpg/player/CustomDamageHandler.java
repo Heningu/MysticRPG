@@ -16,6 +16,7 @@ import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
+import eu.xaru.mysticrpg.world.WorldModule;
 import org.bukkit.*;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -28,6 +29,10 @@ import org.bukkit.util.Vector;
 import java.util.*;
 import java.util.logging.Level;
 
+/**
+ * CustomDamageHandler manages custom damage calculations and integrates with stats and world flags.
+ * It modifies incoming damage based on player stats and disallows PVP if disabled by world/region flags.
+ */
 public class CustomDamageHandler implements IBaseModule {
 
     private PlayerDataCache playerDataCache;
@@ -73,9 +78,17 @@ public class CustomDamageHandler implements IBaseModule {
             if (!(event.getEntity() instanceof Player victim)) return;
             if (event.isCancelled()) return;
 
+            // Check PVP flag
             Entity damager = event.getDamager();
-            double rawDamage = event.getFinalDamage();
+            if (damager instanceof Player attacker) {
+                WorldModule wm = ModuleManager.getInstance().getModuleInstance(WorldModule.class);
+                if (wm != null && !wm.getWorldManager().isAllowed("pvp", victim.getLocation())) {
+                    event.setCancelled(true);
+                    return;
+                }
+            }
 
+            double rawDamage = event.getFinalDamage();
             double finalDamage = calculateDamage(damager, victim, rawDamage);
             applyDamageAndEffects(victim, finalDamage, damager);
             event.setCancelled(true);
@@ -106,13 +119,25 @@ public class CustomDamageHandler implements IBaseModule {
         }.runTaskTimer(plugin, 20, 20); // every second
     }
 
-
+    /**
+     * Applies custom damage to a player.
+     *
+     * @param player the player receiving damage
+     * @param damage the amount of damage
+     */
     public void applyCustomDamage(Player player, double damage) {
         applyDamageAndEffects(player, damage, null);
     }
 
+    /**
+     * Calculates final damage based on attacker and victim stats.
+     *
+     * @param damager    the entity dealing damage
+     * @param victim     the player receiving damage
+     * @param baseDamage initial damage
+     * @return final calculated damage
+     */
     private double calculateDamage(Entity damager, Player victim, double baseDamage) {
-        // Load current stats AFTER recalculation to ensure we have updated temp stats
         PlayerStats victimStats = statsModule.recalculatePlayerStatsFor(victim);
 
         double finalDamage = baseDamage;
@@ -132,6 +157,13 @@ public class CustomDamageHandler implements IBaseModule {
         return finalDamage;
     }
 
+    /**
+     * Applies the final damage and effects to the victim. Handles death and hurt effects.
+     *
+     * @param victim  the victim player
+     * @param damage  the calculated damage
+     * @param damager the entity that caused the damage
+     */
     private void applyDamageAndEffects(Player victim, double damage, Entity damager) {
         UUID victimUUID = victim.getUniqueId();
         PlayerData victimData = playerDataCache.getCachedPlayerData(victimUUID);
@@ -140,7 +172,6 @@ public class CustomDamageHandler implements IBaseModule {
             return;
         }
 
-        // Recalculate stats so we have updated max HP
         PlayerStats victimStats = statsModule.recalculatePlayerStatsFor(victim);
         int maxHp = (int) victimStats.getEffectiveStat(StatType.HEALTH);
 
@@ -148,8 +179,6 @@ public class CustomDamageHandler implements IBaseModule {
         int dealtDamage = (int) Math.round(damage);
         currentHp -= dealtDamage;
         if (currentHp < 0) currentHp = 0;
-
-        // Clamp HP to max
         if (currentHp > maxHp) currentHp = maxHp;
 
         victimData.setCurrentHp(currentHp);
@@ -164,15 +193,18 @@ public class CustomDamageHandler implements IBaseModule {
 
         lastDamageTime.put(victimUUID, System.currentTimeMillis());
 
-        // Fire event so UI can update instantly
         Bukkit.getPluginManager().callEvent(new PlayerStatsChangedEvent(victim));
     }
 
+    /**
+     * Handles player death.
+     *
+     * @param player the player who died
+     */
     private void handleDeath(Player player) {
         PlayerData data = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (data == null) return;
 
-        // Recalculate stats for updated max HP
         PlayerStats stats = statsModule.recalculatePlayerStatsFor(player);
         int maxHp = (int) stats.getEffectiveStat(StatType.HEALTH);
 
@@ -181,11 +213,16 @@ public class CustomDamageHandler implements IBaseModule {
         player.sendMessage(Utils.getInstance().$("You Died"));
         DebugLogger.getInstance().log("Player " + player.getName() + " died and was teleported to spawn.");
 
-        data.setCurrentHp(maxHp); // Restore to full HP on death
-        // Fire event for UI update
+        data.setCurrentHp(maxHp);
         Bukkit.getPluginManager().callEvent(new PlayerStatsChangedEvent(player));
     }
 
+    /**
+     * Triggers hurt effects such as sound, particles, and knockback.
+     *
+     * @param victim  the victim player
+     * @param damager the entity that caused the damage
+     */
     private void triggerHurtEffects(Player victim, Entity damager) {
         victim.playSound(victim.getLocation(), Sound.ENTITY_PLAYER_HURT, 1.0f, 1.0f);
         victim.getWorld().spawnParticle(Particle.DAMAGE_INDICATOR, victim.getLocation().add(0,1,0), 10);
@@ -196,6 +233,9 @@ public class CustomDamageHandler implements IBaseModule {
         }
     }
 
+    /**
+     * Regenerates health for players who haven't taken damage recently.
+     */
     private void regenerateHealth() {
         Set<UUID> playerUUIDs = playerDataCache.getAllCachedPlayerUUIDs();
         for (UUID playerUUID : playerUUIDs) {
@@ -205,13 +245,10 @@ public class CustomDamageHandler implements IBaseModule {
             Player player = Bukkit.getPlayer(playerUUID);
             if (player == null || !player.isOnline()) continue;
 
-            // Recalculate stats for updated max HP
             PlayerStats stats = statsModule.recalculatePlayerStatsFor(player);
             int maxHp = (int) stats.getEffectiveStat(StatType.HEALTH);
 
             int currentHp = playerData.getCurrentHp();
-
-            // If somehow currentHp > maxHp, clamp it
             if (currentHp > maxHp) {
                 currentHp = maxHp;
                 playerData.setCurrentHp(currentHp);
@@ -227,7 +264,6 @@ public class CustomDamageHandler implements IBaseModule {
 
                     DebugLogger.getInstance().log("Regenerated " + regenAmount + " HP for player " + player.getName() + ". Current HP: " + newHp);
 
-                    // Fire event for UI update
                     Bukkit.getPluginManager().callEvent(new PlayerStatsChangedEvent(player));
                 }
             }

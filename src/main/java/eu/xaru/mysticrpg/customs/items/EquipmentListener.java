@@ -59,7 +59,6 @@ public class EquipmentListener implements Listener {
     }
 
     private void recalculatePlayerStats(Player player) {
-        DebugLogger.getInstance().log(Level.INFO, "Recalculating stats for " + player.getName());
         PlayerStats stats = statsManager.loadStats(player);
         stats.clearTempStats();
 
@@ -67,11 +66,8 @@ public class EquipmentListener implements Listener {
         ItemStack offHand = player.getInventory().getItemInOffHand();
         ItemStack[] armor = player.getInventory().getArmorContents();
 
-        DebugLogger.getInstance().log(Level.INFO, "MainHand: " + (mainHand != null ? mainHand.getType() : "null"));
-        DebugLogger.getInstance().log(Level.INFO, "OffHand: " + (offHand != null ? offHand.getType() : "null"));
         for (int i = 0; i < armor.length; i++) {
             ItemStack piece = armor[i];
-            DebugLogger.getInstance().log(Level.INFO, "Armor Slot " + i + ": " + (piece != null ? piece.getType() : "null"));
         }
 
         int setCount = 0;
@@ -99,7 +95,6 @@ public class EquipmentListener implements Listener {
         }
 
         if (setId != null) {
-            DebugLogger.getInstance().log(Level.INFO, "Player " + player.getName() + " has set " + setId + " with count " + setCount);
             ItemSet itemSet = SetManager.getInstance().getSet(setId);
             if (itemSet != null) {
                 int maxThreshold = 0;
@@ -114,7 +109,6 @@ public class EquipmentListener implements Listener {
                         for (Map.Entry<StatType, Double> bonus : bonuses.entrySet()) {
                             double base = stats.getBaseStat(bonus.getKey());
                             double addition = base * bonus.getValue();
-                            DebugLogger.getInstance().log(Level.INFO, "Applying set bonus: " + bonus.getKey() + " + " + addition);
                             stats.addTempStat(bonus.getKey(), addition);
                         }
                     }
@@ -123,19 +117,16 @@ public class EquipmentListener implements Listener {
         }
 
         statsManager.saveStats(player, stats);
-        DebugLogger.getInstance().log(Level.INFO, "Recalculate done for " + player.getName());
     }
 
     private void applyItemAttributes(ItemStack item, PlayerStats stats) {
         if (item == null || item.getType() == Material.AIR) return;
         if (!CustomItemUtils.isCustomItem(item)) {
-            DebugLogger.getInstance().log(Level.INFO, "applyItemAttributes: " + item.getType() + " is not a custom item.");
             return;
         }
 
         Map<StatType, Double> itemStats = CustomItemUtils.getItemStats(item);
         for (Map.Entry<StatType, Double> entry : itemStats.entrySet()) {
-            DebugLogger.getInstance().log(Level.INFO, "applyItemAttributes: Adding " + entry.getKey() + " = " + entry.getValue());
             stats.addTempStat(entry.getKey(), entry.getValue());
         }
     }

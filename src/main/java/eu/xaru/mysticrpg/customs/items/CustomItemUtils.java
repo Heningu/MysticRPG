@@ -68,7 +68,6 @@ public class CustomItemUtils {
         NamespacedKey statsKey = new NamespacedKey(plugin, "custom_item_attributes");
         String statsData = meta.getPersistentDataContainer().get(statsKey, PersistentDataType.STRING);
         if (statsData != null && !statsData.isEmpty()) {
-            DebugLogger.getInstance().log(Level.INFO, "getItemStats: Found stats data '" + statsData + "' for item " + item.getType());
             String[] pairs = statsData.split(";");
             for (String pair : pairs) {
                 String[] kv = pair.split(":");
@@ -77,7 +76,6 @@ public class CustomItemUtils {
                         StatType type = StatType.valueOf(kv[0]);
                         double val = Double.parseDouble(kv[1]);
                         stats.put(type, val);
-                        DebugLogger.getInstance().log(Level.INFO, "getItemStats: " + type.name() + " = " + val);
                     } catch (Exception e) {
                         DebugLogger.getInstance().log(Level.WARNING, "getItemStats: Could not parse stat pair " + pair);
                     }

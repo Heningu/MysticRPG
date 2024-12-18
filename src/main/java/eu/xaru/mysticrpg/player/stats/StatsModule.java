@@ -160,19 +160,12 @@ public class StatsModule implements IBaseModule, Listener {
      * and applying armor stats only if actually equipped in armor slots. Also applies set bonuses properly.
      */
     public PlayerStats recalculatePlayerStatsFor(Player player) {
-        DebugLogger.getInstance().log(Level.INFO, "recalculatePlayerStatsFor called for " + player.getName());
         PlayerStats stats = statsManager.loadStats(player);
         stats.clearTempStats();
 
         ItemStack mainHand = player.getInventory().getItemInMainHand();
         ItemStack offHand = player.getInventory().getItemInOffHand();
         ItemStack[] armor = player.getInventory().getArmorContents();
-
-        DebugLogger.getInstance().log(Level.INFO, "MainHand: " + (mainHand != null ? mainHand.getType() : "null"));
-        DebugLogger.getInstance().log(Level.INFO, "OffHand: " + (offHand != null ? offHand.getType() : "null"));
-        for (int i = 0; i < armor.length; i++) {
-            DebugLogger.getInstance().log(Level.INFO, "Armor " + i + ": " + (armor[i] != null ? armor[i].getType() : "null"));
-        }
 
         // Apply stats from non-armor items if held in main/off hand
         applyItemAttributesIfAppropriate(mainHand, stats, false);  // false = not armor slot
@@ -203,7 +196,6 @@ public class StatsModule implements IBaseModule, Listener {
 
         // Apply set bonuses after all items are applied
         if (setId != null) {
-            DebugLogger.getInstance().log(Level.INFO, "recalculatePlayerStatsFor: Player " + player.getName() + " has set " + setId + " with count " + setCount);
             var itemSet = SetManager.getInstance().getSet(setId);
             if (itemSet != null) {
                 int maxThreshold = 0;
@@ -220,7 +212,6 @@ public class StatsModule implements IBaseModule, Listener {
                         for (Map.Entry<StatType, Double> bonus : bonuses.entrySet()) {
                             double currentValue = stats.getEffectiveStat(bonus.getKey());
                             double addition = currentValue * bonus.getValue(); // e.g. 0.10 for 10%
-                            DebugLogger.getInstance().log(Level.INFO, "recalculatePlayerStatsFor: Applying set bonus " + bonus.getKey() + ": +" + addition);
                             stats.addTempStat(bonus.getKey(), addition);
                         }
                     }
@@ -228,7 +219,6 @@ public class StatsModule implements IBaseModule, Listener {
             }
         }
 
-        DebugLogger.getInstance().log(Level.INFO, "recalculatePlayerStatsFor done for " + player.getName());
         return stats;
     }
 
@@ -240,13 +230,11 @@ public class StatsModule implements IBaseModule, Listener {
     private void applyItemAttributesIfAppropriate(ItemStack item, PlayerStats stats, boolean isArmorSlot) {
         if (item == null || item.getType() == Material.AIR) return;
         if (!CustomItemUtils.isCustomItem(item)) {
-            DebugLogger.getInstance().log(Level.INFO, "applyItemAttributesIfAppropriate: " + item.getType() + " not a custom item.");
             return;
         }
 
         CustomItem customItem = CustomItemUtils.fromItemStack(item);
         if (customItem == null) {
-            DebugLogger.getInstance().log(Level.WARNING, "applyItemAttributesIfAppropriate: Could not get CustomItem from " + item.getType());
             return;
         }
 
@@ -257,7 +245,6 @@ public class StatsModule implements IBaseModule, Listener {
             // Conditions met, apply stats
             Map<StatType, Double> itemStats = CustomItemUtils.getItemStats(item);
             for (Map.Entry<StatType, Double> entry : itemStats.entrySet()) {
-                DebugLogger.getInstance().log(Level.INFO, "applyItemAttributesIfAppropriate: Adding " + entry.getKey() + " = " + entry.getValue() + " from " + item.getType());
                 stats.addTempStat(entry.getKey(), entry.getValue());
             }
         } else {
