@@ -1,6 +1,8 @@
 package eu.xaru.mysticrpg.player;
 
 import eu.xaru.mysticrpg.cores.MysticCore;
+import eu.xaru.mysticrpg.economy.EconomyHelper;
+import eu.xaru.mysticrpg.economy.EconomyModule;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
@@ -29,10 +31,6 @@ import org.bukkit.util.Vector;
 import java.util.*;
 import java.util.logging.Level;
 
-/**
- * CustomDamageHandler manages custom damage calculations and integrates with stats and world flags.
- * It modifies incoming damage based on player stats and disallows PVP if disabled by world/region flags.
- */
 public class CustomDamageHandler implements IBaseModule {
 
     private PlayerDataCache playerDataCache;
@@ -119,24 +117,10 @@ public class CustomDamageHandler implements IBaseModule {
         }.runTaskTimer(plugin, 20, 20); // every second
     }
 
-    /**
-     * Applies custom damage to a player.
-     *
-     * @param player the player receiving damage
-     * @param damage the amount of damage
-     */
     public void applyCustomDamage(Player player, double damage) {
         applyDamageAndEffects(player, damage, null);
     }
 
-    /**
-     * Calculates final damage based on attacker and victim stats.
-     *
-     * @param damager    the entity dealing damage
-     * @param victim     the player receiving damage
-     * @param baseDamage initial damage
-     * @return final calculated damage
-     */
     private double calculateDamage(Entity damager, Player victim, double baseDamage) {
         PlayerStats victimStats = statsModule.recalculatePlayerStatsFor(victim);
 
@@ -157,13 +141,6 @@ public class CustomDamageHandler implements IBaseModule {
         return finalDamage;
     }
 
-    /**
-     * Applies the final damage and effects to the victim. Handles death and hurt effects.
-     *
-     * @param victim  the victim player
-     * @param damage  the calculated damage
-     * @param damager the entity that caused the damage
-     */
     private void applyDamageAndEffects(Player victim, double damage, Entity damager) {
         UUID victimUUID = victim.getUniqueId();
         PlayerData victimData = playerDataCache.getCachedPlayerData(victimUUID);
@@ -196,11 +173,6 @@ public class CustomDamageHandler implements IBaseModule {
         Bukkit.getPluginManager().callEvent(new PlayerStatsChangedEvent(victim));
     }
 
-    /**
-     * Handles player death.
-     *
-     * @param player the player who died
-     */
     private void handleDeath(Player player) {
         PlayerData data = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (data == null) return;
@@ -214,15 +186,22 @@ public class CustomDamageHandler implements IBaseModule {
         DebugLogger.getInstance().log("Player " + player.getName() + " died and was teleported to spawn.");
 
         data.setCurrentHp(maxHp);
+
+        // 50% held gold loss
+        EconomyModule econModule = ModuleManager.getInstance().getModuleInstance(EconomyModule.class);
+        if (econModule != null) {
+            EconomyHelper economyHelper = econModule.getEconomyHelper();
+            int held = economyHelper.getHeldGold(player);
+            int lost = held / 2; // 50% loss
+            if (lost > 0) {
+                economyHelper.setHeldGold(player, held - lost);
+                player.sendMessage(Utils.getInstance().$("You lost " + lost + " gold upon death."));
+            }
+        }
+
         Bukkit.getPluginManager().callEvent(new PlayerStatsChangedEvent(player));
     }
 
-    /**
-     * Triggers hurt effects such as sound, particles, and knockback.
-     *
-     * @param victim  the victim player
-     * @param damager the entity that caused the damage
-     */
     private void triggerHurtEffects(Player victim, Entity damager) {
         victim.playSound(victim.getLocation(), Sound.ENTITY_PLAYER_HURT, 1.0f, 1.0f);
         victim.getWorld().spawnParticle(Particle.DAMAGE_INDICATOR, victim.getLocation().add(0,1,0), 10);
@@ -233,9 +212,6 @@ public class CustomDamageHandler implements IBaseModule {
         }
     }
 
-    /**
-     * Regenerates health for players who haven't taken damage recently.
-     */
     private void regenerateHealth() {
         Set<UUID> playerUUIDs = playerDataCache.getAllCachedPlayerUUIDs();
         for (UUID playerUUID : playerUUIDs) {

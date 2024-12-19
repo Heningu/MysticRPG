@@ -24,6 +24,8 @@ public class WorldModule implements IBaseModule {
         eventManager = new EventManager(plugin);
         worldManager = new WorldManager(plugin, eventManager);
         regionManager = new RegionManager(plugin, eventManager, worldManager);
+        worldManager.setRegionManager(regionManager);
+
         DebugLogger.getInstance().log(Level.INFO, "WorldModule initialized", 0);
     }
 
@@ -44,7 +46,6 @@ public class WorldModule implements IBaseModule {
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        // Add AdminModule as a dependency so that adminModule is available when WorldManager tries to get it
         return List.of(eu.xaru.mysticrpg.admin.AdminModule.class);
     }
 

@@ -1,10 +1,15 @@
 package eu.xaru.mysticrpg.world;
 
 import dev.jorel.commandapi.CommandAPICommand;
+import dev.jorel.commandapi.arguments.ArgumentSuggestions;
 import dev.jorel.commandapi.arguments.BooleanArgument;
+import dev.jorel.commandapi.arguments.IntegerArgument;
 import dev.jorel.commandapi.arguments.StringArgument;
 import eu.xaru.mysticrpg.managers.EventManager;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.*;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -14,6 +19,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
 
 public class RegionManager {
@@ -25,6 +32,9 @@ public class RegionManager {
     private final Map<UUID, RegionSetup> setupMap = new HashMap<>();
     private final Map<UUID, String> viewingRegion = new HashMap<>();
     private final Map<UUID, Region> lastRegion = new HashMap<>();
+
+    private File regionsFile;
+    private YamlConfiguration regionsConfig;
 
     static class RegionSetup {
         String id;
@@ -39,9 +49,149 @@ public class RegionManager {
         this.plugin = plugin;
         this.eventManager = eventManager;
         this.worldManager = worldManager;
+
+        loadRegions();
         registerCommands();
         registerEvents();
         startBorderTask();
+    }
+
+    private void loadRegions() {
+        File regionsFolder = new File(plugin.getDataFolder(), "regions");
+        if (!regionsFolder.exists()) regionsFolder.mkdirs();
+
+        regionsFile = new File(regionsFolder, "regions.yml");
+        if (!regionsFile.exists()) {
+            try {
+                regionsFile.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        regionsConfig = YamlConfiguration.loadConfiguration(regionsFile);
+
+        ConfigurationSection sec = regionsConfig.getConfigurationSection("regions");
+        if (sec != null) {
+            for (String id : sec.getKeys(false)) {
+                ConfigurationSection rSec = sec.getConfigurationSection(id);
+                if (rSec == null) continue;
+
+                Region r = new Region(id);
+                if (rSec.contains("pos1")) {
+                    r.setPos1(loadLocation(rSec.getConfigurationSection("pos1")));
+                }
+                if (rSec.contains("pos2")) {
+                    r.setPos2(loadLocation(rSec.getConfigurationSection("pos2")));
+                }
+
+                if (rSec.contains("flags")) {
+                    ConfigurationSection fSec = rSec.getConfigurationSection("flags");
+                    for (String f : fSec.getKeys(false)) {
+                        boolean val = fSec.getBoolean(f);
+                        r.setFlag(f, val);
+                    }
+                }
+
+                // effects now stored as a map effectName -> amplifier
+                if (rSec.contains("effects")) {
+                    // Check if it's a section (map) or a list (old format)
+                    if (rSec.isConfigurationSection("effects")) {
+                        ConfigurationSection effSec = rSec.getConfigurationSection("effects");
+                        for (String effName : effSec.getKeys(false)) {
+                            PotionEffectType pet = PotionEffectType.getByName(effName.toUpperCase());
+                            if (pet != null) {
+                                int amp = effSec.getInt(effName, 0);
+                                r.addEffect(pet, amp);
+                            }
+                        }
+                    } else {
+                        // Old format: list of effects without amplifier
+                        List<String> effList = rSec.getStringList("effects");
+                        for (String eff : effList) {
+                            PotionEffectType pet = PotionEffectType.getByName(eff.toUpperCase());
+                            if (pet != null) {
+                                r.addEffect(pet, 0); // default amplifier 0
+                            }
+                        }
+                    }
+                }
+
+                if (rSec.contains("title")) {
+                    String title = rSec.getString("title");
+                    String subtitle = rSec.getString("subtitle");
+                    r.setTitle(title, subtitle);
+                }
+
+                regions.put(id, r);
+                DebugLogger.getInstance().log("Loaded region: " + id);
+            }
+        } else {
+            DebugLogger.getInstance().log("No regions to load.");
+        }
+    }
+
+    private Location loadLocation(ConfigurationSection sec) {
+        String worldName = sec.getString("world");
+        World w = Bukkit.getWorld(worldName);
+        int x = sec.getInt("x");
+        int y = sec.getInt("y");
+        int z = sec.getInt("z");
+        return new Location(w,x,y,z);
+    }
+
+    private void saveRegions() {
+        YamlConfiguration config = new YamlConfiguration();
+        ConfigurationSection sec = config.createSection("regions");
+
+        for (Map.Entry<String, Region> e : regions.entrySet()) {
+            String id = e.getKey();
+            Region r = e.getValue();
+            ConfigurationSection rSec = sec.createSection(id);
+
+            if (r.getPos1() != null) {
+                ConfigurationSection p1 = rSec.createSection("pos1");
+                saveLocation(r.getPos1(), p1);
+            }
+
+            if (r.getPos2() != null) {
+                ConfigurationSection p2 = rSec.createSection("pos2");
+                saveLocation(r.getPos2(), p2);
+            }
+
+            if (!r.getFlags().isEmpty()) {
+                ConfigurationSection fSec = rSec.createSection("flags");
+                for (Map.Entry<String, Boolean> fl : r.getFlags().entrySet()) {
+                    fSec.set(fl.getKey(), fl.getValue());
+                }
+            }
+
+            if (!r.getEffects().isEmpty()) {
+                // Store effects as a section: effectName -> amplifier
+                ConfigurationSection effSec = rSec.createSection("effects");
+                for (Map.Entry<PotionEffectType,Integer> eff : r.getEffects().entrySet()) {
+                    effSec.set(eff.getKey().getName(), eff.getValue());
+                }
+            }
+
+            if (r.getTitle() != null) {
+                rSec.set("title", r.getTitle());
+                rSec.set("subtitle", r.getSubtitle());
+            }
+        }
+
+        try {
+            config.save(regionsFile);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void saveLocation(Location loc, ConfigurationSection sec) {
+        sec.set("world", loc.getWorld().getName());
+        sec.set("x", loc.getBlockX());
+        sec.set("y", loc.getBlockY());
+        sec.set("z", loc.getBlockZ());
     }
 
     private void registerCommands() {
@@ -81,7 +231,9 @@ public class RegionManager {
                         }))
                 .withSubcommand(new CommandAPICommand("flag")
                         .withArguments(new StringArgument("id"))
-                        .withArguments(new StringArgument("flag"))
+                        .withArguments(new StringArgument("flag")
+                                .replaceSuggestions(ArgumentSuggestions.strings("break","pvp","place"))
+                        )
                         .withArguments(new BooleanArgument("value"))
                         .executesPlayer((player, args) -> {
                             String id = (String) args.get("id");
@@ -94,13 +246,17 @@ public class RegionManager {
                             }
                             r.setFlag(flag, val);
                             player.sendMessage("Set flag " + flag + " to " + val + " for region " + id);
+                            saveRegions();
                         }))
                 .withSubcommand(new CommandAPICommand("seteffect")
                         .withArguments(new StringArgument("id"))
                         .withArguments(new StringArgument("effect"))
+                        // Add amplifier argument
+                        .withArguments(new IntegerArgument("amplifier",0,10))
                         .executesPlayer((player, args) -> {
                             String id = (String) args.get("id");
                             String eff = ((String) args.get("effect")).toUpperCase();
+                            int amplifier = (int) args.get("amplifier");
                             Region r = regions.get(id);
                             if (r == null) {
                                 player.sendMessage("No such region");
@@ -111,8 +267,9 @@ public class RegionManager {
                                 player.sendMessage("No such effect");
                                 return;
                             }
-                            r.addEffect(pet);
-                            player.sendMessage("Added effect " + eff + " to region " + id);
+                            r.addEffect(pet, amplifier);
+                            player.sendMessage("Added effect " + eff + " with amplifier " + amplifier + " to region " + id);
+                            saveRegions();
                         }))
                 .withSubcommand(new CommandAPICommand("removeeffect")
                         .withArguments(new StringArgument("id"))
@@ -132,6 +289,7 @@ public class RegionManager {
                             }
                             r.removeEffect(pet);
                             player.sendMessage("Removed effect " + eff + " from region " + id);
+                            saveRegions();
                         }))
                 .withSubcommand(new CommandAPICommand("title")
                         .withArguments(new StringArgument("id"))
@@ -148,6 +306,7 @@ public class RegionManager {
                             }
                             r.setTitle(title, subtitle);
                             player.sendMessage("Set title for region " + id);
+                            saveRegions();
                         }))
                 .withSubcommand(new CommandAPICommand("removetitle")
                         .withArguments(new StringArgument("id"))
@@ -160,8 +319,8 @@ public class RegionManager {
                             }
                             r.removeTitle();
                             player.sendMessage("Removed title for region " + id);
+                            saveRegions();
                         }))
-                // Add "list" command
                 .withSubcommand(new CommandAPICommand("list")
                         .executesPlayer((player, args) -> {
                             if (regions.isEmpty()) {
@@ -173,13 +332,13 @@ public class RegionManager {
                                 }
                             }
                         }))
-                // Add "remove" command
                 .withSubcommand(new CommandAPICommand("remove")
                         .withArguments(new StringArgument("id"))
                         .executesPlayer((player, args) -> {
                             String id = (String) args.get("id");
                             if (regions.remove(id) != null) {
                                 player.sendMessage("Removed region " + id);
+                                saveRegions();
                             } else {
                                 player.sendMessage("No such region " + id);
                             }
@@ -193,8 +352,7 @@ public class RegionManager {
             Player p = event.getPlayer();
             if (!setupMap.containsKey(p.getUniqueId())) return;
 
-            // Only proceed if player right-clicked a block with main hand
-            if (event.getHand() == null || event.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
+            if (event.getHand() == null || event.getHand() != EquipmentSlot.HAND) return;
             if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null) return;
 
             event.setCancelled(true);
@@ -214,6 +372,7 @@ public class RegionManager {
                 regions.put(rs.id, r);
                 setupMap.remove(p.getUniqueId());
                 p.sendMessage("Region " + rs.id + " created!");
+                saveRegions();
             }
         }, org.bukkit.event.EventPriority.HIGHEST);
 
@@ -223,13 +382,13 @@ public class RegionManager {
             Region last = lastRegion.get(p.getUniqueId());
             if (current != last) {
                 if (last != null) {
-                    for (PotionEffectType pe : last.getEffects()) {
+                    for (PotionEffectType pe : last.getEffects().keySet()) {
                         p.removePotionEffect(pe);
                     }
                 }
                 if (current != null) {
-                    for (PotionEffectType pe : current.getEffects()) {
-                        p.addPotionEffect(new PotionEffect(pe, Integer.MAX_VALUE, 0, true, false));
+                    for (Map.Entry<PotionEffectType,Integer> eff : current.getEffects().entrySet()) {
+                        p.addPotionEffect(new PotionEffect(eff.getKey(), Integer.MAX_VALUE, eff.getValue(), true, false));
                     }
                     if (current.getTitle() != null) {
                         p.sendTitle(current.getTitle(), current.getSubtitle() == null ? "" : current.getSubtitle(), 10, 70, 20);
@@ -263,7 +422,7 @@ public class RegionManager {
     private void drawBorder(Player p, Region r) {
         Location p1 = r.getPos1();
         Location p2 = r.getPos2();
-        if (!p1.getWorld().equals(p.getWorld())) return;
+        if (p1 == null || p2 == null || !p1.getWorld().equals(p.getWorld())) return;
         int x1 = Math.min(p1.getBlockX(), p2.getBlockX());
         int x2 = Math.max(p1.getBlockX(), p2.getBlockX());
         int y1 = Math.min(p1.getBlockY(), p2.getBlockY());
