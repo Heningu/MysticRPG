@@ -1,3 +1,8 @@
+// Simply remove the event registration line for the DungeonLobbyGUI in DungeonManager,
+// since the new InvUI-based GUI does not require manual Bukkit event registration.
+//
+// File: eu.xaru.mysticrpg.dungeons.DungeonManager.java
+
 package eu.xaru.mysticrpg.dungeons;
 
 import eu.xaru.mysticrpg.dungeons.commands.DungeonCommand;
@@ -37,7 +42,7 @@ public class DungeonManager {
         this.configManager = new DungeonConfigManager(plugin);
         this.lobbyManager = new LobbyManager(this);
         this.setupManager = new DungeonSetupManager(plugin, configManager);
-        this.lobbyGUI = new DungeonLobbyGUI(lobbyManager, plugin);
+        this.lobbyGUI = new DungeonLobbyGUI(lobbyManager);
 
         new DungeonCommand(this);
         new DungeonSetupCommand(this, setupManager);
@@ -45,7 +50,10 @@ public class DungeonManager {
 
         new DungeonSetupListener(setupManager, plugin);
         new DungeonEventHandler(plugin, this);
-        plugin.getServer().getPluginManager().registerEvents(lobbyGUI, plugin);
+
+        // Removed the line:
+        // plugin.getServer().getPluginManager().registerEvents(lobbyGUI, plugin);
+        // because DungeonLobbyGUI no longer needs to be a Listener with InvUI.
     }
 
     public void start() {

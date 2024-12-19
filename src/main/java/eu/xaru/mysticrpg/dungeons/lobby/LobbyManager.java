@@ -1,3 +1,4 @@
+// Add a getter for dungeonManager in LobbyManager
 // File: eu/xaru/mysticrpg/dungeons/lobby/LobbyManager.java
 
 package eu.xaru.mysticrpg.dungeons.lobby;
@@ -13,12 +14,10 @@ import java.util.logging.Level;
 public class LobbyManager {
 
     private final DungeonManager dungeonManager;
-    
     private final Map<String, DungeonLobby> activeLobbies;
 
     public LobbyManager(DungeonManager dungeonManager) {
         this.dungeonManager = dungeonManager;
- 
         this.activeLobbies = new HashMap<>();
     }
 
@@ -54,5 +53,10 @@ public class LobbyManager {
             }
         }
         return null;
+    }
+
+    // Add a getter for dungeonManager
+    public DungeonManager getDungeonManager() {
+        return dungeonManager;
     }
 }

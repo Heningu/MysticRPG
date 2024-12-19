@@ -1,114 +1,135 @@
-// File: eu/xaru/mysticrpg/dungeons/gui/DungeonLobbyGUI.java
-
 package eu.xaru.mysticrpg.dungeons.gui;
 
 import eu.xaru.mysticrpg.dungeons.lobby.DungeonLobby;
 import eu.xaru.mysticrpg.dungeons.lobby.LobbyManager;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.inventory.*;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.plugin.java.JavaPlugin;
+import xyz.xenondevs.invui.gui.Gui;
+import xyz.xenondevs.invui.item.Item;
+import xyz.xenondevs.invui.item.builder.ItemBuilder;
+import xyz.xenondevs.invui.item.impl.SimpleItem;
+import xyz.xenondevs.invui.window.Window;
 
-public class DungeonLobbyGUI implements Listener {
+import java.util.List;
+
+public class DungeonLobbyGUI {
 
     private final LobbyManager lobbyManager;
-    private final JavaPlugin plugin;
+    private final NamespacedKey lobbyIdKey;
 
-    public DungeonLobbyGUI(LobbyManager lobbyManager, JavaPlugin plugin) {
+    public DungeonLobbyGUI(LobbyManager lobbyManager) {
         this.lobbyManager = lobbyManager;
-        this.plugin = plugin;
-        // Event handler registration is now handled in DungeonManager
+        this.lobbyIdKey = new NamespacedKey(lobbyManager.getDungeonManager().getPlugin(), "lobby_id");
     }
 
     public void open(Player player, DungeonLobby lobby) {
         int maxPlayers = lobby.getMaxPlayers();
-        Inventory gui = Bukkit.createInventory(null, 27, ChatColor.GREEN + "Dungeon Lobby");
+        String[] structure = {
+                "#########",
+                "#########",
+                "#########"
+        };
 
-        // Add player heads and empty slots
+        Gui gui = Gui.normal()
+                .setStructure(structure)
+                .addIngredient('#', getFillerItem())
+                .build();
+
+        List<Player> lobbyPlayers = lobby.getPlayers();
         int index = 0;
-        for (Player lobbyPlayer : lobby.getPlayers()) {
-            gui.setItem(index++, createPlayerHead(lobbyPlayer));
+        for (Player lobbyPlayer : lobbyPlayers) {
+            gui.setItem(index++, createPlayerHeadItem(lobbyPlayer));
         }
 
-        // Add empty skeleton heads for free slots
-        while (index < maxPlayers) {
-            gui.setItem(index++, createEmptySlot());
+        while (index < maxPlayers && index < 27) {
+            gui.setItem(index++, createEmptySlotItem());
         }
 
-        // Add start item
-        gui.setItem(26, createStartItem(lobby.getLobbyId()));
+        // Place the start item at slot 26 if possible
+        if (26 < 27) {
+            gui.setItem(26, createStartItem(lobby.getLobbyId()));
+        }
 
-        // Ensure running on main thread
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            player.openInventory(gui);
-        });
+        Window window = Window.single()
+                .setViewer(player)
+                .setGui(gui)
+                .setTitle(ChatColor.GREEN + "Dungeon Lobby")
+                .build();
+
+        window.open();
     }
 
-    private ItemStack createPlayerHead(Player player) {
+    private Item createPlayerHeadItem(Player lobbyPlayer) {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) head.getItemMeta();
-        meta.setOwningPlayer(player);
-        meta.setDisplayName(ChatColor.YELLOW + player.getName());
-        head.setItemMeta(meta);
-        return head;
+        if (meta != null) {
+            meta.setOwningPlayer(lobbyPlayer);
+            meta.setDisplayName(ChatColor.YELLOW + lobbyPlayer.getName());
+            head.setItemMeta(meta);
+        }
+
+        return new SimpleItem(head) {
+            @Override
+            public void handleClick(ClickType clickType, Player clickPlayer, InventoryClickEvent event) {
+                // No specific action on player head click in this GUI
+            }
+        };
     }
 
-    private ItemStack createEmptySlot() {
+    private Item createEmptySlotItem() {
         ItemStack head = new ItemStack(Material.SKELETON_SKULL);
         ItemMeta meta = head.getItemMeta();
-        meta.setDisplayName(ChatColor.GRAY + "Empty Slot");
-        head.setItemMeta(meta);
-        return head;
+        if (meta != null) {
+            meta.setDisplayName(ChatColor.GRAY + "Empty Slot");
+            head.setItemMeta(meta);
+        }
+        return new SimpleItem(head);
     }
 
-    private ItemStack createStartItem(String lobbyId) {
+    private Item createStartItem(String lobbyId) {
         ItemStack item = new ItemStack(Material.GREEN_WOOL);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(ChatColor.GREEN + "Start Dungeon");
-        NamespacedKey key = new NamespacedKey(plugin, "lobby_id");
-        meta.getPersistentDataContainer().set(key, PersistentDataType.STRING, lobbyId);
-        item.setItemMeta(meta);
-        return item;
+        if (meta != null) {
+            meta.setDisplayName(ChatColor.GREEN + "Start Dungeon");
+            meta.getPersistentDataContainer().set(lobbyIdKey, PersistentDataType.STRING, lobbyId);
+            item.setItemMeta(meta);
+        }
+
+        return new SimpleItem(item) {
+            @Override
+            public void handleClick(ClickType clickType, Player clickPlayer, InventoryClickEvent event) {
+                String id = getLobbyIdFromItem(event.getCurrentItem());
+                if (id == null) {
+                    clickPlayer.sendMessage(ChatColor.RED + "Error: Lobby ID not found.");
+                    return;
+                }
+
+                DungeonLobby lobby = lobbyManager.getLobby(id);
+                if (lobby != null) {
+                    lobby.playerReady(clickPlayer);
+                } else {
+                    clickPlayer.sendMessage(ChatColor.RED + "Error: Lobby not found.");
+                }
+            }
+        };
     }
 
-    @EventHandler
-    public void onInventoryClick(InventoryClickEvent event) {
-        if (!event.getView().getTitle().equals(ChatColor.GREEN + "Dungeon Lobby")) return;
-        event.setCancelled(true);
-        if (event.getCurrentItem() == null) return;
+    private String getLobbyIdFromItem(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return null;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return null;
+        return meta.getPersistentDataContainer().get(lobbyIdKey, PersistentDataType.STRING);
+    }
 
-        ItemStack clickedItem = event.getCurrentItem();
-        ItemMeta meta = clickedItem.getItemMeta();
-        if (meta == null) return;
-
-        Player player = (Player) event.getWhoClicked();
-
-        if (clickedItem.getType() == Material.GREEN_WOOL) {
-            // Start the dungeon
-            NamespacedKey key = new NamespacedKey(plugin, "lobby_id");
-            String lobbyId = meta.getPersistentDataContainer().get(key, PersistentDataType.STRING);
-
-            if (lobbyId == null) {
-                player.sendMessage(ChatColor.RED + "Error: Lobby ID not found.");
-                return;
-            }
-
-            DungeonLobby lobby = lobbyManager.getLobby(lobbyId);
-
-            if (lobby != null) {
-                lobby.playerReady(player);
-            } else {
-                player.sendMessage(ChatColor.RED + "Error: Lobby not found.");
-            }
-        }
+    private Item getFillerItem() {
+        return new SimpleItem(new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE).setDisplayName(""));
     }
 }

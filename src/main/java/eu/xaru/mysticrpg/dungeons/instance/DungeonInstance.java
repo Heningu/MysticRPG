@@ -1,5 +1,3 @@
-// File: eu/xaru/mysticrpg/dungeons/instance/DungeonInstance.java
-
 package eu.xaru.mysticrpg.dungeons.instance;
 
 import eu.xaru.mysticrpg.dungeons.DungeonManager;
@@ -47,7 +45,6 @@ public class DungeonInstance {
     ) {
         this.instanceId = UUID.randomUUID();
         this.plugin = plugin;
-
         this.config = configManager.getDungeonConfig(dungeonId);
         this.playerUUIDs = playerUUIDs;
         this.playersInInstance = new CopyOnWriteArrayList<>();
@@ -57,7 +54,6 @@ public class DungeonInstance {
         this.chestManager = new ChestManager(plugin, this, config);
         this.puzzleManager = new PuzzleManager(this, config);
         this.portalManager = new PortalManager(this, config, plugin);
-
         this.startTime = System.currentTimeMillis();
     }
 
@@ -186,16 +182,25 @@ public class DungeonInstance {
                 spawnLocation.getWorld().getName() + " X: " + spawnLocation.getBlockX() +
                 " Y: " + spawnLocation.getBlockY() + " Z: " + spawnLocation.getBlockZ(), 0);
 
+        // First, teleport all players into the instance world
         for (UUID uuid : playerUUIDs) {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && player.isOnline()) {
                 playersInInstance.add(player);
                 player.teleport(spawnLocation);
-                hideOtherPlayers(player);
                 player.sendMessage(ChatColor.GREEN + "You have been teleported to the dungeon instance.");
             } else {
                 DebugLogger.getInstance().log(Level.WARNING, "Player with UUID " + uuid + " is not online. Skipping...", 0);
             }
+        }
+
+        // Now that all are teleported, update visibility:
+        // For each player in the instance:
+        // 1) show all players that are also in the instance
+        // 2) hide all players that are not in the instance
+        for (Player player : playersInInstance) {
+            showAllPlayers(player); // Show everyone first
+            hideNonInstancePlayers(player); // Then hide those not in the instance
         }
     }
 
@@ -224,7 +229,7 @@ public class DungeonInstance {
         }
     }
 
-    private void hideOtherPlayers(Player player) {
+    private void hideNonInstancePlayers(Player player) {
         for (Player otherPlayer : Bukkit.getOnlinePlayers()) {
             if (!playersInInstance.contains(otherPlayer)) {
                 player.hidePlayer(plugin, otherPlayer);
