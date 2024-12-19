@@ -1,11 +1,10 @@
-// File: eu/xaru/mysticrpg/dungeons/DungeonModule.java
-
 package eu.xaru.mysticrpg.dungeons;
 
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.ModuleManager;
+import eu.xaru.mysticrpg.ui.UIModule;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -17,19 +16,17 @@ import java.util.logging.Level;
 
 public class DungeonModule implements IBaseModule {
 
-    
     private JavaPlugin plugin;
     private DungeonManager dungeonManager;
 
     @Override
     public void initialize() {
-
         plugin = JavaPlugin.getPlugin(MysticCore.class);
 
-        // Clean up leftover instance worlds
+        // Clean leftover instance worlds
         cleanUpInstanceWorlds();
 
-        dungeonManager = new DungeonManager(plugin,  this);
+        dungeonManager = new DungeonManager(plugin, this);
 
         DebugLogger.getInstance().log(Level.INFO, "DungeonModule initialized successfully.", 0);
     }
@@ -70,7 +67,6 @@ public class DungeonModule implements IBaseModule {
         return plugin;
     }
 
-    // Added cleanup logic
     private void cleanUpInstanceWorlds() {
         File worldContainer = Bukkit.getWorldContainer();
         File[] files = worldContainer.listFiles();
@@ -78,12 +74,10 @@ public class DungeonModule implements IBaseModule {
 
         for (File file : files) {
             if (file.isDirectory() && file.getName().startsWith("dungeon_instance_")) {
-                // Unload the world if it's loaded
                 World world = Bukkit.getWorld(file.getName());
                 if (world != null) {
                     Bukkit.unloadWorld(world, false);
                 }
-                // Delete the world folder
                 deleteWorld(file);
                 DebugLogger.getInstance().log(Level.INFO, "Deleted leftover dungeon instance world: " + file.getName(), 0);
             }

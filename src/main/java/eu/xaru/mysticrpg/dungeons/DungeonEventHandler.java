@@ -5,9 +5,10 @@ package eu.xaru.mysticrpg.dungeons;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfig;
 import eu.xaru.mysticrpg.dungeons.instance.DungeonInstance;
 import eu.xaru.mysticrpg.dungeons.portals.PortalManager;
+import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.World;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -36,7 +37,6 @@ public class DungeonEventHandler implements Listener {
         DungeonInstance instance = dungeonManager.getInstanceByPlayer(player.getUniqueId());
         if (instance != null) {
             instance.removePlayer(player);
-            // Additional handling
         }
     }
 
@@ -51,7 +51,7 @@ public class DungeonEventHandler implements Listener {
                     event.setCancelled(true);
                 }
             } else {
-                event.setCancelled(true); // Cancel if there's no block
+                event.setCancelled(true);
             }
         }
     }
@@ -61,7 +61,7 @@ public class DungeonEventHandler implements Listener {
         Player player = event.getPlayer();
         DungeonInstance instance = dungeonManager.getInstanceByPlayer(player.getUniqueId());
         if (instance != null) {
-            event.setCancelled(true); // Prevent block breaking
+            event.setCancelled(true);
         }
     }
 
@@ -70,7 +70,7 @@ public class DungeonEventHandler implements Listener {
         Player player = event.getPlayer();
         DungeonInstance instance = dungeonManager.getInstanceByPlayer(player.getUniqueId());
         if (instance != null) {
-            event.setCancelled(true); // Prevent block placing
+            event.setCancelled(true);
         }
     }
 
@@ -88,18 +88,15 @@ public class DungeonEventHandler implements Listener {
                 return;
             }
 
-            // Check if both locations are in the same world
             if (!to.getWorld().equals(portalLocation.getWorld())) {
-                // Optionally log this incident for debugging
                 plugin.getLogger().warning("Player " + player.getName() + " is not in the instance world.");
                 return;
             }
 
             double distance = to.distance(portalLocation);
-            double portalRadius = 2.0; // Must match the radius in PortalManager
+            double portalRadius = 2.0;
 
             if (distance <= portalRadius) {
-                // Get the PortalManager instance associated with this dungeon
                 PortalManager portalManager = instance.getPortalManager();
                 if (portalManager != null) {
                     portalManager.handlePlayerEntry(player);

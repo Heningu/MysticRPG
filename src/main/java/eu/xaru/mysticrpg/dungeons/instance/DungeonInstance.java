@@ -16,9 +16,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 
@@ -26,7 +24,6 @@ public class DungeonInstance {
 
     private final UUID instanceId;
     private final JavaPlugin plugin;
-    
     private final DungeonConfig config;
     private final List<UUID> playerUUIDs;
     private final List<Player> playersInInstance;
@@ -38,19 +35,11 @@ public class DungeonInstance {
     private final PuzzleManager puzzleManager;
     private final PortalManager portalManager;
 
-    /**
-     * Constructor for DungeonInstance.
-     *
-     * @param plugin         The main JavaPlugin instance.
-              The logger for debugging and information.
-     * @param dungeonId      The ID of the dungeon configuration to use.
-     * @param playerUUIDs    The list of player UUIDs participating in the dungeon.
-     * @param configManager  The manager handling dungeon configurations.
-     * @param dungeonManager The main dungeon manager.
-     */
+    private long startTime;
+    private Map<UUID, Integer> monsterKills = new HashMap<>();
+
     public DungeonInstance(
             JavaPlugin plugin,
-            
             String dungeonId,
             List<UUID> playerUUIDs,
             DungeonConfigManager configManager,
@@ -58,7 +47,7 @@ public class DungeonInstance {
     ) {
         this.instanceId = UUID.randomUUID();
         this.plugin = plugin;
- 
+
         this.config = configManager.getDungeonConfig(dungeonId);
         this.playerUUIDs = playerUUIDs;
         this.playersInInstance = new CopyOnWriteArrayList<>();
@@ -68,6 +57,8 @@ public class DungeonInstance {
         this.chestManager = new ChestManager(plugin, this, config);
         this.puzzleManager = new PuzzleManager(this, config);
         this.portalManager = new PortalManager(this, config, plugin);
+
+        this.startTime = System.currentTimeMillis();
     }
 
     public UUID getInstanceId() {
@@ -90,32 +81,18 @@ public class DungeonInstance {
         return config;
     }
 
-    /**
-     * Provides access to the DungeonManager.
-     *
-     * @return The DungeonManager instance.
-     */
     public DungeonManager getDungeonManager() {
         return dungeonManager;
     }
 
-    /**
-     * Provides access to the PortalManager.
-     *
-     * @return The PortalManager instance.
-     */
     public PortalManager getPortalManager() {
         return portalManager;
     }
 
-    /**
-     * Starts the dungeon instance.
-     */
     public void start() {
-        // Run the entire start process synchronously to ensure proper world loading and player teleportation
         Bukkit.getScheduler().runTask(plugin, () -> {
             createInstanceWorld();
-            adjustPortalLocationToInstanceWorld(); // Center the portal location
+            adjustPortalLocationToInstanceWorld();
             teleportPlayersToInstance();
             initializeInstance();
             isRunning = true;
@@ -123,21 +100,14 @@ public class DungeonInstance {
         });
     }
 
-    /**
-     * Stops the dungeon instance, removing players and unloading the world.
-     */
     public void stop() {
         isRunning = false;
         removePlayersFromInstance();
         unloadInstanceWorld();
-        // Stop portal particle effects
         portalManager.stopPortal();
         DebugLogger.getInstance().log(Level.INFO, "Dungeon instance " + instanceId + " stopped.", 0);
     }
 
-    /**
-     * Creates a copy of the template world for the dungeon instance.
-     */
     private void createInstanceWorld() {
         String templateWorldName = config.getWorldName();
         if (templateWorldName == null) {
@@ -146,10 +116,8 @@ public class DungeonInstance {
         }
         String instanceWorldName = "dungeon_instance_" + instanceId;
 
-        // Ensure the template world is loaded
         World templateWorld = Bukkit.getWorld(templateWorldName);
         if (templateWorld == null) {
-            // Try to load the world
             WorldCreator creator = new WorldCreator(templateWorldName);
             templateWorld = creator.createWorld();
             if (templateWorld == null) {
@@ -178,18 +146,14 @@ public class DungeonInstance {
         }
     }
 
-    /**
-     * Adjusts the portal location to the instance world by centering it.
-     */
     private void adjustPortalLocationToInstanceWorld() {
         Location originalPortal = config.getPortalPos1();
         if (originalPortal != null && instanceWorld != null) {
-            // Create a new Location object in the instance world with centered coordinates
             Location instancePortal = new Location(
                     instanceWorld,
-                    originalPortal.getX() + 0.5, // Center X
-                    originalPortal.getY(),       // Y remains the same
-                    originalPortal.getZ() + 0.5, // Center Z
+                    originalPortal.getX() + 0.5,
+                    originalPortal.getY(),
+                    originalPortal.getZ() + 0.5,
                     originalPortal.getYaw(),
                     originalPortal.getPitch()
             );
@@ -200,9 +164,6 @@ public class DungeonInstance {
         }
     }
 
-    /**
-     * Unloads the instance world and deletes its folder.
-     */
     private void unloadInstanceWorld() {
         if (instanceWorld != null) {
             Bukkit.unloadWorld(instanceWorld, false);
@@ -211,21 +172,16 @@ public class DungeonInstance {
         }
     }
 
-    /**
-     * Teleports all participating players to the instance world's spawn location.
-     */
     private void teleportPlayersToInstance() {
         Location configSpawnLocation = config.getSpawnLocation();
         if (configSpawnLocation == null || instanceWorld == null) {
             DebugLogger.getInstance().log(Level.SEVERE, "Spawn location is not set or instance world is null in the dungeon configuration.", 0);
-            // Stop the dungeon instance since it cannot proceed without a spawn location
             stop();
             return;
         }
         Location spawnLocation = configSpawnLocation.clone();
         spawnLocation.setWorld(instanceWorld);
 
-        // Log spawn location for debugging
         DebugLogger.getInstance().log(Level.INFO, "Teleporting players to instance spawn location: " +
                 spawnLocation.getWorld().getName() + " X: " + spawnLocation.getBlockX() +
                 " Y: " + spawnLocation.getBlockY() + " Z: " + spawnLocation.getBlockZ(), 0);
@@ -243,12 +199,8 @@ public class DungeonInstance {
         }
     }
 
-    /**
-     * Removes all players from the dungeon instance and teleports them back to the main world's spawn.
-     */
     private void removePlayersFromInstance() {
         for (Player player : playersInInstance) {
-            // Teleport back to main world spawn or a safe location
             Location mainSpawn = Bukkit.getWorlds().get(0).getSpawnLocation();
             player.teleport(mainSpawn);
             showAllPlayers(player);
@@ -257,16 +209,12 @@ public class DungeonInstance {
         playersInInstance.clear();
     }
 
-    /**
-     * Initializes various components of the dungeon instance, including enemies, chests, puzzles, and portals.
-     */
     private void initializeInstance() {
         dungeonEnemyManager.spawnMobs();
         chestManager.placeChests();
         puzzleManager.initializePuzzles();
-        portalManager.placeFinishPortal(); // Start particle effects at the portal location
+        portalManager.placeFinishPortal();
 
-        // Log the portal location for verification
         Location portal = config.getPortalPos1();
         if (portal != null) {
             DebugLogger.getInstance().log(Level.INFO, "Portal Location - World: " + portal.getWorld().getName() +
@@ -276,11 +224,6 @@ public class DungeonInstance {
         }
     }
 
-    /**
-     * Hides all other online players from the specified player to prevent interference.
-     *
-     * @param player The player to hide others from.
-     */
     private void hideOtherPlayers(Player player) {
         for (Player otherPlayer : Bukkit.getOnlinePlayers()) {
             if (!playersInInstance.contains(otherPlayer)) {
@@ -289,25 +232,14 @@ public class DungeonInstance {
         }
     }
 
-    /**
-     * Shows all previously hidden players to the specified player.
-     *
-     * @param player The player to show others to.
-     */
     private void showAllPlayers(Player player) {
         for (Player otherPlayer : Bukkit.getOnlinePlayers()) {
             player.showPlayer(plugin, otherPlayer);
         }
     }
 
-    /**
-     * Removes a single player from the dungeon instance.
-     *
-     * @param player The player to remove.
-     */
     public void removePlayer(Player player) {
         playersInInstance.remove(player);
-        // Teleport back to main world spawn or a safe location
         Location mainSpawn = Bukkit.getWorlds().get(0).getSpawnLocation();
         player.teleport(mainSpawn);
         showAllPlayers(player);
@@ -319,24 +251,22 @@ public class DungeonInstance {
         }
     }
 
-    /**
-     * Ends the dungeon, notifying all players and removing them from the instance.
-     */
     public void endDungeon() {
+        int timeSpent = getTimeSpent();
+        int minutes = timeSpent / 60;
+        int seconds = timeSpent % 60;
+        String formattedTime = String.format("%02d:%02d", minutes, seconds);
+
         for (Player player : new ArrayList<>(playersInInstance)) {
+            int kills = getMonstersKilledByPlayer(player);
             player.sendMessage(ChatColor.GOLD + "You have completed the dungeon!");
+            player.sendMessage(ChatColor.GREEN + "Cleared in: " + ChatColor.WHITE + formattedTime +
+                    ChatColor.GREEN + ", Monsters killed: " + ChatColor.WHITE + kills);
             removePlayer(player);
         }
         DebugLogger.getInstance().log(Level.INFO, "Dungeon instance " + instanceId + " has been completed.", 0);
     }
 
-    /**
-     * Copies the template world to create a new instance world.
-     *
-     * @param source The source world folder.
-     * @param target The target world folder.
-     * @throws IOException If an I/O error occurs during copying.
-     */
     private void copyWorld(File source, File target) throws IOException {
         if (source.isDirectory()) {
             if (!target.exists()) {
@@ -345,7 +275,6 @@ public class DungeonInstance {
             String[] files = source.list();
             if (files != null) {
                 for (String file : files) {
-                    // Skip copying session.lock and uid.dat files
                     if (file.equals("session.lock") || file.equals("uid.dat")) {
                         continue;
                     }
@@ -359,11 +288,6 @@ public class DungeonInstance {
         }
     }
 
-    /**
-     * Deletes the specified world folder and all its contents.
-     *
-     * @param path The world folder to delete.
-     */
     private void deleteWorld(File path) {
         if (path.exists()) {
             File[] files = path.listFiles();
@@ -378,5 +302,25 @@ public class DungeonInstance {
                 DebugLogger.getInstance().log(Level.WARNING, "Failed to delete world folder: " + path.getName(), 0);
             }
         }
+    }
+
+    public void incrementMonsterKill(Player player) {
+        int oldCount = monsterKills.getOrDefault(player.getUniqueId(), 0);
+        int newCount = oldCount + 1;
+        monsterKills.put(player.getUniqueId(), newCount);
+        DebugLogger.getInstance().log("incrementMonsterKill: " + player.getName() + " now has " + newCount + " kills.");
+    }
+
+    public int getMonstersKilledByPlayer(Player player) {
+        return monsterKills.getOrDefault(player.getUniqueId(), 0);
+    }
+
+    public int getTimeSpent() {
+        long now = System.currentTimeMillis();
+        return (int)((now - startTime)/1000);
+    }
+
+    public List<Player> getPartyMembers() {
+        return getPlayersInInstance();
     }
 }

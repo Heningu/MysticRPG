@@ -1,3 +1,5 @@
+// File: eu/xaru/mysticrpg/customs/mobs/MobManager.java
+
 package eu.xaru.mysticrpg.customs.mobs;
 
 import com.ticxo.modelengine.api.model.ModeledEntity;
@@ -13,19 +15,19 @@ import eu.xaru.mysticrpg.customs.mobs.actions.ActionStep;
 import eu.xaru.mysticrpg.customs.mobs.actions.Condition;
 import eu.xaru.mysticrpg.customs.mobs.actions.steps.DelayActionStep;
 import eu.xaru.mysticrpg.customs.mobs.bossbar.MobBossBarHandler;
-import eu.xaru.mysticrpg.economy.EconomyHelper;
+import eu.xaru.mysticrpg.dungeons.DungeonManager;
+import eu.xaru.mysticrpg.dungeons.DungeonModule;
+import eu.xaru.mysticrpg.dungeons.instance.DungeonInstance;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.quests.QuestModule;
 import eu.xaru.mysticrpg.social.party.Party;
 import eu.xaru.mysticrpg.social.party.PartyHelper;
 import eu.xaru.mysticrpg.social.party.PartyModule;
+import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
+import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.*;
@@ -37,8 +39,14 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.projectiles.ProjectileSource;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.logging.Level;
 
@@ -59,7 +67,6 @@ public class MobManager implements Listener {
         this.mobConfigurations = mobConfigurations;
         this.itemManager = ModuleManager.getInstance().getModuleInstance(CustomItemModule.class).getItemManager();
 
-        // Get PartyHelper instance
         PartyModule partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
         if (partyModule != null) {
             this.partyHelper = partyModule.getPartyHelper();
@@ -92,7 +99,6 @@ public class MobManager implements Listener {
         // Set custom attributes
         applyCustomAttributes(mob, customMob);
 
-        // Set custom HP and name
         mob.setCustomName(createMobNameTag(customMob, customMob.getHealth()));
         mob.setCustomNameVisible(true);
         AttributeInstance maxHealthAttr = mob.getAttribute(Attribute.MAX_HEALTH);
@@ -101,25 +107,21 @@ public class MobManager implements Listener {
         }
         mob.setHealth(customMob.getHealth());
 
-        // Apply the model
         String modelId = customMob.getModelId();
         ModeledEntity modeledEntity = null;
 
         if (modelId != null && !modelId.isEmpty()) {
             modeledEntity = ModelHandler.applyModel(mob, modelId);
-            // Hide the base entity
             if (modeledEntity != null) {
                 modeledEntity.setBaseEntityVisible(false);
             }
         } else {
-            // Ensure visible if no model
             mob.setInvisible(false);
         }
 
         CustomMobInstance mobInstance = new CustomMobInstance(customMob, location, mob, modeledEntity);
         activeMobs.put(mob.getUniqueId(), mobInstance);
 
-        // Trigger onSpawn actions
         executeActions(mobInstance, ActionTriggers.ON_SPAWN);
 
         DebugLogger.getInstance().log(Level.INFO, "Spawned mob: " + customMob.getName() + " at location: " + location);
@@ -128,25 +130,21 @@ public class MobManager implements Listener {
     }
 
     private void applyCustomAttributes(LivingEntity mob, CustomMob customMob) {
-        // Movement speed
         AttributeInstance speedAttribute = mob.getAttribute(Attribute.MOVEMENT_SPEED);
         if (speedAttribute != null) {
             speedAttribute.setBaseValue(customMob.getMovementSpeed());
         }
 
-        // Armor
         AttributeInstance armorAttribute = mob.getAttribute(Attribute.ARMOR);
         if (armorAttribute != null) {
             armorAttribute.setBaseValue(customMob.getBaseArmor());
         }
 
-        // Attack damage to zero
         AttributeInstance damageAttribute = mob.getAttribute(Attribute.ATTACK_DAMAGE);
         if (damageAttribute != null) {
             damageAttribute.setBaseValue(0.0);
         }
 
-        // Equipment
         EntityEquipment equipment = mob.getEquipment();
         if (equipment != null && customMob.getEquipment() != null) {
             if (customMob.getEquipment().getHelmet() != null) {
@@ -206,7 +204,6 @@ public class MobManager implements Listener {
 
         double damage = event.getFinalDamage();
 
-        // Record last damager
         if (event instanceof EntityDamageByEntityEvent edbe) {
             Entity damager = edbe.getDamager();
             if (damager instanceof Player playerDamager) {
@@ -214,7 +211,8 @@ public class MobManager implements Listener {
                 mobInstance.setTarget(playerDamager);
                 mobInstance.setInCombat(true);
             } else if (damager instanceof Projectile projectile) {
-                if (projectile.getShooter() instanceof Player playerShooter) {
+                ProjectileSource shooter = projectile.getShooter();
+                if (shooter instanceof Player playerShooter) {
                     mobInstance.setLastDamager(playerShooter.getUniqueId());
                     mobInstance.setTarget(playerShooter);
                     mobInstance.setInCombat(true);
@@ -227,25 +225,20 @@ public class MobManager implements Listener {
 
         livingEntity.setCustomName(createMobNameTag(customMob, currentHp));
 
-        // Trigger onDamaged actions
         executeActions(mobInstance, ActionTriggers.ON_DAMAGED);
 
-        // Update boss bar
         if (mobInstance.getBossBarHandler() != null) {
             mobInstance.getBossBarHandler().updateBossBar();
         }
 
-        // Check if mob is dead
         if (currentHp <= 0) {
             activeMobs.remove(livingEntity.getUniqueId());
             handleMobDeath(mobInstance);
             livingEntity.remove();
         }
 
-        // Prevent default damage
         event.setDamage(0);
 
-        // Knockback
         if (event instanceof EntityDamageByEntityEvent edbe) {
             if (edbe.getDamager() instanceof Player playerAttacker) {
                 Vector direction = livingEntity.getLocation().toVector().subtract(playerAttacker.getLocation().toVector()).normalize();
@@ -253,7 +246,6 @@ public class MobManager implements Listener {
             }
         }
 
-        // Hurt animation
         String modelId = mobInstance.getCustomMob().getModelId();
         if (modelId != null && !modelId.isEmpty()) {
             ModelHandler.playAnimation(livingEntity, modelId, "hurt", 0.0, 0.0, 1.0, false);
@@ -270,6 +262,17 @@ public class MobManager implements Listener {
             Player killer = Bukkit.getPlayer(killerUUID);
             if (killer != null && killer.isOnline()) {
                 DebugLogger.getInstance().log(Level.INFO, "Killer found: " + killer.getName());
+
+                // Check if killer is in a dungeon instance and increment monster kills
+                DungeonModule dungeonModule = ModuleManager.getInstance().getModuleInstance(DungeonModule.class);
+                if (dungeonModule != null) {
+                    DungeonManager dungeonManager = dungeonModule.getDungeonManager();
+                    DungeonInstance instance = dungeonManager.getInstanceByPlayer(killer.getUniqueId());
+                    if (instance != null) {
+                        instance.incrementMonsterKill(killer);
+                    }
+                }
+
                 int baseXp = mobInstance.getCustomMob().getExperienceReward();
                 int baseGold = mobInstance.getCustomMob().getCurrencyReward();
 
@@ -339,7 +342,6 @@ public class MobManager implements Listener {
                     DebugLogger.getInstance().severe("LevelModule is not available. Cannot add XP to player.");
                 }
 
-                // Update quest progress (only for killer)
                 QuestModule questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);
                 if (questModule != null) {
                     // questModule.updateQuestProgressOnMobDeath(killer, mobInstance.getCustomMob());
@@ -353,7 +355,6 @@ public class MobManager implements Listener {
             DebugLogger.getInstance().log(Level.WARNING, "Mob died but no killer was found.");
         }
 
-        // Handle drops
         for (CustomMob.DropItem dropItem : mobInstance.getCustomMob().getDrops()) {
             if (random.nextDouble() <= dropItem.getChance()) {
                 ItemStack drop = null;
@@ -375,31 +376,21 @@ public class MobManager implements Listener {
             }
         }
 
-        // Remove boss bar if present
         if (mobInstance.getBossBarHandler() != null) {
             mobInstance.getBossBarHandler().removeAllPlayers();
         }
 
-        // Destroy the modeled entity if exists
         if (mobInstance.getModeledEntity() != null) {
             mobInstance.getModeledEntity().destroy();
         }
     }
 
-    /**
-     * Applies effects from the player's weapon to XP and Gold rewards.
-     * Delegates to applyXpEffects and applyGoldEffects.
-     */
     private int[] applyEffectsToRewards(Player player, int baseXp, int baseGold) {
         int finalXp = applyXpEffects(player, baseXp);
         int finalGold = applyGoldEffects(player, baseGold);
         return new int[]{finalXp, finalGold};
     }
 
-    /**
-     * Applies XP-related effects by retrieving xp multipliers from effects.
-     * Also sends a message to the player if any effect increased XP.
-     */
     private int applyXpEffects(Player player, int baseXp) {
         int finalXp = baseXp;
         ItemStack weapon = player.getInventory().getItemInMainHand();
@@ -434,10 +425,6 @@ public class MobManager implements Listener {
         return finalXp;
     }
 
-    /**
-     * Applies Gold-related effects by retrieving gold multipliers from effects.
-     * Also sends a message to the player if any effect increased Gold.
-     */
     private int applyGoldEffects(Player player, int baseGold) {
         int finalGold = baseGold;
         ItemStack weapon = player.getInventory().getItemInMainHand();
@@ -517,8 +504,7 @@ public class MobManager implements Listener {
 
         ActionStep step = steps.get(index);
 
-        if (step instanceof DelayActionStep) {
-            DelayActionStep delayStep = (DelayActionStep) step;
+        if (step instanceof DelayActionStep delayStep) {
             long delayTicks = (long) (delayStep.getDelaySeconds() * 20);
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 executeActionSteps(mobInstance, steps, index + 1);
@@ -605,7 +591,7 @@ public class MobManager implements Listener {
         LivingEntity entity = mobInstance.getEntity();
         if (entity.isDead()) return;
 
-        String animationName = null;
+        String animationName;
         boolean isMoving = entity.getVelocity().lengthSquared() > 0.02;
         AnimationConfig animationConfig = mobInstance.getCustomMob().getAnimationConfig();
 

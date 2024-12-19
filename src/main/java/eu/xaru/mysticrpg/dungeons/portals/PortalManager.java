@@ -156,8 +156,6 @@ public class PortalManager {
         Location teleportLocation = Bukkit.getWorld("world").getSpawnLocation(); // Adjust as needed
 
         player.teleport(teleportLocation);
-        player.sendMessage(ChatColor.GOLD + "You have completed the dungeon!");
-
         // Mark the dungeon as completed
         dungeonInstance.endDungeon();
     }
