@@ -3,6 +3,8 @@ package eu.xaru.mysticrpg.dungeons.gui;
 import eu.xaru.mysticrpg.dungeons.DungeonManager;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfig;
 import eu.xaru.mysticrpg.dungeons.lobby.DungeonLobby;
+import eu.xaru.mysticrpg.storage.PlayerData;
+import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -21,24 +23,28 @@ import xyz.xenondevs.invui.window.Window;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.bukkit.inventory.ItemFlag.HIDE_ADDITIONAL_TOOLTIP;
+import static org.bukkit.inventory.ItemFlag.HIDE_ATTRIBUTES;
+
 public class DungeonSelectionGUI {
 
     private final DungeonManager dungeonManager;
     private final NamespacedKey dungeonIdKey;
+    private final PlayerDataCache playerDataCache;
 
     public DungeonSelectionGUI(DungeonManager dungeonManager) {
         this.dungeonManager = dungeonManager;
         this.dungeonIdKey = new NamespacedKey(dungeonManager.getPlugin(), "dungeon_id");
+        this.playerDataCache = PlayerDataCache.getInstance(); // Ensure that PlayerDataCache is accessible
     }
 
     public void open(Player player) {
         List<DungeonConfig> configs = new ArrayList<>(dungeonManager.getConfigManager().getAllConfigs());
 
-        // We'll create a 27-slot (3 rows of 9) GUI
         String[] structure = {
-                "#########",
-                "#########",
-                "#########"
+                "# # # # # # # # #",
+                "# # # # # # # # #",
+                "# # # # # # # # #"
         };
 
         Gui gui = Gui.normal()
@@ -46,7 +52,6 @@ public class DungeonSelectionGUI {
                 .addIngredient('#', getFillerItem())
                 .build();
 
-        // Place dungeon items
         for (int i = 0; i < configs.size() && i < 27; i++) {
             gui.setItem(i, createDungeonItem(configs.get(i)));
         }
@@ -54,7 +59,7 @@ public class DungeonSelectionGUI {
         Window window = Window.single()
                 .setViewer(player)
                 .setGui(gui)
-                .setTitle(ChatColor.BLUE + "Select a Dungeon")
+                .setTitle(ChatColor.BLUE + "Dungeon Browser")
                 .build();
 
         window.open();
@@ -65,11 +70,22 @@ public class DungeonSelectionGUI {
         lore.add(ChatColor.GRAY + "Min Players: " + config.getMinPlayers());
         lore.add(ChatColor.GRAY + "Max Players: " + config.getMaxPlayers());
         lore.add(ChatColor.GRAY + "Difficulty: " + config.getDifficulty());
+        lore.add(ChatColor.GRAY + "Level Requirement: " + config.getLevelRequirement());
+
+        ChatColor diffColor = ChatColor.BLUE;
+        String diff = config.getDifficulty().toLowerCase();
+        switch (diff) {
+            case "easy" -> diffColor = ChatColor.GREEN;
+            case "normal" -> diffColor = ChatColor.BLUE;
+            case "hard" -> diffColor = ChatColor.GOLD;
+            case "deadly" -> diffColor = ChatColor.RED;
+        }
 
         ItemStack base = new ItemStack(Material.DIAMOND_SWORD);
         ItemMeta meta = base.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ChatColor.GOLD + config.getName());
+            String displayName = diffColor + config.getName() + " [" + config.getDifficulty() + "]";
+            meta.setDisplayName(displayName);
             meta.setLore(lore);
             meta.getPersistentDataContainer().set(dungeonIdKey, PersistentDataType.STRING, config.getId());
             base.setItemMeta(meta);
@@ -78,11 +94,21 @@ public class DungeonSelectionGUI {
         return new SimpleItem(base) {
             @Override
             public void handleClick(ClickType clickType, Player clickPlayer, InventoryClickEvent event) {
+                int requiredLevel = config.getLevelRequirement();
+
+                // Fetch player level from PlayerDataCache
+                PlayerData pd = playerDataCache.getCachedPlayerData(clickPlayer.getUniqueId());
+                int playerLevel = (pd != null) ? pd.getLevel() : 1;
+
+                if (playerLevel < requiredLevel) {
+                    clickPlayer.sendMessage(ChatColor.RED + "You do not meet the level requirement (" + requiredLevel + ") for this dungeon.");
+                    event.getView().close();
+                    return;
+                }
+
                 // Create or get the lobby
                 DungeonLobby lobby = dungeonManager.getLobbyManager().getOrCreateLobby(config.getId(), clickPlayer);
                 event.getView().close();
-
-                // Now open the DungeonLobbyGUI for the player and this lobby
                 dungeonManager.getLobbyGUI().open(clickPlayer, lobby);
             }
         };

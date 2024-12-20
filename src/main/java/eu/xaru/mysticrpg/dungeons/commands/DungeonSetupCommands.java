@@ -1,8 +1,7 @@
-// File: eu/xaru/mysticrpg/dungeons/commands/DungeonSetupCommands.java
-
 package eu.xaru.mysticrpg.dungeons.commands;
 
 import dev.jorel.commandapi.CommandAPICommand;
+import dev.jorel.commandapi.arguments.IntegerArgument;
 import dev.jorel.commandapi.arguments.StringArgument;
 import dev.jorel.commandapi.arguments.ArgumentSuggestions;
 import eu.xaru.mysticrpg.cores.MysticCore;
@@ -25,7 +24,7 @@ public class DungeonSetupCommands {
 
     public DungeonSetupCommands(DungeonSetupManager setupManager) {
         this.setupManager = setupManager;
-        this.doorManager = setupManager.getDoorManager(); // Assuming you have a getter for DoorManager
+        this.doorManager = setupManager.getDoorManager();
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
         registerCommands();
     }
@@ -64,8 +63,6 @@ public class DungeonSetupCommands {
                             if (setupManager.isInSetup(player)) {
                                 String chestType = (String) args.get("type");
                                 player.sendMessage(ChatColor.GREEN + "Please click on a chest to register it.");
-                                // Store the type temporarily and wait for the player to click on a chest
-                                // We'll handle the click event in an event listener
                                 player.setMetadata("chestType", new FixedMetadataValue(plugin, chestType));
                             } else {
                                 player.sendMessage(ChatColor.RED + "You are not in a setup session.");
@@ -83,8 +80,6 @@ public class DungeonSetupCommands {
                             }
                         })
                 )
-
-                // Add the new setdoor command
                 .withSubcommand(new CommandAPICommand("setdoor")
                         .withArguments(new StringArgument("doorId"))
                         .executesPlayer((player, args) -> {
@@ -94,9 +89,24 @@ public class DungeonSetupCommands {
                                 return;
                             }
                             player.sendMessage(ChatColor.GREEN + "Door setup started for Door ID: " + doorId + ". Please click on the bottom-left and top-right blocks to define the door area.");
-                            // Start a door setup session
                             UUID playerId = player.getUniqueId();
                             setupManager.startDoorSetupSession(playerId, doorId);
+                        })
+                )
+
+                // NEW SUBCOMMAND: levelrequirement
+                .withSubcommand(new CommandAPICommand("levelrequirement")
+                        .withArguments(new IntegerArgument("level"))
+                        .executesPlayer((player, args) -> {
+                            if (setupManager.isInSetup(player)) {
+                                int levelReq = (int) args.get("level");
+                                if (levelReq < 1) levelReq = 1;
+                                DungeonSetupSession session = setupManager.getSession(player);
+                                session.getConfig().setLevelRequirement(levelReq);
+                                player.sendMessage(ChatColor.GREEN + "Level requirement set to " + levelReq + ".");
+                            } else {
+                                player.sendMessage(ChatColor.RED + "You are not in a setup session.");
+                            }
                         })
                 )
 

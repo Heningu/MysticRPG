@@ -1,5 +1,3 @@
-// File: eu/xaru/mysticrpg/dungeons/config/DungeonConfig.java
-
 package eu.xaru.mysticrpg.dungeons.config;
 
 import org.bukkit.Location;
@@ -20,6 +18,7 @@ public class DungeonConfig {
     private List<ChestLocation> chestLocations = new ArrayList<>();
     private String worldName;
     private Location portalPos1;
+    private int levelRequirement = 1; // Default to 1
 
     public String getId() {
         return id;
@@ -157,5 +156,13 @@ public class DungeonConfig {
 
     public void setPortalPos1(Location portalPos1) {
         this.portalPos1 = portalPos1;
+    }
+
+    public int getLevelRequirement() {
+        return levelRequirement;
+    }
+
+    public void setLevelRequirement(int levelRequirement) {
+        this.levelRequirement = levelRequirement;
     }
 }
