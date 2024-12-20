@@ -1,5 +1,3 @@
-// File: eu.xaru.mysticrpg.dungeons.lobby.DungeonLobby.java
-
 package eu.xaru.mysticrpg.dungeons.lobby;
 
 import eu.xaru.mysticrpg.dungeons.DungeonManager;
@@ -10,7 +8,7 @@ import org.bukkit.entity.Player;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class DungeonLobby {
+public class  DungeonLobby {
 
     private final String lobbyId;
     private final String dungeonId;
@@ -54,25 +52,17 @@ public class DungeonLobby {
         return players.size() >= config.getMaxPlayers();
     }
 
-    /**
-     * Adds a player to the lobby. If they are already inside, just refresh their GUI.
-     */
     public void addPlayer(Player player) {
         if (!players.contains(player)) {
             players.add(player);
-            // Update GUI for all players, including the new one
             updateLobbyGUI();
         } else {
-            // Player is already in lobby, just open the updated GUI
+            // Already in lobby, just re-open GUI
             DungeonLobbyGUI lobbyGUI = dungeonManager.getLobbyGUI();
             lobbyGUI.open(player, this);
         }
     }
 
-    /**
-     * Removes a player from the lobby and updates the GUI.
-     * If the lobby becomes empty, remove it.
-     */
     public void removePlayer(Player player) {
         players.remove(player);
         readyPlayers.remove(player.getUniqueId());
@@ -84,9 +74,6 @@ public class DungeonLobby {
         }
     }
 
-    /**
-     * Sets whether a given player is ready or not, then updates the GUI.
-     */
     public void setReady(UUID playerUUID, boolean ready) {
         if (ready) {
             readyPlayers.add(playerUUID);
@@ -96,33 +83,22 @@ public class DungeonLobby {
         updateLobbyGUI();
     }
 
-    /**
-     * Checks if a given player is ready.
-     */
     public boolean isReady(UUID playerUUID) {
         return readyPlayers.contains(playerUUID);
     }
 
-    /**
-     * Checks if all players are ready and if minimum player requirements are met.
-     */
     public boolean allPlayersReady() {
         return !players.isEmpty() &&
                 readyPlayers.size() == players.size() &&
                 players.size() >= config.getMinPlayers();
     }
 
-    /**
-     * Start the dungeon instance. Called by the GUI start button if all players are ready.
-     */
     public void startDungeon() {
-        // Close the lobby GUI for all players
-        DungeonLobbyGUI lobbyGUI = dungeonManager.getLobbyGUI();
+        // Close GUI for all
         for (Player player : players) {
             player.closeInventory();
         }
         dungeonManager.createInstance(dungeonId, getPlayerUUIDs());
-        // Remove the lobby
         lobbyManager.removeLobby(lobbyId);
     }
 
@@ -134,9 +110,6 @@ public class DungeonLobby {
         return uuids;
     }
 
-    /**
-     * Updates the lobby GUI for all players in the lobby.
-     */
     private void updateLobbyGUI() {
         DungeonLobbyGUI lobbyGUI = dungeonManager.getLobbyGUI();
         for (Player player : players) {
@@ -144,4 +117,11 @@ public class DungeonLobby {
         }
     }
 
+    /**
+     * Gets the creator (the first player who joined the lobby).
+     * Returns null if no players in the lobby.
+     */
+    public Player getCreator() {
+        return players.isEmpty() ? null : players.get(0);
+    }
 }

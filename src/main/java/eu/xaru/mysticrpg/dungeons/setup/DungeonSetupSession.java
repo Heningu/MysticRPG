@@ -1,10 +1,10 @@
-// File: eu/xaru/mysticrpg/dungeons/setup/DungeonSetupSession.java
-
 package eu.xaru.mysticrpg.dungeons.setup;
 
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfig;
+import eu.xaru.mysticrpg.dungeons.doors.Door;
+import eu.xaru.mysticrpg.dungeons.doors.DoorManager;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
 public class DungeonSetupSession {
@@ -14,10 +14,16 @@ public class DungeonSetupSession {
     private boolean isSettingPortal;
     private Location portalPos1;
 
-    public DungeonSetupSession(Player player, String dungeonId) {
+    private boolean isSettingDoor;
+    private String currentDoorId;
+    private Location doorCorner1;
+    private final DoorManager doorManager;
+
+    public DungeonSetupSession(Player player, String dungeonId, DoorManager doorManager) {
         this.player = player;
         this.config = new DungeonConfig();
         this.config.setId(dungeonId);
+        this.doorManager = doorManager;
     }
 
     public Player getPlayer() {
@@ -45,37 +51,18 @@ public class DungeonSetupSession {
         DungeonConfig.ChestLocation chestLocation = new DungeonConfig.ChestLocation();
         chestLocation.setLocation(location);
 
-        // Attempt to match the material
-        Material material = Material.matchMaterial(chestType.toUpperCase());
-        if (material == null) {
-            // If material is null, default to CHEST and notify the player
-            material = Material.CHEST;
+        org.bukkit.Material mat = org.bukkit.Material.matchMaterial(chestType.toUpperCase());
+        if (mat == null) {
+            mat = org.bukkit.Material.CHEST;
             player.sendMessage("Invalid chest type provided. Defaulting to CHEST.");
         }
-        chestLocation.setType(material);
-
-        // Assign loot table ID based on chest type
-        String lootTableId;
-        if (material == Material.CHEST) {
-            lootTableId = "default_loot";
-        } else if (material == Material.TRAPPED_CHEST) {
-            lootTableId = "elite_loot";
-        } else {
-            lootTableId = "default_loot";
-        }
-        chestLocation.setLootTableId(lootTableId);
-
+        chestLocation.setType(mat);
+        chestLocation.setLootTableId(mat == org.bukkit.Material.TRAPPED_CHEST ? "elite_loot" : "default_loot");
         config.getChestLocations().add(chestLocation);
-
-        // Inform the player about the added chest
-        if (material == Material.CHEST && !chestType.equalsIgnoreCase("CHEST")) {
-            player.sendMessage("Invalid chest type '" + chestType + "'. Defaulted to CHEST.");
-        } else {
-            player.sendMessage("Chest of type '" + material.toString() + "' added with loot table: " + lootTableId);
-        }
+        player.sendMessage("Chest of type '" + mat.toString() + "' added with loot table: " + chestLocation.getLootTableId());
     }
 
-    // Portal Setup Methods
+    // Portal Setup
     public void startPortalSetup() {
         isSettingPortal = true;
         portalPos1 = null;
@@ -96,5 +83,66 @@ public class DungeonSetupSession {
 
     public Location getPortalPos1() {
         return portalPos1;
+    }
+
+    // Door setup
+    public void startDoorSetup(String doorId) {
+        isSettingDoor = true;
+        currentDoorId = doorId;
+        doorCorner1 = null;
+        player.sendMessage(ChatColor.GREEN + "Door setup started for Door ID: " + doorId + ". Click the first corner block.");
+    }
+
+    public boolean isSettingDoor() {
+        return isSettingDoor;
+    }
+
+    public String getCurrentDoorId() {
+        return currentDoorId;
+    }
+
+    public void setDoorCorner(Location location) {
+        if (doorCorner1 == null) {
+            doorCorner1 = location;
+            player.sendMessage(ChatColor.GREEN + "First corner set. Now click the second corner (opposite corner).");
+        } else {
+            Location corner2 = location;
+
+            double minX = Math.min(doorCorner1.getX(), corner2.getX());
+            double minY = Math.min(doorCorner1.getY(), corner2.getY());
+            double minZ = Math.min(doorCorner1.getZ(), corner2.getZ());
+
+            double maxX = Math.max(doorCorner1.getX(), corner2.getX());
+            double maxY = Math.max(doorCorner1.getY(), corner2.getY());
+            double maxZ = Math.max(doorCorner1.getZ(), corner2.getZ());
+
+            Location bottomLeft = new Location(doorCorner1.getWorld(), minX, minY, minZ);
+            Location topRight = new Location(doorCorner1.getWorld(), maxX, maxY, maxZ);
+
+            Door door = new Door(currentDoorId, bottomLeft, topRight);
+            if (!doorManager.addDoor(door)) {
+                player.sendMessage(ChatColor.RED + "A door with that ID already exists or an error occurred.");
+            } else {
+                // Add door data to config
+                DungeonConfig.DoorData dd = new DungeonConfig.DoorData();
+                dd.setDoorId(currentDoorId);
+                dd.setX1(minX);
+                dd.setY1(minY);
+                dd.setZ1(minZ);
+                dd.setX2(maxX);
+                dd.setY2(maxY);
+                dd.setZ2(maxZ);
+                dd.setTriggerType("none");
+                config.getDoors().add(dd);
+
+                player.sendMessage(ChatColor.GREEN + "Door '" + currentDoorId + "' created successfully.");
+                // Show placeholder now
+                doorManager.buildDoor(door);
+            }
+
+            isSettingDoor = false;
+            currentDoorId = null;
+            doorCorner1 = null;
+        }
     }
 }

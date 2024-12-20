@@ -89,8 +89,6 @@ public class DungeonConfigManager {
             float spawnPitch = (float) config.getDouble("spawnLocation.pitch", 0);
             Location spawnLocation = new Location(world, spawnX, spawnY, spawnZ, spawnYaw, spawnPitch);
             dungeonConfig.setSpawnLocation(spawnLocation);
-        } else {
-            DebugLogger.getInstance().log(Level.WARNING, "Dungeon config '" + dungeonConfig.getId() + "' is missing a spawn location.", 0);
         }
 
         // Mob spawn points
@@ -166,8 +164,26 @@ public class DungeonConfigManager {
             float portalPitch = (float) config.getDouble("portalPos1.pitch", 0);
             Location portalLocation = new Location(world, portalX, portalY, portalZ, portalYaw, portalPitch);
             dungeonConfig.setPortalPos1(portalLocation);
-        } else {
-            DebugLogger.getInstance().log(Level.WARNING, "Dungeon config '" + dungeonConfig.getId() + "' is missing a portal position.", 0);
+        }
+
+        // Doors
+        if (config.contains("doors")) {
+            ConfigurationSection doorsSection = config.getConfigurationSection("doors");
+            List<DungeonConfig.DoorData> doorDataList = new ArrayList<>();
+            for (String doorKey : doorsSection.getKeys(false)) {
+                ConfigurationSection ds = doorsSection.getConfigurationSection(doorKey);
+                DungeonConfig.DoorData dd = new DungeonConfig.DoorData();
+                dd.setDoorId(ds.getString("id"));
+                dd.setX1(ds.getDouble("x1"));
+                dd.setY1(ds.getDouble("y1"));
+                dd.setZ1(ds.getDouble("z1"));
+                dd.setX2(ds.getDouble("x2"));
+                dd.setY2(ds.getDouble("y2"));
+                dd.setZ2(ds.getDouble("z2"));
+                dd.setTriggerType(ds.getString("trigger", "none"));
+                doorDataList.add(dd);
+            }
+            dungeonConfig.setDoors(doorDataList);
         }
 
         return dungeonConfig;
@@ -192,7 +208,7 @@ public class DungeonConfigManager {
         }
 
         File configFile = new File(configDir, config.getId() + ".yml");
-        FileConfiguration fileConfig = new YamlConfiguration();
+        YamlConfiguration fileConfig = new YamlConfiguration();
 
         fileConfig.set("id", config.getId());
         fileConfig.set("name", config.getName());
@@ -241,6 +257,21 @@ public class DungeonConfigManager {
             fileConfig.set("portalPos1.z", config.getPortalPos1().getZ());
             fileConfig.set("portalPos1.yaw", config.getPortalPos1().getYaw());
             fileConfig.set("portalPos1.pitch", config.getPortalPos1().getPitch());
+        }
+
+        // Save doors
+        ConfigurationSection doorsSection = fileConfig.createSection("doors");
+        int doorIndex = 0;
+        for (DungeonConfig.DoorData dd : config.getDoors()) {
+            ConfigurationSection ds = doorsSection.createSection("door" + doorIndex++);
+            ds.set("id", dd.getDoorId());
+            ds.set("x1", dd.getX1());
+            ds.set("y1", dd.getY1());
+            ds.set("z1", dd.getZ1());
+            ds.set("x2", dd.getX2());
+            ds.set("y2", dd.getY2());
+            ds.set("z2", dd.getZ2());
+            ds.set("trigger", dd.getTriggerType());
         }
 
         try {

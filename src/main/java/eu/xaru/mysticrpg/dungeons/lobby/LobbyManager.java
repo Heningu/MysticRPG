@@ -1,13 +1,12 @@
-// Add a getter for dungeonManager in LobbyManager
-// File: eu/xaru/mysticrpg/dungeons/lobby/LobbyManager.java
-
 package eu.xaru.mysticrpg.dungeons.lobby;
 
 import eu.xaru.mysticrpg.dungeons.DungeonManager;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 
@@ -48,14 +47,23 @@ public class LobbyManager {
 
     public DungeonLobby findAvailableLobby(String dungeonId) {
         for (DungeonLobby lobby : activeLobbies.values()) {
-            if (lobby.getDungeonId().equals(dungeonId) && lobby.getPlayers().size() < lobby.getMaxPlayers()) {
+            if (lobby.getDungeonId().equals(dungeonId) && !lobby.isFull()) {
                 return lobby;
             }
         }
         return null;
     }
 
-    // Add a getter for dungeonManager
+    public List<DungeonLobby> getActiveLobbiesForDungeon(String dungeonId) {
+        List<DungeonLobby> result = new ArrayList<>();
+        for (DungeonLobby lobby : activeLobbies.values()) {
+            if (lobby.getDungeonId().equals(dungeonId)) {
+                result.add(lobby);
+            }
+        }
+        return result;
+    }
+
     public DungeonManager getDungeonManager() {
         return dungeonManager;
     }

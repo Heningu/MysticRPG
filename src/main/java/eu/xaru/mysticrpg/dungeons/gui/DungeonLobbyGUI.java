@@ -28,24 +28,21 @@ public class DungeonLobbyGUI {
     private final LobbyManager lobbyManager;
     private final NamespacedKey lobbyIdKey;
 
-    // Updated structure with unique placeholders for each player & wool:
-    // Row 0: P p # # # # # # S
-    // Row 1: T t # # # # # # #
-    // Row 2: Z z # # # # # # #
-    // Row 3: # # # # # # # # #
-    // Row 4: # # # # # # # # #
-    // Row 5: L # # # # # # # R
-    //
-    // P,T,Z for player heads
-    // p,t,z for corresponding ready wool
-    // L = leave, R = toggle ready, S = start
-    // # = filler
+    // Player placeholders for up to 6 players
+    // Heads: P,T,Z,U,Y,G
+    // Wool:  p,t,z,u,y,g
 
-    private static final String[] STRUCTURE = {
+    // If maxPlayers = 2, only P/p and T/t should be shown. The rest should become '#'.
+
+    private static final char[] HEAD_CHARS = {'P','T','Z','U','Y','G'};
+    private static final char[] WOOL_CHARS = {'p','t','z','u','y','g'};
+
+    // Base structure with all placeholders:
+    private static final String[] BASE_STRUCTURE = {
             "# # # # # # # # S",
-            "# P p # # # # # #",
-            "# T t # # # # # #",
-            "# Z z # # # # # #",
+            "# P p # # # U u #",
+            "# T t # # # Y y #",
+            "# Z z # # # G g #",
             "# # # # # # # # #",
             "L # # # # # # # R"
     };
@@ -59,22 +56,38 @@ public class DungeonLobbyGUI {
         String lobbyId = lobby.getLobbyId();
         boolean isPlayerReady = lobby.isReady(player.getUniqueId());
 
-        // Prepare the GUI builder
+        int maxPlayers = lobby.getMaxPlayers();
+        if (maxPlayers > 6) {
+            maxPlayers = 6; // cap at 6
+        }
+
+        // Dynamically adjust the structure based on maxPlayers:
+        // For any player slot beyond maxPlayers, replace their letters with '#'
+        // We'll convert structure lines to mutable form
+        String[] modifiedStructure = new String[BASE_STRUCTURE.length];
+        for (int i = 0; i < BASE_STRUCTURE.length; i++) {
+            String line = BASE_STRUCTURE[i];
+            // Replace unused slots with '#'
+            for (int slotIndex = maxPlayers; slotIndex < 6; slotIndex++) {
+                line = line.replace(Character.toString(HEAD_CHARS[slotIndex]), "#");
+                line = line.replace(Character.toString(WOOL_CHARS[slotIndex]), "#");
+            }
+            modifiedStructure[i] = line;
+        }
+
         Gui.Builder guiBuilder = Gui.normal()
-                .setStructure(STRUCTURE)
+                .setStructure(modifiedStructure)
                 .addIngredient('#', getFillerItem())
                 .addIngredient('L', createLeaveItem(lobbyId))
                 .addIngredient('R', createToggleReadyItem(lobbyId, isPlayerReady))
                 .addIngredient('S', createStartItem(lobbyId, lobby));
 
-        // Get players in the lobby
         List<UUID> members = lobby.getPlayers().stream().map(Player::getUniqueId).collect(Collectors.toList());
 
-        // We have up to three players' placeholders: (P,p), (T,t), (Z,z)
-        // If less than 3 members, fill with empty placeholders
-        setPlayerSlot(guiBuilder, lobby, members, 0, 'P', 'p');
-        setPlayerSlot(guiBuilder, lobby, members, 1, 'T', 't');
-        setPlayerSlot(guiBuilder, lobby, members, 2, 'Z', 'z');
+        // Fill up to maxPlayers slots
+        for (int i = 0; i < maxPlayers; i++) {
+            setPlayerSlot(guiBuilder, lobby, members, i, HEAD_CHARS[i], WOOL_CHARS[i]);
+        }
 
         Gui gui = guiBuilder.build();
 
@@ -92,7 +105,6 @@ public class DungeonLobbyGUI {
             UUID memberUUID = members.get(index);
             Player member = lobbyManager.getDungeonManager().getPlugin().getServer().getPlayer(memberUUID);
             if (member == null) {
-                // Offline/null member
                 guiBuilder.addIngredient(playerChar, createEmptyPlayerSlot());
                 guiBuilder.addIngredient(woolChar, createEmptyWool(false));
             } else {
@@ -101,7 +113,6 @@ public class DungeonLobbyGUI {
                 guiBuilder.addIngredient(woolChar, createReadyWool(memberReady));
             }
         } else {
-            // No player here, empty slot
             guiBuilder.addIngredient(playerChar, createEmptyPlayerSlot());
             guiBuilder.addIngredient(woolChar, createEmptyWool(false));
         }
@@ -115,7 +126,6 @@ public class DungeonLobbyGUI {
             meta.setDisplayName(ChatColor.YELLOW + lobbyPlayer.getName());
             head.setItemMeta(meta);
         }
-
         return new SimpleItem(head) {};
     }
 
@@ -187,7 +197,6 @@ public class DungeonLobbyGUI {
     }
 
     private Item createStartItem(String lobbyId, DungeonLobby lobby) {
-        // Jigsaw block = start dungeon if all players ready
         return new SimpleItem(new ItemBuilder(Material.JIGSAW)
                 .setDisplayName(ChatColor.GREEN + "Start Dungeon")
                 .addLoreLines("",

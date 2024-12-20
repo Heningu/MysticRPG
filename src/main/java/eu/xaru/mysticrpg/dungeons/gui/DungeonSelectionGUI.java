@@ -2,7 +2,6 @@ package eu.xaru.mysticrpg.dungeons.gui;
 
 import eu.xaru.mysticrpg.dungeons.DungeonManager;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfig;
-import eu.xaru.mysticrpg.dungeons.lobby.DungeonLobby;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import org.bukkit.ChatColor;
@@ -23,9 +22,6 @@ import xyz.xenondevs.invui.window.Window;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.bukkit.inventory.ItemFlag.HIDE_ADDITIONAL_TOOLTIP;
-import static org.bukkit.inventory.ItemFlag.HIDE_ATTRIBUTES;
-
 public class DungeonSelectionGUI {
 
     private final DungeonManager dungeonManager;
@@ -35,7 +31,7 @@ public class DungeonSelectionGUI {
     public DungeonSelectionGUI(DungeonManager dungeonManager) {
         this.dungeonManager = dungeonManager;
         this.dungeonIdKey = new NamespacedKey(dungeonManager.getPlugin(), "dungeon_id");
-        this.playerDataCache = PlayerDataCache.getInstance(); // Ensure that PlayerDataCache is accessible
+        this.playerDataCache = PlayerDataCache.getInstance();
     }
 
     public void open(Player player) {
@@ -95,8 +91,6 @@ public class DungeonSelectionGUI {
             @Override
             public void handleClick(ClickType clickType, Player clickPlayer, InventoryClickEvent event) {
                 int requiredLevel = config.getLevelRequirement();
-
-                // Fetch player level from PlayerDataCache
                 PlayerData pd = playerDataCache.getCachedPlayerData(clickPlayer.getUniqueId());
                 int playerLevel = (pd != null) ? pd.getLevel() : 1;
 
@@ -106,10 +100,9 @@ public class DungeonSelectionGUI {
                     return;
                 }
 
-                // Create or get the lobby
-                DungeonLobby lobby = dungeonManager.getLobbyManager().getOrCreateLobby(config.getId(), clickPlayer);
                 event.getView().close();
-                dungeonManager.getLobbyGUI().open(clickPlayer, lobby);
+                // Open the lobbies GUI for this dungeon
+                new DungeonLobbiesGUI(dungeonManager, config).open(clickPlayer);
             }
         };
     }

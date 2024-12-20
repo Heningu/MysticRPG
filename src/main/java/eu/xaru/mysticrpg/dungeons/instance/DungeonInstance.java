@@ -3,6 +3,8 @@ package eu.xaru.mysticrpg.dungeons.instance;
 import eu.xaru.mysticrpg.dungeons.DungeonManager;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfig;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfigManager;
+import eu.xaru.mysticrpg.dungeons.doors.Door;
+import eu.xaru.mysticrpg.dungeons.doors.DoorManager;
 import eu.xaru.mysticrpg.dungeons.instance.puzzles.PuzzleManager;
 import eu.xaru.mysticrpg.dungeons.portals.PortalManager;
 import eu.xaru.mysticrpg.utils.DebugLogger;
@@ -182,7 +184,6 @@ public class DungeonInstance {
                 spawnLocation.getWorld().getName() + " X: " + spawnLocation.getBlockX() +
                 " Y: " + spawnLocation.getBlockY() + " Z: " + spawnLocation.getBlockZ(), 0);
 
-        // First, teleport all players into the instance world
         for (UUID uuid : playerUUIDs) {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && player.isOnline()) {
@@ -194,13 +195,9 @@ public class DungeonInstance {
             }
         }
 
-        // Now that all are teleported, update visibility:
-        // For each player in the instance:
-        // 1) show all players that are also in the instance
-        // 2) hide all players that are not in the instance
         for (Player player : playersInInstance) {
-            showAllPlayers(player); // Show everyone first
-            hideNonInstancePlayers(player); // Then hide those not in the instance
+            showAllPlayers(player);
+            hideNonInstancePlayers(player);
         }
     }
 
@@ -219,6 +216,20 @@ public class DungeonInstance {
         chestManager.placeChests();
         puzzleManager.initializePuzzles();
         portalManager.placeFinishPortal();
+
+        // Load doors from config and add them to doorManager
+        if (dungeonManager.getSetupManager().getDoorManager() != null) {
+            for (DungeonConfig.DoorData dd : config.getDoors()) {
+                Location bottomLeft = new Location(instanceWorld, dd.getX1(), dd.getY1(), dd.getZ1());
+                Location topRight = new Location(instanceWorld, dd.getX2(), dd.getY2(), dd.getZ2());
+                Door door = new Door(dd.getDoorId(), bottomLeft, topRight);
+                door.setTriggerType(dd.getTriggerType());
+                dungeonManager.getSetupManager().getDoorManager().addDoor(door);
+            }
+
+            // finalize doors
+            dungeonManager.getSetupManager().getDoorManager().finalizeDoors();
+        }
 
         Location portal = config.getPortalPos1();
         if (portal != null) {

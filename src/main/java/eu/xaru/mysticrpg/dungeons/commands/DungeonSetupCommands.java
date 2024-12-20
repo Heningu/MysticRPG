@@ -14,8 +14,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.UUID;
-
 public class DungeonSetupCommands {
 
     private final DungeonSetupManager setupManager;
@@ -31,18 +29,6 @@ public class DungeonSetupCommands {
 
     private void registerCommands() {
         new CommandAPICommand("ds")
-                .withSubcommand(new CommandAPICommand("setspawn")
-                        .executesPlayer((player, args) -> {
-                            if (setupManager.isInSetup(player)) {
-                                DungeonSetupSession session = setupManager.getSession(player);
-                                Location location = player.getLocation();
-                                session.setSpawnLocation(location);
-                                player.sendMessage(ChatColor.GREEN + "Dungeon spawn location set.");
-                            } else {
-                                player.sendMessage(ChatColor.RED + "You are not in a setup session.");
-                            }
-                        })
-                )
                 .withSubcommand(new CommandAPICommand("setmobspawn")
                         .withArguments(new StringArgument("mobId"))
                         .executesPlayer((player, args) -> {
@@ -88,13 +74,39 @@ public class DungeonSetupCommands {
                                 player.sendMessage(ChatColor.RED + "A door with ID '" + doorId + "' already exists.");
                                 return;
                             }
-                            player.sendMessage(ChatColor.GREEN + "Door setup started for Door ID: " + doorId + ". Please click on the bottom-left and top-right blocks to define the door area.");
-                            UUID playerId = player.getUniqueId();
-                            setupManager.startDoorSetupSession(playerId, doorId);
+                            if (!setupManager.isInSetup(player)) {
+                                player.sendMessage(ChatColor.RED + "You are not in a setup session.");
+                                return;
+                            }
+                            player.sendMessage(ChatColor.GREEN + "Door setup started for Door ID: " + doorId + ". Click two corners (bottom-left then top-right).");
+                            setupManager.startDoorSetupSession(player.getUniqueId(), doorId);
                         })
                 )
-
-                // NEW SUBCOMMAND: levelrequirement
+                .withSubcommand(new CommandAPICommand("removedoor")
+                        .withArguments(new StringArgument("doorId"))
+                        .executesPlayer((player, args) -> {
+                            String doorId = (String) args.get("doorId");
+                            if (!doorManager.removeDoor(doorId)) {
+                                player.sendMessage(ChatColor.RED + "No door found with ID '" + doorId + "'.");
+                            } else {
+                                player.sendMessage(ChatColor.GREEN + "Door '" + doorId + "' removed.");
+                            }
+                        })
+                )
+                .withSubcommand(new CommandAPICommand("setdoortrigger")
+                        .withArguments(new StringArgument("doorId"))
+                        .withArguments(new StringArgument("triggerType").replaceSuggestions(ArgumentSuggestions.strings("leftclick","rightclick")))
+                        .executesPlayer((player, args) -> {
+                            String doorId = (String) args.get("doorId");
+                            String triggerType = (String) args.get("triggerType");
+                            if (doorManager.getDoor(doorId) == null) {
+                                player.sendMessage(ChatColor.RED + "No door found with ID '" + doorId + "'.");
+                            } else {
+                                doorManager.setDoorTrigger(doorId, triggerType);
+                                player.sendMessage(ChatColor.GREEN + "Door '" + doorId + "' trigger set to " + triggerType + ".");
+                            }
+                        })
+                )
                 .withSubcommand(new CommandAPICommand("levelrequirement")
                         .withArguments(new IntegerArgument("level"))
                         .executesPlayer((player, args) -> {
@@ -109,7 +121,6 @@ public class DungeonSetupCommands {
                             }
                         })
                 )
-
                 .register();
     }
 }
