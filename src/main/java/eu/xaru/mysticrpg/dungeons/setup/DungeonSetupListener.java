@@ -9,9 +9,10 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.block.Action;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.Location;
-import org.bukkit.event.block.Action;
 
 public class DungeonSetupListener implements Listener {
 
@@ -46,65 +47,62 @@ public class DungeonSetupListener implements Listener {
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
 
+        // Must be in setup mode
         if (!setupManager.isInSetup(player)) {
             return;
         }
 
-        DungeonSetupSession session = setupManager.getSession(player);
-
-        // If setting portal
-        if (session.isSettingPortal()) {
-            if ((event.getAction() == Action.LEFT_CLICK_BLOCK || event.getAction() == Action.RIGHT_CLICK_BLOCK) && event.getClickedBlock() != null) {
-                Location clickedLocation = event.getClickedBlock().getLocation();
-                session.setPortalPos1(clickedLocation);
-                event.setCancelled(true);
-            }
+        // If it's the off-hand, ignore (Spigot double-fires for off-hand)
+        if (event.getHand() == null || event.getHand() != EquipmentSlot.HAND) {
             return;
         }
 
-        // If setting a door
-        if (session.isSettingDoor()) {
-            if ((event.getAction() == Action.LEFT_CLICK_BLOCK || event.getAction() == Action.RIGHT_CLICK_BLOCK) && event.getClickedBlock() != null) {
-                Location loc = event.getClickedBlock().getLocation();
+        // We only handle RIGHT_CLICK_BLOCK
+        if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock() != null) {
+            Block clicked = event.getClickedBlock();
+            Location loc = clicked.getLocation();
+            DungeonSetupSession session = setupManager.getSession(player);
+
+            // If setting a portal
+            if (session.isSettingPortal()) {
+                session.setPortalPos1(loc);
+                event.setCancelled(true);
+                return;
+            }
+
+            // If setting a door
+            if (session.isSettingDoor()) {
                 session.setDoorCorner(loc);
                 event.setCancelled(true);
-            } else {
-                event.setCancelled(true);
-                player.sendMessage(ChatColor.RED + "Please click on a block to set the door corner.");
+                return;
             }
-            return;
+
+            // If setting a chest
+            if (player.hasMetadata("chestType")) {
+                Material clickedType = clicked.getType();
+                if (clickedType == Material.CHEST || clickedType == Material.ENDER_CHEST) {
+                    String ctype = player.getMetadata("chestType").get(0).asString();
+                    session.addChestLocation(ctype, loc);
+                    player.sendMessage("Chest of type " + ctype + " was added.");
+                    player.removeMetadata("chestType", plugin);
+                } else {
+                    player.sendMessage(ChatColor.RED + "That is not a valid chest block.");
+                }
+                event.setCancelled(true);
+                return;
+            }
         }
 
-        // Handle chest setup
-        if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-            Block block = event.getClickedBlock();
-            if (block != null && (block.getType() == Material.CHEST || block.getType() == Material.ENDER_CHEST)) {
-                if (player.hasMetadata("chestType")) {
-                    String chestType = player.getMetadata("chestType").get(0).asString();
-                    session.addChestLocation(chestType, block.getLocation());
-                    player.sendMessage("Chest registered as " + chestType + " chest.");
-                    player.removeMetadata("chestType", plugin);
-                    event.setCancelled(true);
-                } else {
-                    event.setCancelled(true);
-                    player.sendMessage(ChatColor.RED + "Interacting with blocks is disabled during dungeon setup.");
-                }
-            } else {
-                event.setCancelled(true);
-                player.sendMessage(ChatColor.RED + "Interacting with blocks is disabled during dungeon setup.");
-            }
-        } else {
-            event.setCancelled(true);
-            player.sendMessage(ChatColor.RED + "Interacting with blocks is disabled during dungeon setup.");
-        }
+        // Cancel any other interactions while in setup
+        event.setCancelled(true);
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
         if (setupManager.isInSetup(player)) {
+            // discard or end session automatically
             setupManager.discardSession(player);
-            // player will see this message next login, or you can log it server side.
         }
     }
 }

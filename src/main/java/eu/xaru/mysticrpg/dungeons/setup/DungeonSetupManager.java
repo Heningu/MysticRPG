@@ -29,8 +29,6 @@ public class DungeonSetupManager {
             return;
         }
 
-        // If needed, load existing config or create a new one
-        // For simplicity, just create a new session with a new config if doesn't exist
         DungeonSetupSession session = new DungeonSetupSession(player, dungeonId, doorManager);
         setupSessions.put(player.getUniqueId(), session);
         player.sendMessage("Entered setup mode for dungeon: " + dungeonId);
@@ -73,5 +71,9 @@ public class DungeonSetupManager {
             return;
         }
         session.startDoorSetup(doorId);
+    }
+
+    public DungeonConfigManager getConfigManager() {
+        return configManager;
     }
 }

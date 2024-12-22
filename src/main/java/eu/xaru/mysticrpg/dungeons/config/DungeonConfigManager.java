@@ -29,7 +29,6 @@ public class DungeonConfigManager {
         File configDir = new File(plugin.getDataFolder(), "dungeons");
         if (!configDir.exists()) {
             configDir.mkdirs();
-            createDefaultDungeonConfigs(configDir);
         }
 
         File[] configFiles = configDir.listFiles((dir, name) -> name.endsWith(".yml"));
@@ -45,135 +44,113 @@ public class DungeonConfigManager {
         }
     }
 
-    private void createDefaultDungeonConfigs(File configDir) {
-        // Implement if needed
-    }
-
     private DungeonConfig parseConfig(FileConfiguration config) {
-        DungeonConfig dungeonConfig = new DungeonConfig();
+        DungeonConfig dc = new DungeonConfig();
+        dc.setId(config.getString("id"));
+        dc.setName(config.getString("name"));
+        dc.setMinPlayers(config.getInt("minPlayers", 1));
+        dc.setMaxPlayers(config.getInt("maxPlayers", 5));
+        dc.setDifficulty(config.getString("difficulty", "Normal"));
+        dc.setWorldName(config.getString("worldName"));
+        dc.setLevelRequirement(config.getInt("levelRequirement", 1));
 
-        dungeonConfig.setId(config.getString("id"));
-        dungeonConfig.setName(config.getString("name"));
-        dungeonConfig.setMinPlayers(config.getInt("minPlayers", 1));
-        dungeonConfig.setMaxPlayers(config.getInt("maxPlayers", 5));
-        dungeonConfig.setDifficulty(config.getString("difficulty", "Normal"));
-        dungeonConfig.setWorldName(config.getString("worldName"));
-        dungeonConfig.setLevelRequirement(config.getInt("levelRequirement", 1));
-
-        if (dungeonConfig.getId() == null) {
-            DebugLogger.getInstance().log(Level.SEVERE, "Dungeon config is missing an ID. Skipping...", 0);
+        if (dc.getId() == null) {
+            DebugLogger.getInstance().log(Level.SEVERE, "Dungeon config missing ID. Skipping...", 0);
+            return null;
+        }
+        if (dc.getWorldName() == null) {
+            DebugLogger.getInstance().log(Level.SEVERE, "Dungeon '" + dc.getId() + "' missing world name.", 0);
             return null;
         }
 
-        if (dungeonConfig.getWorldName() == null) {
-            DebugLogger.getInstance().log(Level.SEVERE, "Dungeon config '" + dungeonConfig.getId() + "' is missing a world name.", 0);
-            return null;
-        }
-
-        World world = Bukkit.getWorld(dungeonConfig.getWorldName());
-        if (world == null) {
-            WorldCreator creator = new WorldCreator(dungeonConfig.getWorldName());
-            world = creator.createWorld();
-            if (world == null) {
-                DebugLogger.getInstance().log(Level.SEVERE, "World '" + dungeonConfig.getWorldName() + "' could not be loaded.", 0);
+        World w = Bukkit.getWorld(dc.getWorldName());
+        if (w == null) {
+            w = new WorldCreator(dc.getWorldName()).createWorld();
+            if (w == null) {
+                DebugLogger.getInstance().log(Level.SEVERE, "World '" + dc.getWorldName() + "' can't be loaded.", 0);
                 return null;
             }
         }
 
-        // Spawn location
+        // spawnLocation
         if (config.contains("spawnLocation")) {
-            double spawnX = config.getDouble("spawnLocation.x");
-            double spawnY = config.getDouble("spawnLocation.y");
-            double spawnZ = config.getDouble("spawnLocation.z");
-            float spawnYaw = (float) config.getDouble("spawnLocation.yaw", 0);
-            float spawnPitch = (float) config.getDouble("spawnLocation.pitch", 0);
-            Location spawnLocation = new Location(world, spawnX, spawnY, spawnZ, spawnYaw, spawnPitch);
-            dungeonConfig.setSpawnLocation(spawnLocation);
+            double sx = config.getDouble("spawnLocation.x");
+            double sy = config.getDouble("spawnLocation.y");
+            double sz = config.getDouble("spawnLocation.z");
+            float syaw   = (float) config.getDouble("spawnLocation.yaw", 0);
+            float spitch = (float) config.getDouble("spawnLocation.pitch", 0);
+            dc.setSpawnLocation(new Location(w, sx, sy, sz, syaw, spitch));
         }
 
-        // Mob spawn points
-        List<DungeonConfig.MobSpawnPoint> mobSpawnPoints = new ArrayList<>();
+        // mob spawn points
         if (config.contains("mob_spawn_points")) {
-            ConfigurationSection mobSpawnPointsSection = config.getConfigurationSection("mob_spawn_points");
-            for (String key : mobSpawnPointsSection.getKeys(false)) {
-                ConfigurationSection mobSpawnSection = mobSpawnPointsSection.getConfigurationSection(key);
-                double x = mobSpawnSection.getDouble("x");
-                double y = mobSpawnSection.getDouble("y");
-                double z = mobSpawnSection.getDouble("z");
-                float yaw = (float) mobSpawnSection.getDouble("yaw", 0);
-                float pitch = (float) mobSpawnSection.getDouble("pitch", 0);
-                String mobId = mobSpawnSection.getString("mob_id");
+            ConfigurationSection mobSec = config.getConfigurationSection("mob_spawn_points");
+            List<DungeonConfig.MobSpawnPoint> mobList = new ArrayList<>();
+            for (String key : mobSec.getKeys(false)) {
+                ConfigurationSection ms = mobSec.getConfigurationSection(key);
+                double x = ms.getDouble("x");
+                double y = ms.getDouble("y");
+                double z = ms.getDouble("z");
+                float yaw = (float) ms.getDouble("yaw", 0f);
+                float pit = (float) ms.getDouble("pitch", 0f);
+                String mobId = ms.getString("mob_id", "zombie");
+                Location loc = new Location(w, x, y, z, yaw, pit);
 
-                if (mobId == null) {
-                    DebugLogger.getInstance().log(Level.WARNING, "Mob spawn point '" + key + "' is missing a mob ID. Skipping...", 0);
-                    continue;
-                }
-
-                Location location = new Location(world, x, y, z, yaw, pitch);
-                DungeonConfig.MobSpawnPoint mobSpawnPoint = new DungeonConfig.MobSpawnPoint();
-                mobSpawnPoint.setLocation(location);
-                mobSpawnPoint.setMobId(mobId);
-
-                mobSpawnPoints.add(mobSpawnPoint);
+                DungeonConfig.MobSpawnPoint mp = new DungeonConfig.MobSpawnPoint();
+                mp.setLocation(loc);
+                mp.setMobId(mobId);
+                mobList.add(mp);
             }
+            dc.setMobSpawnPoints(mobList);
         }
-        dungeonConfig.setMobSpawnPoints(mobSpawnPoints);
 
-        // Chest locations
-        List<DungeonConfig.ChestLocation> chestLocations = new ArrayList<>();
+        // chest locations
         if (config.contains("chest_locations")) {
-            ConfigurationSection chestLocationsSection = config.getConfigurationSection("chest_locations");
-            for (String key : chestLocationsSection.getKeys(false)) {
-                ConfigurationSection chestSection = chestLocationsSection.getConfigurationSection(key);
-                double x = chestSection.getDouble("x");
-                double y = chestSection.getDouble("y");
-                double z = chestSection.getDouble("z");
-                float yaw = (float) chestSection.getDouble("yaw", 0);
-                float pitch = (float) chestSection.getDouble("pitch", 0);
-                String typeStr = chestSection.getString("type", "CHEST");
-                Material chestType = Material.matchMaterial(typeStr.toUpperCase());
-
-                if (chestType == null) {
-                    chestType = Material.CHEST;
-                    DebugLogger.getInstance().log(Level.WARNING, "Invalid chest type '" + typeStr + "' at chest '" + key + "'. Defaulting to CHEST.", 0);
+            ConfigurationSection chestSec = config.getConfigurationSection("chest_locations");
+            List<DungeonConfig.ChestLocation> chestList = new ArrayList<>();
+            for (String ck : chestSec.getKeys(false)) {
+                ConfigurationSection c2 = chestSec.getConfigurationSection(ck);
+                double x = c2.getDouble("x");
+                double y = c2.getDouble("y");
+                double z = c2.getDouble("z");
+                float yaw = (float) c2.getDouble("yaw", 0f);
+                float pit = (float) c2.getDouble("pitch", 0f);
+                String typeStr = c2.getString("type", "CHEST");
+                Material mat = Material.matchMaterial(typeStr.toUpperCase());
+                if (mat == null) {
+                    mat = Material.CHEST;
                 }
+                String lootId = c2.getString("loot_table", "default_loot");
+                Location loc = new Location(w, x, y, z, yaw, pit);
 
-                String lootTableId = chestSection.getString("loot_table");
-                if (lootTableId == null || lootTableManager.getLootTable(lootTableId) == null) {
-                    lootTableId = assignDefaultLootTable(chestType);
-                    DebugLogger.getInstance().log(Level.WARNING, "Loot table missing or invalid for chest '" + key + "'. Assigned default loot table '" + lootTableId + "'.", 0);
-                }
-
-                Location location = new Location(world, x, y, z, yaw, pitch);
-                DungeonConfig.ChestLocation chestLocation = new DungeonConfig.ChestLocation();
-                chestLocation.setLocation(location);
-                chestLocation.setType(chestType);
-                chestLocation.setLootTableId(lootTableId);
-
-                chestLocations.add(chestLocation);
+                DungeonConfig.ChestLocation cl = new DungeonConfig.ChestLocation();
+                cl.setLocation(loc);
+                cl.setType(mat);
+                cl.setLootTableId(lootId);
+                chestList.add(cl);
             }
+            dc.setChestLocations(chestList);
         }
-        dungeonConfig.setChestLocations(chestLocations);
 
-        // Portal position
+        // portal
         if (config.contains("portalPos1")) {
-            double portalX = config.getDouble("portalPos1.x");
-            double portalY = config.getDouble("portalPos1.y");
-            double portalZ = config.getDouble("portalPos1.z");
-            float portalYaw = (float) config.getDouble("portalPos1.yaw", 0);
-            float portalPitch = (float) config.getDouble("portalPos1.pitch", 0);
-            Location portalLocation = new Location(world, portalX, portalY, portalZ, portalYaw, portalPitch);
-            dungeonConfig.setPortalPos1(portalLocation);
+            double px = config.getDouble("portalPos1.x");
+            double py = config.getDouble("portalPos1.y");
+            double pz = config.getDouble("portalPos1.z");
+            float pyaw   = (float) config.getDouble("portalPos1.yaw", 0);
+            float ppitch = (float) config.getDouble("portalPos1.pitch", 0);
+            Location pLoc = new Location(w, px, py, pz, pyaw, ppitch);
+            dc.setPortalPos1(pLoc);
         }
 
         // Doors
         if (config.contains("doors")) {
-            ConfigurationSection doorsSection = config.getConfigurationSection("doors");
-            List<DungeonConfig.DoorData> doorDataList = new ArrayList<>();
-            for (String doorKey : doorsSection.getKeys(false)) {
-                ConfigurationSection ds = doorsSection.getConfigurationSection(doorKey);
+            ConfigurationSection doorsSec = config.getConfigurationSection("doors");
+            List<DungeonConfig.DoorData> doorList = new ArrayList<>();
+            for (String doorKey : doorsSec.getKeys(false)) {
+                ConfigurationSection ds = doorsSec.getConfigurationSection(doorKey);
                 DungeonConfig.DoorData dd = new DungeonConfig.DoorData();
-                dd.setDoorId(ds.getString("id"));
+                dd.setDoorId(ds.getString("id", "unknown"));
                 dd.setX1(ds.getDouble("x1"));
                 dd.setY1(ds.getDouble("y1"));
                 dd.setZ1(ds.getDouble("z1"));
@@ -181,12 +158,12 @@ public class DungeonConfigManager {
                 dd.setY2(ds.getDouble("y2"));
                 dd.setZ2(ds.getDouble("z2"));
                 dd.setTriggerType(ds.getString("trigger", "none"));
-                doorDataList.add(dd);
+                doorList.add(dd);
             }
-            dungeonConfig.setDoors(doorDataList);
+            dc.setDoors(doorList);
         }
 
-        return dungeonConfig;
+        return dc;
     }
 
     public DungeonConfig getDungeonConfig(String id) {
@@ -218,6 +195,7 @@ public class DungeonConfigManager {
         fileConfig.set("worldName", config.getWorldName());
         fileConfig.set("levelRequirement", config.getLevelRequirement());
 
+        // spawn
         if (config.getSpawnLocation() != null) {
             fileConfig.set("spawnLocation.x", config.getSpawnLocation().getX());
             fileConfig.set("spawnLocation.y", config.getSpawnLocation().getY());
@@ -226,31 +204,34 @@ public class DungeonConfigManager {
             fileConfig.set("spawnLocation.pitch", config.getSpawnLocation().getPitch());
         }
 
-        ConfigurationSection mobSpawnPointsSection = fileConfig.createSection("mob_spawn_points");
+        // mob spawns
+        ConfigurationSection mobSec = fileConfig.createSection("mob_spawn_points");
         int mobIndex = 0;
-        for (DungeonConfig.MobSpawnPoint spawnPoint : config.getMobSpawnPoints()) {
-            ConfigurationSection spawnSection = mobSpawnPointsSection.createSection("spawn" + mobIndex++);
-            spawnSection.set("x", spawnPoint.getLocation().getX());
-            spawnSection.set("y", spawnPoint.getLocation().getY());
-            spawnSection.set("z", spawnPoint.getLocation().getZ());
-            spawnSection.set("yaw", spawnPoint.getLocation().getYaw());
-            spawnSection.set("pitch", spawnPoint.getLocation().getPitch());
-            spawnSection.set("mob_id", spawnPoint.getMobId());
+        for (DungeonConfig.MobSpawnPoint sp : config.getMobSpawnPoints()) {
+            ConfigurationSection msc = mobSec.createSection("spawn" + mobIndex++);
+            msc.set("x", sp.getLocation().getX());
+            msc.set("y", sp.getLocation().getY());
+            msc.set("z", sp.getLocation().getZ());
+            msc.set("yaw", sp.getLocation().getYaw());
+            msc.set("pitch", sp.getLocation().getPitch());
+            msc.set("mob_id", sp.getMobId());
         }
 
-        ConfigurationSection chestLocationsSection = fileConfig.createSection("chest_locations");
+        // chests
+        ConfigurationSection chestSec = fileConfig.createSection("chest_locations");
         int chestIndex = 0;
-        for (DungeonConfig.ChestLocation chestLocation : config.getChestLocations()) {
-            ConfigurationSection chestSection = chestLocationsSection.createSection("chest" + chestIndex++);
-            chestSection.set("x", chestLocation.getLocation().getX());
-            chestSection.set("y", chestLocation.getLocation().getY());
-            chestSection.set("z", chestLocation.getLocation().getZ());
-            chestSection.set("yaw", chestLocation.getLocation().getYaw());
-            chestSection.set("pitch", chestLocation.getLocation().getPitch());
-            chestSection.set("type", chestLocation.getType().toString());
-            chestSection.set("loot_table", chestLocation.getLootTableId());
+        for (DungeonConfig.ChestLocation cl : config.getChestLocations()) {
+            ConfigurationSection csc = chestSec.createSection("chest" + chestIndex++);
+            csc.set("x", cl.getLocation().getX());
+            csc.set("y", cl.getLocation().getY());
+            csc.set("z", cl.getLocation().getZ());
+            csc.set("yaw", cl.getLocation().getYaw());
+            csc.set("pitch", cl.getLocation().getPitch());
+            csc.set("type", cl.getType().toString());
+            csc.set("loot_table", cl.getLootTableId());
         }
 
+        // portal
         if (config.getPortalPos1() != null) {
             fileConfig.set("portalPos1.x", config.getPortalPos1().getX());
             fileConfig.set("portalPos1.y", config.getPortalPos1().getY());
@@ -259,11 +240,11 @@ public class DungeonConfigManager {
             fileConfig.set("portalPos1.pitch", config.getPortalPos1().getPitch());
         }
 
-        // Save doors
-        ConfigurationSection doorsSection = fileConfig.createSection("doors");
+        // doors
+        ConfigurationSection doorsSec = fileConfig.createSection("doors");
         int doorIndex = 0;
         for (DungeonConfig.DoorData dd : config.getDoors()) {
-            ConfigurationSection ds = doorsSection.createSection("door" + doorIndex++);
+            ConfigurationSection ds = doorsSec.createSection("door" + doorIndex++);
             ds.set("id", dd.getDoorId());
             ds.set("x1", dd.getX1());
             ds.set("y1", dd.getY1());
@@ -284,25 +265,20 @@ public class DungeonConfigManager {
     }
 
     private String assignDefaultLootTable(Material chestType) {
-        String lootTableId;
-        if (chestType == Material.CHEST) {
-            lootTableId = "default_loot";
-        } else if (chestType == Material.TRAPPED_CHEST) {
+        String lootTableId = "default_loot";
+        if (chestType == Material.TRAPPED_CHEST) {
             lootTableId = "elite_loot";
-        } else {
-            lootTableId = "default_loot";
         }
 
         if (lootTableManager.getLootTable(lootTableId) == null) {
-            LootTable lootTable = new LootTable(lootTableId);
+            LootTable lt = new LootTable(lootTableId);
             if (lootTableId.equals("default_loot")) {
-                lootTable.addItem("material", "DIAMOND", 1, 1.0);
+                lt.addItem("material", "DIAMOND", 1, 1.0);
             } else if (lootTableId.equals("elite_loot")) {
-                lootTable.addItem("material", "NETHER_STAR", 1, 1.0);
+                lt.addItem("material", "NETHER_STAR", 1, 1.0);
             }
-            lootTableManager.saveLootTable(lootTable);
+            lootTableManager.saveLootTable(lt);
         }
-
         return lootTableId;
     }
 

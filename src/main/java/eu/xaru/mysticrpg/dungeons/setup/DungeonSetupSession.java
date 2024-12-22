@@ -1,22 +1,28 @@
 package eu.xaru.mysticrpg.dungeons.setup;
 
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfig;
+import eu.xaru.mysticrpg.dungeons.config.DungeonConfig.DoorData;
 import eu.xaru.mysticrpg.dungeons.doors.Door;
 import eu.xaru.mysticrpg.dungeons.doors.DoorManager;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
 public class DungeonSetupSession {
 
     private final Player player;
     private final DungeonConfig config;
+
+    // Portal setup
     private boolean isSettingPortal;
     private Location portalPos1;
 
+    // Door setup
     private boolean isSettingDoor;
     private String currentDoorId;
     private Location doorCorner1;
+
     private final DoorManager doorManager;
 
     public DungeonSetupSession(Player player, String dungeonId, DoorManager doorManager) {
@@ -34,39 +40,45 @@ public class DungeonSetupSession {
         return config;
     }
 
+    // ------------------------------
+    // Spawn / Mobs / Chests
+    // ------------------------------
     public void setSpawnLocation(Location location) {
         config.setSpawnLocation(location);
         player.sendMessage("Dungeon spawn location set.");
     }
 
     public void addMobSpawnPoint(String mobId, Location location) {
-        DungeonConfig.MobSpawnPoint spawnPoint = new DungeonConfig.MobSpawnPoint();
-        spawnPoint.setMobId(mobId);
-        spawnPoint.setLocation(location);
-        config.getMobSpawnPoints().add(spawnPoint);
-        player.sendMessage("Mob spawn point added.");
+        DungeonConfig.MobSpawnPoint sp = new DungeonConfig.MobSpawnPoint();
+        sp.setMobId(mobId);
+        sp.setLocation(location);
+        config.getMobSpawnPoints().add(sp);
+        player.sendMessage("Mob spawn point added for: " + mobId);
     }
 
-    public void addChestLocation(String chestType, Location location) {
-        DungeonConfig.ChestLocation chestLocation = new DungeonConfig.ChestLocation();
-        chestLocation.setLocation(location);
+    public void addChestLocation(String chestType, Location loc) {
+        DungeonConfig.ChestLocation chestLoc = new DungeonConfig.ChestLocation();
+        chestLoc.setLocation(loc);
 
-        org.bukkit.Material mat = org.bukkit.Material.matchMaterial(chestType.toUpperCase());
+        Material mat = Material.matchMaterial(chestType.toUpperCase());
         if (mat == null) {
-            mat = org.bukkit.Material.CHEST;
+            mat = Material.CHEST;
             player.sendMessage("Invalid chest type provided. Defaulting to CHEST.");
         }
-        chestLocation.setType(mat);
-        chestLocation.setLootTableId(mat == org.bukkit.Material.TRAPPED_CHEST ? "elite_loot" : "default_loot");
-        config.getChestLocations().add(chestLocation);
-        player.sendMessage("Chest of type '" + mat.toString() + "' added with loot table: " + chestLocation.getLootTableId());
+        chestLoc.setType(mat);
+        chestLoc.setLootTableId(mat == Material.TRAPPED_CHEST ? "elite_loot" : "default_loot");
+        config.getChestLocations().add(chestLoc);
+
+        player.sendMessage("Chest of type '" + mat + "' with loot: " + chestLoc.getLootTableId());
     }
 
-    // Portal Setup
+    // ------------------------------
+    // Portal
+    // ------------------------------
     public void startPortalSetup() {
         isSettingPortal = true;
         portalPos1 = null;
-        player.sendMessage("Portal setup started. Please click on the portal location.");
+        player.sendMessage("Portal setup started. Please RIGHT-click the portal location block.");
     }
 
     public boolean isSettingPortal() {
@@ -77,20 +89,23 @@ public class DungeonSetupSession {
         portalPos1 = location;
         config.setPortalPos1(location);
         isSettingPortal = false;
-        player.sendMessage("Portal position set at: " + location.getBlockX() + ", " + location.getBlockY() + ", " + location.getBlockZ());
-        player.sendMessage("Portal setup complete. Remember to save the dungeon configuration.");
+
+        player.sendMessage("Portal location set at: (" + location.getBlockX()
+                + ", " + location.getBlockY() + ", " + location.getBlockZ() + ").");
+        player.sendMessage("Portal setup complete. Use /ds end when finished.");
     }
 
-    public Location getPortalPos1() {
-        return portalPos1;
-    }
-
-    // Door setup
+    // ------------------------------
+    // Door Setup
+    // ------------------------------
     public void startDoorSetup(String doorId) {
         isSettingDoor = true;
         currentDoorId = doorId;
         doorCorner1 = null;
-        player.sendMessage(ChatColor.GREEN + "Door setup started for Door ID: " + doorId + ". Click the first corner block.");
+
+        player.sendMessage(ChatColor.GREEN
+                + "Door setup started for ID: " + doorId
+                + ". RIGHT-click the first corner block now.");
     }
 
     public boolean isSettingDoor() {
@@ -101,43 +116,55 @@ public class DungeonSetupSession {
         return currentDoorId;
     }
 
-    public void setDoorCorner(Location location) {
+    public void setDoorCorner(Location loc) {
         if (doorCorner1 == null) {
-            doorCorner1 = location;
-            player.sendMessage(ChatColor.GREEN + "First corner set. Now click the second corner (opposite corner).");
+            // first corner
+            doorCorner1 = loc;
+            player.sendMessage(ChatColor.GREEN + "First corner set at ("
+                    + loc.getBlockX() + ", "
+                    + loc.getBlockY() + ", "
+                    + loc.getBlockZ() + "). Now RIGHT-click the opposite corner.");
         } else {
-            Location corner2 = location;
+            // second corner
+            Location corner2 = loc;
+            int x1 = doorCorner1.getBlockX();
+            int y1 = doorCorner1.getBlockY();
+            int z1 = doorCorner1.getBlockZ();
 
-            double minX = Math.min(doorCorner1.getX(), corner2.getX());
-            double minY = Math.min(doorCorner1.getY(), corner2.getY());
-            double minZ = Math.min(doorCorner1.getZ(), corner2.getZ());
+            int x2 = corner2.getBlockX();
+            int y2 = corner2.getBlockY();
+            int z2 = corner2.getBlockZ();
 
-            double maxX = Math.max(doorCorner1.getX(), corner2.getX());
-            double maxY = Math.max(doorCorner1.getY(), corner2.getY());
-            double maxZ = Math.max(doorCorner1.getZ(), corner2.getZ());
+            int minX = Math.min(x1, x2);
+            int minY = Math.min(y1, y2);
+            int minZ = Math.min(z1, z2);
+            int maxX = Math.max(x1, x2);
+            int maxY = Math.max(y1, y2);
+            int maxZ = Math.max(z1, z2);
 
             Location bottomLeft = new Location(doorCorner1.getWorld(), minX, minY, minZ);
-            Location topRight = new Location(doorCorner1.getWorld(), maxX, maxY, maxZ);
+            Location topRight   = new Location(doorCorner1.getWorld(), maxX, maxY, maxZ);
 
             Door door = new Door(currentDoorId, bottomLeft, topRight);
-            if (!doorManager.addDoor(door)) {
-                player.sendMessage(ChatColor.RED + "A door with that ID already exists or an error occurred.");
+            boolean added = doorManager.addDoor(door);
+            if (!added) {
+                player.sendMessage(ChatColor.RED
+                        + "Door with ID '" + currentDoorId + "' already exists!");
             } else {
-                // Add door data to config
-                DungeonConfig.DoorData dd = new DungeonConfig.DoorData();
+                // add to config
+                DoorData dd = new DoorData();
                 dd.setDoorId(currentDoorId);
-                dd.setX1(minX);
-                dd.setY1(minY);
-                dd.setZ1(minZ);
-                dd.setX2(maxX);
-                dd.setY2(maxY);
-                dd.setZ2(maxZ);
+                dd.setX1(minX); dd.setY1(minY); dd.setZ1(minZ);
+                dd.setX2(maxX); dd.setY2(maxY); dd.setZ2(maxZ);
                 dd.setTriggerType("none");
                 config.getDoors().add(dd);
 
-                player.sendMessage(ChatColor.GREEN + "Door '" + currentDoorId + "' created successfully.");
-                // Show placeholder now
+                // Show only flame
                 doorManager.buildDoor(door);
+
+                player.sendMessage(ChatColor.GREEN + "Door '" + currentDoorId
+                        + "' set from (" + minX + "," + minY + "," + minZ + ") to ("
+                        + maxX + "," + maxY + "," + maxZ + ").");
             }
 
             isSettingDoor = false;

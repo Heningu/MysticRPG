@@ -44,7 +44,9 @@ public class DungeonSetupCommands {
                         })
                 )
                 .withSubcommand(new CommandAPICommand("setchest")
-                        .withArguments(new StringArgument("type").replaceSuggestions(ArgumentSuggestions.strings("NORMAL", "ELITE")))
+                        .withArguments(new StringArgument("type")
+                                .replaceSuggestions(ArgumentSuggestions.strings("NORMAL", "ELITE"))
+                        )
                         .executesPlayer((player, args) -> {
                             if (setupManager.isInSetup(player)) {
                                 String chestType = (String) args.get("type");
@@ -95,15 +97,30 @@ public class DungeonSetupCommands {
                 )
                 .withSubcommand(new CommandAPICommand("setdoortrigger")
                         .withArguments(new StringArgument("doorId"))
-                        .withArguments(new StringArgument("triggerType").replaceSuggestions(ArgumentSuggestions.strings("leftclick","rightclick")))
+                        .withArguments(new StringArgument("triggerType")
+                                .replaceSuggestions(ArgumentSuggestions.strings("leftclick","rightclick","none")))
                         .executesPlayer((player, args) -> {
                             String doorId = (String) args.get("doorId");
                             String triggerType = (String) args.get("triggerType");
+
+                            if (!setupManager.isInSetup(player)) {
+                                player.sendMessage(ChatColor.RED + "You are not in a setup session.");
+                                return;
+                            }
+                            DungeonSetupSession session = setupManager.getSession(player);
+
                             if (doorManager.getDoor(doorId) == null) {
                                 player.sendMessage(ChatColor.RED + "No door found with ID '" + doorId + "'.");
                             } else {
-                                doorManager.setDoorTrigger(doorId, triggerType);
-                                player.sendMessage(ChatColor.GREEN + "Door '" + doorId + "' trigger set to " + triggerType + ".");
+                                // This sets door's trigger in memory and updates config
+                                doorManager.setDoorTriggerAndSave(
+                                        doorId,
+                                        triggerType,
+                                        session.getConfig(),             // from the session
+                                        setupManager.getConfigManager()  // config manager
+                                );
+                                player.sendMessage(ChatColor.GREEN + "Door '" + doorId
+                                        + "' trigger set to " + triggerType + " and saved.");
                             }
                         })
                 )

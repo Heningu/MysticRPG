@@ -2,6 +2,7 @@ package eu.xaru.mysticrpg.dungeons.instance;
 
 import eu.xaru.mysticrpg.dungeons.DungeonManager;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfig;
+import eu.xaru.mysticrpg.dungeons.config.DungeonConfig.DoorData;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfigManager;
 import eu.xaru.mysticrpg.dungeons.doors.Door;
 import eu.xaru.mysticrpg.dungeons.doors.DoorManager;
@@ -30,13 +31,14 @@ public class DungeonInstance {
     private final DungeonManager dungeonManager;
     private World instanceWorld;
     private boolean isRunning;
+
     private final DungeonEnemyManager dungeonEnemyManager;
     private final ChestManager chestManager;
     private final PuzzleManager puzzleManager;
     private final PortalManager portalManager;
 
     private long startTime;
-    private Map<UUID, Integer> monsterKills = new HashMap<>();
+    private final Map<UUID, Integer> monsterKills = new HashMap<>();
 
     public DungeonInstance(
             JavaPlugin plugin,
@@ -52,10 +54,12 @@ public class DungeonInstance {
         this.playersInInstance = new CopyOnWriteArrayList<>();
         this.isRunning = false;
         this.dungeonManager = dungeonManager;
+
         this.dungeonEnemyManager = new DungeonEnemyManager(plugin, this, config);
         this.chestManager = new ChestManager(plugin, this, config);
         this.puzzleManager = new PuzzleManager(this, config);
         this.portalManager = new PortalManager(this, config, plugin);
+
         this.startTime = System.currentTimeMillis();
     }
 
@@ -94,7 +98,8 @@ public class DungeonInstance {
             teleportPlayersToInstance();
             initializeInstance();
             isRunning = true;
-            DebugLogger.getInstance().log(Level.INFO, "Dungeon instance " + instanceId + " started.", 0);
+            DebugLogger.getInstance().log(Level.INFO,
+                    "Dungeon instance " + instanceId + " started.", 0);
         });
     }
 
@@ -103,13 +108,15 @@ public class DungeonInstance {
         removePlayersFromInstance();
         unloadInstanceWorld();
         portalManager.stopPortal();
-        DebugLogger.getInstance().log(Level.INFO, "Dungeon instance " + instanceId + " stopped.", 0);
+        DebugLogger.getInstance().log(Level.INFO,
+                "Dungeon instance " + instanceId + " stopped.", 0);
     }
 
     private void createInstanceWorld() {
         String templateWorldName = config.getWorldName();
         if (templateWorldName == null) {
-            DebugLogger.getInstance().log(Level.SEVERE, "Dungeon configuration does not contain a world name for dungeon ID: " + config.getId(), 0);
+            DebugLogger.getInstance().log(Level.SEVERE,
+                    "Dungeon config has no world name for ID: " + config.getId(), 0);
             return;
         }
         String instanceWorldName = "dungeon_instance_" + instanceId;
@@ -119,7 +126,8 @@ public class DungeonInstance {
             WorldCreator creator = new WorldCreator(templateWorldName);
             templateWorld = creator.createWorld();
             if (templateWorld == null) {
-                DebugLogger.getInstance().log(Level.SEVERE, "Template world '" + templateWorldName + "' could not be loaded.", 0);
+                DebugLogger.getInstance().log(Level.SEVERE,
+                        "Template world '" + templateWorldName + "' could not be loaded.", 0);
                 return;
             }
         }
@@ -134,13 +142,16 @@ public class DungeonInstance {
             instanceWorld.setAutoSave(false);
             instanceWorld.setDifficulty(Difficulty.NORMAL);
         } catch (Exception e) {
-            DebugLogger.getInstance().log(Level.SEVERE, "Failed to create instance world:", e, 0);
+            DebugLogger.getInstance().log(Level.SEVERE,
+                    "Failed to create instance world:", e, 0);
         }
 
         if (instanceWorld == null) {
-            DebugLogger.getInstance().log(Level.SEVERE, "Instance world '" + instanceWorldName + "' could not be loaded.", 0);
+            DebugLogger.getInstance().log(Level.SEVERE,
+                    "Instance world '" + instanceWorldName + "' could not be loaded.", 0);
         } else {
-            DebugLogger.getInstance().log(Level.INFO, "Instance world '" + instanceWorldName + "' created successfully.", 0);
+            DebugLogger.getInstance().log(Level.INFO,
+                    "Instance world '" + instanceWorldName + "' created successfully.", 0);
         }
     }
 
@@ -156,9 +167,12 @@ public class DungeonInstance {
                     originalPortal.getPitch()
             );
             config.setPortalPos1(instancePortal);
-            DebugLogger.getInstance().log(Level.INFO, "Portal position adjusted to instance world '" + instanceWorld.getName() + "'.", 0);
+            DebugLogger.getInstance().log(Level.INFO,
+                    "Portal position adjusted to instance world '"
+                            + instanceWorld.getName() + "'.", 0);
         } else {
-            DebugLogger.getInstance().log(Level.WARNING, "Cannot adjust portal position: PortalPos1 or InstanceWorld is null.", 0);
+            DebugLogger.getInstance().log(Level.WARNING,
+                    "Cannot adjust portal position: PortalPos1 or instanceWorld is null.", 0);
         }
     }
 
@@ -166,38 +180,47 @@ public class DungeonInstance {
         if (instanceWorld != null) {
             Bukkit.unloadWorld(instanceWorld, false);
             deleteWorld(instanceWorld.getWorldFolder());
-            DebugLogger.getInstance().log(Level.INFO, "Instance world '" + instanceWorld.getName() + "' unloaded and deleted.", 0);
+            DebugLogger.getInstance().log(Level.INFO,
+                    "Instance world '" + instanceWorld.getName() + "' unloaded and deleted.", 0);
         }
     }
 
     private void teleportPlayersToInstance() {
-        Location configSpawnLocation = config.getSpawnLocation();
-        if (configSpawnLocation == null || instanceWorld == null) {
-            DebugLogger.getInstance().log(Level.SEVERE, "Spawn location is not set or instance world is null in the dungeon configuration.", 0);
+        Location configSpawn = config.getSpawnLocation();
+        if (configSpawn == null || instanceWorld == null) {
+            DebugLogger.getInstance().log(Level.SEVERE,
+                    "Spawn location is not set or instance world is null in the dungeon config.", 0);
             stop();
             return;
         }
-        Location spawnLocation = configSpawnLocation.clone();
+        Location spawnLocation = configSpawn.clone();
         spawnLocation.setWorld(instanceWorld);
 
-        DebugLogger.getInstance().log(Level.INFO, "Teleporting players to instance spawn location: " +
-                spawnLocation.getWorld().getName() + " X: " + spawnLocation.getBlockX() +
-                " Y: " + spawnLocation.getBlockY() + " Z: " + spawnLocation.getBlockZ(), 0);
+        DebugLogger.getInstance().log(Level.INFO,
+                "Teleporting players to instance spawn location: "
+                        + spawnLocation.getWorld().getName()
+                        + " X: " + spawnLocation.getBlockX()
+                        + " Y: " + spawnLocation.getBlockY()
+                        + " Z: " + spawnLocation.getBlockZ(),
+                0);
 
         for (UUID uuid : playerUUIDs) {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && player.isOnline()) {
                 playersInInstance.add(player);
                 player.teleport(spawnLocation);
-                player.sendMessage(ChatColor.GREEN + "You have been teleported to the dungeon instance.");
+                player.sendMessage(ChatColor.GREEN
+                        + "You have been teleported to the dungeon instance.");
             } else {
-                DebugLogger.getInstance().log(Level.WARNING, "Player with UUID " + uuid + " is not online. Skipping...", 0);
+                DebugLogger.getInstance().log(Level.WARNING,
+                        "Player with UUID " + uuid + " is not online. Skipping...", 0);
             }
         }
 
-        for (Player player : playersInInstance) {
-            showAllPlayers(player);
-            hideNonInstancePlayers(player);
+        // Now show & hide players
+        for (Player p : playersInInstance) {
+            showAllPlayers(p);
+            hideNonInstancePlayers(p);
         }
     }
 
@@ -206,37 +229,53 @@ public class DungeonInstance {
             Location mainSpawn = Bukkit.getWorlds().get(0).getSpawnLocation();
             player.teleport(mainSpawn);
             showAllPlayers(player);
-            player.sendMessage(ChatColor.YELLOW + "You have been removed from the dungeon instance.");
+            player.sendMessage(ChatColor.YELLOW
+                    + "You have been removed from the dungeon instance.");
         }
         playersInInstance.clear();
     }
 
+    /**
+     * Key logic to place doors as STONE (if they still exist in memory),
+     * referencing the *correct* instance world. (FIX APPLIED)
+     */
     private void initializeInstance() {
+        // Spawn stuff
         dungeonEnemyManager.spawnMobs();
         chestManager.placeChests();
         puzzleManager.initializePuzzles();
         portalManager.placeFinishPortal();
 
-        // Load doors from config and add them to doorManager
-        if (dungeonManager.getSetupManager().getDoorManager() != null) {
-            for (DungeonConfig.DoorData dd : config.getDoors()) {
-                Location bottomLeft = new Location(instanceWorld, dd.getX1(), dd.getY1(), dd.getZ1());
-                Location topRight = new Location(instanceWorld, dd.getX2(), dd.getY2(), dd.getZ2());
-                Door door = new Door(dd.getDoorId(), bottomLeft, topRight);
-                door.setTriggerType(dd.getTriggerType());
-                dungeonManager.getSetupManager().getDoorManager().addDoor(door);
-            }
+        DoorManager doorManager = dungeonManager.getSetupManager().getDoorManager();
+        if (doorManager != null) {
+            for (DoorData dd : config.getDoors()) {
+                // Remove any old door reference from memory
+                if (doorManager.getDoor(dd.getDoorId()) != null) {
+                    doorManager.removeDoor(dd.getDoorId());
+                }
 
-            // finalize doors
-            dungeonManager.getSetupManager().getDoorManager().finalizeDoors();
+                // Create a brand-new Door object referencing the instance world
+                Location bottomLeft = new Location(instanceWorld, dd.getX1(), dd.getY1(), dd.getZ1());
+                Location topRight   = new Location(instanceWorld, dd.getX2(), dd.getY2(), dd.getZ2());
+                Door instanceDoor = new Door(dd.getDoorId(), bottomLeft, topRight);
+                instanceDoor.setTriggerType(dd.getTriggerType());
+
+                // Store it in the DoorManager
+                doorManager.addDoor(instanceDoor);
+
+                // Fill the door region with STONE
+                doorManager.placeDoorAsStone(instanceDoor);
+            }
         }
 
         Location portal = config.getPortalPos1();
         if (portal != null) {
-            DebugLogger.getInstance().log(Level.INFO, "Portal Location - World: " + portal.getWorld().getName() +
-                    " X: " + portal.getX() + " Y: " + portal.getY() + " Z: " + portal.getZ(), 0);
-        } else {
-            DebugLogger.getInstance().log(Level.SEVERE, "Portal position is not set for dungeon instance " + instanceId, 0);
+            DebugLogger.getInstance().log(Level.INFO,
+                    "Portal Location - World: " + portal.getWorld().getName()
+                            + " X: " + portal.getX()
+                            + " Y: " + portal.getY()
+                            + " Z: " + portal.getZ(),
+                    0);
         }
     }
 
@@ -259,8 +298,10 @@ public class DungeonInstance {
         Location mainSpawn = Bukkit.getWorlds().get(0).getSpawnLocation();
         player.teleport(mainSpawn);
         showAllPlayers(player);
-        player.sendMessage(ChatColor.YELLOW + "You have been removed from the dungeon instance.");
-        DebugLogger.getInstance().log(Level.INFO, "Player " + player.getName() + " removed from dungeon instance " + instanceId, 0);
+        player.sendMessage(ChatColor.YELLOW
+                + "You have been removed from the dungeon instance.");
+        DebugLogger.getInstance().log(Level.INFO,
+                "Player " + player.getName() + " removed from dungeon instance " + instanceId, 0);
 
         if (playersInInstance.isEmpty()) {
             dungeonManager.checkAndRemoveInstance(this);
@@ -273,14 +314,15 @@ public class DungeonInstance {
         int seconds = timeSpent % 60;
         String formattedTime = String.format("%02d:%02d", minutes, seconds);
 
-        for (Player player : new ArrayList<>(playersInInstance)) {
-            int kills = getMonstersKilledByPlayer(player);
-            player.sendMessage(ChatColor.GOLD + "You have completed the dungeon!");
-            player.sendMessage(ChatColor.GREEN + "Cleared in: " + ChatColor.WHITE + formattedTime +
-                    ChatColor.GREEN + ", Monsters killed: " + ChatColor.WHITE + kills);
-            removePlayer(player);
+        for (Player p : new ArrayList<>(playersInInstance)) {
+            int kills = getMonstersKilledByPlayer(p);
+            p.sendMessage(ChatColor.GOLD + "You have completed the dungeon!");
+            p.sendMessage(ChatColor.GREEN + "Cleared in: " + ChatColor.WHITE + formattedTime
+                    + ChatColor.GREEN + ", Monsters killed: " + ChatColor.WHITE + kills);
+            removePlayer(p);
         }
-        DebugLogger.getInstance().log(Level.INFO, "Dungeon instance " + instanceId + " has been completed.", 0);
+        DebugLogger.getInstance().log(Level.INFO,
+                "Dungeon instance " + instanceId + " has been completed.", 0);
     }
 
     private void copyWorld(File source, File target) throws IOException {
@@ -308,14 +350,16 @@ public class DungeonInstance {
         if (path.exists()) {
             File[] files = path.listFiles();
             if (files != null) {
-                for (File file : files) {
-                    deleteWorld(file);
+                for (File f : files) {
+                    deleteWorld(f);
                 }
             }
             if (path.delete()) {
-                DebugLogger.getInstance().log(Level.INFO, "Deleted world folder: " + path.getName(), 0);
+                DebugLogger.getInstance().log(Level.INFO,
+                        "Deleted world folder: " + path.getName(), 0);
             } else {
-                DebugLogger.getInstance().log(Level.WARNING, "Failed to delete world folder: " + path.getName(), 0);
+                DebugLogger.getInstance().log(Level.WARNING,
+                        "Failed to delete world folder: " + path.getName(), 0);
             }
         }
     }
@@ -324,7 +368,8 @@ public class DungeonInstance {
         int oldCount = monsterKills.getOrDefault(player.getUniqueId(), 0);
         int newCount = oldCount + 1;
         monsterKills.put(player.getUniqueId(), newCount);
-        DebugLogger.getInstance().log("incrementMonsterKill: " + player.getName() + " now has " + newCount + " kills.");
+        DebugLogger.getInstance().log("incrementMonsterKill: "
+                + player.getName() + " now has " + newCount + " kills.");
     }
 
     public int getMonstersKilledByPlayer(Player player) {
