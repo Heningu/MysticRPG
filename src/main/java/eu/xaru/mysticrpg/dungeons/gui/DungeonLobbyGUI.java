@@ -29,11 +29,6 @@ public class DungeonLobbyGUI {
     private final NamespacedKey lobbyIdKey;
 
     // Player placeholders for up to 6 players
-    // Heads: P,T,Z,U,Y,G
-    // Wool:  p,t,z,u,y,g
-
-    // If maxPlayers = 2, only P/p and T/t should be shown. The rest should become '#'.
-
     private static final char[] HEAD_CHARS = {'P','T','Z','U','Y','G'};
     private static final char[] WOOL_CHARS = {'p','t','z','u','y','g'};
 
@@ -62,12 +57,10 @@ public class DungeonLobbyGUI {
         }
 
         // Dynamically adjust the structure based on maxPlayers:
-        // For any player slot beyond maxPlayers, replace their letters with '#'
-        // We'll convert structure lines to mutable form
         String[] modifiedStructure = new String[BASE_STRUCTURE.length];
         for (int i = 0; i < BASE_STRUCTURE.length; i++) {
             String line = BASE_STRUCTURE[i];
-            // Replace unused slots with '#'
+            // For any player slot beyond maxPlayers, replace with '#'
             for (int slotIndex = maxPlayers; slotIndex < 6; slotIndex++) {
                 line = line.replace(Character.toString(HEAD_CHARS[slotIndex]), "#");
                 line = line.replace(Character.toString(WOOL_CHARS[slotIndex]), "#");
@@ -91,16 +84,20 @@ public class DungeonLobbyGUI {
 
         Gui gui = guiBuilder.build();
 
+        // Build the Window AND make it non-closeable
         Window window = Window.single()
                 .setViewer(player)
                 .setGui(gui)
                 .setTitle(ChatColor.GREEN + "Dungeon Lobby")
+                .setCloseable(false) // <--- Make the GUI impossible to close via ESC
                 .build();
 
         window.open();
     }
 
-    private void setPlayerSlot(Gui.Builder guiBuilder, DungeonLobby lobby, List<UUID> members, int index, char playerChar, char woolChar) {
+    private void setPlayerSlot(Gui.Builder guiBuilder, DungeonLobby lobby, List<UUID> members, int index,
+                               char playerChar, char woolChar)
+    {
         if (index < members.size()) {
             UUID memberUUID = members.get(index);
             Player member = lobbyManager.getDungeonManager().getPlugin().getServer().getPlayer(memberUUID);
@@ -148,7 +145,7 @@ public class DungeonLobbyGUI {
     }
 
     private Item createEmptyWool(boolean ready) {
-        // For empty slots, default to red wool (not ready)
+        // For empty slots, default to red wool
         return createReadyWool(false);
     }
 
@@ -187,7 +184,7 @@ public class DungeonLobbyGUI {
                     boolean currentlyReady = lobby.isReady(clickPlayer.getUniqueId());
                     lobby.setReady(clickPlayer.getUniqueId(), !currentlyReady);
                     event.getView().close();
-                    // Delay reopening the GUI by 1 tick
+                    // Reopen GUI next tick
                     Bukkit.getScheduler().runTask(lobbyManager.getDungeonManager().getPlugin(), () -> open(clickPlayer, lobby));
                 } else {
                     clickPlayer.sendMessage(ChatColor.RED + "Error: Lobby not found.");

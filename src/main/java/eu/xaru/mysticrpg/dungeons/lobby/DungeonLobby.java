@@ -8,7 +8,7 @@ import org.bukkit.entity.Player;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class  DungeonLobby {
+public class DungeonLobby {
 
     private final String lobbyId;
     private final String dungeonId;
@@ -88,9 +88,9 @@ public class  DungeonLobby {
     }
 
     public boolean allPlayersReady() {
-        return !players.isEmpty() &&
-                readyPlayers.size() == players.size() &&
-                players.size() >= config.getMinPlayers();
+        return !players.isEmpty()
+                && readyPlayers.size() == players.size()
+                && players.size() >= config.getMinPlayers();
     }
 
     public void startDungeon() {

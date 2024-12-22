@@ -43,7 +43,6 @@ public class DungeonLobbiesGUI {
         // Find all lobbies for this dungeon
         List<DungeonLobby> lobbies = lobbyManager.getActiveLobbiesForDungeon(config.getId());
 
-        // Add a 'B' character for the back button in the structure at slot 18 (bottom-left)
         // 3 rows of 9: row 0: indices 0-8, row 1: 9-17, row 2: 18-26
         String[] structure = {
                 "# # # # # # # # #",
@@ -69,7 +68,7 @@ public class DungeonLobbiesGUI {
                 gui.setItem(index, createLobbyItem(lobby));
                 index++;
             }
-            // Also show create lobby button if there's space (just in case)
+            // Also show create lobby button if there's space
             if (index < 27) {
                 gui.setItem(26, createCreateLobbyItem(config.getId()));
             }
@@ -113,12 +112,12 @@ public class DungeonLobbiesGUI {
             skullMeta.setOwningPlayer(creator);
             skullMeta.setDisplayName(displayName);
             skullMeta.setLore(lore);
-            skullMeta.getPersistentDataContainer().set(lobbyIdKey, org.bukkit.persistence.PersistentDataType.STRING, lobby.getLobbyId());
+            skullMeta.getPersistentDataContainer().set(lobbyIdKey, PersistentDataType.STRING, lobby.getLobbyId());
             item.setItemMeta(skullMeta);
         } else {
             meta.setDisplayName(displayName);
             meta.setLore(lore);
-            meta.getPersistentDataContainer().set(lobbyIdKey, org.bukkit.persistence.PersistentDataType.STRING, lobby.getLobbyId());
+            meta.getPersistentDataContainer().set(lobbyIdKey, PersistentDataType.STRING, lobby.getLobbyId());
             item.setItemMeta(meta);
         }
 
@@ -130,7 +129,7 @@ public class DungeonLobbiesGUI {
                 if (targetLobby != null) {
                     if (!targetLobby.isFull()) {
                         targetLobby.addPlayer(clickPlayer);
-                        // No event.getView().close(), lobby.addPlayer() will update GUI automatically
+                        // The GUI will update automatically for members
                     } else {
                         clickPlayer.sendMessage(ChatColor.RED + "That lobby is full.");
                     }
@@ -150,7 +149,7 @@ public class DungeonLobbiesGUI {
             @Override
             public void handleClick(org.bukkit.event.inventory.ClickType clickType, Player clickPlayer, org.bukkit.event.inventory.InventoryClickEvent event) {
                 DungeonLobby lobby = lobbyManager.getOrCreateLobby(dungeonId, clickPlayer);
-                // No need to close, lobby.addPlayer will open the lobby GUI
+                // Lobby GUI will open automatically
             }
         };
     }
