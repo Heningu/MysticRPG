@@ -57,9 +57,8 @@ public class DungeonLobby {
             players.add(player);
             updateLobbyGUI();
         } else {
-            // Already in lobby, just re-open GUI
-            DungeonLobbyGUI lobbyGUI = dungeonManager.getLobbyGUI();
-            lobbyGUI.open(player, this);
+            // Already in the lobby, just re-open or refresh
+            dungeonManager.getLobbyGUI().open(player, this);
         }
     }
 
@@ -80,6 +79,7 @@ public class DungeonLobby {
         } else {
             readyPlayers.remove(playerUUID);
         }
+        // Refresh the GUI for everyone
         updateLobbyGUI();
     }
 
@@ -93,10 +93,13 @@ public class DungeonLobby {
                 && players.size() >= config.getMinPlayers();
     }
 
+    /**
+     * Start the dungeon => forcibly close everyone's inventory, create the instance,
+     * then remove the lobby so no further updates occur.
+     */
     public void startDungeon() {
-        // Close GUI for all
-        for (Player player : players) {
-            player.closeInventory();
+        for (Player p : players) {
+            p.closeInventory(); // forcibly close
         }
         dungeonManager.createInstance(dungeonId, getPlayerUUIDs());
         lobbyManager.removeLobby(lobbyId);
@@ -110,16 +113,25 @@ public class DungeonLobby {
         return uuids;
     }
 
-    private void updateLobbyGUI() {
+    /**
+     * Update or open the GUI for all players in this lobby.
+     * We'll refresh if they already have a window, open if they don't.
+     */
+    public void updateLobbyGUI() {
+        if (players.isEmpty()) return;
         DungeonLobbyGUI lobbyGUI = dungeonManager.getLobbyGUI();
-        for (Player player : players) {
-            lobbyGUI.open(player, this);
+
+        for (Player p : players) {
+            if (lobbyGUI.hasOpenWindow(p.getUniqueId())) {
+                lobbyGUI.refresh(p, this);
+            } else {
+                lobbyGUI.open(p, this);
+            }
         }
     }
 
     /**
-     * Gets the creator (the first player who joined the lobby).
-     * Returns null if no players in the lobby.
+     * Returns the first player who joined (the "creator").
      */
     public Player getCreator() {
         return players.isEmpty() ? null : players.get(0);
