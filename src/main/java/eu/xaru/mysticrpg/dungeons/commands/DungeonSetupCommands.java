@@ -6,6 +6,7 @@ import dev.jorel.commandapi.arguments.StringArgument;
 import dev.jorel.commandapi.arguments.ArgumentSuggestions;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.dungeons.doors.DoorManager;
+import eu.xaru.mysticrpg.dungeons.loot.LootTableManager;
 import eu.xaru.mysticrpg.dungeons.setup.DungeonSetupManager;
 import eu.xaru.mysticrpg.dungeons.setup.DungeonSetupSession;
 import org.bukkit.ChatColor;
@@ -28,6 +29,7 @@ public class DungeonSetupCommands {
     }
 
     private void registerCommands() {
+        LootTableManager lootTableManager = new LootTableManager(plugin);
         new CommandAPICommand("ds")
                 .withSubcommand(new CommandAPICommand("setmobspawn")
                         .withArguments(new StringArgument("mobId"))
@@ -44,8 +46,10 @@ public class DungeonSetupCommands {
                         })
                 )
                 .withSubcommand(new CommandAPICommand("setchest")
-                        // Now we accept ANY string as a lootTableId, no more "NORMAL"/"ELITE"
-                        .withArguments(new StringArgument("lootTableId"))
+                        // Use the lootTableManager's auto-complete suggestions
+                        .withArguments(new StringArgument("lootTableId")
+                                .replaceSuggestions(lootTableManager.getLootTableIdSuggestions())
+                        )
                         .executesPlayer((player, args) -> {
                             if (setupManager.isInSetup(player)) {
                                 String lootTableId = (String) args.get("lootTableId");

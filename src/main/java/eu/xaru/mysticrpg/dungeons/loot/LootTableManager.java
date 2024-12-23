@@ -1,5 +1,6 @@
 package eu.xaru.mysticrpg.dungeons.loot;
 
+import dev.jorel.commandapi.arguments.ArgumentSuggestions;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -38,10 +39,16 @@ public class LootTableManager {
         }
     }
 
+    /**
+     * Returns the LootTable object for the given ID, or null if not found.
+     */
     public LootTable getLootTable(String id) {
         return lootTables.get(id);
     }
 
+    /**
+     * Saves (and caches) the given LootTable to a .yml file
+     */
     public void saveLootTable(LootTable lootTable) {
         File lootTableDir = new File(plugin.getDataFolder(), "dungeons/loottables");
         if (!lootTableDir.exists()) {
@@ -56,7 +63,21 @@ public class LootTableManager {
                 "Saved loot table: " + lootTable.getId(), 0);
     }
 
+    /**
+     * Returns all loaded LootTables as a Map<id, LootTable>
+     */
     public Map<String, LootTable> getAllLootTables() {
         return lootTables;
+    }
+
+    /**
+     * For CommandAPI argument suggestions. This returns an ArgumentSuggestions
+     * object that auto-completes all loaded loot table IDs.
+     */
+    public ArgumentSuggestions getLootTableIdSuggestions() {
+        return ArgumentSuggestions.strings(info -> {
+            // Return array of all loaded table IDs
+            return lootTables.keySet().toArray(new String[0]);
+        });
     }
 }
