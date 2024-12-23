@@ -21,16 +21,15 @@ public class LobbyManager {
     }
 
     public DungeonLobby getOrCreateLobby(String dungeonId, Player player) {
-        DungeonLobby lobby = findAvailableLobby(dungeonId);
-        if (lobby != null) {
-            lobby.addPlayer(player);
-            DebugLogger.getInstance().log(Level.INFO, "Player " + player.getName() + " added to existing lobby " + lobby.getLobbyId(), 0);
-        } else {
-            lobby = new DungeonLobby(dungeonId, dungeonManager, this);
-            lobby.addPlayer(player);
-            activeLobbies.put(lobby.getLobbyId(), lobby);
-            DebugLogger.getInstance().log(Level.INFO, "Lobby " + lobby.getLobbyId() + " created for dungeon " + dungeonId, 0);
-        }
+        DungeonLobby lobby = new DungeonLobby(dungeonId, dungeonManager, this);
+        lobby.addPlayer(player);
+        activeLobbies.put(lobby.getLobbyId(), lobby);
+
+        // Log that a new lobby was created
+        DebugLogger.getInstance().log(Level.INFO,
+                "Lobby " + lobby.getLobbyId() + " created for dungeon " + dungeonId,
+                0);
+
         return lobby;
     }
 
