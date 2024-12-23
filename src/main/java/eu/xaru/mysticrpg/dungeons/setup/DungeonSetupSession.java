@@ -56,20 +56,12 @@ public class DungeonSetupSession {
         player.sendMessage("Mob spawn point added for: " + mobId);
     }
 
-    public void addChestLocation(String chestType, Location loc) {
+    public void addChestLocation(String lootTableId, Location loc) {
         DungeonConfig.ChestLocation chestLoc = new DungeonConfig.ChestLocation();
         chestLoc.setLocation(loc);
-
-        Material mat = Material.matchMaterial(chestType.toUpperCase());
-        if (mat == null) {
-            mat = Material.CHEST;
-            player.sendMessage("Invalid chest type provided. Defaulting to CHEST.");
-        }
-        chestLoc.setType(mat);
-        chestLoc.setLootTableId(mat == Material.TRAPPED_CHEST ? "elite_loot" : "default_loot");
+        chestLoc.setType(Material.CHEST);
+        chestLoc.setLootTableId(lootTableId);
         config.getChestLocations().add(chestLoc);
-
-        player.sendMessage("Chest of type '" + mat + "' with loot: " + chestLoc.getLootTableId());
     }
 
     // ------------------------------

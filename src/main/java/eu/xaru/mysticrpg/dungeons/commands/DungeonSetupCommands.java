@@ -44,14 +44,16 @@ public class DungeonSetupCommands {
                         })
                 )
                 .withSubcommand(new CommandAPICommand("setchest")
-                        .withArguments(new StringArgument("type")
-                                .replaceSuggestions(ArgumentSuggestions.strings("NORMAL", "ELITE"))
-                        )
+                        // Now we accept ANY string as a lootTableId, no more "NORMAL"/"ELITE"
+                        .withArguments(new StringArgument("lootTableId"))
                         .executesPlayer((player, args) -> {
                             if (setupManager.isInSetup(player)) {
-                                String chestType = (String) args.get("type");
-                                player.sendMessage(ChatColor.GREEN + "Please click on a chest to register it.");
-                                player.setMetadata("chestType", new FixedMetadataValue(plugin, chestType));
+                                String lootTableId = (String) args.get("lootTableId");
+                                player.sendMessage(ChatColor.GREEN
+                                        + "Please click on a chest to register it with lootTableId: "
+                                        + lootTableId);
+                                // Store this ID in metadata "lootTableId"
+                                player.setMetadata("lootTableId", new FixedMetadataValue(plugin, lootTableId));
                             } else {
                                 player.sendMessage(ChatColor.RED + "You are not in a setup session.");
                             }

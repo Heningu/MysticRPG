@@ -1,5 +1,3 @@
-// File: eu/xaru/mysticrpg/dungeons/loot/LootTable.java
-
 package eu.xaru.mysticrpg.dungeons.loot;
 
 import eu.xaru.mysticrpg.customs.items.CustomItem;
@@ -16,7 +14,7 @@ import java.util.*;
 
 public class LootTable {
 
-    private String id;
+    private final String id;
     private final List<LootItem> lootItems;
     private final Random random;
     private final ItemManager itemManager;
@@ -25,7 +23,10 @@ public class LootTable {
         this.id = id;
         this.lootItems = new ArrayList<>();
         this.random = new Random();
-        CustomItemModule customItemModule = ModuleManager.getInstance().getModuleInstance(CustomItemModule.class);
+
+        // Ensure we can get the itemManager
+        CustomItemModule customItemModule = ModuleManager.getInstance()
+                .getModuleInstance(CustomItemModule.class);
         if (customItemModule == null) {
             throw new IllegalStateException("CustomItemModule not loaded. LootTable requires CustomItemModule.");
         }
@@ -36,54 +37,53 @@ public class LootTable {
         return id;
     }
 
-    public void addItem(String type, String idOrMaterial, int amount, double chance) {
-        LootItem lootItem = new LootItem(type, idOrMaterial, amount, chance);
-        lootItems.add(lootItem);
+    public void addItem(String sourceType, String idOrMaterial, int amount, double chance) {
+        lootItems.add(new LootItem(sourceType, idOrMaterial, amount, chance));
     }
 
     public List<ItemStack> generateLoot() {
-        List<ItemStack> loot = new ArrayList<>();
+        List<ItemStack> result = new ArrayList<>();
         for (LootItem lootItem : lootItems) {
             if (random.nextDouble() <= lootItem.getChance()) {
-                ItemStack itemStack = null;
-                if ("custom_item".equalsIgnoreCase(lootItem.getType())) {
-                    CustomItem customItem = itemManager.getCustomItem(lootItem.getIdOrMaterial());
-                    if (customItem != null) {
-                        itemStack = customItem.toItemStack();
-                        itemStack.setAmount(lootItem.getAmount());
+                ItemStack item = null;
+
+                if ("custom_item".equalsIgnoreCase(lootItem.getSourceType())) {
+                    CustomItem cItem = itemManager.getCustomItem(lootItem.getIdOrMaterial());
+                    if (cItem != null) {
+                        item = cItem.toItemStack();
+                        item.setAmount(lootItem.getAmount());
                     }
-                } else if ("material".equalsIgnoreCase(lootItem.getType())) {
-                    Material material = Material.matchMaterial(lootItem.getIdOrMaterial().toUpperCase());
-                    if (material != null) {
-                        itemStack = new ItemStack(material, lootItem.getAmount());
+                } else if ("material".equalsIgnoreCase(lootItem.getSourceType())) {
+                    Material mat = Material.matchMaterial(lootItem.getIdOrMaterial().toUpperCase());
+                    if (mat != null) {
+                        item = new ItemStack(mat, lootItem.getAmount());
                     }
                 }
-                if (itemStack != null) {
-                    loot.add(itemStack);
+
+                if (item != null) {
+                    result.add(item);
                 }
             }
         }
-        return loot;
-    }
-
-    public List<LootItem> getLootItems() {
-        return lootItems;
+        return result;
     }
 
     public void saveToFile(File file) {
         try {
             FileConfiguration config = new YamlConfiguration();
             config.set("id", id);
-            List<Map<String, Object>> lootItemsList = new ArrayList<>();
-            for (LootItem lootItem : lootItems) {
-                Map<String, Object> itemMap = new HashMap<>();
-                itemMap.put("type", lootItem.getType());
-                itemMap.put("id_or_material", lootItem.getIdOrMaterial());
-                itemMap.put("amount", lootItem.getAmount());
-                itemMap.put("chance", lootItem.getChance());
-                lootItemsList.add(itemMap);
+
+            List<Map<String, Object>> items = new ArrayList<>();
+            for (LootItem li : lootItems) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("sourceType", li.getSourceType());
+                map.put("id_or_material", li.getIdOrMaterial());
+                map.put("amount", li.getAmount());
+                map.put("chance", li.getChance());
+                items.add(map);
             }
-            config.set("loot_items", lootItemsList);
+            config.set("loot_items", items);
+
             config.save(file);
         } catch (Exception e) {
             e.printStackTrace();
@@ -94,31 +94,32 @@ public class LootTable {
         try {
             FileConfiguration config = YamlConfiguration.loadConfiguration(file);
             String id = config.getString("id");
-            LootTable lootTable = new LootTable(id);
-            List<Map<?, ?>> lootItemsList = config.getMapList("loot_items");
-            for (Map<?, ?> itemMap : lootItemsList) {
-                String type = (String) itemMap.get("type");
-                String idOrMaterial = (String) itemMap.get("id_or_material");
+            LootTable table = new LootTable(id);
 
-                int amount = 1; // default amount
-                if (itemMap.containsKey("amount")) {
-                    Object amountObj = itemMap.get("amount");
-                    if (amountObj instanceof Number) {
-                        amount = ((Number) amountObj).intValue();
+            List<Map<?, ?>> list = config.getMapList("loot_items");
+            for (Map<?, ?> raw : list) {
+                String sourceType = (String) raw.get("sourceType");
+                String idOrMat = (String) raw.get("id_or_material");
+
+                int amount = 1;
+                if (raw.containsKey("amount")) {
+                    Object amtObj = raw.get("amount");
+                    if (amtObj instanceof Number) {
+                        amount = ((Number) amtObj).intValue();
                     }
                 }
 
-                double chance = 1.0; // default chance
-                if (itemMap.containsKey("chance")) {
-                    Object chanceObj = itemMap.get("chance");
-                    if (chanceObj instanceof Number) {
-                        chance = ((Number) chanceObj).doubleValue();
+                double chance = 1.0;
+                if (raw.containsKey("chance")) {
+                    Object chObj = raw.get("chance");
+                    if (chObj instanceof Number) {
+                        chance = ((Number) chObj).doubleValue();
                     }
                 }
 
-                lootTable.addItem(type, idOrMaterial, amount, chance);
+                table.addItem(sourceType, idOrMat, amount, chance);
             }
-            return lootTable;
+            return table;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -126,20 +127,20 @@ public class LootTable {
     }
 
     public static class LootItem {
-        private final String type; // "custom_item" or "material"
+        private final String sourceType; // "material" or "custom_item"
         private final String idOrMaterial;
         private final int amount;
         private final double chance;
 
-        public LootItem(String type, String idOrMaterial, int amount, double chance) {
-            this.type = type;
+        public LootItem(String sourceType, String idOrMaterial, int amount, double chance) {
+            this.sourceType = sourceType;
             this.idOrMaterial = idOrMaterial;
             this.amount = amount;
             this.chance = chance;
         }
 
-        public String getType() {
-            return type;
+        public String getSourceType() {
+            return sourceType;
         }
 
         public String getIdOrMaterial() {
