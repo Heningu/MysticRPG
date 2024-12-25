@@ -1,168 +1,199 @@
 package eu.xaru.mysticrpg.storage;
 
 import eu.xaru.mysticrpg.storage.database.DatabaseManager;
-import eu.xaru.mysticrpg.storage.database.IRepository;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.Bukkit;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 /**
- * PlayerDataCache manages cached player data, providing efficient access and modification.
+ * PlayerDataCache manages cached player data, providing efficient access and modification,
+ * plus scheduled asynchronous flushing to the DB.
  */
 public class PlayerDataCache {
 
     private static PlayerDataCache instance;
-    private final Map<UUID, PlayerData> cache = Collections.synchronizedMap(new HashMap<>());
+
+    /**
+     * In-memory cache of UUID -> PlayerData
+     */
+    private final Map<UUID, PlayerData> cache = new ConcurrentHashMap<>();
+
+    /**
+     * Track which players have “dirty” data that must be flushed to DB.
+     */
+    private final Set<UUID> dirtyPlayers = ConcurrentHashMap.newKeySet();
+
     private final DatabaseManager databaseManager;
 
-    // Private constructor to prevent direct instantiation
+    /**
+     * How often (in ticks) to flush dirty data in bulk. (1200 ticks = 60s at 20 TPS)
+     */
+    private static final long FLUSH_PERIOD_TICKS = 1200L;
+
     private PlayerDataCache(DatabaseManager databaseManager) {
         this.databaseManager = databaseManager;
+
+        // Schedule a repeating async task to flush dirty data
+        Bukkit.getScheduler().runTaskTimerAsynchronously(
+                eu.xaru.mysticrpg.cores.MysticCore.getInstance(),
+                this::flushDirtyData,
+                FLUSH_PERIOD_TICKS,
+                FLUSH_PERIOD_TICKS
+        );
+
         registerCheckCachedDataCommand();
     }
 
     /**
-     * Initializes the singleton instance. Should be called once during plugin initialization.
-     *
-     * @param databaseManager The DatabaseManager instance.
+     * Initializes the singleton instance. Should be called once.
      */
-    public static synchronized void initialize(DatabaseManager databaseManager) {
+    public static synchronized void initialize(DatabaseManager dbManager) {
         if (instance == null) {
-            instance = new PlayerDataCache(databaseManager);
+            instance = new PlayerDataCache(dbManager);
         } else {
             DebugLogger.getInstance().log(Level.WARNING, "PlayerDataCache is already initialized.", 0);
         }
     }
 
-    /**
-     * Retrieves the singleton instance.
-     *
-     * @return The PlayerDataCache instance.
-     */
     public static PlayerDataCache getInstance() {
         if (instance == null) {
-            throw new IllegalStateException("PlayerDataCache is not initialized. Call initialize() first.");
+            throw new IllegalStateException("PlayerDataCache not initialized. Call initialize() first.");
         }
         return instance;
     }
 
     /**
-     * Loads player data from the database and caches it.
-     *
-     * @param playerUUID The UUID of the player.
-     * @param callback   Callback for success or failure.
+     * Load from DB or create default if none found.
      */
     public void loadPlayerData(UUID playerUUID, Callback<PlayerData> callback) {
-        DebugLogger.getInstance().log(Level.INFO, "Attempting to load player data for UUID: " + playerUUID, 0);
-        databaseManager.getPlayerRepository().load(playerUUID, new Callback<PlayerData>() {
+        DebugLogger.getInstance().log(Level.INFO, "Loading data for UUID: " + playerUUID, 0);
+        databaseManager.getPlayerRepository().load(playerUUID, new Callback<>() {
             @Override
             public void onSuccess(PlayerData playerData) {
+                playerData.ensureMutableCollections();
                 cache.put(playerUUID, playerData);
-                DebugLogger.getInstance().log(Level.INFO, "Player data loaded and cached for UUID: " + playerUUID, 0);
+                DebugLogger.getInstance().log(Level.INFO, "Player data loaded/cached for: " + playerUUID, 0);
                 callback.onSuccess(playerData);
             }
 
             @Override
             public void onFailure(Throwable throwable) {
-                // If no entity is found, create default data
+                // If not found in DB, create default
                 if (throwable instanceof NoSuchElementException) {
-                    // Create default player data
                     PlayerData defaultData = PlayerData.defaultData(playerUUID.toString());
-                    // Ensure collections are mutable
                     defaultData.ensureMutableCollections();
-
-                    // Save the new data to DB
-                    databaseManager.getPlayerRepository().save(defaultData, new Callback<Void>() {
-                        @Override
-                        public void onSuccess(Void result) {
-                            cache.put(playerUUID, defaultData);
-                            DebugLogger.getInstance().log(Level.INFO, "Created and saved default data for new player UUID: " + playerUUID, 0);
-                            callback.onSuccess(defaultData);
-                        }
-
-                        @Override
-                        public void onFailure(Throwable saveThrowable) {
-                            DebugLogger.getInstance().error("Failed to create default player data for UUID: " + playerUUID, saveThrowable);
-                            callback.onFailure(saveThrowable);
-                        }
-                    });
+                    // Cache it
+                    cache.put(playerUUID, defaultData);
+                    markDirty(playerUUID);
+                    DebugLogger.getInstance().log(Level.INFO, "Created default data for new player: " + playerUUID, 0);
+                    callback.onSuccess(defaultData);
                 } else {
-                    DebugLogger.getInstance().error("Failed to load player data for UUID: " + playerUUID + ". ", throwable);
+                    DebugLogger.getInstance().error("Failed to load data for " + playerUUID, throwable);
                     callback.onFailure(throwable);
                 }
             }
         });
     }
 
+    /**
+     * Put a new PlayerData in cache, mark dirty, and optionally do immediate save with a callback.
+     */
+    public void cacheAndMarkDirty(UUID playerUUID, PlayerData data, Callback<Void> callback) {
+        cache.put(playerUUID, data);
+        markDirty(playerUUID);
+        doSave(data, callback);
+    }
 
     /**
-     * Saves player data to the database.
-     *
-     * @param playerUUID The UUID of the player.
-     * @param callback   Callback for success or failure.
+     * Mark a player's data as dirty for next scheduled flush.
+     */
+    public void markDirty(UUID playerUUID) {
+        dirtyPlayers.add(playerUUID);
+    }
+
+    /**
+     * Immediately save data for the given player, plus callback on success/failure.
      */
     public void savePlayerData(UUID playerUUID, Callback<Void> callback) {
-        PlayerData playerData = cache.get(playerUUID);
-        if (playerData != null) {
-            databaseManager.getPlayerRepository().save(playerData, new Callback<Void>() {
-                @Override
-                public void onSuccess(Void result) {
-                    DebugLogger.getInstance().log(Level.INFO, "Player data saved to database for UUID: " + playerUUID, 0);
-                    callback.onSuccess(result);
-                }
-
-                @Override
-                public void onFailure(Throwable throwable) {
-                    DebugLogger.getInstance().error("Failed to save player data for UUID: " + playerUUID + ". ", throwable);
-                    callback.onFailure(throwable);
-                }
-            });
-        } else {
-            DebugLogger.getInstance().error("No cached data found for player UUID: " + playerUUID);
-            DebugLogger.getInstance().log(Level.INFO, "Current cache contents: " + cache.toString(), 0);
-            callback.onFailure(new IllegalStateException("No cached data found for player UUID: " + playerUUID));
-        }
-    }
-
-    /**
-     * Clears cached data for a specific player.
-     *
-     * @param playerUUID The UUID of the player.
-     */
-    public void clearPlayerData(UUID playerUUID) {
-        if (cache.containsKey(playerUUID)) {
-            cache.remove(playerUUID);
-            DebugLogger.getInstance().log(Level.INFO, "Cleared cache for player UUID: " + playerUUID, 0);
-        }
-    }
-
-    /**
-     * Retrieves cached player data.
-     *
-     * @param playerUUID The UUID of the player.
-     * @return The PlayerData instance, or null if not found.
-     */
-    public PlayerData getCachedPlayerData(UUID playerUUID) {
         PlayerData data = cache.get(playerUUID);
         if (data == null) {
-            DebugLogger.getInstance().error("No cached data found when accessing for player UUID: " + playerUUID);
-            DebugLogger.getInstance().log(Level.INFO, "Current cache contents: " + cache.toString(), 0);
+            DebugLogger.getInstance().error("No data in cache for: " + playerUUID);
+            callback.onFailure(new IllegalStateException("No cached data for " + playerUUID));
+            return;
         }
-        return data;
+        markDirty(playerUUID);
+        doSave(data, callback);
     }
 
+    private void doSave(PlayerData data, Callback<Void> callback) {
+        databaseManager.getPlayerRepository().save(data, new Callback<>() {
+            @Override
+            public void onSuccess(Void result) {
+                dirtyPlayers.remove(UUID.fromString(data.getUuid()));
+                DebugLogger.getInstance().log(Level.INFO, "Async saved data for: " + data.getUuid(), 0);
+                if (callback != null) {
+                    callback.onSuccess(result);
+                }
+            }
 
+            @Override
+            public void onFailure(Throwable throwable) {
+                DebugLogger.getInstance().error("Failed to save data for: " + data.getUuid(), throwable);
+                if (callback != null) {
+                    callback.onFailure(throwable);
+                }
+            }
+        });
+    }
 
+    /**
+     * Periodic flush of all dirty data to DB.
+     */
+    private void flushDirtyData() {
+        if (dirtyPlayers.isEmpty()) {
+            return;
+        }
+        DebugLogger.getInstance().log(Level.INFO, "Flushing " + dirtyPlayers.size() + " dirty entries...", 0);
+
+        List<UUID> snapshot = new ArrayList<>(dirtyPlayers);
+        for (UUID uuid : snapshot) {
+            PlayerData data = cache.get(uuid);
+            if (data != null) {
+                doSave(data, null);
+            }
+        }
+    }
+
+    /**
+     * Clear a player's data from cache entirely (e.g., on quit).
+     */
+    public void clearPlayerData(UUID playerUUID) {
+        cache.remove(playerUUID);
+        dirtyPlayers.remove(playerUUID);
+        DebugLogger.getInstance().log(Level.INFO, "Cleared cache for " + playerUUID, 0);
+    }
+
+    /**
+     * Retrieve cached data if present, else null.
+     */
+    public PlayerData getCachedPlayerData(UUID playerUUID) {
+        return cache.get(playerUUID);
+    }
+
+    /**
+     * Load by discord ID, store in cache.
+     */
     public void loadPlayerDataByDiscordId(long discordId, Callback<PlayerData> callback) {
-        databaseManager.getPlayerRepository().loadByDiscordId(discordId, new Callback<PlayerData>() {
+        databaseManager.getPlayerRepository().loadByDiscordId(discordId, new Callback<>() {
             @Override
             public void onSuccess(PlayerData playerData) {
-                UUID playerUUID = UUID.fromString(playerData.getUuid());
-                cache.put(playerUUID, playerData);
+                playerData.ensureMutableCollections();
+                UUID uuid = UUID.fromString(playerData.getUuid());
+                cache.put(uuid, playerData);
                 callback.onSuccess(playerData);
             }
 
@@ -173,101 +204,61 @@ public class PlayerDataCache {
         });
     }
 
-    /**
-     * Adds a friend to a player's friend list.
-     *
-     * @param playerUUID The UUID of the player.
-     * @param friendUUID The UUID of the friend to add.
-     */
+    // Friend / block methods
     public void addFriend(UUID playerUUID, UUID friendUUID) {
-        PlayerData playerData = cache.get(playerUUID);
-        if (playerData != null) {
-            playerData.getFriends().add(friendUUID.toString());
-            DebugLogger.getInstance().log(Level.INFO, "Added friend " + friendUUID + " for player UUID: " + playerUUID, 0);
+        PlayerData data = cache.get(playerUUID);
+        if (data != null) {
+            data.getFriends().add(friendUUID.toString());
+            markDirty(playerUUID);
         }
     }
 
-    /**
-     * Removes a friend from a player's friend list.
-     *
-     * @param playerUUID The UUID of the player.
-     * @param friendUUID The UUID of the friend to remove.
-     */
     public void removeFriend(UUID playerUUID, UUID friendUUID) {
-        PlayerData playerData = cache.get(playerUUID);
-        if (playerData != null) {
-            playerData.getFriends().remove(friendUUID.toString());
-            DebugLogger.getInstance().log(Level.INFO, "Removed friend " + friendUUID + " for player UUID: " + playerUUID, 0);
+        PlayerData data = cache.get(playerUUID);
+        if (data != null) {
+            data.getFriends().remove(friendUUID.toString());
+            markDirty(playerUUID);
         }
     }
 
-    /**
-     * Adds a friend request to a player's friend requests list.
-     *
-     * @param playerUUID    The UUID of the player.
-     * @param requesterUUID The UUID of the player sending the friend request.
-     */
     public void addFriendRequest(UUID playerUUID, UUID requesterUUID) {
-        PlayerData playerData = cache.get(playerUUID);
-        if (playerData != null) {
-            playerData.getFriendRequests().add(requesterUUID.toString());
-            DebugLogger.getInstance().log(Level.INFO, "Added friend request from " + requesterUUID + " for player UUID: " + playerUUID, 0);
+        PlayerData data = cache.get(playerUUID);
+        if (data != null) {
+            data.getFriendRequests().add(requesterUUID.toString());
+            markDirty(playerUUID);
         }
     }
 
-    /**
-     * Removes a friend request from a player's friend requests list.
-     *
-     * @param playerUUID    The UUID of the player.
-     * @param requesterUUID The UUID of the player whose friend request is to be removed.
-     */
     public void removeFriendRequest(UUID playerUUID, UUID requesterUUID) {
-        PlayerData playerData = cache.get(playerUUID);
-        if (playerData != null) {
-            playerData.getFriendRequests().remove(requesterUUID.toString());
-            DebugLogger.getInstance().log(Level.INFO, "Removed friend request from " + requesterUUID + " for player UUID: " + playerUUID, 0);
+        PlayerData data = cache.get(playerUUID);
+        if (data != null) {
+            data.getFriendRequests().remove(requesterUUID.toString());
+            markDirty(playerUUID);
         }
     }
 
-    /**
-     * Blocks a player.
-     *
-     * @param blockerUUID The UUID of the player blocking.
-     * @param toBlockUUID The UUID of the player to block.
-     */
     public void blockPlayer(UUID blockerUUID, UUID toBlockUUID) {
-        PlayerData playerData = cache.get(blockerUUID);
-        if (playerData != null) {
-            playerData.getBlockedPlayers().add(toBlockUUID.toString());
-            DebugLogger.getInstance().log(Level.INFO, "Blocked player " + toBlockUUID + " for player UUID: " + blockerUUID, 0);
+        PlayerData data = cache.get(blockerUUID);
+        if (data != null) {
+            data.getBlockedPlayers().add(toBlockUUID.toString());
+            markDirty(blockerUUID);
         }
     }
 
-    /**
-     * Unblocks a player.
-     *
-     * @param blockerUUID   The UUID of the player unblocking.
-     * @param toUnblockUUID The UUID of the player to unblock.
-     */
     public void unblockPlayer(UUID blockerUUID, UUID toUnblockUUID) {
-        PlayerData playerData = cache.get(blockerUUID);
-        if (playerData != null) {
-            playerData.getBlockedPlayers().remove(toUnblockUUID.toString());
-            DebugLogger.getInstance().log(Level.INFO, "Unblocked player " + toUnblockUUID + " for player UUID: " + blockerUUID, 0);
+        PlayerData data = cache.get(blockerUUID);
+        if (data != null) {
+            data.getBlockedPlayers().remove(toUnblockUUID.toString());
+            markDirty(blockerUUID);
         }
     }
 
-    /**
-     * Retrieves all cached player UUIDs.
-     *
-     * @return A set of all cached player UUIDs.
-     */
     public Set<UUID> getAllCachedPlayerUUIDs() {
         return cache.keySet();
     }
 
     /**
-     * Registers the /checkCachedData command for debugging purposes.
+     * Registers /checkCachedData command for debug
      */
     private void registerCheckCachedDataCommand() {
         new dev.jorel.commandapi.CommandAPICommand("checkCachedData")
@@ -283,17 +274,16 @@ public class PlayerDataCache {
                         player.sendMessage(Utils.getInstance().$("Level: " + playerData.getLevel()));
                         player.sendMessage(Utils.getInstance().$("Next Level XP: " + playerData.getNextLevelXP()));
                         player.sendMessage(Utils.getInstance().$("Current HP: " + playerData.getCurrentHp()));
-                        player.sendMessage(Utils.getInstance().$("Attributes: " + playerData.getAttributes().toString()));
+                        player.sendMessage(Utils.getInstance().$("Attributes: " + playerData.getAttributes()));
                         player.sendMessage(Utils.getInstance().$("Attribute Points: " + playerData.getAttributePoints()));
-                        player.sendMessage(Utils.getInstance().$("Unlocked Recipes: " + playerData.getUnlockedRecipes().toString()));
-                        player.sendMessage(Utils.getInstance().$("Friend Requests: " + playerData.getFriendRequests().toString()));
-                        player.sendMessage(Utils.getInstance().$("Friends: " + playerData.getFriends().toString()));
-                        player.sendMessage(Utils.getInstance().$("Blocked Players: " + playerData.getBlockedPlayers().toString()));
+                        player.sendMessage(Utils.getInstance().$("Unlocked Recipes: " + playerData.getUnlockedRecipes()));
+                        player.sendMessage(Utils.getInstance().$("Friend Requests: " + playerData.getFriendRequests()));
+                        player.sendMessage(Utils.getInstance().$("Friends: " + playerData.getFriends()));
+                        player.sendMessage(Utils.getInstance().$("Blocked Players: " + playerData.getBlockedPlayers()));
                         player.sendMessage(Utils.getInstance().$("Blocking Requests: " + playerData.isBlockingRequests()));
-                        DebugLogger.getInstance().log(Level.INFO, "Displayed cached data for player UUID: " + playerUUID, 0);
                     } else {
                         player.sendMessage(Utils.getInstance().$("No cached data found for you."));
-                        DebugLogger.getInstance().error("No cached data found for player: " + playerUUID);
+                        DebugLogger.getInstance().error("No cached data for player: " + playerUUID);
                     }
                 })
                 .register();

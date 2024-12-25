@@ -1,0 +1,17 @@
+id: level1_zombie
+name: '&2Zombie'
+type: ZOMBIE
+health: 40
+level: 1
+damage: 3
+armor: 2
+movement_speed: 0.25
+experienceReward: 50
+currencyReward: 10
+equipment: []
+drops:
+- type: custom_item
+  id: grave_digger
+  amount: 1
+  chance: 0.05
+model_id: mso_overlord

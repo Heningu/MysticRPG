@@ -1,0 +1,27 @@
+id: skeleton_warrior
+name: '&2Skeleton Warrior'
+type: ZOMBIE
+health: 40
+level: 1
+damage: 3
+armor: 2
+movement_speed: 0.25
+experienceReward: 50
+currencyReward: 10
+equipment: []
+drops: []
+BossBar:
+  Enabled: true
+  Title: '&c&lSkeleton Overlord' # Title of the boss bar
+  Color: RED
+  Range: 64
+  Style: SEGMENTED_20
+model_id: mso_overlord
+animations:
+  idle: idle
+  walk: walk
+  attack: quickslash
+actions:
+- skeleton_warrior_actions/attack ~ onAttack
+- skeleton_warrior_actions/enter_combat ~ onEnterCombat
+- skeleton_warrior_actions/leave_combat ~ onLeaveCombat

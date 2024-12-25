@@ -1,5 +1,7 @@
 package eu.xaru.mysticrpg.pets;
 
+import eu.xaru.mysticrpg.config.DynamicConfig;
+import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.storage.Callback;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
@@ -8,8 +10,6 @@ import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -25,15 +25,20 @@ import java.io.File;
 import java.util.*;
 import java.util.logging.Level;
 
+/**
+ * Manages pet configurations, spawning, equipping, and updating animations.
+ */
 public class PetHelper implements Listener {
+
     private final JavaPlugin plugin;
 
+    // Loaded pet configurations (petId -> Pet)
     private final Map<String, Pet> petConfigurations = new HashMap<>();
+    // Track currently equipped pets for each player
     private final Map<UUID, PetInstance> playerEquippedPets = new HashMap<>();
 
     public PetHelper(JavaPlugin plugin) {
         this.plugin = plugin;
-
         loadPetConfigurations();
 
         // Schedule a repeating task to update pet positions and animations
@@ -41,7 +46,8 @@ public class PetHelper implements Listener {
     }
 
     /**
-     * Loads pet configurations from YAML files located in the plugin's data folder.
+     * Loads pet configurations from .yml files located in <pluginDataFolder>/pets/.
+     * Uses DynamicConfig for each file.
      */
     private void loadPetConfigurations() {
         File petFolder = new File(plugin.getDataFolder(), "pets");
@@ -51,39 +57,49 @@ public class PetHelper implements Listener {
         }
 
         File[] files = petFolder.listFiles((dir, name) -> name.endsWith(".yml"));
-        if (files != null) {
-            for (File file : files) {
-                try {
-                    FileConfiguration config = YamlConfiguration.loadConfiguration(file);
-                    String petId = config.getString("id");
-                    String petName = config.getString("name");
-                    if (petId == null || petId.isEmpty()) {
-                        DebugLogger.getInstance().error("Pet ID is missing in file: " + file.getName());
-                        continue;
-                    }
-                    if (petName == null || petName.isEmpty()) {
-                        DebugLogger.getInstance().error("Pet name is missing in file: " + file.getName());
-                        continue;
-                    }
+        if (files == null || files.length == 0) {
+            DebugLogger.getInstance().log(Level.INFO, "No pet configuration files found in 'pets' folder.", 0);
+            return;
+        }
 
-                    String displayItem = config.getString("display_item", "ZOMBIE_HEAD");
+        for (File file : files) {
+            try {
+                // Build a userFileName for this .yml
+                String userFileName = "pets/" + file.getName();
 
-                    Pet pet = new Pet(petId, petName, displayItem);
-                    petConfigurations.put(petId, pet);
-
-                    DebugLogger.getInstance().log(Level.INFO, "Loaded pet configuration: " + petId, 0);
-                } catch (Exception e) {
-                    DebugLogger.getInstance().error("Failed to load pet configuration from file " + file.getName() + ":", e);
+                // Attempt to get or load the config
+                DynamicConfig config = DynamicConfigManager.getConfig(userFileName);
+                if (config == null) {
+                    config = DynamicConfigManager.loadConfig(userFileName, userFileName);
                 }
+
+                // Read essential fields
+                String petId   = config.getString("id", null);
+                String petName = config.getString("name", null);
+
+                if (petId == null || petId.isEmpty()) {
+                    DebugLogger.getInstance().error("Pet ID is missing in file: " + file.getName());
+                    continue;
+                }
+                if (petName == null || petName.isEmpty()) {
+                    DebugLogger.getInstance().error("Pet name is missing in file: " + file.getName());
+                    continue;
+                }
+
+                String displayItem = config.getString("display_item", "ZOMBIE_HEAD");
+
+                Pet pet = new Pet(petId, petName, displayItem);
+                petConfigurations.put(petId, pet);
+                DebugLogger.getInstance().log(Level.INFO, "Loaded pet configuration: " + petId, 0);
+
+            } catch (Exception e) {
+                DebugLogger.getInstance().error("Failed to load pet config from file " + file.getName() + ":", e);
             }
         }
     }
 
     /**
-     * Grants a pet to a player and saves the updated data to the database.
-     *
-     * @param player The player receiving the pet.
-     * @param petId  The ID of the pet to grant.
+     * Grants a pet to a player and saves updated data to the DB (via PlayerDataCache).
      */
     public void givePet(Player player, String petId) {
         Pet pet = petConfigurations.get(petId);
@@ -94,17 +110,18 @@ public class PetHelper implements Listener {
 
         PlayerDataCache cache = PlayerDataCache.getInstance();
         PlayerData playerData = cache.getCachedPlayerData(player.getUniqueId());
-
         if (playerData == null) {
             player.sendMessage(Utils.getInstance().$("Your data is not loaded. Please try again."));
             return;
         }
 
+        // If player already owns this pet, do nothing
         if (playerData.getOwnedPets().contains(petId)) {
             player.sendMessage(Utils.getInstance().$("You already own this pet: " + pet.getName()));
             return;
         }
 
+        // Add pet to the player's owned set
         playerData.getOwnedPets().add(petId);
         cache.savePlayerData(player.getUniqueId(), new Callback<Void>() {
             @Override
@@ -122,10 +139,7 @@ public class PetHelper implements Listener {
     }
 
     /**
-     * Equips a pet for a player if they own it and saves the equipped pet to the database.
-     *
-     * @param player The player equipping the pet.
-     * @param petId  The ID of the pet to equip.
+     * Equips a pet if the player owns it, spawns the entity, and saves new data.
      */
     public void equipPet(Player player, String petId) {
         Pet pet = petConfigurations.get(petId);
@@ -136,7 +150,6 @@ public class PetHelper implements Listener {
 
         PlayerDataCache cache = PlayerDataCache.getInstance();
         PlayerData playerData = cache.getCachedPlayerData(player.getUniqueId());
-
         if (playerData == null) {
             player.sendMessage(Utils.getInstance().$("Your data is not loaded. Please try again."));
             return;
@@ -147,16 +160,16 @@ public class PetHelper implements Listener {
             return;
         }
 
-        // Unequip current pet if any
+        // Unequip any current pet
         unequipPet(player);
 
-        // Spawn pet entity
+        // Spawn the new pet entity
         PetInstance petInstance = spawnPetEntity(player, pet);
 
-        // Store equipped pet
+        // Keep track of this pet
         playerEquippedPets.put(player.getUniqueId(), petInstance);
 
-        // Optionally, track equipped pet in PlayerData
+        // Save that the player has equipped this pet
         playerData.setEquippedPet(petId);
         cache.savePlayerData(player.getUniqueId(), new Callback<Void>() {
             @Override
@@ -174,14 +187,11 @@ public class PetHelper implements Listener {
     }
 
     /**
-     * Unequips the currently equipped pet for a player and updates the database.
-     *
-     * @param player The player unequipping their pet.
+     * Unequips the currently equipped pet for a player, if any.
      */
     public void unequipPet(Player player) {
         PlayerDataCache cache = PlayerDataCache.getInstance();
         PlayerData playerData = cache.getCachedPlayerData(player.getUniqueId());
-
         if (playerData == null) {
             player.sendMessage(Utils.getInstance().$("Your data is not loaded. Please try again."));
             return;
@@ -193,13 +203,13 @@ public class PetHelper implements Listener {
             return;
         }
 
+        // Remove from the local map, remove the ArmorStand
         PetInstance petInstance = playerEquippedPets.remove(player.getUniqueId());
         if (petInstance != null) {
-            // Remove pet entity
             petInstance.getPetEntity().remove();
         }
 
-        // Clear equipped pet in PlayerData
+        // Clear in PlayerData
         playerData.setEquippedPet(null);
         cache.savePlayerData(player.getUniqueId(), new Callback<Void>() {
             @Override
@@ -217,26 +227,19 @@ public class PetHelper implements Listener {
     }
 
     /**
-     * Retrieves a pet by its ID.
-     *
-     * @param petId The ID of the pet to retrieve.
-     * @return The Pet object if it exists, null otherwise.
+     * Returns the Pet object for the given ID, or null if none is loaded.
      */
     public Pet getPetById(String petId) {
         return petConfigurations.get(petId);
     }
 
     /**
-     * Spawns an ArmorStand entity representing the pet near the player.
-     *
-     * @param player The player to spawn the pet for.
-     * @param pet    The pet to spawn.
-     * @return The instance of the spawned pet.
+     * Spawns an ArmorStand entity for the given pet near the player.
      */
     private PetInstance spawnPetEntity(Player player, Pet pet) {
-        Location loc = player.getLocation().clone().add(0, 0.5, 0); // Adjust height as needed
+        Location loc = player.getLocation().clone().add(0, 0.5, 0);
 
-        // Create the ArmorStand for the pet
+        // Create the ArmorStand
         ArmorStand petEntity = player.getWorld().spawn(loc, ArmorStand.class, armorStand -> {
             armorStand.setVisible(false);
             armorStand.setCustomName(pet.getName());
@@ -250,117 +253,104 @@ public class PetHelper implements Listener {
             armorStand.setSilent(true);
 
             // Equip the head item
-            ItemStack headItem = new ItemStack(Material.matchMaterial(pet.getDisplayItem()));
-            armorStand.getEquipment().setHelmet(headItem);
+            Material mat = Material.matchMaterial(pet.getDisplayItem().toUpperCase());
+            if (mat != null) {
+                ItemStack headItem = new ItemStack(mat);
+                armorStand.getEquipment().setHelmet(headItem);
+            }
         });
 
         return new PetInstance(pet, petEntity);
     }
 
     /**
-     * Updates the positions and animations of all equipped pets.
+     * Called every tick to smoothly update the positions and animations
+     * of all pets currently equipped by players.
      */
     private void updatePets() {
         for (UUID playerId : playerEquippedPets.keySet()) {
             Player player = Bukkit.getPlayer(playerId);
-            if (player != null && player.isOnline()) {
-                PetInstance petInstance = playerEquippedPets.get(playerId);
-                ArmorStand petEntity = petInstance.getPetEntity();
+            if (player == null || !player.isOnline()) {
+                continue;
+            }
 
-                // Calculate the desired position for the pet
-                Location playerLoc = player.getLocation().clone();
+            PetInstance petInstance = playerEquippedPets.get(playerId);
+            ArmorStand petEntity = petInstance.getPetEntity();
 
-                // Offset the pet's position to be next to the player
-                Vector right = getRightDirection(playerLoc.getYaw());
-                Vector offset = right.multiply(1.5); // Pet is 1.5 blocks to the right
-                Location petLoc = playerLoc.clone().add(offset);
-                petLoc.setY(playerLoc.getY() + 0.5); // Adjust height as needed
+            // Desired position is ~1.5 blocks to the right, offset in Y
+            Location playerLoc = player.getLocation().clone();
+            Vector right = getRightDirection(playerLoc.getYaw());
+            Vector offset = right.multiply(1.5);
+            Location petLoc = playerLoc.clone().add(offset).add(0, 0.5, 0);
 
-                // Get current pet position
-                Location currentPetLoc = petEntity.getLocation();
+            // Current pet position
+            Location currentPetLoc = petEntity.getLocation();
+            Vector direction = petLoc.toVector().subtract(currentPetLoc.toVector());
+            double distance = direction.length();
 
-                // Calculate movement vector for smooth movement
-                Vector direction = petLoc.toVector().subtract(currentPetLoc.toVector());
-                double distance = direction.length();
-                if (distance > 0.05) {
-                    direction.normalize();
-                    // Adjust speed as needed
-                    double speed = 0.2; // You can adjust this value
-                    Vector velocity = direction.multiply(speed);
-                    petEntity.teleport(currentPetLoc.add(velocity));
-                }
+            // Move if distance is large enough
+            if (distance > 0.05) {
+                direction.normalize();
+                double speed = 0.2; // Adjust as needed
+                Vector velocity = direction.multiply(speed);
+                petEntity.teleport(currentPetLoc.add(velocity));
+            }
 
-                // Animate up and down movement using sine wave
-                double animationPhase = petInstance.getAnimationPhase();
-                double deltaY = Math.sin(animationPhase) * 0.1; // Amplitude of 0.1 blocks
-                petEntity.teleport(petEntity.getLocation().add(0, deltaY, 0));
-                petInstance.setAnimationPhase(animationPhase + 0.1); // Adjust increment for speed
+            // Simple up-down bobbing animation
+            double animationPhase = petInstance.getAnimationPhase();
+            double deltaY = Math.sin(animationPhase) * 0.1;
+            petEntity.teleport(petEntity.getLocation().add(0, deltaY, 0));
+            petInstance.setAnimationPhase(animationPhase + 0.1);
 
-                // Rotate the ArmorStand to face the same direction as the player
-                petEntity.setRotation(playerLoc.getYaw(), petEntity.getLocation().getPitch());
+            // Face same direction as player
+            petEntity.setRotation(playerLoc.getYaw(), petEntity.getLocation().getPitch());
 
-                // Optional: Tilt the head slightly
-                petEntity.setHeadPose(new EulerAngle(0, 0, 0));
-
-                // Ensure the pet doesn't get inside the player by maintaining a minimum distance
-                if (distance < 1.0) {
-                    Vector pushBack = currentPetLoc.toVector().subtract(playerLoc.toVector()).normalize().multiply(0.5);
-                    petEntity.teleport(currentPetLoc.add(pushBack));
-                }
+            // If pet is too close, push it out slightly
+            if (distance < 1.0) {
+                Vector pushBack = currentPetLoc.toVector().subtract(playerLoc.toVector()).normalize().multiply(0.5);
+                petEntity.teleport(currentPetLoc.add(pushBack));
             }
         }
     }
 
     /**
-     * Calculates the right direction vector based on the player's yaw.
-     *
-     * @param yaw The yaw of the player.
-     * @return A Vector pointing to the player's right.
+     * Returns a Vector pointing to the right of the given yaw angle.
      */
     private Vector getRightDirection(float yaw) {
-        // Convert yaw to radians and adjust
+        // Convert yaw to radians
         double yawRad = Math.toRadians(-yaw);
         return new Vector(Math.cos(yawRad), 0, Math.sin(yawRad));
     }
 
     /**
-     * Retrieves all available pet IDs.
-     *
-     * @return An array of available pet IDs.
+     * Returns all pet IDs known to this PetHelper.
      */
     public String[] getAvailablePetIds() {
         return petConfigurations.keySet().toArray(new String[0]);
     }
 
     /**
-     * Retrieves all pet IDs owned by a specific player.
-     *
-     * @param player The player whose owned pets are to be retrieved.
-     * @return An array of owned pet IDs.
+     * Returns all pet IDs that the player currently owns.
      */
     public String[] getOwnedPetIds(Player player) {
         PlayerDataCache cache = PlayerDataCache.getInstance();
         PlayerData playerData = cache.getCachedPlayerData(player.getUniqueId());
         if (playerData != null) {
             Set<String> ownedPets = playerData.getOwnedPets();
-            if(ownedPets == null) {
+            if (ownedPets == null) {
                 ownedPets = new HashSet<>();
             }
             return ownedPets.toArray(new String[0]);
-        } else {
-            return new String[0];
         }
+        return new String[0];
     }
 
     /**
-     * Lists all available pets to the player, indicating which ones they own.
-     *
-     * @param player The player to list pets for.
+     * Lists all available pets to the player, marking which they own.
      */
     public void listPets(Player player) {
         PlayerDataCache cache = PlayerDataCache.getInstance();
         PlayerData playerData = cache.getCachedPlayerData(player.getUniqueId());
-
         if (playerData == null) {
             player.sendMessage(Utils.getInstance().$("Your data is not loaded. Please try again."));
             return;
@@ -373,21 +363,11 @@ public class PetHelper implements Listener {
         }
     }
 
-    /**
-     * Automatically unequips a player's pet when they quit the server.
-     *
-     * @param event The PlayerQuitEvent.
-     */
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         unequipPet(event.getPlayer());
     }
 
-    /**
-     * Automatically unequips a player's pet when they die.
-     *
-     * @param event The PlayerDeathEvent.
-     */
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         unequipPet(event.getEntity());

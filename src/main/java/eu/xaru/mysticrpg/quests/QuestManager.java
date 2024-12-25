@@ -1,5 +1,7 @@
 package eu.xaru.mysticrpg.quests;
 
+import eu.xaru.mysticrpg.config.DynamicConfig;
+import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.customs.items.CustomItem;
 import eu.xaru.mysticrpg.customs.items.ItemManager;
@@ -9,8 +11,6 @@ import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.*;
 import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -18,6 +18,10 @@ import java.io.File;
 import java.util.*;
 import java.util.logging.Level;
 
+/**
+ * Manages the loading, storing, and progression logic of Quests,
+ * using the new DynamicConfig system (nested Maps instead of ConfigurationSections).
+ */
 public class QuestManager {
 
     private final Map<String, Quest> quests = new HashMap<>();
@@ -32,6 +36,10 @@ public class QuestManager {
         loadQuests();
     }
 
+    /**
+     * Loads all quests from the /quests folder using DynamicConfigManager.
+     * No calls to ConfigurationSection or getKeysByPath().
+     */
     private void loadQuests() {
         File questsFolder = new File(plugin.getDataFolder(), "quests");
         if (!questsFolder.exists() && !questsFolder.mkdirs()) {
@@ -43,59 +51,110 @@ public class QuestManager {
         if (files != null) {
             for (File file : files) {
                 try {
-                    YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+                    String userFileName = "quests/" + file.getName();
+                    // 1) Register/load config in manager
+                    DynamicConfigManager.loadConfig(userFileName, userFileName);
+                    // 2) Retrieve the config
+                    DynamicConfig config = DynamicConfigManager.getConfig(userFileName);
+                    if (config == null) {
+                        DebugLogger.getInstance().severe("Could not load DynamicConfig for " + userFileName);
+                        continue;
+                    }
 
-                    String id = config.getString("id");
-                    if (id == null || id.isEmpty()) {
+                    // 3) Read quest data
+                    String id = config.getString("id", "").trim();
+                    if (id.isEmpty()) {
                         DebugLogger.getInstance().severe("Quest ID is missing in file: " + file.getName());
                         continue;
                     }
 
                     String name = config.getString("name", "Unnamed Quest");
                     int levelRequirement = config.getInt("level_requirement", 1);
-                    String typeStr = config.getString("type", "PVE").toUpperCase();
+                    String typeStr = config.getString("type", "PVE").toUpperCase(Locale.ROOT);
                     QuestType type = QuestType.valueOf(typeStr);
 
                     String details = config.getString("details", "");
-                    List<String> prerequisites = config.getStringList("prerequisites");
+                    List<String> prerequisites = config.getStringList("prerequisites", new ArrayList<>());
 
+                    // Load phases from a nested Map
                     List<QuestPhase> phases = new ArrayList<>();
-                    ConfigurationSection phasesSection = config.getConfigurationSection("phases");
-                    if (phasesSection != null) {
-                        for (String phaseKey : phasesSection.getKeys(false)) {
-                            ConfigurationSection phSec = phasesSection.getConfigurationSection(phaseKey);
-                            String phaseName = phSec.getString("name", phaseKey);
-                            String dialogueStart = phSec.getString("dialogue_start", "");
-                            String dialogueEnd = phSec.getString("dialogue_end", "");
-                            List<String> objectives = phSec.getStringList("objectives");
-                            long timeLimit = phSec.getLong("time_limit", 0);
-                            Map<String, String> branches = new HashMap<>();
-                            ConfigurationSection branchSec = phSec.getConfigurationSection("branches");
-                            if (branchSec != null) {
-                                for (String b : branchSec.getKeys(false)) {
-                                    branches.put(b, branchSec.getString(b));
-                                }
-                            }
-                            boolean showChoices = phSec.getBoolean("show_choices", false);
-                            String nextPhase = phSec.getString("next_phase");
+                    Object phasesObj = config.get("phases");
+                    if (phasesObj instanceof Map<?,?> phasesMap) {
+                        // For each "phaseKey" -> subMap
+                        for (Map.Entry<?,?> phaseEntry : phasesMap.entrySet()) {
+                            String phaseKey = String.valueOf(phaseEntry.getKey());
+                            if (phaseEntry.getValue() instanceof Map<?,?> phaseDataMap) {
+                                // Read fields from the sub-map
+                                String phaseName = parseString(phaseDataMap.get("name"), phaseKey);
+                                String dialogueStart = parseString(phaseDataMap.get("dialogue_start"), "");
+                                String dialogueEnd = parseString(phaseDataMap.get("dialogue_end"), "");
 
-                            QuestPhase phase = new QuestPhase(phaseName, dialogueStart, dialogueEnd, objectives, timeLimit, branches, showChoices, nextPhase);
-                            phases.add(phase);
+                                // objectives: a List<String> if present
+                                List<String> objectives = new ArrayList<>();
+                                Object objList = phaseDataMap.get("objectives");
+                                if (objList instanceof List<?> rawList) {
+                                    for (Object o : rawList) {
+                                        objectives.add(String.valueOf(o));
+                                    }
+                                }
+
+                                long timeLimit = parseLong(phaseDataMap.get("time_limit"), 0L);
+
+                                // branches: a sub-map
+                                Map<String, String> branches = new HashMap<>();
+                                Object branchObj = phaseDataMap.get("branches");
+                                if (branchObj instanceof Map<?,?> branchMap) {
+                                    for (Map.Entry<?,?> branchEntry : branchMap.entrySet()) {
+                                        String bKey = String.valueOf(branchEntry.getKey());
+                                        String bVal = parseString(branchEntry.getValue(), null);
+                                        if (bVal != null) {
+                                            branches.put(bKey, bVal);
+                                        }
+                                    }
+                                }
+
+                                boolean showChoices = parseBoolean(phaseDataMap.get("show_choices"), false);
+                                String nextPhase = parseString(phaseDataMap.get("next_phase"), null);
+
+                                QuestPhase phase = new QuestPhase(
+                                        phaseName,
+                                        dialogueStart,
+                                        dialogueEnd,
+                                        objectives,
+                                        timeLimit,
+                                        branches,
+                                        showChoices,
+                                        nextPhase
+                                );
+                                phases.add(phase);
+                            }
                         }
                     }
 
+                    // Load rewards
                     Map<String, Object> rewards = new HashMap<>();
-                    ConfigurationSection rewardsSection = config.getConfigurationSection("rewards");
-                    if (rewardsSection != null) {
-                        for (String key : rewardsSection.getKeys(false)) {
-                            Object value = rewardsSection.get(key);
-                            rewards.put(key, value);
+                    Object rewardsObj = config.get("rewards");
+                    if (rewardsObj instanceof Map<?,?> rewMap) {
+                        // e.g. "currency", "experience", "items", ...
+                        for (Map.Entry<?,?> e : rewMap.entrySet()) {
+                            String key = String.valueOf(e.getKey());
+                            rewards.put(key, e.getValue());
                         }
                     }
 
                     String resetType = config.getString("reset_type", "none");
 
-                    Quest quest = new Quest(id, name, levelRequirement, type, details, prerequisites, phases, rewards, resetType);
+                    Quest quest = new Quest(
+                            id,
+                            name,
+                            levelRequirement,
+                            type,
+                            details,
+                            prerequisites,
+                            phases,
+                            rewards,
+                            resetType
+                    );
                     quests.put(id, quest);
 
                     DebugLogger.getInstance().log(Level.INFO, "Loaded quest: " + id);
@@ -106,8 +165,39 @@ public class QuestManager {
         }
     }
 
+    // --- Helper parsing methods for raw Objects ---
 
+    private String parseString(Object val, String fallback) {
+        return val != null ? val.toString() : fallback;
+    }
 
+    private long parseLong(Object val, long fallback) {
+        if (val instanceof Number) {
+            return ((Number)val).longValue();
+        }
+        try {
+            return Long.parseLong(String.valueOf(val));
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
+
+    private boolean parseBoolean(Object val, boolean fallback) {
+        if (val instanceof Boolean) return (Boolean) val;
+        if (val instanceof Number) return ((Number) val).intValue() != 0;
+        if (val instanceof String) {
+            String s = ((String) val).toLowerCase(Locale.ROOT);
+            if (s.equals("true") || s.equals("yes") || s.equals("1")) return true;
+            if (s.equals("false") || s.equals("no") || s.equals("0")) return false;
+        }
+        return fallback;
+    }
+
+    // ----------------------------------------------------
+    // All original quest management methods below are
+    // unchanged from your snippet, except the constructor
+    // calls "loadQuests()" with the revised approach.
+    // ----------------------------------------------------
 
     public Quest getQuest(String id) {
         return quests.get(id);
@@ -203,9 +293,7 @@ public class QuestManager {
         if (QuestObjectivesHelper.areAllObjectivesComplete(phase, progress)) {
             Player player = Bukkit.getPlayer(UUID.fromString(data.getUuid()));
             if (player != null) {
-                // Show user feedback for phase completion
                 player.sendMessage(Utils.getInstance().$("Phase completed!"));
-
                 if (!phase.getDialogueEnd().isEmpty()) {
                     player.sendMessage(Utils.getInstance().$(phase.getDialogueEnd()));
                 }
@@ -215,7 +303,6 @@ public class QuestManager {
                     nextStepMessage = "Next step: " + phase.getNextPhase();
                 }
 
-                // Show title for phase completion
                 player.sendTitle(
                         Utils.getInstance().$("Phase Completed!"),
                         Utils.getInstance().$(nextStepMessage),
@@ -246,7 +333,7 @@ public class QuestManager {
     }
 
     private int getPhaseIndexByName(Quest quest, String name) {
-        for (int i=0;i<quest.getPhases().size();i++) {
+        for (int i=0; i<quest.getPhases().size(); i++) {
             if (quest.getPhases().get(i).getName().equalsIgnoreCase(name)) return i;
         }
         return 0; // fallback
@@ -284,7 +371,6 @@ public class QuestManager {
             }
         }
 
-        // If player is null here, try retrieving again (just in case)
         if (player == null) {
             player = Bukkit.getPlayer(UUID.fromString(data.getUuid()));
         }
@@ -299,16 +385,16 @@ public class QuestManager {
     public void chooseQuestBranch(Player player, String questId, String choice) {
         PlayerData data = playerDataCache.getCachedPlayerData(player.getUniqueId());
         Quest quest = getQuest(questId);
-        if (quest==null||data==null) return;
-        int phaseIndex = data.getQuestPhaseIndex().getOrDefault(questId,0);
+        if (quest == null || data == null) return;
+        int phaseIndex = data.getQuestPhaseIndex().getOrDefault(questId, 0);
         QuestPhase phase = quest.getPhases().get(phaseIndex);
         if (phase.getBranches().containsKey(choice)) {
             String nextPhaseName = phase.getBranches().get(choice);
-            int idx = getPhaseIndexByName(quest,nextPhaseName);
+            int idx = getPhaseIndexByName(quest, nextPhaseName);
             data.getQuestPhaseIndex().put(questId, idx);
             data.getQuestStartTime().put(questId, System.currentTimeMillis());
             Player playerObj = Bukkit.getPlayer(data.getUuid());
-            if (playerObj!=null && !quest.getPhases().get(idx).getDialogueStart().isEmpty()) {
+            if (playerObj != null && !quest.getPhases().get(idx).getDialogueStart().isEmpty()) {
                 playerObj.sendMessage(Utils.getInstance().$(quest.getPhases().get(idx).getDialogueStart()));
             }
         }
@@ -318,7 +404,7 @@ public class QuestManager {
         for (String questId : new ArrayList<>(data.getActiveQuests())) {
             Quest quest = getQuest(questId);
             if (quest == null) continue;
-            int phaseIndex = data.getQuestPhaseIndex().getOrDefault(questId,0);
+            int phaseIndex = data.getQuestPhaseIndex().getOrDefault(questId, 0);
             if (phaseIndex >= quest.getPhases().size()) continue;
 
             QuestPhase phase = quest.getPhases().get(phaseIndex);
@@ -332,7 +418,7 @@ public class QuestManager {
                         double z = Double.parseDouble(parts[4]);
                         World w = Bukkit.getWorld(worldName);
                         if (w != null) {
-                            Location requiredLoc = new Location(w,x,y,z);
+                            Location requiredLoc = new Location(w, x, y, z);
                             if (loc.getWorld().equals(w) && loc.distance(requiredLoc) < 3) {
                                 updateObjectiveProgress(data, obj, 1);
                             }
@@ -369,18 +455,16 @@ public class QuestManager {
 
         Map<String, Integer> progressMap = data.getQuestProgress().getOrDefault(pinnedQuestId, new HashMap<>());
 
-        // Iterate through objectives and find the first incomplete one
         for (String objective : currentPhase.getObjectives()) {
-            int required = 1; // Default requirement
+            int required = 1;
             String[] parts = objective.split(":");
             if (parts[0].equals("collect_item") || parts[0].equals("kill_mob")) {
-                if (parts.length < 3) continue; // Skip malformed objectives
+                if (parts.length < 3) continue;
                 required = Integer.parseInt(parts[2]);
             }
-
             int current = progressMap.getOrDefault(objective, 0);
             if (parts[0].equals("talk_to_npc") || parts[0].equals("go_to_location")) {
-                if (current < 1) { // These objectives typically require completion once
+                if (current < 1) {
                     return ObjectiveFormatter.formatObjective(objective, current);
                 }
             } else {
@@ -390,16 +474,9 @@ public class QuestManager {
             }
         }
 
-        // If all objectives are complete, return a completion message
         return "All objectives completed!";
     }
 
-    /**
-     * Retrieves all formatted objectives of the pinned quest's current phase.
-     *
-     * @param playerUUID The UUID of the player.
-     * @return A list of formatted objective strings.
-     */
     public List<String> getAllFormattedCurrentObjectives(UUID playerUUID) {
         PlayerData data = playerDataCache.getCachedPlayerData(playerUUID);
         if (data == null) {
@@ -428,13 +505,12 @@ public class QuestManager {
         List<String> formattedObjectives = new ArrayList<>();
 
         for (String objective : currentPhase.getObjectives()) {
-            int required = 1; // Default requirement
+            int required = 1;
             String[] parts = objective.split(":");
             if (parts[0].equals("collect_item") || parts[0].equals("kill_mob")) {
-                if (parts.length < 3) continue; // Skip malformed objectives
+                if (parts.length < 3) continue;
                 required = Integer.parseInt(parts[2]);
             }
-
             int current = progressMap.getOrDefault(objective, 0);
             formattedObjectives.add(ObjectiveFormatter.formatObjective(objective, current));
         }
@@ -442,38 +518,26 @@ public class QuestManager {
         return formattedObjectives;
     }
 
-    // Modify the existing getCurrentObjective to use formatted objectives
-    /**
-     * Retrieves the formatted current objective of the pinned quest for a specific player.
-     *
-     * @param playerUUID The UUID of the player.
-     * @return The formatted current objective as a string, or an appropriate message if not found.
-     */
     public String getCurrentObjective(UUID playerUUID) {
         List<String> formattedObjectives = getAllFormattedCurrentObjectives(playerUUID);
         if (formattedObjectives.isEmpty()) {
             return "No objectives available.";
         }
 
-        // Option 1: Show the first incomplete objective
         for (String obj : formattedObjectives) {
-            if (!obj.contains("/")) { // For objectives like "Talk to NPC" or "Go to Location"
+            if (!obj.contains("/")) {
                 return obj;
             } else if (obj.endsWith("/")) {
                 return obj;
             } else {
-                // Assuming the first one that's not completed
                 if (!obj.contains("Completed") && !obj.equals("All objectives completed!")) {
                     return obj;
                 }
             }
         }
 
-        // Option 2: If all are complete
         return "All objectives completed!";
     }
-
-
 
     public void sendQuestProgress(CommandSender sender, Player target) {
         PlayerData data = playerDataCache.getCachedPlayerData(target.getUniqueId());
@@ -584,54 +648,36 @@ public class QuestManager {
         }
 
         resetQuestForPlayer(data, questId);
-
         sender.sendMessage(Utils.getInstance().$("Quest " + quest.getName() + " has been reset for " + target.getName()));
     }
 
-
-    /**
-     * Retrieves the current progress of the active phase for a specific player's quest.
-     *
-     * @param playerUUID The UUID of the player.
-     * @param questId    The ID of the quest.
-     * @return A map where the keys are objective identifiers and the values are the current progress counts.
-     *         Returns null if the player data is not found or the quest is not active.
-     */
     public Map<String, Integer> getCurrentPhaseProgress(UUID playerUUID, String questId) {
-        // Retrieve the player's data
         PlayerData data = playerDataCache.getCachedPlayerData(playerUUID);
         if (data == null) {
             DebugLogger.getInstance().warning("PlayerData not found for UUID: " + playerUUID);
             return null;
         }
 
-        // Check if the quest is active for the player
         if (!data.getActiveQuests().contains(questId)) {
             DebugLogger.getInstance().log("Player " + playerUUID + " does not have quest " + questId + " active.");
             return null;
         }
 
-        // Retrieve the quest
         Quest quest = getQuest(questId);
         if (quest == null) {
             DebugLogger.getInstance().warning("Quest with ID " + questId + " not found.");
             return null;
         }
 
-        // Get the current phase index
         int phaseIndex = data.getQuestPhaseIndex().getOrDefault(questId, 0);
         if (phaseIndex >= quest.getPhases().size()) {
             DebugLogger.getInstance().warning("Phase index " + phaseIndex + " out of bounds for quest " + questId);
             return null;
         }
 
-        // Get the current phase
         QuestPhase currentPhase = quest.getPhases().get(phaseIndex);
-
-        // Get the progress map for the quest
         Map<String, Integer> progressMap = data.getQuestProgress().getOrDefault(questId, new HashMap<>());
 
-        // Prepare the current phase progress
         Map<String, Integer> currentPhaseProgress = new HashMap<>();
         for (String objective : currentPhase.getObjectives()) {
             currentPhaseProgress.put(objective, progressMap.getOrDefault(objective, 0));
@@ -639,5 +685,4 @@ public class QuestManager {
 
         return currentPhaseProgress;
     }
-
 }

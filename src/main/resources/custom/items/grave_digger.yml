@@ -1,0 +1,31 @@
+id: 'grave_digger'
+name: '&7Grave Digger'
+material: 'IRON_SHOVEL'
+custom_model_data: 1001  # Adjust this number to match your resource pack
+rarity: 'COMMON'
+enchanted_effect: false
+lore:
+  - '&7An old shovel stained with soil and decay.'
+use_tier_system: true
+item_level: 1
+item_max_level: 3
+tier_attributes:
+  1:
+    ATTACK_DAMAGE:
+      value: 5  # Equivalent to a wooden sword
+      operation: 'ADD_NUMBER'
+    ATTACK_SPEED:
+      value: -2.8  # Default for shovel
+      operation: 'ADD_NUMBER'
+  2:
+    ATTACK_DAMAGE:
+      value: 6
+      operation: 'ADD_NUMBER'
+  3:
+    ATTACK_DAMAGE:
+      value: 7
+      operation: 'ADD_NUMBER'
+attributes: {}
+enchantments: {}
+use_power_stones: false
+power_stone_slots: 0

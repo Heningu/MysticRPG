@@ -1,5 +1,6 @@
 package eu.xaru.mysticrpg.npc;
 
+import eu.xaru.mysticrpg.config.DynamicConfig;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.quests.Quest;
 import eu.xaru.mysticrpg.quests.QuestManager;
@@ -33,16 +34,16 @@ public class Dialogue {
     private final PlayerDataCache playerDataCache;
     private final NPC npc;
 
-    public Dialogue(YamlConfiguration config, NPC npc) {
-        this.id = config.getString("id");
+    public Dialogue(DynamicConfig config, NPC npc) {
+        this.id = config.getString("id", "default");
         this.npc = npc;
         this.levelRequirement = config.getInt("levelRequirement", 1);
         this.insufficientLevelMessage = config.getString("insufficientLevelMessage", "You are not experienced enough.");
-        this.messages = config.getStringList("messages");
-        this.question = config.getString("question");
+        this.messages = config.getStringList("messages", List.of("Hello!"));
+        this.question = config.getString("question", null);
         this.yesResponse = config.getString("yesResponse", "Great! Here is your quest.");
         this.noResponse = config.getString("noResponse", "Okay, let me know if you change your mind.");
-        this.questId = config.getString("questId");
+        this.questId = config.getString("questId", null);
         this.completionMessage = config.getString("completionMessage", "Thank you for completing the quest!");
 
         this.questModule = ModuleManager.getInstance().getModuleInstance(QuestModule.class);

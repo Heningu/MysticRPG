@@ -1,0 +1,17 @@
+id: stone_worm
+name: '&8Stone Worm'
+type: silverfish
+health: 5
+level: 1
+damage: 1
+armor: 1
+movement_speed: 0.25
+experienceReward: 5
+currencyReward: 2
+equipment:
+  helmet: []
+drops:
+- type: custom_item
+  id: dripstone_crystal
+  amount: 1
+  chance: 0.2

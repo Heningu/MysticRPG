@@ -1,5 +1,6 @@
 package eu.xaru.mysticrpg.discord;
 
+import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
@@ -70,7 +71,7 @@ public class DiscordModule implements IBaseModule, Listener {
         discordHelper.startBot();
 
         // Register /leaderboard command after JDA is ready
-        String guildId = plugin.getConfig().getString("discordGuildId");
+        String guildId = DynamicConfigManager.getString("config.yml", "discord.guildId", "");
         if (guildId != null && !guildId.isEmpty()) {
             discordHelper.getJDA().getGuildById(guildId)
                     .updateCommands()

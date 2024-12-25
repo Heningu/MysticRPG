@@ -1,21 +1,17 @@
 package eu.xaru.mysticrpg.storage.database;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-
 import com.google.gson.Gson;
-
 import eu.xaru.mysticrpg.storage.Callback;
 import eu.xaru.mysticrpg.storage.annotations.Persist;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 
+import java.lang.reflect.Field;
+import java.util.*;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
- * Abstract base repository that handles serialization and deserialization
+ * Abstract base repository that handles serialization/deserialization
  * of fields annotated with @Persist.
  *
  * @param <T> The type of the data model.
@@ -32,9 +28,6 @@ public abstract class BaseRepository<T> implements IRepository<T> {
         initializePersistFields();
     }
 
-    /**
-     * Initializes the persistFields map by scanning fields annotated with @Persist.
-     */
     private void initializePersistFields() {
         for (Field field : type.getDeclaredFields()) {
             if (field.isAnnotationPresent(Persist.class)) {
@@ -46,12 +39,6 @@ public abstract class BaseRepository<T> implements IRepository<T> {
         }
     }
 
-    /**
-     * Serializes an entity to a Map<String, Object> based on @Persist annotations.
-     *
-     * @param entity The entity to serialize.
-     * @return A map representing the serialized entity.
-     */
     protected Map<String, Object> serialize(T entity) {
         Map<String, Object> data = new HashMap<>();
         for (Map.Entry<String, Field> entry : persistFields.entrySet()) {
@@ -67,12 +54,6 @@ public abstract class BaseRepository<T> implements IRepository<T> {
         return data;
     }
 
-    /**
-     * Deserializes a Map<String, Object> to an entity based on @Persist annotations.
-     *
-     * @param data The data map.
-     * @return The deserialized entity.
-     */
     protected T deserialize(Map<String, Object> data) {
         try {
             T entity = type.getDeclaredConstructor().newInstance();
@@ -81,13 +62,12 @@ public abstract class BaseRepository<T> implements IRepository<T> {
                 Field field = entry.getValue();
                 if (data.containsKey(key)) {
                     Object value = data.get(key);
-                    // Handle type casting if necessary
                     if (value != null) {
                         Class<?> fieldType = field.getType();
                         if (fieldType.isAssignableFrom(value.getClass())) {
                             field.set(entity, value);
                         } else {
-                            // Handle basic type conversions
+                            // basic conversions
                             if (fieldType == int.class || fieldType == Integer.class) {
                                 field.set(entity, ((Number) value).intValue());
                             } else if (fieldType == long.class || fieldType == Long.class) {
@@ -99,7 +79,7 @@ public abstract class BaseRepository<T> implements IRepository<T> {
                             } else if (fieldType == String.class) {
                                 field.set(entity, value.toString());
                             } else {
-                                // Attempt to deserialize complex types with Gson
+                                // attempt complex type with gson
                                 String json = gson.toJson(value);
                                 Object deserialized = gson.fromJson(json, fieldType);
                                 field.set(entity, deserialized);
@@ -110,7 +90,7 @@ public abstract class BaseRepository<T> implements IRepository<T> {
             }
             return entity;
         } catch (Exception e) {
-            DebugLogger.getInstance().error("Failed to deserialize entity of type: " + type.getName(), e);
+            DebugLogger.getInstance().error("Failed to deserialize entity: " + type.getName(), e);
             return null;
         }
     }
@@ -127,7 +107,6 @@ public abstract class BaseRepository<T> implements IRepository<T> {
     @Override
     public abstract void loadAll(Callback<List<T>> callback);
 
-    // loadByDiscordId will be implemented in subclasses
     @Override
     public abstract void loadByDiscordId(long discordId, Callback<T> callback);
 }

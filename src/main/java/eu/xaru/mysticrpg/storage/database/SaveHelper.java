@@ -9,47 +9,34 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Base64;
-import java.util.logging.Level;
 
 /**
- * SaveHelper handles serialization and deserialization of complex objects like ItemStack.
+ * SaveHelper handles (de)serialization of ItemStack to/from Base64.
  */
 public class SaveHelper {
 
-    /**
-     * Serializes an ItemStack to a Base64 encoded string.
-     *
-     * @param item The ItemStack to serialize.
-     * @return The Base64 encoded string.
-     */
     public static String itemStackToBase64(ItemStack item) {
         try {
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            BukkitObjectOutputStream dataOutput = new BukkitObjectOutputStream(outputStream);
-            dataOutput.writeObject(item);
-            dataOutput.close();
-            return Base64.getEncoder().encodeToString(outputStream.toByteArray());
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            BukkitObjectOutputStream out = new BukkitObjectOutputStream(bos);
+            out.writeObject(item);
+            out.close();
+            return Base64.getEncoder().encodeToString(bos.toByteArray());
         } catch (IOException e) {
-            DebugLogger.getInstance().error("Failed to serialize ItemStack to Base64.", e);
+            DebugLogger.getInstance().error("Failed to serialize ItemStack.", e);
             return null;
         }
     }
 
-    /**
-     * Deserializes an ItemStack from a Base64 encoded string.
-     *
-     * @param data The Base64 encoded string.
-     * @return The deserialized ItemStack.
-     */
     public static ItemStack itemStackFromBase64(String data) {
         try {
-            ByteArrayInputStream inputStream = new ByteArrayInputStream(Base64.getDecoder().decode(data));
-            BukkitObjectInputStream dataInput = new BukkitObjectInputStream(inputStream);
-            ItemStack item = (ItemStack) dataInput.readObject();
-            dataInput.close();
+            ByteArrayInputStream bis = new ByteArrayInputStream(Base64.getDecoder().decode(data));
+            BukkitObjectInputStream in = new BukkitObjectInputStream(bis);
+            ItemStack item = (ItemStack) in.readObject();
+            in.close();
             return item;
         } catch (IOException | ClassNotFoundException e) {
-            DebugLogger.getInstance().error("Failed to deserialize ItemStack from Base64.", e);
+            DebugLogger.getInstance().error("Failed to deserialize ItemStack.", e);
             return null;
         }
     }

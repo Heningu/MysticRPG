@@ -1,0 +1,4 @@
+action:
+  Cooldown: 0
+  do:
+    - "particles: smoke 50"

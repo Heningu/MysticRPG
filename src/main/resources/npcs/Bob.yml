@@ -1,0 +1,10 @@
+name: Bob
+location: null  # This will be set when the NPC is spawned
+behavior: default
+skin: null
+dialogues:
+  order:
+    - welcomeDialogue
+    - questDialogue
+interaction:
+  allDialoguesCompletedMessage: "I have nothing more to say."

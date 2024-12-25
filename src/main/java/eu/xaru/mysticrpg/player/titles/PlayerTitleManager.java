@@ -1,5 +1,7 @@
 package eu.xaru.mysticrpg.player.titles;
 
+import eu.xaru.mysticrpg.config.DynamicConfig;
+import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.player.stats.PlayerStatsManager;
 import eu.xaru.mysticrpg.player.stats.StatType;
 import eu.xaru.mysticrpg.storage.PlayerData;
@@ -7,8 +9,6 @@ import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.util.*;
@@ -30,16 +30,8 @@ public class PlayerTitleManager {
         loadTitlesFromDisk();
     }
 
-    /**
-     * Loads all titles from YML files in the /plugins/MysticRPG/titles folder.
-     * Each file should have the structure:
-     * id: <string>
-     * name: <string>
-     * attributes:
-     *   <STAT_NAME>: <int>
-     */
     private void loadTitlesFromDisk() {
-        File titlesFolder = new File(JavaPlugin.getProvidingPlugin(getClass()).getDataFolder(), "titles");
+        File titlesFolder = new File("plugins/MysticRPG/titles");
         if (!titlesFolder.exists()) {
             titlesFolder.mkdirs();
         }
@@ -48,31 +40,47 @@ public class PlayerTitleManager {
         if (files == null) return;
 
         for (File file : files) {
-            YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-            String id = config.getString("id");
-            String name = config.getString("name");
-            if (id == null || name == null) {
-                DebugLogger.getInstance().error("Title file " + file.getName() + " missing 'id' or 'name'");
-                continue;
-            }
+            try {
+                String userFileName = "titles/" + file.getName();
+                DynamicConfigManager.loadConfig(userFileName, userFileName);
+                DynamicConfig config = DynamicConfigManager.getConfig(userFileName);
+                if (config == null) {
+                    DebugLogger.getInstance().error("Failed to retrieve DynamicConfig for file " + file.getName());
+                    continue;
+                }
 
-            // Load attributes
-            Map<StatType, Integer> bonuses = new EnumMap<>(StatType.class);
-            if (config.isConfigurationSection("attributes")) {
-                for (String key : config.getConfigurationSection("attributes").getKeys(false)) {
-                    try {
-                        StatType stat = StatType.valueOf(key.toUpperCase());
-                        int val = config.getInt("attributes." + key, 0);
-                        bonuses.put(stat, val);
-                    } catch (IllegalArgumentException e) {
-                        DebugLogger.getInstance().error("Invalid stat " + key + " in title " + id);
+                String id = config.getString("id", null);
+                String name = config.getString("name", null);
+                if (id == null || name == null) {
+                    DebugLogger.getInstance().error("Title file " + file.getName() + " missing 'id' or 'name'");
+                    continue;
+                }
+
+                Map<StatType, Integer> bonuses = new EnumMap<>(StatType.class);
+
+                Object attrObj = config.get("attributes");
+                if (attrObj instanceof Map<?,?> attrsMap) {
+                    for (Map.Entry<?,?> e : attrsMap.entrySet()) {
+                        String statKey = e.getKey().toString();
+                        StatType statType;
+                        try {
+                            statType = StatType.valueOf(statKey.toUpperCase(Locale.ROOT));
+                        } catch (IllegalArgumentException ex) {
+                            DebugLogger.getInstance().error("Invalid stat " + statKey + " in title " + id);
+                            continue;
+                        }
+                        int val = parseInt(e.getValue(), 0);
+                        bonuses.put(statType, val);
                     }
                 }
-            }
 
-            PlayerTitle title = new PlayerTitle(name, bonuses);
-            availableTitles.put(id.toLowerCase(), title);
-            DebugLogger.getInstance().log(Level.INFO, "Loaded title: " + id + " (" + name + ")", 0);
+                PlayerTitle title = new PlayerTitle(name, bonuses);
+                availableTitles.put(id.toLowerCase(Locale.ROOT), title);
+                DebugLogger.getInstance().log(Level.INFO, "Loaded title: " + id + " (" + name + ")", 0);
+
+            } catch (Exception ex) {
+                DebugLogger.getInstance().error("Error loading title from file " + file.getName() + ":", ex);
+            }
         }
     }
 
@@ -85,8 +93,7 @@ public class PlayerTitleManager {
         if (data == null) return null;
         String current = data.getCurrentTitle();
         if (current == null) return null;
-        PlayerTitle title = availableTitles.get(current.toLowerCase());
-        return title;
+        return availableTitles.get(current.toLowerCase(Locale.ROOT));
     }
 
     public boolean equipTitle(Player player, String titleId) {
@@ -95,28 +102,24 @@ public class PlayerTitleManager {
             player.sendMessage(ChatColor.RED + "No player data found!");
             return false;
         }
-
-        titleId = titleId.toLowerCase();
+        titleId = titleId.toLowerCase(Locale.ROOT);
         if (!data.getUnlockedTitles().contains(titleId)) {
             player.sendMessage(ChatColor.RED + "You have not unlocked this title!");
             return false;
         }
-
         if (!availableTitles.containsKey(titleId)) {
             player.sendMessage(ChatColor.RED + "This title does not exist!");
             return false;
         }
-
         data.setCurrentTitle(titleId);
         player.sendMessage(ChatColor.GREEN + "You have equipped the title: " + availableTitles.get(titleId).getName());
 
         applyTitleBonuses(player, titleId);
-
         return true;
     }
 
     public void applyTitleBonuses(Player player, String titleId) {
-        PlayerTitle title = availableTitles.get(titleId.toLowerCase());
+        PlayerTitle title = availableTitles.get(titleId.toLowerCase(Locale.ROOT));
         if (title == null) return;
 
         for (Map.Entry<StatType, Integer> bonus : title.getStatBonuses().entrySet()) {
@@ -139,24 +142,19 @@ public class PlayerTitleManager {
 
         player.sendMessage(ChatColor.GREEN + "=== Your Unlocked Titles ===");
         for (String t : unlocked) {
-            PlayerTitle pt = availableTitles.get(t.toLowerCase());
+            PlayerTitle pt = availableTitles.get(t.toLowerCase(Locale.ROOT));
             String titleName = (pt != null) ? pt.getName() : t;
             player.sendMessage(ChatColor.AQUA + "- " + titleName + " (id: " + t + ")");
         }
     }
 
-    /**
-     * Unlock a title for a player.
-     * @param player The player
-     * @param titleId The title id to unlock
-     */
     public boolean unlockTitle(Player player, String titleId) {
         PlayerData data = dataCache.getCachedPlayerData(player.getUniqueId());
         if (data == null) {
             player.sendMessage(ChatColor.RED + "No player data found!");
             return false;
         }
-        titleId = titleId.toLowerCase();
+        titleId = titleId.toLowerCase(Locale.ROOT);
         if (!availableTitles.containsKey(titleId)) {
             player.sendMessage(ChatColor.RED + "This title does not exist!");
             return false;
@@ -176,7 +174,6 @@ public class PlayerTitleManager {
         PlayerData data = dataCache.getCachedPlayerData(player.getUniqueId());
         if (data == null) return;
 
-        // If player has no titles at all, automatically unlock and equip "adventurer" if it exists
         if (data.getUnlockedTitles().isEmpty()) {
             String defaultTitleId = "adventurer";
             if (availableTitles.containsKey(defaultTitleId)) {
@@ -190,11 +187,22 @@ public class PlayerTitleManager {
         PlayerData data = dataCache.getCachedPlayerData(player.getUniqueId());
         if (data == null) return false;
         String current = data.getCurrentTitle();
-        return current != null && availableTitles.containsKey(current.toLowerCase());
+        return current != null && availableTitles.containsKey(current.toLowerCase(Locale.ROOT));
     }
 
     public String getEquippedTitleName(Player player) {
         PlayerTitle title = getEquippedTitle(player);
         return (title != null) ? title.getName() : null;
+    }
+
+    private int parseInt(Object val, int fallback) {
+        if (val instanceof Number) {
+            return ((Number) val).intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(val));
+        } catch (Exception e) {
+            return fallback;
+        }
     }
 }

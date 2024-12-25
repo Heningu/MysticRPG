@@ -1,0 +1,9 @@
+action:
+  Cooldown: 3
+  TargetConditions:
+    - "distance <5"
+  do:
+    - "animation: \"%attack_animation%\""
+    - "delay: 1"
+    - "sound: entity.player.attack.sweep"
+    - "damage: 10"

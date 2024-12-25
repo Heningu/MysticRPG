@@ -1,0 +1,14 @@
+regions:
+  '1':
+    pos1:
+      world: world
+      x: 3079
+      y: 62
+      z: 3097
+    pos2:
+      world: world
+      x: 3089
+      y: 73
+      z: 3089
+    flags:
+      place: true

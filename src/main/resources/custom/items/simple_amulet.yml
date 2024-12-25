@@ -1,0 +1,15 @@
+id: simple_amulet
+name: "&aSimple Amulet"
+material: EMERALD
+rarity: UNCOMMON
+custom_model_data: 0
+lore:
+  - "&7An amulet with a faint glow."
+enchantments:
+  luck: 1
+attributes:
+  luck:
+    value: 0.5
+    operation: ADD_NUMBER
+enchanted_effect: false
+use_tier_system: false  # Tier system disabled

@@ -1,5 +1,6 @@
 package eu.xaru.mysticrpg.guis.player;
 
+import eu.decentsoftware.holograms.api.utils.scheduler.S;
 import eu.xaru.mysticrpg.auctionhouse.AuctionHouseModule;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.customs.items.CustomItem;
@@ -15,6 +16,7 @@ import eu.xaru.mysticrpg.social.friends.FriendsModule;
 import eu.xaru.mysticrpg.social.party.PartyModule;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
+import eu.xaru.mysticrpg.storage.database.SaveHelper;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -314,7 +316,7 @@ public class EquipmentGUI {
     private String serializeItemStack(ItemStack item) {
         if (item == null) return null;
         try {
-            return Utils.getInstance().itemStackToBase64(item);
+            return SaveHelper.itemStackToBase64(item);
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -324,7 +326,7 @@ public class EquipmentGUI {
     private ItemStack deserializeItemStack(String data) {
         if (data == null) return null;
         try {
-            return Utils.getInstance().itemStackFromBase64(data);
+            return SaveHelper.itemStackFromBase64(data);
         } catch (Exception e) {
             e.printStackTrace();
             return null;

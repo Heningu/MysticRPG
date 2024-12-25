@@ -1,0 +1,8 @@
+id: 'fiery_stone'
+name: '&cFiery Stone'
+material: 'BLAZE_POWDER'
+custom_model_data: 0
+description: 'Applies fire effect to weapons.'
+effect: 'FIERY'
+applicable_to: 'WEAPON'
+rarity: 'RARE'

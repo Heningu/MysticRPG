@@ -1,0 +1,35 @@
+id: darkcastle
+name: DarkCastleOfDeath
+minPlayers: 1
+maxPlayers: 2
+difficulty: Deadly
+worldName: darkcastle
+spawnLocation:
+  x: 111.47003965273237
+  y: 59.0
+  z: 50.50578914260774
+  yaw: 91.79995
+  pitch: 0.90007645
+mob_spawn_points:
+  spawn0:
+    x: 82.41121316450167
+    y: 59.0
+    z: 50.55716114362431
+    yaw: 12.449944
+    pitch: 20.250076
+    mob_id: level1_zombie
+chest_locations:
+  chest0:
+    x: 74.0
+    y: 59.0
+    z: 63.0
+    yaw: 0.0
+    pitch: 0.0
+    type: CHEST
+    loot_table: default_loot
+portalPos1:
+  x: 50.0
+  y: 58.0
+  z: 50.0
+  yaw: 0.0
+  pitch: 0.0

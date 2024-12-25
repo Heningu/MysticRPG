@@ -7,6 +7,7 @@ import eu.xaru.mysticrpg.customs.items.ItemManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
+import eu.xaru.mysticrpg.storage.database.SaveHelper;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
@@ -158,7 +159,7 @@ public class EquipmentManager implements Listener {
     private String serializeItemStack(ItemStack item) {
         if (item == null) return null;
         try {
-            return Utils.getInstance().itemStackToBase64(item);
+            return SaveHelper.itemStackToBase64(item);
         } catch (Exception e) {
             e.printStackTrace();
             return null;

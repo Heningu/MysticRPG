@@ -1,0 +1,13 @@
+id: "level1_kill_zombie"
+name: "Grave Digger's Task"
+level_requirement: 1
+type: "PVE"
+details: "Defeat the Level 1 Zombie roaming the cemetery."
+prerequisites: []
+objectives:
+  kill_level1_zombie: 1
+rewards:
+  experience: 100
+  currency: 50
+  items:
+    - "grave_digger"

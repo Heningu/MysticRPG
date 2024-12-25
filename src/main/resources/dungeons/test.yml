@@ -1,0 +1,28 @@
+id: Test
+name: Death
+minPlayers: 1
+maxPlayers: 2
+difficulty: Deadly
+worldName: darkcastle
+spawnLocation:
+  x: 113.33899520762458
+  y: 59.0
+  z: 50.74346594901232
+  yaw: 94.95002
+  pitch: 4.6500015
+mob_spawn_points: {}
+chest_locations:
+  chest0:
+    x: 74.0
+    y: 59.0
+    z: 63.0
+    yaw: 0.0
+    pitch: 0.0
+    type: CHEST
+    loot_table: default_loot
+portalPos1:
+  x: 68.0
+  y: 58.0
+  z: 62.0
+  yaw: 0.0
+  pitch: 0.0

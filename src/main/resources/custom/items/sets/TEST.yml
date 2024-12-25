@@ -1,0 +1,14 @@
+id: "gravewalker_set"
+class_needed: "NONE"
+
+set_description: "A powerful set that grants increased attack damage when multiple pieces are worn."
+
+set_bonuses:
+  2_parts_equipped:
+    attack_damage: 4
+    effect: "NONE"
+    description: "Attack damage +4 due to set bonus"
+  4_parts_equipped:
+    attack_damage: 8
+    effect: "NONE"
+    description: "Attack damage +8 due to set bonus."    

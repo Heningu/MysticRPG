@@ -6,8 +6,11 @@ import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoClients;
 import com.mongodb.reactivestreams.client.MongoDatabase;
 import eu.xaru.mysticrpg.auctionhouse.Auction;
-import eu.xaru.mysticrpg.storage.Callback;
+import eu.xaru.mysticrpg.config.DynamicConfig;
+import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.storage.PlayerData;
+import eu.xaru.mysticrpg.storage.redis.RedisManager;
+import eu.xaru.mysticrpg.storage.redis.RedisRepository;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bson.UuidRepresentation;
@@ -21,7 +24,8 @@ import java.util.logging.Level;
 import static org.bson.codecs.configuration.CodecRegistries.*;
 
 /**
- * DatabaseManager manages the database repositories (MongoDB or SQLite) based on configuration.
+ * DatabaseManager manages the database repositories (MongoDB or SQLite),
+ * optionally wrapping them in Redis if enabled.
  */
 public class DatabaseManager {
 
@@ -33,96 +37,89 @@ public class DatabaseManager {
         initializeRepositories();
     }
 
-    /**
-     * Initializes the singleton instance. Should be called once during plugin initialization.
-     */
     public static synchronized void initialize() {
         if (instance == null) {
             instance = new DatabaseManager();
         } else {
-            DebugLogger.getInstance().log(Level.WARNING, "DatabaseManager is already initialized.", 0);
+            DebugLogger.getInstance().log(Level.WARNING, "DatabaseManager already initialized.", 0);
         }
     }
 
-    /**
-     * Retrieves the singleton instance.
-     *
-     * @return The DatabaseManager instance.
-     */
     public static DatabaseManager getInstance() {
         if (instance == null) {
-            throw new IllegalStateException("DatabaseManager is not initialized. Call initialize() first.");
+            throw new IllegalStateException("DatabaseManager not initialized.");
         }
         return instance;
     }
 
-    /**
-     * Initializes the appropriate repositories based on configuration.
-     */
     private void initializeRepositories() {
-        FileConfiguration config = getConfig(); // Implement this method to fetch your config
-        String dbType = config.getString("database.type", "sqlite").toLowerCase();
+        DynamicConfig config = MysticCore.getInstance().getMysticConfig();
+        // Initialize RedisManager first
+        RedisManager.initialize(config);
 
-        switch (dbType) {
-            case "mongo":
-                String connectionString = config.getString("database.mongo.connectionString", "mongodb://localhost:27017");
-                String databaseName = config.getString("database.mongo.databaseName", "xarumystic");
-                initializeMongoDB(connectionString, databaseName);
-                break;
-            case "sqlite":
-            default:
-                String dbPath = config.getString("database.sqlite.path", "plugins/MysticRPG/database.db");
-                initializeSQLite(dbPath);
-                break;
+        String dbType = config.getString("database.type", "sqlite").toLowerCase();
+        DebugLogger.getInstance().log(Level.INFO, "Using DB type: " + dbType, 0);
+
+        boolean redisEnabled = config.getBoolean("database.redis.enabled", false);
+
+        if (dbType.equals("mongo")) {
+            String connStr = config.getString("database.mongo.connectionString", "mongodb://localhost:27017");
+            String dbName = config.getString("database.mongo.databaseName", "xarumystic");
+            initializeMongoDB(connStr, dbName);
+        } else {
+            String dbPath = config.getString("database.sqlite.path", "plugins/MysticRPG/database.db");
+            initializeSQLite(dbPath);
+        }
+
+        // If redis is enabled, wrap repositories
+        if (redisEnabled) {
+            this.playerRepository = new RedisRepository<>(
+                    PlayerData.class,
+                    this.playerRepository,
+                    "uuid"
+            );
+            this.auctionRepository = new RedisRepository<>(
+                    Auction.class,
+                    this.auctionRepository,
+                    "auctionId"
+            );
+            DebugLogger.getInstance().log(Level.INFO, "DatabaseManager: Repositories wrapped in RedisRepository", 0);
         }
     }
 
-    /**
-     * Initializes MongoDB repositories.
-     *
-     * @param connectionString The MongoDB connection string.
-     * @param databaseName     The name of the MongoDB database.
-     */
-    private void initializeMongoDB(String connectionString, String databaseName) {
+    private void initializeMongoDB(String connectionString, String dbName) {
         try {
             CodecRegistry pojoCodecRegistry = fromRegistries(
                     MongoClientSettings.getDefaultCodecRegistry(),
                     fromProviders(PojoCodecProvider.builder().automatic(true).build())
             );
-
             MongoClientSettings settings = MongoClientSettings.builder()
                     .applyConnectionString(new ConnectionString(connectionString))
                     .codecRegistry(pojoCodecRegistry)
                     .uuidRepresentation(UuidRepresentation.STANDARD)
                     .build();
 
-            MongoClient mongoClient = MongoClients.create(settings);
-            MongoDatabase database = mongoClient.getDatabase(databaseName);
+            MongoClient client = MongoClients.create(settings);
+            MongoDatabase db = client.getDatabase(dbName);
 
             this.playerRepository = new MongoRepository<>(
                     PlayerData.class,
-                    database.getCollection("playerData"),
+                    db.getCollection("playerData"),
                     "uuid"
             );
-
             this.auctionRepository = new MongoRepository<>(
                     Auction.class,
-                    database.getCollection("auctions"),
+                    db.getCollection("auctions"),
                     "auctionId"
             );
 
-            DebugLogger.getInstance().log(Level.INFO, "DatabaseManager initialized with MongoRepository", 0);
+            DebugLogger.getInstance().log(Level.INFO, "DatabaseManager: MongoDB repositories initialized", 0);
         } catch (Exception e) {
-            DebugLogger.getInstance().error("DatabaseManager failed to initialize MongoDB repositories:", e);
+            DebugLogger.getInstance().error("Failed to init MongoDB repos:", e);
             throw new RuntimeException(e);
         }
     }
 
-    /**
-     * Initializes SQLite repositories.
-     *
-     * @param databasePath The path to the SQLite database file.
-     */
     private void initializeSQLite(String databasePath) {
         try {
             this.playerRepository = new SQLiteRepository<>(
@@ -131,7 +128,6 @@ public class DatabaseManager {
                     "playerData",
                     "uuid"
             );
-
             this.auctionRepository = new SQLiteRepository<>(
                     Auction.class,
                     databasePath,
@@ -139,14 +135,12 @@ public class DatabaseManager {
                     "auctionId"
             );
 
-            DebugLogger.getInstance().log(Level.INFO, "DatabaseManager initialized with SQLiteRepository", 0);
+            DebugLogger.getInstance().log(Level.INFO, "DatabaseManager: SQLite repositories initialized", 0);
         } catch (Exception e) {
-            DebugLogger.getInstance().error("DatabaseManager failed to initialize SQLite repositories:", e);
+            DebugLogger.getInstance().error("Failed to init SQLite repos:", e);
             throw new RuntimeException(e);
         }
     }
-
-    // Getters for repositories
 
     public IRepository<PlayerData> getPlayerRepository() {
         return playerRepository;
@@ -156,14 +150,7 @@ public class DatabaseManager {
         return auctionRepository;
     }
 
-    /**
-     * Retrieves the plugin's configuration.
-     * Implement this method to fetch your plugin's config.
-     *
-     * @return The FileConfiguration instance.
-     */
     private FileConfiguration getConfig() {
-        // Assuming you have access to your main plugin instance
         return eu.xaru.mysticrpg.cores.MysticCore.getInstance().getConfig();
     }
 }

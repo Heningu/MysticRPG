@@ -7,7 +7,11 @@ import java.util.*;
 /**
  * Represents a player's data with fields marked for persistence.
  */
+/**
+ * Represents a player's data with fields marked for persistence.
+ */
 public class PlayerData {
+
     @Persist(key = "uuid")
     private String uuid;
 
@@ -98,23 +102,128 @@ public class PlayerData {
     @Persist
     private String currentTitle;
 
-
     public PlayerData() {
         // Default constructor required for deserialization
     }
+    private static List<MutableFieldRef> fieldRefs;
 
-    public PlayerData(String uuid, int heldGold, int bankGold, int xp, int level, int nextLevelXP, int currentHp,
-                      Map<String, Integer> attributes, Map<String, Boolean> unlockedRecipes,
-                      Set<String> friendRequests, Set<String> friends, Set<String> blockedPlayers,
-                      boolean blockingRequests, int attributePoints, List<String> activeQuests,
-                      Map<String, Map<String, Integer>> questProgress, List<String> completedQuests,
-                      String pinnedQuest, int pendingBalance, List<String> pendingItems,
-                      boolean remindersEnabled, Map<String, String> equipment,
-                      List<String> completedDialogues, Long discordId,
-                      Map<String, Integer> questPhaseIndex, Map<String, Long> questStartTime, Set<String> ownedPets, String equippedPet, List<String> unlockedTitles, String currentTitle) {
+
+    {
+        fieldRefs = new ArrayList<>();
+        fieldRefs.add(new MutableFieldRef(
+                () -> this.unlockedTitles,
+                x -> this.unlockedTitles = (List<String>) x,
+                CollectionKind.LIST
+        ));
+        fieldRefs.add(new MutableFieldRef(
+                () -> this.activeQuests,
+                x -> this.activeQuests = (List<String>) x,
+                CollectionKind.LIST
+        ));
+        fieldRefs.add(new MutableFieldRef(
+                () -> this.completedQuests,
+                x -> this.completedQuests = (List<String>) x,
+                CollectionKind.LIST
+        ));
+        fieldRefs.add(new MutableFieldRef(
+                () -> this.pendingItems,
+                x -> this.pendingItems = (List<String>) x,
+                CollectionKind.LIST
+        ));
+        fieldRefs.add(new MutableFieldRef(
+                () -> this.completedDialogues,
+                x -> this.completedDialogues = (List<String>) x,
+                CollectionKind.LIST
+        ));
+        fieldRefs.add(new MutableFieldRef(
+                () -> this.friends,
+                x -> this.friends = (Set<String>) x,
+                CollectionKind.SET
+        ));
+        fieldRefs.add(new MutableFieldRef(
+                () -> this.friendRequests,
+                x -> this.friendRequests = (Set<String>) x,
+                CollectionKind.SET
+        ));
+        fieldRefs.add(new MutableFieldRef(
+                () -> this.blockedPlayers,
+                x -> this.blockedPlayers = (Set<String>) x,
+                CollectionKind.SET
+        ));
+        fieldRefs.add(new MutableFieldRef(
+                () -> this.attributes,
+                x -> this.attributes = (Map<String, Integer>) x,
+                CollectionKind.MAP
+        ));
+        fieldRefs.add(new MutableFieldRef(
+                () -> this.unlockedRecipes,
+                x -> this.unlockedRecipes = (Map<String, Boolean>) x,
+                CollectionKind.MAP
+        ));
+        fieldRefs.add(new MutableFieldRef(
+                () -> this.questProgress,
+                x -> this.questProgress = (Map<String, Map<String, Integer>>) x,
+                CollectionKind.MAP
+        ));
+        fieldRefs.add(new MutableFieldRef(
+                () -> this.equipment,
+                x -> this.equipment = (Map<String, String>) x,
+                CollectionKind.MAP
+        ));
+        fieldRefs.add(new MutableFieldRef(
+                () -> this.questPhaseIndex,
+                x -> this.questPhaseIndex = (Map<String, Integer>) x,
+                CollectionKind.MAP
+        ));
+        fieldRefs.add(new MutableFieldRef(
+                () -> this.questStartTime,
+                x -> this.questStartTime = (Map<String, Long>) x,
+                CollectionKind.MAP
+        ));
+        fieldRefs.add(new MutableFieldRef(
+                () -> this.ownedPets,
+                x -> this.ownedPets = (Set<String>) x,
+                CollectionKind.SET
+        ));
+
+
+
+    }
+
+    public PlayerData(String uuid,
+                      int heldGold,
+                      int bankGold,
+                      int xp,
+                      int level,
+                      int nextLevelXP,
+                      int currentHp,
+                      Map<String, Integer> attributes,
+                      Map<String, Boolean> unlockedRecipes,
+                      Set<String> friendRequests,
+                      Set<String> friends,
+                      Set<String> blockedPlayers,
+                      boolean blockingRequests,
+                      int attributePoints,
+                      List<String> activeQuests,
+                      Map<String, Map<String, Integer>> questProgress,
+                      List<String> completedQuests,
+                      String pinnedQuest,
+                      int pendingBalance,
+                      List<String> pendingItems,
+                      boolean remindersEnabled,
+                      Map<String, String> equipment,
+                      List<String> completedDialogues,
+                      Long discordId,
+                      Map<String, Integer> questPhaseIndex,
+                      Map<String, Long> questStartTime,
+                      Set<String> ownedPets,
+                      String equippedPet,
+                      List<String> unlockedTitles,
+                      String currentTitle) {
+
         this.uuid = uuid;
-        this.bankGold = bankGold;
         this.heldGold = heldGold;
+        this.bankGold = bankGold;
         this.xp = xp;
         this.level = level;
         this.nextLevelXP = nextLevelXP;
@@ -147,13 +256,24 @@ public class PlayerData {
     public static PlayerData defaultData(String uuid) {
         return new PlayerData(
                 uuid,
-                0, // heldGold default
-                0, // bankGold default
+                0,
+                0,
                 0,
                 1,
                 100,
                 20,
-                new HashMap<>(Map.of("HEALTH", 20, "DEFENSE", 0, "STRENGTH", 1, "INTELLIGENCE", 1, "CRIT_CHANCE", 5, "CRIT_DAMAGE", 10, "ATTACK_SPEED",0,"HEALTH_REGEN",1,"MOVEMENT_SPEED",0,"MANA",10)),
+                new HashMap<>(Map.of(
+                        "HEALTH", 20,
+                        "DEFENSE", 0,
+                        "STRENGTH", 1,
+                        "INTELLIGENCE", 1,
+                        "CRIT_CHANCE", 5,
+                        "CRIT_DAMAGE", 10,
+                        "ATTACK_SPEED", 0,
+                        "HEALTH_REGEN", 1,
+                        "MOVEMENT_SPEED", 0,
+                        "MANA", 10
+                )),
                 new HashMap<>(),
                 new HashSet<>(),
                 new HashSet<>(),
@@ -183,52 +303,41 @@ public class PlayerData {
      * Ensures that collections are mutable after deserialization.
      */
     public void ensureMutableCollections() {
-        if (!(friendRequests instanceof HashSet)) {
-            friendRequests = new HashSet<>(friendRequests);
-        }
-        if (!(friends instanceof HashSet)) {
-            friends = new HashSet<>(friends);
-        }
-
-        if (!(ownedPets instanceof HashSet)) {
-            ownedPets = new HashSet<>(ownedPets);
-        }
-
-        if (!(blockedPlayers instanceof HashSet)) {
-            blockedPlayers = new HashSet<>(blockedPlayers);
-        }
-        if (!(attributes instanceof HashMap)) {
-            attributes = new HashMap<>(attributes);
-        }
-        if (!(unlockedRecipes instanceof HashMap)) {
-            unlockedRecipes = new HashMap<>(unlockedRecipes);
-        }
-        if (!(activeQuests instanceof ArrayList)) {
-            activeQuests = new ArrayList<>(activeQuests);
-        }
-        if (!(questProgress instanceof HashMap)) {
-            questProgress = new HashMap<>(questProgress);
-        }
-        if (!(completedQuests instanceof ArrayList)) {
-            completedQuests = new ArrayList<>(completedQuests);
-        }
-        if (!(pendingItems instanceof ArrayList)) {
-            pendingItems = new ArrayList<>(pendingItems);
-        }
-        if (!(completedDialogues instanceof ArrayList)) {
-            completedDialogues = new ArrayList<>(completedDialogues);
-        }
-        if (!(equipment instanceof HashMap)) {
-            equipment = new HashMap<>(equipment);
-        }
-        if (!(questPhaseIndex instanceof HashMap)) {
-            questPhaseIndex = new HashMap<>(questPhaseIndex);
-        }
-        if (!(questStartTime instanceof HashMap)) {
-            questStartTime = new HashMap<>(questStartTime);
+        for (MutableFieldRef ref : fieldRefs) {
+            Object val = ref.getter().get(); // read the field
+            if (val == null) {
+                // If it's null, create a new empty collection
+                switch (ref.collectionKind()) {
+                    case LIST ->
+                            ref.setter().accept(new ArrayList<>());
+                    case SET ->
+                            ref.setter().accept(new HashSet<>());
+                    case MAP ->
+                            ref.setter().accept(new HashMap<>());
+                }
+            } else {
+                // It's non-null, we check if it's an instance of the correct *mutable* class
+                switch (ref.collectionKind()) {
+                    case LIST -> {
+                        if (!(val instanceof ArrayList)) {
+                            // Re-wrap
+                            ref.setter().accept(new ArrayList<>((Collection<?>) val));
+                        }
+                    }
+                    case SET -> {
+                        if (!(val instanceof HashSet)) {
+                            ref.setter().accept(new HashSet<>((Collection<?>) val));
+                        }
+                    }
+                    case MAP -> {
+                        if (!(val instanceof HashMap)) {
+                            ref.setter().accept(new HashMap<>((Map<?, ?>) val));
+                        }
+                    }
+                }
+            }
         }
     }
-
     // Getters and setters
 
 

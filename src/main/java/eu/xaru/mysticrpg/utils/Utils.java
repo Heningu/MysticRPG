@@ -1,5 +1,7 @@
 package eu.xaru.mysticrpg.utils;
 
+import eu.xaru.mysticrpg.config.DynamicConfig;
+import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import org.bukkit.*;
 
@@ -96,6 +98,7 @@ public class Utils {
         message = applyPlaceholders(message);
         message = hexColor(message);
         message = ChatColor.translateAlternateColorCodes('&', message);
+
         return message;
     }
 
@@ -113,20 +116,6 @@ public class Utils {
             message = message.replace(matcher.group(), placeholderValue);
         }
         return message;
-    }
-
-    // Serialization methods
-    public String itemStackToBase64(ItemStack item) throws IOException {
-        YamlConfiguration config = new YamlConfiguration();
-        config.set("item", item);
-        return Base64.getEncoder().encodeToString(config.saveToString().getBytes());
-    }
-
-    public ItemStack itemStackFromBase64(String data) throws IOException, InvalidConfigurationException {
-        YamlConfiguration config = new YamlConfiguration();
-        byte[] decodedData = Base64.getDecoder().decode(data);
-        config.loadFromString(new String(decodedData));
-        return config.getItemStack("item");
     }
 
 
@@ -181,7 +170,7 @@ public class Utils {
 
     // Fix format &x&R&R&G&G&B&B
     private String fixFormat3(String text) {
-        text = text.replace('§', '&');
+        //text = text.replace('§', '&');
         Matcher matcher = FIX3_PATTERN.matcher(text);
         while (matcher.find()) {
             String hexCode = matcher.group();

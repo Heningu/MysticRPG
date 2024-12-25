@@ -1,0 +1,6 @@
+id: default_loot
+loot_items:
+- amount: 1
+  chance: 1.0
+  id_or_material: DIAMOND
+  type: material

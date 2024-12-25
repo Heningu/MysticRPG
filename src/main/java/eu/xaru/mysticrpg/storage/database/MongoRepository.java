@@ -15,9 +15,9 @@ import java.util.*;
 import java.util.logging.Level;
 
 /**
- * MongoDB implementation of the IRepository interface.
+ * MongoDB implementation of the IRepository interface, using Reactive Streams.
  *
- * @param <T> The type of the data model.
+ * @param <T> The data model type
  */
 public class MongoRepository<T> extends BaseRepository<T> {
 
@@ -34,33 +34,36 @@ public class MongoRepository<T> extends BaseRepository<T> {
     public void save(T entity, Callback<Void> callback) {
         Map<String, Object> data = serialize(entity);
         if (!data.containsKey(idField)) {
-            DebugLogger.getInstance().error("Entity does not contain the ID field: " + idField);
+            DebugLogger.getInstance().error("Entity missing ID field: " + idField);
             callback.onFailure(new IllegalArgumentException("Missing ID field"));
             return;
         }
-        Object idValue = data.get(idField);
-        Document document = new Document(data);
-        collection.replaceOne(Filters.eq(idField, idValue), document, new ReplaceOptions().upsert(true))
+        Object idVal = data.get(idField);
+        Document doc = new Document(data);
+
+        collection.replaceOne(Filters.eq(idField, idVal), doc, new ReplaceOptions().upsert(true))
                 .subscribe(new Subscriber<UpdateResult>() {
+                    Subscription sub;
+
                     @Override
                     public void onSubscribe(Subscription s) {
+                        sub = s;
                         s.request(1);
                     }
 
                     @Override
                     public void onNext(UpdateResult updateResult) {
-                        // Can log or handle update result if needed
+                        // updated or inserted
                     }
 
                     @Override
                     public void onError(Throwable t) {
-                        DebugLogger.getInstance().error("Error saving entity: " + t.getMessage(), t);
+                        DebugLogger.getInstance().error("Mongo save error: " + t.getMessage(), t);
                         callback.onFailure(t);
                     }
 
                     @Override
                     public void onComplete() {
-                        DebugLogger.getInstance().log(Level.INFO, "Entity saved successfully.", 0);
                         callback.onSuccess(null);
                     }
                 });
@@ -71,105 +74,7 @@ public class MongoRepository<T> extends BaseRepository<T> {
         collection.find(Filters.eq(idField, uuid.toString()))
                 .first()
                 .subscribe(new Subscriber<Document>() {
-                    private T entity;
-
-                    @Override
-                    public void onSubscribe(Subscription s) {
-                        s.request(1);
-                    }
-
-                    @Override
-                    public void onNext(Document document) {
-                        if (document != null) {
-                            entity = deserialize(document);
-                        }
-                    }
-
-                    @Override
-                    public void onError(Throwable t) {
-                        DebugLogger.getInstance().error("Error loading entity: " + t.getMessage(), t);
-                        callback.onFailure(t);
-                    }
-
-                    @Override
-                    public void onComplete() {
-                        if (entity != null) {
-                            DebugLogger.getInstance().log(Level.INFO, "Entity loaded successfully.", 0);
-                            callback.onSuccess(entity);
-                        } else {
-                            DebugLogger.getInstance().log(Level.INFO, "No entity found with UUID: " + uuid, 0);
-                            callback.onFailure(new NoSuchElementException("Entity not found"));
-                        }
-                    }
-                });
-    }
-
-    @Override
-    public void delete(UUID uuid, Callback<Void> callback) {
-        collection.deleteOne(Filters.eq(idField, uuid.toString()))
-                .subscribe(new Subscriber<DeleteResult>() {
-                    @Override
-                    public void onSubscribe(Subscription s) {
-                        s.request(1);
-                    }
-
-                    @Override
-                    public void onNext(DeleteResult deleteResult) {
-                        // Can handle delete result if needed
-                    }
-
-                    @Override
-                    public void onError(Throwable t) {
-                        DebugLogger.getInstance().error("Error deleting entity: " + t.getMessage(), t);
-                        callback.onFailure(t);
-                    }
-
-                    @Override
-                    public void onComplete() {
-                        DebugLogger.getInstance().log(Level.INFO, "Entity deleted successfully.", 0);
-                        callback.onSuccess(null);
-                    }
-                });
-    }
-
-    @Override
-    public void loadAll(Callback<List<T>> callback) {
-        List<T> entities = new ArrayList<>();
-        collection.find().subscribe(new Subscriber<Document>() {
-            @Override
-            public void onSubscribe(Subscription s) {
-                s.request(Long.MAX_VALUE); // Request all documents
-            }
-
-            @Override
-            public void onNext(Document document) {
-                T entity = deserialize(document);
-                if (entity != null) {
-                    entities.add(entity);
-                }
-            }
-
-            @Override
-            public void onError(Throwable t) {
-                DebugLogger.getInstance().error("Error loading all entities: " + t.getMessage(), t);
-                callback.onFailure(t);
-            }
-
-            @Override
-            public void onComplete() {
-                DebugLogger.getInstance().log(Level.INFO, "All entities loaded successfully.", 0);
-                callback.onSuccess(entities);
-            }
-        });
-    }
-
-    @Override
-    public void loadByDiscordId(long discordId, Callback<T> callback) {
-        collection.find(Filters.eq("discordId", discordId))
-                .first()
-                .subscribe(new Subscriber<Document>() {
-                    private T entity;
-
+                    T entity;
                     @Override
                     public void onSubscribe(Subscription s) {
                         s.request(1);
@@ -192,23 +97,96 @@ public class MongoRepository<T> extends BaseRepository<T> {
                         if (entity != null) {
                             callback.onSuccess(entity);
                         } else {
-                            callback.onFailure(new NoSuchElementException("No entity found with discordId: " + discordId));
+                            callback.onFailure(new NoSuchElementException("Entity not found"));
                         }
                     }
                 });
     }
 
-    /**
-     * Deserializes a MongoDB Document to an entity.
-     *
-     * @param document The document to deserialize.
-     * @return The entity instance.
-     */
-    private T deserialize(Document document) {
-        Map<String, Object> data = new HashMap<>();
-        for (Map.Entry<String, Object> entry : document.entrySet()) {
-            data.put(entry.getKey(), entry.getValue());
-        }
-        return deserialize(data);
+    @Override
+    public void delete(UUID uuid, Callback<Void> callback) {
+        collection.deleteOne(Filters.eq(idField, uuid.toString()))
+                .subscribe(new Subscriber<DeleteResult>() {
+                    @Override
+                    public void onSubscribe(Subscription s) {
+                        s.request(1);
+                    }
+
+                    @Override
+                    public void onNext(DeleteResult deleteResult) {
+                        // optionally check deletedCount
+                    }
+
+                    @Override
+                    public void onError(Throwable t) {
+                        callback.onFailure(t);
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        callback.onSuccess(null);
+                    }
+                });
+    }
+
+    @Override
+    public void loadAll(Callback<List<T>> callback) {
+        List<T> results = new ArrayList<>();
+        collection.find().subscribe(new Subscriber<Document>() {
+            @Override
+            public void onSubscribe(Subscription s) {
+                s.request(Long.MAX_VALUE);
+            }
+
+            @Override
+            public void onNext(Document doc) {
+                T entity = deserialize(doc);
+                if (entity != null) {
+                    results.add(entity);
+                }
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                callback.onFailure(t);
+            }
+
+            @Override
+            public void onComplete() {
+                callback.onSuccess(results);
+            }
+        });
+    }
+
+    @Override
+    public void loadByDiscordId(long discordId, Callback<T> callback) {
+        collection.find(Filters.eq("discordId", discordId))
+                .first()
+                .subscribe(new Subscriber<Document>() {
+                    T entity;
+                    @Override
+                    public void onSubscribe(Subscription s) {
+                        s.request(1);
+                    }
+
+                    @Override
+                    public void onNext(Document doc) {
+                        entity = deserialize(doc);
+                    }
+
+                    @Override
+                    public void onError(Throwable t) {
+                        callback.onFailure(t);
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        if (entity != null) {
+                            callback.onSuccess(entity);
+                        } else {
+                            callback.onFailure(new NoSuchElementException("No entity found for discordId=" + discordId));
+                        }
+                    }
+                });
     }
 }

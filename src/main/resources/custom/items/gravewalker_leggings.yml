@@ -1,0 +1,37 @@
+id: 'gravewalker_leggings'
+name: '&7Gravewalker Leggings'
+material: 'IRON_LEGGINGS'
+custom_model_data: 1004
+rarity: 'COMMON'
+enchanted_effect: false
+lore:
+  - '&7Leggings stained with the dirt of the grave.'
+use_tier_system: true
+item_level: 1
+item_max_level: 3
+tier_attributes:
+  1:
+    ARMOR:
+      value: 5  # Default for iron leggings
+      operation: 'ADD_NUMBER'
+    MAX_HEALTH:
+      value: 2
+      operation: 'ADD_NUMBER'
+  2:
+    ARMOR:
+      value: 5
+      operation: 'ADD_NUMBER'
+    MAX_HEALTH:
+      value: 3
+      operation: 'ADD_NUMBER'
+  3:
+    ARMOR:
+      value: 6
+      operation: 'ADD_NUMBER'
+    MAX_HEALTH:
+      value: 4
+      operation: 'ADD_NUMBER'
+attributes: {}
+enchantments: {}
+use_power_stones: false
+power_stone_slots: 0

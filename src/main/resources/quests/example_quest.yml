@@ -1,0 +1,13 @@
+id: "quest_001"
+name: "First Steps"
+level_requirement: 1
+type: "PVE"
+details: "Collect 2 Oak Wood Logs."
+prerequisites: []
+objectives:
+  collect_oak_log: 2
+rewards:
+  currency: 50.0
+  experience: 100
+  items:
+    - "wooden_sword"

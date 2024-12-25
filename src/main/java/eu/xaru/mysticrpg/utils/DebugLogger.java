@@ -1,5 +1,6 @@
 package eu.xaru.mysticrpg.utils;
 
+import eu.xaru.mysticrpg.cores.MysticCore;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -573,7 +574,7 @@ public class DebugLogger {
         String formattedMessage = formatLogMessage(level, timestamp, className, message);
 
         // Send message to Bukkit console with colors via Utils.$()
-        Bukkit.getConsoleSender().sendMessage(Utils.getInstance().$(formattedMessage));
+        MysticCore.getInstance().getServer().getConsoleSender().sendMessage(Utils.getInstance().$(formattedMessage));
     }
 
     /**

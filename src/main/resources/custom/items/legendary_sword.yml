@@ -1,0 +1,27 @@
+id: legendary_sword
+name: "&6Legendary Sword"
+material: DIAMOND_SWORD
+rarity: LEGENDARY
+custom_model_data: 1001
+lore:
+  - "&7A sword of legends."
+  - "&7It shines with an otherworldly light."
+use_power_stones: true
+power_stone_slots: 2
+use_tier_system: true
+item_level: 1
+item_max_level: 3
+tier_attributes:
+  1:
+    attack_damage:
+      value: 12.0
+      operation: ADD_NUMBER
+  2:
+    attack_damage:
+      value: 14.0
+      operation: ADD_NUMBER
+  3:
+    attack_damage:
+      value: 16.0
+      operation: ADD_NUMBER
+enchanted_effect: true

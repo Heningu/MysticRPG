@@ -1,0 +1,13 @@
+id: questDialogue
+levelRequirement: 1
+insufficientLevelMessage: "You need to complete the previous quest first."
+messages:
+  - "Welcome back!"
+  - "Did you complete the task?"
+question: "Have you completed the quest?"
+yesResponse: "Excellent work!"
+noResponse: "Please come back when you have completed it."
+completionMessage: "Thank you for your help!"
+
+
+equipment: []

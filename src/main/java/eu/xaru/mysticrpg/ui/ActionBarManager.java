@@ -74,6 +74,7 @@ public class ActionBarManager implements Listener {
     public void onPlayerStatsChanged(PlayerStatsChangedEvent event) {
         Player player = event.getPlayer();
         if (CitizensAPI.getNPCRegistry().isNPC(player)) return;
+
         updateActionBar(player);
     }
 

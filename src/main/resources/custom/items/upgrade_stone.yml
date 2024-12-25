@@ -1,0 +1,13 @@
+id: 'upgrade_stone'
+name: '&aUpgrade Stone'
+material: 'EMERALD'
+custom_model_data: 0
+rarity: 'MYTHIC'
+enchanted_effect: true
+lore:
+  - '&7Use this stone to upgrade'
+  - '&7your custom items to the next tier.'
+attributes: {}
+enchantments: {}
+use_tier_system: false
+use_power_stones: false

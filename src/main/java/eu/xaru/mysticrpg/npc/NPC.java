@@ -1,5 +1,7 @@
 package eu.xaru.mysticrpg.npc;
 
+import eu.xaru.mysticrpg.config.DynamicConfig;
+import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.guis.quests.QuestHandInGUI;
 import eu.xaru.mysticrpg.guis.quests.ShopGUI;
 import eu.xaru.mysticrpg.managers.ModuleManager;
@@ -34,7 +36,7 @@ public class NPC {
     private String id;
     private String name;
     private Location location;
-    private YamlConfiguration config;
+    private DynamicConfig config;
     private File configFile;
 
     private final QuestModule questModule;
@@ -70,11 +72,8 @@ public class NPC {
         if (!npcsFolder.exists()) {
             npcsFolder.mkdirs();
         }
-        this.configFile = new File(npcsFolder, id + ".yml");
-        if (!configFile.exists()) {
-            try { configFile.createNewFile(); } catch (IOException e) { e.printStackTrace(); }
-        }
-        this.config = YamlConfiguration.loadConfiguration(configFile);
+        DynamicConfigManager.loadConfig("npcs/" + id + ".yml", "npcs/" + id + ".yml");
+        this.config = DynamicConfigManager.getConfig("npcs/" + id + ".yml");
     }
 
     public void spawn() {
@@ -194,7 +193,7 @@ public class NPC {
         player.spigot().sendMessage(message);
     }
 
-    public YamlConfiguration getConfig() {
+    public DynamicConfig getConfig() {
         return config;
     }
 

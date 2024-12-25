@@ -1,10 +1,17 @@
-# MysticRPG Configuration
 database:
-  type: sqlite # or sqlite
+  type: "sqlite"
+  sqlite:
+    path: "plugins/MysticRPG/database.db"
   mongo:
     connectionString: "mongodb://localhost:27017"
     databaseName: "xarumystic"
-  sqlite:
-    path: "plugins/MysticRPG/database.db"
-discordBotToken: ""
-discordGuildId: "1265708766100324415"
+
+logging:
+  debug: true
+
+redis:
+  enabled: true
+  mockInMemory: true
+  host: "localhost"
+  port: 6379
+  password: ""

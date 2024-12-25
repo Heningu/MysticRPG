@@ -3,6 +3,8 @@ package eu.xaru.mysticrpg.customs.mobs;
 import dev.jorel.commandapi.CommandAPICommand;
 import dev.jorel.commandapi.arguments.ArgumentSuggestions;
 import dev.jorel.commandapi.arguments.StringArgument;
+import eu.xaru.mysticrpg.config.DynamicConfig;
+import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.customs.mobs.actions.Action;
 import eu.xaru.mysticrpg.customs.mobs.actions.ActionStep;
@@ -18,13 +20,9 @@ import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.social.party.PartyModule;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
+import org.bukkit.*;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.EntityType;
 import eu.xaru.mysticrpg.economy.EconomyModule;
 import org.bukkit.event.Listener;
@@ -37,10 +35,8 @@ import java.util.logging.Level;
 public class CustomMobModule implements IBaseModule, Listener {
 
     private final JavaPlugin plugin;
-    
     private final Map<String, CustomMob> mobConfigurations = new HashMap<>();
     private MobManager mobManager;
-    private MobGUI mobGUI;
 
     public CustomMobModule() {
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
@@ -48,13 +44,11 @@ public class CustomMobModule implements IBaseModule, Listener {
 
     @Override
     public void initialize() {
-        
         PartyModule partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
         if (partyModule == null) {
             DebugLogger.getInstance().error("PartyModule is not loaded. CustomMobModule requires PartyModule as a dependency.");
             return;
         }
-
 
         loadMobConfigurations();
 
@@ -65,12 +59,8 @@ public class CustomMobModule implements IBaseModule, Listener {
         }
         EconomyHelper economyHelper = economyModule.getEconomyHelper();
 
-        // Initialize MobManager after loading mob configurations
         mobManager = new MobManager(plugin, mobConfigurations, economyHelper);
-
         registerCommands();
-
-        // Register event listeners
         Bukkit.getPluginManager().registerEvents(this, plugin);
 
         DebugLogger.getInstance().log(Level.INFO, "CustomMobModule initialized successfully.", 0);
@@ -93,7 +83,7 @@ public class CustomMobModule implements IBaseModule, Listener {
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
-        return List.of( LevelModule.class, EconomyModule.class, PartyModule.class);
+        return List.of(LevelModule.class, EconomyModule.class, PartyModule.class);
     }
 
     @Override
@@ -112,9 +102,16 @@ public class CustomMobModule implements IBaseModule, Listener {
         if (files != null) {
             for (File file : files) {
                 try {
-                    FileConfiguration config = YamlConfiguration.loadConfiguration(file);
-                    String mobId = config.getString("id");
-                    String mobName = config.getString("name");
+                    String path = "custom/mobs/" + file.getName();
+                    DynamicConfigManager.loadConfig(path, path);
+                    DynamicConfig config = DynamicConfigManager.getConfig(path);
+                    if (config == null) {
+                        DebugLogger.getInstance().error("Failed to load config for file: " + file.getName());
+                        continue;
+                    }
+
+                    String mobId = config.getString("id", null);
+                    String mobName = config.getString("name", null);
                     if (mobId == null || mobId.isEmpty()) {
                         DebugLogger.getInstance().error("Mob ID is missing in file: " + file.getName());
                         continue;
@@ -123,103 +120,110 @@ public class CustomMobModule implements IBaseModule, Listener {
                         DebugLogger.getInstance().error("Mob name is missing in file: " + file.getName());
                         continue;
                     }
-                    EntityType entityType = EntityType.valueOf(config.getString("type", "ZOMBIE").toUpperCase());
+                    EntityType entityType = EntityType.valueOf(config.getString("type", "ZOMBIE").toUpperCase(Locale.ROOT));
                     double health = config.getDouble("health", 20.0);
                     int level = config.getInt("level", 1);
 
                     int experienceReward = config.getInt("experienceReward", 0);
                     int currencyReward = config.getInt("currencyReward", 0);
 
-                    // Read new attributes
-                    double baseDamage = config.getDouble("damage", 2.0); // Default damage
-                    double baseArmor = config.getDouble("armor", 0.0);   // Default armor
-                    double movementSpeed = config.getDouble("movement_speed", 0.2); // Default movement speed
+                    double baseDamage = config.getDouble("damage", 2.0);
+                    double baseArmor = config.getDouble("armor", 0.0);
+                    double movementSpeed = config.getDouble("movement_speed", 0.2);
 
+                    // customAttributes -> key->int
                     Map<String, Integer> customAttributes = new HashMap<>();
-                    if (config.contains("customAttributes")) {
-                        for (String key : config.getConfigurationSection("customAttributes").getKeys(false)) {
-                            customAttributes.put(key, config.getInt("customAttributes." + key));
+                    Object customAttrObj = config.get("customAttributes");
+                    if (customAttrObj instanceof Map<?,?> cMap) {
+                        for (Map.Entry<?,?> e : cMap.entrySet()) {
+                            String key = String.valueOf(e.getKey());
+                            int val = parseInt(e.getValue(), 0);
+                            customAttributes.put(key, val);
                         }
                     }
 
-                    List<String> assignedAreas = config.getStringList("assigned_areas");
+                    List<String> assignedAreas = config.getStringList("assigned_areas", new ArrayList<>());
 
-                    // Load area settings if any
+                    // area_settings -> map of areaKey -> { max_amount, respawn_after_seconds, respawn_if_all_dead }
                     Map<String, CustomMob.AreaSettings> areaSettingsMap = new HashMap<>();
-                    if (config.contains("area_settings")) {
-                        for (String areaKey : config.getConfigurationSection("area_settings").getKeys(false)) {
-                            String path = "area_settings." + areaKey;
-                            int maxAmount = config.getInt(path + ".max_amount", 1);
-                            int respawnAfterSeconds = config.getInt(path + ".respawn_after_seconds", -1);
-                            boolean respawnIfAllDead = config.getBoolean(path + ".respawn_if_all_dead", false);
+                    Object areaSetObj = config.get("area_settings");
+                    if (areaSetObj instanceof Map<?,?> areaMap) {
+                        for (Map.Entry<?,?> e : areaMap.entrySet()) {
+                            String areaKey = String.valueOf(e.getKey());
+                            Object areaVal = e.getValue();
+                            if (areaVal instanceof Map<?,?> subMap) {
+                                int maxAmount = parseInt(subMap.get("max_amount"), 1);
+                                int respawnAfter = parseInt(subMap.get("respawn_after_seconds"), -1);
+                                boolean respawnIfAllDead = parseBoolean(subMap.get("respawn_if_all_dead"), false);
 
-                            CustomMob.AreaSettings areaSettings = new CustomMob.AreaSettings(maxAmount, respawnAfterSeconds, respawnIfAllDead);
-                            areaSettingsMap.put(areaKey, areaSettings);
-                        }
-                    }
-
-                    // Load drops
-                    List<CustomMob.DropItem> drops = new ArrayList<>();
-                    if (config.contains("drops")) {
-                        List<Map<?, ?>> dropList = config.getMapList("drops");
-                        for (Map<?, ?> dropConfig : dropList) {
-                            String type = (String) dropConfig.get("type");
-                            if (type == null) {
-                                DebugLogger.getInstance().error("Drop type is missing for mob: " + mobName);
-                                continue;
+                                CustomMob.AreaSettings areaSettings = new CustomMob.AreaSettings(maxAmount, respawnAfter, respawnIfAllDead);
+                                areaSettingsMap.put(areaKey, areaSettings);
                             }
-                            String id = (String) dropConfig.get("id"); // For custom items
-                            String material = (String) dropConfig.get("material"); // For materials
-                            int amount = (dropConfig.get("amount") != null) ? (int) dropConfig.get("amount") : 1;
-                            double chance = (dropConfig.get("chance") != null) ? ((Number) dropConfig.get("chance")).doubleValue() : 1.0;
-
-                            CustomMob.DropItem dropItem = new CustomMob.DropItem(type, id, material, amount, chance);
-                            drops.add(dropItem);
                         }
                     }
 
-                    // Load equipment
+                    // drops -> list of maps
+                    List<CustomMob.DropItem> drops = new ArrayList<>();
+                    Object dropsObj = config.get("drops");
+                    if (dropsObj instanceof List<?> rawList) {
+                        for (Object dropItemObj : rawList) {
+                            if (dropItemObj instanceof Map<?,?> dMap) {
+                                String type = parseString(dMap.get("type"), null);
+                                String id = parseString(dMap.get("id"), null);
+                                String materialStr = parseString(dMap.get("material"), null);
+                                int amount = parseInt(dMap.get("amount"), 1);
+                                double chance = parseDouble(dMap.get("chance"), 1.0);
+
+                                if (type == null) {
+                                    DebugLogger.getInstance().error("Drop type is missing for mob: " + mobName);
+                                    continue;
+                                }
+                                CustomMob.DropItem dropItem = new CustomMob.DropItem(type, id, materialStr, amount, chance);
+                                drops.add(dropItem);
+                            }
+                        }
+                    }
+
+                    // equipment
                     CustomMob.Equipment equipment = null;
-                    if (config.contains("equipment")) {
-                        String helmet = config.getString("equipment.helmet.custom_item_id");
-                        String chestplate = config.getString("equipment.chestplate.custom_item_id");
-                        String leggings = config.getString("equipment.leggings.custom_item_id");
-                        String boots = config.getString("equipment.boots.custom_item_id");
-                        String weapon = config.getString("equipment.weapon.custom_item_id");
+                    Object equipObj = config.get("equipment");
+                    if (equipObj instanceof Map<?,?> eqMap) {
+                        String helmet = parseString(getNested(eqMap, "helmet.custom_item_id"), null);
+                        String chestplate = parseString(getNested(eqMap, "chestplate.custom_item_id"), null);
+                        String leggings = parseString(getNested(eqMap, "leggings.custom_item_id"), null);
+                        String boots = parseString(getNested(eqMap, "boots.custom_item_id"), null);
+                        String weapon = parseString(getNested(eqMap, "weapon.custom_item_id"), null);
 
                         equipment = new CustomMob.Equipment(helmet, chestplate, leggings, boots, weapon);
                     }
 
-                    // Read the model ID from the config
-                    String modelId = config.getString("model_id");
+                    // model_id
+                    String modelId = config.getString("model_id", null);
 
-                    // Load animations
+                    // animations
                     AnimationConfig animationConfig = loadAnimations(config);
 
-                    // Load actions
+                    // actions
                     Map<String, List<Action>> actions = loadActions(config, animationConfig);
 
-                    // Load BossBar configuration
+                    // boss bar
                     CustomMob.BossBarConfig bossBarConfig = null;
-                    if (config.contains("BossBar")) {
-                        ConfigurationSection bossBarSection = config.getConfigurationSection("BossBar");
-                        if (bossBarSection != null) {
-                            boolean enabled = bossBarSection.getBoolean("Enabled", false);
-                            String title = bossBarSection.getString("Title", mobName);
-                            String colorName = bossBarSection.getString("Color", "RED");
-                            BarColor color = BarColor.valueOf(colorName.toUpperCase());
-                            double range = bossBarSection.getDouble("Range", 64.0);
-                            String styleName = bossBarSection.getString("Style", "SEGMENTED_20");
-                            BarStyle style = BarStyle.valueOf(styleName.toUpperCase());
+                    Object bossBarObj = config.get("BossBar");
+                    if (bossBarObj instanceof Map<?,?> bossMap) {
+                        boolean enabled = parseBoolean(bossMap.get("Enabled"), false);
+                        String title = parseString(bossMap.get("Title"), mobName);
+                        String colorName = parseString(bossMap.get("Color"), "RED");
+                        double range = parseDouble(bossMap.get("Range"), 64.0);
+                        String styleName = parseString(bossMap.get("Style"), "SEGMENTED_20");
 
-                            // Append level to title
-                            title = title + " [LVL " + level + "]";
+                        BarColor color = BarColor.valueOf(colorName.toUpperCase(Locale.ROOT));
+                        BarStyle style = BarStyle.valueOf(styleName.toUpperCase(Locale.ROOT));
+                        // Append level to title
+                        title = title + " [LVL " + level + "]";
 
-                            bossBarConfig = new CustomMob.BossBarConfig(enabled, title, color, range, style);
-                        }
+                        bossBarConfig = new CustomMob.BossBarConfig(enabled, title, color, range, style);
                     }
 
-                    // Create CustomMob instance with bossBarConfig
                     CustomMob customMob = new CustomMob(
                             mobId, mobName, entityType, health, level, experienceReward, currencyReward, customAttributes,
                             assignedAreas, areaSettingsMap, drops, baseDamage, baseArmor, movementSpeed, equipment,
@@ -228,6 +232,7 @@ public class CustomMobModule implements IBaseModule, Listener {
 
                     mobConfigurations.put(mobId, customMob);
                     DebugLogger.getInstance().log(Level.INFO, "Loaded mob configuration: " + mobId, 0);
+
                 } catch (Exception e) {
                     DebugLogger.getInstance().error("Failed to load mob configuration from file " + file.getName() + ":", e);
                 }
@@ -235,51 +240,37 @@ public class CustomMobModule implements IBaseModule, Listener {
         }
     }
 
-    private AnimationConfig loadAnimations(FileConfiguration config) {
+    private AnimationConfig loadAnimations(DynamicConfig config) {
         AnimationConfig animationConfig = new AnimationConfig();
-
-        if (config.contains("animations")) {
-            ConfigurationSection animationsSection = config.getConfigurationSection("animations");
-            if (animationsSection != null) {
-                if (animationsSection.contains("idle")) {
-                    animationConfig.setIdleAnimation(animationsSection.getString("idle"));
-                }
-                if (animationsSection.contains("walk")) {
-                    animationConfig.setWalkAnimation(animationsSection.getString("walk"));
-                }
-                if (animationsSection.contains("attack")) {
-                    animationConfig.setAttackAnimation(animationsSection.getString("attack"));
-                }
-                // Add more animations as needed
-            }
+        Object animObj = config.get("animations");
+        if (animObj instanceof Map<?,?> animationsMap) {
+            // "idle", "walk", "attack"
+            String idle = parseString(animationsMap.get("idle"), null);
+            String walk = parseString(animationsMap.get("walk"), null);
+            String attack = parseString(animationsMap.get("attack"), null);
+            animationConfig.setIdleAnimation(idle);
+            animationConfig.setWalkAnimation(walk);
+            animationConfig.setAttackAnimation(attack);
         }
-
         return animationConfig;
     }
 
-    private Map<String, List<Action>> loadActions(FileConfiguration config, AnimationConfig animationConfig) {
+    private Map<String, List<Action>> loadActions(DynamicConfig config, AnimationConfig animationConfig) {
         Map<String, List<Action>> actions = new HashMap<>();
-
-        if (config.contains("actions")) {
-            List<String> actionEntries = config.getStringList("actions");
-            for (String actionEntry : actionEntries) {
-                // The format is: path ~ trigger
-                String[] parts = actionEntry.split("~");
-                if (parts.length == 2) {
-                    String actionPath = parts[0].trim();
-                    String trigger = parts[1].trim();
-
-                    // Load the action file
-                    Action action = loadActionFromFile(actionPath, animationConfig);
-                    if (action != null) {
-                        actions.computeIfAbsent(trigger, k -> new ArrayList<>()).add(action);
-                    }
-                } else {
-                    DebugLogger.getInstance().error("Invalid action entry: " + actionEntry);
+        List<String> actionEntries = config.getStringList("actions", new ArrayList<>());
+        for (String actionEntry : actionEntries) {
+            String[] parts = actionEntry.split("~");
+            if (parts.length == 2) {
+                String actionPath = parts[0].trim();
+                String trigger = parts[1].trim();
+                Action action = loadActionFromFile(actionPath, animationConfig);
+                if (action != null) {
+                    actions.computeIfAbsent(trigger, k -> new ArrayList<>()).add(action);
                 }
+            } else {
+                DebugLogger.getInstance().error("Invalid action entry: " + actionEntry);
             }
         }
-
         return actions;
     }
 
@@ -290,23 +281,22 @@ public class CustomMobModule implements IBaseModule, Listener {
             return null;
         }
         try {
-            FileConfiguration actionConfig = YamlConfiguration.loadConfiguration(actionFile);
-            ConfigurationSection actionSection = actionConfig.getConfigurationSection("action");
-            if (actionSection == null) {
-                DebugLogger.getInstance().error("Action section missing in file: " + actionFile.getPath());
+
+            DynamicConfig actionConfig = DynamicConfigManager.loadConfig(actionPath, actionPath);
+            if (actionConfig == null) {
+                DebugLogger.getInstance().error("Failed to load action config: " + actionFile.getPath());
                 return null;
             }
-            double cooldown = actionSection.getDouble("Cooldown", 0.0);
-            List<String> targetConditionStrings = actionSection.getStringList("TargetConditions");
-            List<String> doActionsStrings = actionSection.getStringList("do");
+
+            int cooldown = actionConfig.getInt("cooldown", 0);
+            List<String> targetConditionStrings = actionConfig.getStringList("target_conditions", new ArrayList<>());
+            List<String> doActionsStrings = actionConfig.getStringList("do_actions", new ArrayList<>());
 
             // Parse target conditions
             List<Condition> targetConditions = new ArrayList<>();
             for (String conditionString : targetConditionStrings) {
                 Condition condition = parseCondition(conditionString);
-                if (condition != null) {
-                    targetConditions.add(condition);
-                }
+                if (condition != null) targetConditions.add(condition);
             }
 
             // Parse action steps
@@ -317,8 +307,8 @@ public class CustomMobModule implements IBaseModule, Listener {
                     actionSteps.add(step);
                 }
             }
-
             return new Action(cooldown, targetConditions, actionSteps);
+
         } catch (Exception e) {
             DebugLogger.getInstance().error("Failed to load action from file " + actionFile.getPath() + ":", e);
             return null;
@@ -337,7 +327,6 @@ public class CustomMobModule implements IBaseModule, Listener {
         switch (conditionType.toLowerCase()) {
             case "distance":
                 return new DistanceCondition(conditionParam);
-            // Add more conditions here
             default:
                 DebugLogger.getInstance().error("Unknown condition type: " + conditionType);
                 return null;
@@ -347,9 +336,8 @@ public class CustomMobModule implements IBaseModule, Listener {
     private ActionStep parseActionStep(String actionString, AnimationConfig animationConfig) {
         String[] parts = actionString.split(":", 2);
         String command = parts[0].trim();
-        String parameter = parts.length > 1 ? parts[1].trim() : null;
+        String parameter = (parts.length > 1) ? parts[1].trim() : null;
 
-        // Replace placeholders
         if (parameter != null) {
             parameter = replacePlaceholders(parameter, animationConfig);
         }
@@ -360,20 +348,13 @@ public class CustomMobModule implements IBaseModule, Listener {
                     DebugLogger.getInstance().error("Missing parameter for animation action.");
                     return null;
                 }
-                String animationName = parameter.replace("\"", "");
-                return new AnimationActionStep(animationName);
+                return new AnimationActionStep(parameter.replace("\"", ""));
             case "delay":
                 if (parameter == null) {
                     DebugLogger.getInstance().error("Missing parameter for delay action.");
                     return null;
                 }
-                double delaySeconds;
-                try {
-                    delaySeconds = Double.parseDouble(parameter);
-                } catch (NumberFormatException e) {
-                    DebugLogger.getInstance().error("Invalid number format for delay action: " + parameter);
-                    return null;
-                }
+                double delaySeconds = parseDouble(parameter, 0.0);
                 return new DelayActionStep(delaySeconds);
             case "sound":
                 if (parameter == null) {
@@ -386,13 +367,7 @@ public class CustomMobModule implements IBaseModule, Listener {
                     DebugLogger.getInstance().error("Missing parameter for damage action.");
                     return null;
                 }
-                double damageAmount;
-                try {
-                    damageAmount = Double.parseDouble(parameter);
-                } catch (NumberFormatException e) {
-                    DebugLogger.getInstance().error("Invalid number format for damage action: " + parameter);
-                    return null;
-                }
+                double damageAmount = parseDouble(parameter, 0.0);
                 return new DamageActionStep(damageAmount);
             case "particles":
                 if (parameter == null) {
@@ -402,16 +377,10 @@ public class CustomMobModule implements IBaseModule, Listener {
                 String[] params = parameter.split("\\s+");
                 if (params.length == 2) {
                     String particleName = params[0];
-                    int count;
-                    try {
-                        count = Integer.parseInt(params[1]);
-                    } catch (NumberFormatException e) {
-                        DebugLogger.getInstance().error("Invalid particle count: " + params[1]);
-                        return null;
-                    }
+                    int count = parseInt(params[1], 1);
                     return new ParticleActionStep(particleName, count);
                 } else {
-                    DebugLogger.getInstance().error("Invalid parameters for particles action.");
+                    DebugLogger.getInstance().error("Invalid parameters for particles action: " + parameter);
                     return null;
                 }
             case "reset_to_default_animation":
@@ -424,13 +393,9 @@ public class CustomMobModule implements IBaseModule, Listener {
 
     private String replacePlaceholders(String input, AnimationConfig animationConfig) {
         return input
-                .replace("%idle_animation%", animationConfig.getIdleAnimation())
-                .replace("%walk_animation%", animationConfig.getWalkAnimation())
-                .replace("%attack_animation%", animationConfig.getAttackAnimation());
-    }
-
-    public MobManager getMobManager() {
-        return mobManager;
+                .replace("%idle_animation%", animationConfig.getIdleAnimation() == null ? "" : animationConfig.getIdleAnimation())
+                .replace("%walk_animation%", animationConfig.getWalkAnimation() == null ? "" : animationConfig.getWalkAnimation())
+                .replace("%attack_animation%", animationConfig.getAttackAnimation() == null ? "" : animationConfig.getAttackAnimation());
     }
 
     private void registerCommands() {
@@ -446,7 +411,8 @@ public class CustomMobModule implements IBaseModule, Listener {
                             }
                         }))
                 .withSubcommand(new CommandAPICommand("spawn")
-                        .withArguments(new StringArgument("mobId").replaceSuggestions(ArgumentSuggestions.strings(mobConfigurations.keySet().toArray(new String[0]))))
+                        .withArguments(new StringArgument("mobId")
+                                .replaceSuggestions(ArgumentSuggestions.strings(mobConfigurations.keySet().toArray(new String[0]))))
                         .executesPlayer((player, args) -> {
                             String mobId = (String) args.get(0);
                             CustomMob customMob = mobConfigurations.get(mobId);
@@ -468,9 +434,68 @@ public class CustomMobModule implements IBaseModule, Listener {
                         }))
                 .withSubcommand(new CommandAPICommand("reload")
                         .executes((sender, args) -> {
-                            loadMobConfigurations(); // Reload the mob configurations from YAML files
+                            loadMobConfigurations();
                             sender.sendMessage(Utils.getInstance().$("Mob configurations reloaded successfully."));
                         }))
                 .register();
+    }
+
+    // Helper parsing methods
+    private int parseInt(Object val, int fallback) {
+        if (val instanceof Number) {
+            return ((Number)val).intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(val));
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
+
+    private double parseDouble(Object val, double fallback) {
+        if (val instanceof Number) {
+            return ((Number) val).doubleValue();
+        }
+        try {
+            return Double.parseDouble(String.valueOf(val));
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
+
+    private boolean parseBoolean(Object val, boolean fallback) {
+        if (val instanceof Boolean) return (Boolean) val;
+        if (val instanceof Number) return ((Number) val).intValue() != 0;
+        if (val instanceof String) {
+            String s = ((String) val).toLowerCase(Locale.ROOT);
+            if (s.equals("true") || s.equals("yes") || s.equals("1")) return true;
+            if (s.equals("false") || s.equals("no") || s.equals("0")) return false;
+        }
+        return fallback;
+    }
+
+    private String parseString(Object val, String fallback) {
+        return (val != null) ? val.toString() : fallback;
+    }
+
+    /**
+     * A small helper to fetch nested keys like "helmet.custom_item_id" from a map,
+     * returning the value or null if missing.
+     */
+    private Object getNested(Map<?,?> parent, String path) {
+        String[] parts = path.split("\\.");
+        Object cursor = parent;
+        for (String part : parts) {
+            if (cursor instanceof Map<?,?> m) {
+                cursor = m.get(part);
+            } else {
+                return null;
+            }
+        }
+        return cursor;
+    }
+
+    public MobManager getMobManager() {
+        return mobManager;
     }
 }

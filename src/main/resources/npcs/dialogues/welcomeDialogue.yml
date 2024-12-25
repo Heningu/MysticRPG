@@ -1,0 +1,11 @@
+id: welcomeDialogue
+levelRequirement: 1
+insufficientLevelMessage: "You need to be at least level 1 to start this dialogue."
+messages:
+  - "Hello, adventurer!"
+  - "I have a quest for you."
+question: "Do you accept this quest?"
+yesResponse: "Great! Here is your quest."
+noResponse: "Okay, let me know if you change your mind."
+questId: "quest_001"
+completionMessage: "Thank you for accepting the quest!"

@@ -1,8 +1,8 @@
 package eu.xaru.mysticrpg.storage.database;
 
+import com.google.gson.Gson;
 import eu.xaru.mysticrpg.storage.Callback;
 import eu.xaru.mysticrpg.utils.DebugLogger;
-import com.google.gson.Gson;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
@@ -11,9 +11,7 @@ import java.util.*;
 import java.util.logging.Level;
 
 /**
- * SQLite implementation of the IRepository interface with automatic schema migration.
- *
- * @param <T> The type of the data model.
+ * SQLite repository with table auto-creation and migration.
  */
 public class SQLiteRepository<T> extends BaseRepository<T> {
 
@@ -30,88 +28,68 @@ public class SQLiteRepository<T> extends BaseRepository<T> {
         initializeTable();
     }
 
-    /**
-     * Establishes a connection to the SQLite database.
-     *
-     * @param databasePath The path to the SQLite database file.
-     * @return The Connection instance.
-     */
-    private Connection connect(String databasePath) {
+    private Connection connect(String path) {
         try {
-            Connection conn = DriverManager.getConnection("jdbc:sqlite:" + databasePath);
-            DebugLogger.getInstance().log(Level.INFO, "Connected to SQLite database at: " + databasePath, 0);
+            Connection conn = DriverManager.getConnection("jdbc:sqlite:" + path);
+            DebugLogger.getInstance().log(Level.INFO, "Connected to SQLite at " + path, 0);
             return conn;
         } catch (SQLException e) {
-            DebugLogger.getInstance().error("Failed to connect to SQLite database at: " + databasePath, e);
+            DebugLogger.getInstance().error("Failed to connect SQLite at " + path, e);
             throw new RuntimeException(e);
         }
     }
 
-    /**
-     * Initializes the table by creating it if it doesn't exist and performing schema migrations.
-     */
     private void initializeTable() {
         try (Statement stmt = connection.createStatement()) {
-            // Create table if it does not exist
-            StringBuilder sqlBuilder = new StringBuilder();
-            sqlBuilder.append("CREATE TABLE IF NOT EXISTS ").append(tableName).append(" (");
-            sqlBuilder.append(idField).append(" TEXT PRIMARY KEY, ");
-
+            // Create table if not exists
+            StringBuilder sql = new StringBuilder("CREATE TABLE IF NOT EXISTS ");
+            sql.append(tableName).append(" (");
+            sql.append(idField).append(" TEXT PRIMARY KEY, ");
             int count = 0;
             for (String key : persistFields.keySet()) {
-                Field field = persistFields.get(key);
-                String sqlType = getSQLType(field.getType());
-                sqlBuilder.append(key).append(" ").append(sqlType);
+                Field f = persistFields.get(key);
+                String type = getSQLType(f.getType());
+                sql.append(key).append(" ").append(type);
                 if (++count < persistFields.size()) {
-                    sqlBuilder.append(", ");
+                    sql.append(", ");
                 }
             }
-            sqlBuilder.append(");");
-            stmt.execute(sqlBuilder.toString());
+            sql.append(");");
+            stmt.execute(sql.toString());
 
-            // Perform schema migration: add missing columns
-            String pragmaQuery = "PRAGMA table_info(" + tableName + ");";
-            ResultSet rs = stmt.executeQuery(pragmaQuery);
-            Set<String> existingColumns = new HashSet<>();
+            // Migrate: add missing columns
+            ResultSet rs = stmt.executeQuery("PRAGMA table_info(" + tableName + ");");
+            Set<String> existing = new HashSet<>();
             while (rs.next()) {
-                existingColumns.add(rs.getString("name"));
+                existing.add(rs.getString("name"));
             }
             rs.close();
-
-            for (String key : persistFields.keySet()) {
-                if (!existingColumns.contains(key)) {
-                    String sqlType = getSQLType(persistFields.get(key).getType());
-                    String alterSQL = "ALTER TABLE " + tableName + " ADD COLUMN " + key + " " + sqlType + ";";
-                    stmt.execute(alterSQL);
-                    DebugLogger.getInstance().log(Level.INFO, "Added missing column '" + key + "' to table '" + tableName + "'.", 0);
+            for (String k : persistFields.keySet()) {
+                if (!existing.contains(k)) {
+                    String colType = getSQLType(persistFields.get(k).getType());
+                    String alter = "ALTER TABLE " + tableName + " ADD COLUMN " + k + " " + colType + ";";
+                    stmt.execute(alter);
+                    DebugLogger.getInstance().log(Level.INFO, "Added missing column " + k + " to " + tableName, 0);
                 }
             }
 
-            DebugLogger.getInstance().log(Level.INFO, "Table '" + tableName + "' initialized and migrated successfully.", 0);
+            DebugLogger.getInstance().log(Level.INFO, "Table " + tableName + " initialized.", 0);
         } catch (SQLException e) {
-            DebugLogger.getInstance().error("Failed to initialize or migrate table: " + tableName, e);
+            DebugLogger.getInstance().error("Failed to init or migrate " + tableName, e);
             throw new RuntimeException(e);
         }
     }
 
-    /**
-     * Determines the SQL data type based on the Java field type.
-     *
-     * @param fieldType The Java field type.
-     * @return The corresponding SQL data type.
-     */
-    private String getSQLType(Class<?> fieldType) {
-        if (fieldType == int.class || fieldType == Integer.class ||
-                fieldType == long.class || fieldType == Long.class ||
-                fieldType == double.class || fieldType == Double.class ||
-                fieldType == float.class || fieldType == Float.class) {
+    private String getSQLType(Class<?> cls) {
+        if (cls == int.class || cls == Integer.class || cls == long.class || cls == Long.class ||
+                cls == double.class || cls == Double.class || cls == float.class || cls == Float.class) {
             return "REAL";
-        } else if (fieldType == boolean.class || fieldType == Boolean.class) {
+        } else if (cls == boolean.class || cls == Boolean.class) {
             return "INTEGER";
-        } else if (fieldType == String.class) {
+        } else if (cls == String.class) {
             return "TEXT";
         } else {
-            // For complex types, store as JSON
+            // for complex types, store JSON
             return "TEXT";
         }
     }
@@ -120,46 +98,51 @@ public class SQLiteRepository<T> extends BaseRepository<T> {
     public void save(T entity, Callback<Void> callback) {
         Map<String, Object> data = serialize(entity);
         if (!data.containsKey(idField)) {
-            DebugLogger.getInstance().error("Entity does not contain the ID field: " + idField);
-            callback.onFailure(new IllegalArgumentException("Missing ID field"));
+            callback.onFailure(new IllegalArgumentException("Missing ID field: " + idField));
             return;
         }
-        Object idValue = data.get(idField);
+        Object idVal = data.get(idField);
 
-        StringBuilder sqlBuilder = new StringBuilder();
-        sqlBuilder.append("INSERT INTO ").append(tableName).append(" (");
-        sqlBuilder.append(String.join(", ", data.keySet()));
-        sqlBuilder.append(") VALUES (");
-        sqlBuilder.append(String.join(", ", Collections.nCopies(data.size(), "?")));
-        sqlBuilder.append(") ON CONFLICT(").append(idField).append(") DO UPDATE SET ");
+        // Build upsert query
+        StringBuilder fields = new StringBuilder();
+        StringBuilder qs = new StringBuilder();
         List<String> updates = new ArrayList<>();
+
+        int size = data.size();
+        int idx = 0;
         for (String key : data.keySet()) {
+            fields.append(key);
+            qs.append('?');
+            if (idx < size - 1) {
+                fields.append(", ");
+                qs.append(", ");
+            }
             if (!key.equals(idField)) {
                 updates.add(key + " = excluded." + key);
             }
+            idx++;
         }
-        sqlBuilder.append(String.join(", ", updates));
-        sqlBuilder.append(";");
 
-        try (PreparedStatement pstmt = connection.prepareStatement(sqlBuilder.toString())) {
-            int index = 1;
+        String sql = "INSERT INTO " + tableName + " (" + fields + ") VALUES (" + qs + ")"
+                + " ON CONFLICT(" + idField + ") DO UPDATE SET "
+                + String.join(", ", updates) + ";";
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            int paramIndex = 1;
             for (String key : data.keySet()) {
                 Object value = data.get(key);
                 if (value instanceof Map || value instanceof Collection) {
-                    // Serialize complex types as JSON
                     String json = gson.toJson(value);
-                    pstmt.setString(index++, json);
+                    pstmt.setString(paramIndex++, json);
                 } else if (value instanceof Boolean) {
-                    pstmt.setInt(index++, (Boolean) value ? 1 : 0);
+                    pstmt.setInt(paramIndex++, (Boolean) value ? 1 : 0);
                 } else {
-                    pstmt.setObject(index++, value);
+                    pstmt.setObject(paramIndex++, value);
                 }
             }
             pstmt.executeUpdate();
-            DebugLogger.getInstance().log(Level.INFO, "Entity saved successfully with ID: " + idValue, 0);
             callback.onSuccess(null);
         } catch (SQLException e) {
-            DebugLogger.getInstance().error("Error saving entity with ID: " + idValue, e);
             callback.onFailure(e);
         }
     }
@@ -171,16 +154,13 @@ public class SQLiteRepository<T> extends BaseRepository<T> {
             pstmt.setString(1, uuid.toString());
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
-                Map<String, Object> data = extractDataFromResultSet(rs);
-                T entity = deserialize(data);
-                DebugLogger.getInstance().log(Level.INFO, "Entity loaded successfully with ID: " + uuid, 0);
+                Map<String, Object> row = extractFromResultSet(rs);
+                T entity = deserialize(row);
                 callback.onSuccess(entity);
             } else {
-                DebugLogger.getInstance().log(Level.INFO, "No entity found with UUID: " + uuid, 0);
                 callback.onFailure(new NoSuchElementException("Entity not found"));
             }
         } catch (SQLException e) {
-            DebugLogger.getInstance().error("Error loading entity with UUID: " + uuid, e);
             callback.onFailure(e);
         }
     }
@@ -190,37 +170,32 @@ public class SQLiteRepository<T> extends BaseRepository<T> {
         String sql = "DELETE FROM " + tableName + " WHERE " + idField + " = ?;";
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, uuid.toString());
-            int affectedRows = pstmt.executeUpdate();
-            if (affectedRows > 0) {
-                DebugLogger.getInstance().log(Level.INFO, "Entity deleted successfully with UUID: " + uuid, 0);
+            int rows = pstmt.executeUpdate();
+            if (rows > 0) {
                 callback.onSuccess(null);
             } else {
-                DebugLogger.getInstance().log(Level.INFO, "No entity found to delete with UUID: " + uuid, 0);
-                callback.onFailure(new NoSuchElementException("Entity not found"));
+                callback.onFailure(new NoSuchElementException("Entity not found to delete"));
             }
         } catch (SQLException e) {
-            DebugLogger.getInstance().error("Error deleting entity with UUID: " + uuid, e);
             callback.onFailure(e);
         }
     }
 
     @Override
     public void loadAll(Callback<List<T>> callback) {
-        List<T> entities = new ArrayList<>();
-        String sql = "SELECT * FROM " + tableName + ";";
+        List<T> all = new ArrayList<>();
+        String sql = "SELECT * FROM " + tableName;
         try (Statement stmt = connection.createStatement()) {
             ResultSet rs = stmt.executeQuery(sql);
             while (rs.next()) {
-                Map<String, Object> data = extractDataFromResultSet(rs);
-                T entity = deserialize(data);
+                Map<String, Object> row = extractFromResultSet(rs);
+                T entity = deserialize(row);
                 if (entity != null) {
-                    entities.add(entity);
+                    all.add(entity);
                 }
             }
-            DebugLogger.getInstance().log(Level.INFO, "All entities loaded successfully. Total: " + entities.size(), 0);
-            callback.onSuccess(entities);
+            callback.onSuccess(all);
         } catch (SQLException e) {
-            DebugLogger.getInstance().error("Error loading all entities.", e);
             callback.onFailure(e);
         }
     }
@@ -232,59 +207,48 @@ public class SQLiteRepository<T> extends BaseRepository<T> {
             pstmt.setLong(1, discordId);
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
-                Map<String, Object> data = extractDataFromResultSet(rs);
-                T entity = deserialize(data);
+                Map<String, Object> row = extractFromResultSet(rs);
+                T entity = deserialize(row);
                 if (entity != null) {
                     callback.onSuccess(entity);
                 } else {
-                    callback.onFailure(new NoSuchElementException("No entity found with discordId: " + discordId));
+                    callback.onFailure(new NoSuchElementException("No entity found for discordId=" + discordId));
                 }
             } else {
-                callback.onFailure(new NoSuchElementException("No entity found with discordId: " + discordId));
+                callback.onFailure(new NoSuchElementException("No entity found for discordId=" + discordId));
             }
         } catch (SQLException e) {
             callback.onFailure(e);
         }
     }
 
-    /**
-     * Extracts the data from a ResultSet row into a Map for deserialization.
-     *
-     * @param rs The ResultSet positioned at the current row.
-     * @return A Map with field names and their corresponding values.
-     */
-    private Map<String, Object> extractDataFromResultSet(ResultSet rs) throws SQLException {
+    private Map<String, Object> extractFromResultSet(ResultSet rs) throws SQLException {
         Map<String, Object> data = new HashMap<>();
         for (String key : persistFields.keySet()) {
-            Object value = rs.getObject(key);
-            if (value instanceof String && isComplexType(persistFields.get(key).getType())) {
-                // Deserialize JSON to complex types
-                Field field = persistFields.get(key);
-                Type typeOfField = field.getGenericType();
-                Object deserialized = gson.fromJson((String) value, typeOfField);
+            Object val = rs.getObject(key);
+            if (val instanceof String && isComplexType(persistFields.get(key).getType())) {
+                // JSON -> complex
+                String json = (String) val;
+                Field f = persistFields.get(key);
+                Type fieldType = f.getGenericType();
+                Object deserialized = gson.fromJson(json, fieldType);
                 data.put(key, deserialized);
-            } else if (value instanceof Integer && persistFields.get(key).getType() == boolean.class) {
-                data.put(key, ((Integer) value) != 0);
+            } else if (val instanceof Integer && persistFields.get(key).getType() == boolean.class) {
+                data.put(key, ((Integer) val) != 0);
             } else {
-                data.put(key, value);
+                data.put(key, val);
             }
         }
         return data;
     }
 
-    /**
-     * Checks if a field type is a complex type (not primitive or String).
-     *
-     * @param fieldType The field type.
-     * @return True if complex, false otherwise.
-     */
-    private boolean isComplexType(Class<?> fieldType) {
-        return !(fieldType.isPrimitive() ||
-                fieldType == Integer.class ||
-                fieldType == Long.class ||
-                fieldType == Double.class ||
-                fieldType == Float.class ||
-                fieldType == Boolean.class ||
-                fieldType == String.class);
+    private boolean isComplexType(Class<?> cls) {
+        return !(cls.isPrimitive() ||
+                cls == Integer.class ||
+                cls == Long.class ||
+                cls == Double.class ||
+                cls == Float.class ||
+                cls == Boolean.class ||
+                cls == String.class);
     }
 }

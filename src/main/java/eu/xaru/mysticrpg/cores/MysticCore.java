@@ -3,32 +3,29 @@ package eu.xaru.mysticrpg.cores;
 import com.github.retrooper.packetevents.PacketEvents;
 import dev.jorel.commandapi.CommandAPI;
 import dev.jorel.commandapi.CommandAPIBukkitConfig;
-import eu.decentsoftware.holograms.api.DHAPI;
 import eu.decentsoftware.holograms.api.DecentHologramsAPI;
-import eu.xaru.mysticrpg.config.ConfigCreator;
+import eu.xaru.mysticrpg.config.DynamicConfig;
+import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder;
-import org.bukkit.World;
-import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.Plugin;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import xyz.xenondevs.invui.InvUI;
 
+/**
+ * Main plugin class for MysticCore.
+ */
 public class MysticCore extends JavaPlugin {
 
     private ModuleManager moduleManager;
-    
-    public static MysticCore instance = null;
+    private static MysticCore instance;
 
-
-
+    private DynamicConfig con;
     public MysticCore() {
-        if(instance == null) {
+        if (instance == null) {
             instance = this;
         }
-
     }
 
     public static MysticCore getInstance() {
@@ -38,7 +35,6 @@ public class MysticCore extends JavaPlugin {
     @Override
     public void onLoad() {
         PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this));
-
         PacketEvents.getAPI().load();
         CommandAPI.onLoad(new CommandAPIBukkitConfig(this).silentLogs(true));
 
@@ -49,36 +45,36 @@ public class MysticCore extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        DynamicConfigManager.init(this);
 
+        // Initialize dynamic config system
         InvUI.getInstance().setPlugin(this);
 
-
+        // Load our main "config.yml" from resources => user file
+        // So we have a dynamic config with fallback
+        DynamicConfigManager.loadConfig("config.yml", "config.yml");
+        con = DynamicConfigManager.getConfig("config.yml");
+        // Initialize PacketEvents
         PacketEvents.getAPI().init();
+
         try {
             // Load all modules (eagerly loaded modules)
             moduleManager.loadAllModules();
             CommandAPI.onEnable();
             DecentHologramsAPI.onEnable();
 
-
             DebugLogger.getInstance().log("Core plugin enabled successfully.", 0);
 
         } catch (Exception e) {
-            // Attempt to log using JavaPlugin's logger if DebugLoggerModule isn't a
-
             DebugLogger.getInstance().error("Error during plugin enable. Exception:", e);
-
             getServer().getPluginManager().disablePlugin(this);
         }
-
-        // Create config files and directories
-        new ConfigCreator(this).createFiles();
+        reloadConfig();
     }
 
     @Override
     public void onDisable() {
-        // Shutdown the plugin, unload modules, and clean up resources
-
+        // Plugin shutdown logic
         CommandAPI.onDisable();
         DecentHologramsAPI.onDisable();
 
@@ -88,6 +84,60 @@ public class MysticCore extends JavaPlugin {
         } catch (Exception e) {
             DebugLogger.getInstance().error("Error during plugin disable. Exception:", e);
         }
+
         PacketEvents.getAPI().terminate();
+        // Save any dynamic config changes
+        DynamicConfigManager.saveAll();
     }
+
+    /**
+     * We typically can't override getConfig() to return a different type
+     * (it must return FileConfiguration). So we either override and throw
+     * or do a bridging approach.
+     *
+     * If you want to strictly override getConfig(), you have to
+     * return a FileConfiguration. So let's do a bridging approach
+     * that returns a "dummy" YamlConfiguration, or we can simply
+     * override it to throw an exception.
+     */
+
+    @Override
+    public FileConfiguration getConfig() {
+        // We can return a dummy if you want, or throw:
+        throw new UnsupportedOperationException("Use getMysticConfig() instead of getConfig() in MysticCore!");
+    }
+
+    /**
+     * Our custom method to get the dynamic config for "config.yml".
+     * This returns a DynamicConfig object so you can do getString, getInt, etc.
+     */
+    public DynamicConfig getMysticConfig() {
+        if (DynamicConfigManager.getConfig("config.yml") == null) {
+            DynamicConfigManager.loadConfig("config.yml", "config.yml");
+        }
+
+        return DynamicConfigManager.getConfig("config.yml");
+    }
+
+    /**
+     * Overloaded function if you want to load a different resource & user path.
+     * e.g. getMysticConfig("someResource.yml", "someFile.yml").
+     */
+    public DynamicConfig getMysticConfig(String resourceName, String userFileName) {
+        // If it's not loaded yet, let's load it:
+        if (DynamicConfigManager.getConfig(userFileName) == null) {
+            DynamicConfigManager.loadConfig(resourceName, userFileName);
+        }
+        return DynamicConfigManager.getConfig(userFileName);
+    }
+
+    @Override
+    public void reloadConfig() {
+        super.reloadConfig();
+        super.saveDefaultConfig();
+        DynamicConfigManager.init(this);
+        con = getMysticConfig();
+        con.getOptions().copyDefaults(true);
+    }
+
 }
