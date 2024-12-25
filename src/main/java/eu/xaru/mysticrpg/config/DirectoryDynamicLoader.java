@@ -48,13 +48,10 @@ public class DirectoryDynamicLoader {
                     format = ConfigFormat.JSON;
                 }
 
-                // resourceName = just file name? or null if no resource default
-                String resourceName = file.getName();
-                // userFileName = subDirName + "/" + file.getName();
                 String userFileName = subDirName + "/" + file.getName();
 
                 DebugLogger.getInstance().log(Level.INFO, "Loading DynamicConfig: " + userFileName, 0);
-                DynamicConfig dcfg = DynamicConfigManager.loadConfig(resourceName, userFileName, format);
+                DynamicConfig dcfg = DynamicConfigManager.loadConfig(userFileName, format);
                 result.add(dcfg);
             }
         }

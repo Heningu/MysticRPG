@@ -73,7 +73,7 @@ public class CraftingHelper implements Listener {
             String userFileName = "custom/recipes/" + file.getName();
             try {
                 // 1) Load or reload this file into DynamicConfig
-                DynamicConfigManager.loadConfig(userFileName, userFileName);
+                DynamicConfigManager.loadConfig(userFileName);
 
                 // 2) Retrieve the config object
                 DynamicConfig config = DynamicConfigManager.getConfig(userFileName);

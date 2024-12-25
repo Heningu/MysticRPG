@@ -46,8 +46,8 @@ public class SetManager {
         for (File file : files) {
             try {
                 String path = "custom/items/sets/" + file.getName();
-                DynamicConfigManager.loadConfig(path, path);
-                DynamicConfig config = DynamicConfigManager.getConfig(path);
+
+                DynamicConfig config = DynamicConfigManager.loadConfig(path);
 
                 if (config == null) {
                     DebugLogger.getInstance().severe("Failed to load DynamicConfig for set file: " + file.getName());

@@ -89,7 +89,7 @@ public class LootTable {
         // e.g. "dungeons/loottables/goblin_loot.yml"
         String userFileName = "dungeons/loottables/" + file.getName();
         // Use the same string for resourceName to fulfill "identical" usage
-        DynamicConfig config = DynamicConfigManager.loadConfig(userFileName, userFileName);
+        DynamicConfig config = DynamicConfigManager.loadConfig(userFileName);
 
         config.set("id", id);
 
@@ -121,7 +121,7 @@ public class LootTable {
             // Attempt to get existing config or load anew
             DynamicConfig config = DynamicConfigManager.getConfig(userFileName);
             if (config == null) {
-                config = DynamicConfigManager.loadConfig(userFileName, userFileName);
+                config = DynamicConfigManager.loadConfig(userFileName);
             }
 
             // read ID from config (fallback to the file name if missing)

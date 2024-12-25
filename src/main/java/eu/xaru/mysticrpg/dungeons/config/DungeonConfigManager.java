@@ -37,7 +37,7 @@ public class DungeonConfigManager {
         for (File file : configFiles) {
             // "userFileName" for DynamicConfigManager is "dungeons/<filename>"
             String userFileName = "dungeons/" + file.getName();
-            DynamicConfigManager.loadConfig(userFileName, userFileName);
+            DynamicConfigManager.loadConfig(userFileName);
             // Then retrieve by the exact same key:
             DynamicConfig config = DynamicConfigManager.getConfig(userFileName);
             if (config == null) {
@@ -211,8 +211,8 @@ public class DungeonConfigManager {
         // We'll store it under "dungeons/<id>.yml"
         String userFileName = "dungeons/" + config.getId() + ".yml";
         // Force a reload to have a fresh config object
-        DynamicConfigManager.loadConfig(userFileName, userFileName);
-        DynamicConfig dcfg = DynamicConfigManager.getConfig(userFileName);
+
+        DynamicConfig dcfg = DynamicConfigManager.loadConfig(userFileName);
         if (dcfg == null) {
             // fallback
             DebugLogger.getInstance().log(Level.SEVERE, "Could not create dynamic config for: " + userFileName, 0);

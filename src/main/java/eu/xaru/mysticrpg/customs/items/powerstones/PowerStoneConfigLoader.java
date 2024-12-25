@@ -29,10 +29,10 @@ public class PowerStoneConfigLoader {
         // 1) Convert this file path into something recognized by DynamicConfigManager
         //    For example: "customs/items/powerstones/<filename>.yml"
         //    We'll reuse configFile.getName() to keep the same name.
-        String userFileName = "customs/items/powerstones/" + configFile.getName();
+        String userFileName = "custom/items/powerstones/" + configFile.getName();
 
         // 2) Use the manager to load the config (resourceName == userFileName for simplicity)
-        DynamicConfigManager.loadConfig(userFileName, userFileName);
+        DynamicConfigManager.loadConfig(userFileName);
 
         // 3) Retrieve the DynamicConfig
         DynamicConfig config = DynamicConfigManager.getConfig(userFileName);

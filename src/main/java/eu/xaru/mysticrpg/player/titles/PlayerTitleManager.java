@@ -42,7 +42,7 @@ public class PlayerTitleManager {
         for (File file : files) {
             try {
                 String userFileName = "titles/" + file.getName();
-                DynamicConfigManager.loadConfig(userFileName, userFileName);
+                DynamicConfigManager.loadConfig(userFileName);
                 DynamicConfig config = DynamicConfigManager.getConfig(userFileName);
                 if (config == null) {
                     DebugLogger.getInstance().error("Failed to retrieve DynamicConfig for file " + file.getName());

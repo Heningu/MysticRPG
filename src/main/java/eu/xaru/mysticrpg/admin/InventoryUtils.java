@@ -37,13 +37,9 @@ public class InventoryUtils {
             return;
         }
 
-        // Build a unique path key for DynamicConfig
-        // For example: "admin/player_inventories/<filename>.yml"
         String pathKey = getRelativeOrName(file);
 
-        // Step 2: Load (or reload) this config into the manager
-        DynamicConfigManager.loadConfig(pathKey, pathKey);
-        DynamicConfig config = DynamicConfigManager.getConfig(pathKey);
+        DynamicConfig config = DynamicConfigManager.loadConfig(pathKey);
         if (config == null) {
             DebugLogger.getInstance().log(Level.SEVERE, "Could not load DynamicConfig for " + pathKey);
             return;
@@ -82,8 +78,8 @@ public class InventoryUtils {
         String pathKey = getRelativeOrName(file);
 
         // Load from DynamicConfig
-        DynamicConfigManager.loadConfig(pathKey, pathKey);
-        DynamicConfig config = DynamicConfigManager.getConfig(pathKey);
+
+        DynamicConfig config = DynamicConfigManager.loadConfig(pathKey);
         if (config == null) {
             DebugLogger.getInstance().log(Level.WARNING,
                     "Could not load DynamicConfig for " + pathKey);

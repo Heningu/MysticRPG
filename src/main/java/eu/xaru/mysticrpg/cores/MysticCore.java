@@ -50,10 +50,8 @@ public class MysticCore extends JavaPlugin {
         // Initialize dynamic config system
         InvUI.getInstance().setPlugin(this);
 
-        // Load our main "config.yml" from resources => user file
-        // So we have a dynamic config with fallback
-        DynamicConfigManager.loadConfig("config.yml", "config.yml");
-        con = DynamicConfigManager.getConfig("config.yml");
+
+        con = DynamicConfigManager.loadConfig("config.yml");
         // Initialize PacketEvents
         PacketEvents.getAPI().init();
 
@@ -112,11 +110,7 @@ public class MysticCore extends JavaPlugin {
      * This returns a DynamicConfig object so you can do getString, getInt, etc.
      */
     public DynamicConfig getMysticConfig() {
-        if (DynamicConfigManager.getConfig("config.yml") == null) {
-            DynamicConfigManager.loadConfig("config.yml", "config.yml");
-        }
-
-        return DynamicConfigManager.getConfig("config.yml");
+        return DynamicConfigManager.loadConfig("config.yml");
     }
 
     /**
@@ -126,7 +120,7 @@ public class MysticCore extends JavaPlugin {
     public DynamicConfig getMysticConfig(String resourceName, String userFileName) {
         // If it's not loaded yet, let's load it:
         if (DynamicConfigManager.getConfig(userFileName) == null) {
-            DynamicConfigManager.loadConfig(resourceName, userFileName);
+            DynamicConfigManager.loadConfig(resourceName);
         }
         return DynamicConfigManager.getConfig(userFileName);
     }

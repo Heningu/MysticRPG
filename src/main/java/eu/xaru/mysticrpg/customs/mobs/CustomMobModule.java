@@ -103,8 +103,8 @@ public class CustomMobModule implements IBaseModule, Listener {
             for (File file : files) {
                 try {
                     String path = "custom/mobs/" + file.getName();
-                    DynamicConfigManager.loadConfig(path, path);
-                    DynamicConfig config = DynamicConfigManager.getConfig(path);
+
+                    DynamicConfig config = DynamicConfigManager.loadConfig(path);
                     if (config == null) {
                         DebugLogger.getInstance().error("Failed to load config for file: " + file.getName());
                         continue;
@@ -282,7 +282,7 @@ public class CustomMobModule implements IBaseModule, Listener {
         }
         try {
 
-            DynamicConfig actionConfig = DynamicConfigManager.loadConfig(actionPath, actionPath);
+            DynamicConfig actionConfig = DynamicConfigManager.loadConfig(actionPath);
             if (actionConfig == null) {
                 DebugLogger.getInstance().error("Failed to load action config: " + actionFile.getPath());
                 return null;

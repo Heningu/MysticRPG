@@ -1,6 +1,5 @@
 package eu.xaru.mysticrpg.config.format;
 
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfigurationOptions;
 
 import java.io.File;
@@ -10,7 +9,7 @@ import java.util.Set;
 
 /**
  * Defines the core operations needed to load, save, and manage
- * config data in different formats (YAML, JSON, TOML, etc.).
+ * config data in different formats (YAML, JSON).
  */
 public interface IConfigBackend {
 
@@ -54,9 +53,8 @@ public interface IConfigBackend {
     Set<String> getKeys(boolean deep);
 
     /**
-     * (Optional) Some implementations (like YAML) can expose
-     * a FileConfigurationOptions for advanced usage.
+     * Some implementations (like YAML) can expose
+     * a FileConfigurationOptions for advanced usage (may be null if unsupported).
      */
     FileConfigurationOptions getOptions();
-
 }

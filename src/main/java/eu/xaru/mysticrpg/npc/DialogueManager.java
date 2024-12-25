@@ -68,7 +68,7 @@ public class DialogueManager {
             // For instance "npcs/dialogues/example.yml"
 
             // 2) Load the config if not already loaded
-            DynamicConfigManager.loadConfig(userFileName, userFileName);
+            DynamicConfigManager.loadConfig(userFileName);
 
             // 3) Retrieve the DynamicConfig
             DynamicConfig dialogueConfig = DynamicConfigManager.getConfig(userFileName);

@@ -70,7 +70,7 @@ public class PetHelper implements Listener {
                 // Attempt to get or load the config
                 DynamicConfig config = DynamicConfigManager.getConfig(userFileName);
                 if (config == null) {
-                    config = DynamicConfigManager.loadConfig(userFileName, userFileName);
+                    config = DynamicConfigManager.loadConfig(userFileName);
                 }
 
                 // Read essential fields

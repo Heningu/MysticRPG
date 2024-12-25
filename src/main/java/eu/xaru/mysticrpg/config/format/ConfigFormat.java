@@ -1,6 +1,5 @@
 package eu.xaru.mysticrpg.config.format;
 
-
 /**
  * Enum representing possible config file formats.
  */

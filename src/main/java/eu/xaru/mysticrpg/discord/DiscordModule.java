@@ -71,7 +71,7 @@ public class DiscordModule implements IBaseModule, Listener {
         discordHelper.startBot();
 
         // Register /leaderboard command after JDA is ready
-        String guildId = DynamicConfigManager.getString("config.yml", "discord.guildId", "");
+        String guildId = MysticCore.getInstance().getMysticConfig().getString("discord.guild_id", "");
         if (guildId != null && !guildId.isEmpty()) {
             discordHelper.getJDA().getGuildById(guildId)
                     .updateCommands()

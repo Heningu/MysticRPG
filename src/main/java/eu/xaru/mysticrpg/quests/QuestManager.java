@@ -53,7 +53,7 @@ public class QuestManager {
                 try {
                     String userFileName = "quests/" + file.getName();
                     // 1) Register/load config in manager
-                    DynamicConfigManager.loadConfig(userFileName, userFileName);
+                    DynamicConfigManager.loadConfig(userFileName);
                     // 2) Retrieve the config
                     DynamicConfig config = DynamicConfigManager.getConfig(userFileName);
                     if (config == null) {

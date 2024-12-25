@@ -46,7 +46,7 @@ public class ItemManager {
             String userFileName = "custom/items/" + file.getName();
             try {
                 // 1) Load (or reload) the config
-                DynamicConfigManager.loadConfig(userFileName, userFileName);
+                DynamicConfigManager.loadConfig(userFileName);
 
                 // 2) Retrieve the DynamicConfig
                 DynamicConfig config = DynamicConfigManager.getConfig(userFileName);

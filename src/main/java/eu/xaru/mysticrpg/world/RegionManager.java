@@ -60,8 +60,8 @@ public class RegionManager {
     }
 
     private void loadRegions() {
-        DynamicConfigManager.loadConfig(REGIONS_FILE_PATH, REGIONS_FILE_PATH);
-        regionConfig = DynamicConfigManager.getConfig(REGIONS_FILE_PATH);
+        regionConfig =
+                DynamicConfigManager.loadConfig(REGIONS_FILE_PATH);
         if (regionConfig == null) {
             DebugLogger.getInstance().error("Failed to load region config: " + REGIONS_FILE_PATH);
             return;

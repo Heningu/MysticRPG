@@ -72,8 +72,8 @@ public class NPC {
         if (!npcsFolder.exists()) {
             npcsFolder.mkdirs();
         }
-        DynamicConfigManager.loadConfig("npcs/" + id + ".yml", "npcs/" + id + ".yml");
-        this.config = DynamicConfigManager.getConfig("npcs/" + id + ".yml");
+
+        this.config = DynamicConfigManager.loadConfig("npcs/" + id + ".yml");
     }
 
     public void spawn() {

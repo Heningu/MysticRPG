@@ -1,8 +1,10 @@
 package eu.xaru.mysticrpg.config;
 
-import eu.xaru.mysticrpg.config.format.*;
+import eu.xaru.mysticrpg.config.format.ConfigFormat;
+import eu.xaru.mysticrpg.config.format.IConfigBackend;
+import eu.xaru.mysticrpg.config.format.JsonConfigBackend;
+import eu.xaru.mysticrpg.config.format.YamlConfigBackend;
 import eu.xaru.mysticrpg.utils.DebugLogger;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfigurationOptions;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -14,29 +16,21 @@ import java.util.*;
 public class DynamicConfig {
 
     private final JavaPlugin plugin;
-    private final String resourcePath;  // e.g. "config.yml"
-    private final File fileOnDisk;      // e.g. /plugins/MyPlugin/config.yml
-
+    private final String path;           // e.g. "config.yml" or "whatever.json"
+    private final File fileOnDisk;       // /plugins/MyPlugin/<path>
     private final IConfigBackend backend;
+
     private Set<String> defaultKeys;
     private boolean changed;
 
     /**
-     * Creates a DynamicConfig using the specified backend format
-     * (YAML, JSON, TOML).
-     *
-     * @param plugin       Owning plugin
-     * @param resourcePath The resource in the JAR (may be null if none)
-     * @param fileOnDisk   The user file to read/write
-     * @param format       The desired config format
+     * Creates a DynamicConfig using a single path for both resource lookup and on-disk file.
+     * If plugin.getResource(path) is non-null, that data is merged as defaults.
      */
-    public DynamicConfig(JavaPlugin plugin,
-                         String resourcePath,
-                         File fileOnDisk,
-                         ConfigFormat format) {
+    public DynamicConfig(JavaPlugin plugin, String path, ConfigFormat format) {
         this.plugin = plugin;
-        this.resourcePath = resourcePath;
-        this.fileOnDisk = fileOnDisk;
+        this.path = path;
+        this.fileOnDisk = new File(plugin.getDataFolder(), path);
 
         switch (format) {
             case YAML -> this.backend = new YamlConfigBackend();
@@ -47,14 +41,11 @@ public class DynamicConfig {
 
     public void reload() {
         try {
-            InputStream resourceIn = null;
-            if (resourcePath != null) {
-                resourceIn = plugin.getResource(resourcePath);
-            }
+            InputStream resourceIn = plugin.getResource(path);
             defaultKeys = backend.load(fileOnDisk, resourceIn);
             changed = false;
         } catch (IOException e) {
-            DebugLogger.getInstance().error("Failed to reload config: " + fileOnDisk.getName(), e);
+            DebugLogger.getInstance().error("Failed to reload config: " + path, e);
         }
     }
 
@@ -62,14 +53,14 @@ public class DynamicConfig {
         try {
             backend.save(fileOnDisk);
         } catch (IOException e) {
-            DebugLogger.getInstance().error("Failed to save config: " + fileOnDisk.getName(), e);
+            DebugLogger.getInstance().error("Failed to save config: " + path, e);
         }
     }
 
     private void handleMissingPath(String path, Object fallback) {
         DebugLogger.getInstance().warn("[DynamicConfig] Path '" + path + "' not found. Creating with default=" + fallback);
         if (defaultKeys != null && !defaultKeys.contains(path)) {
-            DebugLogger.getInstance().warn("[DynamicConfig] Also, path '" + path + "' is NOT in resource '" + resourcePath + "'. " +
+            DebugLogger.getInstance().warn("[DynamicConfig] Also, path '" + path + "' is NOT in resource '" + this.path + "'. " +
                     "Please add it to your default .yml if it's permanent!");
         }
         backend.set(path, fallback);
@@ -78,44 +69,44 @@ public class DynamicConfig {
 
     // Basic getters
 
-    public int getInt(String path, int fallback) {
-        if (!backend.contains(path)) {
-            handleMissingPath(path, fallback);
+    public int getInt(String node, int fallback) {
+        if (!backend.contains(node)) {
+            handleMissingPath(node, fallback);
         }
-        Object val = backend.get(path);
+        Object val = backend.get(node);
         if (val instanceof Number) {
             return ((Number) val).intValue();
         }
         return fallback;
     }
 
-    public long getLong(String path, long fallback) {
-        if (!backend.contains(path)) {
-            handleMissingPath(path, fallback);
+    public long getLong(String node, long fallback) {
+        if (!backend.contains(node)) {
+            handleMissingPath(node, fallback);
         }
-        Object val = backend.get(path);
+        Object val = backend.get(node);
         if (val instanceof Number) {
             return ((Number) val).longValue();
         }
         return fallback;
     }
 
-    public double getDouble(String path, double fallback) {
-        if (!backend.contains(path)) {
-            handleMissingPath(path, fallback);
+    public double getDouble(String node, double fallback) {
+        if (!backend.contains(node)) {
+            handleMissingPath(node, fallback);
         }
-        Object val = backend.get(path);
+        Object val = backend.get(node);
         if (val instanceof Number) {
             return ((Number) val).doubleValue();
         }
         return fallback;
     }
 
-    public boolean getBoolean(String path, boolean fallback) {
-        if (!backend.contains(path)) {
-            handleMissingPath(path, fallback);
+    public boolean getBoolean(String node, boolean fallback) {
+        if (!backend.contains(node)) {
+            handleMissingPath(node, fallback);
         }
-        Object val = backend.get(path);
+        Object val = backend.get(node);
         if (val instanceof Boolean) {
             return (Boolean) val;
         }
@@ -125,30 +116,30 @@ public class DynamicConfig {
         return fallback;
     }
 
-    public String getString(String path, String fallback) {
-        if (!backend.contains(path)) {
-            handleMissingPath(path, fallback);
+    public String getString(String node, String fallback) {
+        if (!backend.contains(node)) {
+            handleMissingPath(node, fallback);
         }
-        Object val = backend.get(path);
+        Object val = backend.get(node);
         if (val != null) {
             return String.valueOf(val);
         }
         return fallback;
     }
 
-    public List<?> getList(String path, List<?> fallback) {
-        if (!backend.contains(path)) {
-            handleMissingPath(path, fallback);
+    public List<?> getList(String node, List<?> fallback) {
+        if (!backend.contains(node)) {
+            handleMissingPath(node, fallback);
         }
-        Object val = backend.get(path);
+        Object val = backend.get(node);
         if (val instanceof List<?>) {
-            return (List<?>)val;
+            return (List<?>) val;
         }
         return fallback;
     }
 
-    public List<String> getStringList(String path, List<String> fallback) {
-        List<?> list = getList(path, fallback);
+    public List<String> getStringList(String node, List<String> fallback) {
+        List<?> list = getList(node, fallback);
         List<String> strList = new ArrayList<>();
         for (Object o : list) {
             if (o != null) {
@@ -158,11 +149,11 @@ public class DynamicConfig {
         return strList.isEmpty() ? fallback : strList;
     }
 
-    public List<Map<?,?>> getMapList(String path, List<Map<?,?>> fallback) {
-        if (!backend.contains(path)) {
-            handleMissingPath(path, fallback);
+    public List<Map<?,?>> getMapList(String node, List<Map<?,?>> fallback) {
+        if (!backend.contains(node)) {
+            handleMissingPath(node, fallback);
         }
-        Object val = backend.get(path);
+        Object val = backend.get(node);
         if (val instanceof List<?> rawList) {
             List<Map<?,?>> newList = new ArrayList<>();
             for (Object item : rawList) {
@@ -175,16 +166,16 @@ public class DynamicConfig {
         return fallback;
     }
 
-    public Object get(String path) {
-        return backend.get(path);
+    public Object get(String node) {
+        return backend.get(node);
     }
 
-    public boolean contains(String path) {
-        return backend.contains(path);
+    public boolean contains(String node) {
+        return backend.contains(node);
     }
 
-    public void set(String path, Object value) {
-        backend.set(path, value);
+    public void set(String node, Object value) {
+        backend.set(node, value);
         changed = true;
     }
 
@@ -204,11 +195,10 @@ public class DynamicConfig {
     }
 
     public FileConfigurationOptions getOptions() {
-        return backend.getOptions(); // May be null if not YAML
+        return backend.getOptions(); // May be null if JSON
     }
 
     public boolean isChanged() {
-        return false;
+        return changed;
     }
-
 }
