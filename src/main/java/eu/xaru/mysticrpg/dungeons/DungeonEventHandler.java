@@ -1,5 +1,6 @@
 package eu.xaru.mysticrpg.dungeons;
 
+import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfig;
 import eu.xaru.mysticrpg.dungeons.doors.Door;
 import eu.xaru.mysticrpg.dungeons.doors.DoorManager;
@@ -13,6 +14,7 @@ import org.bukkit.event.block.*;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class DungeonEventHandler implements Listener {
@@ -56,22 +58,53 @@ public class DungeonEventHandler implements Listener {
                     if (doorMgr != null) {
                         for (Door door : doorMgr.getAllDoors()) {
                             if (door.isWithinDoor(blockLoc)) {
+
+                                // Debug: show door details
+                                Bukkit.getLogger().info("[DungeonEventHandler] Checking door '"
+                                        + door.getDoorId() + "' => trigger='"
+                                        + door.getTriggerType() + "', requiredKey='"
+                                        + door.getRequiredKeyItemId() + "'");
+
                                 String trigger = door.getTriggerType().toLowerCase();
                                 boolean leftClicked  = (event.getAction() == Action.LEFT_CLICK_BLOCK);
                                 boolean rightClicked = (event.getAction() == Action.RIGHT_CLICK_BLOCK);
 
-                                // If the click matches the door's trigger
+                                // 1) If trigger is leftclick or rightclick
                                 if ((leftClicked && trigger.equals("leftclick"))
                                         || (rightClicked && trigger.equals("rightclick"))) {
 
-                                    // Remove from memory so it won't re-place as stone
                                     doorMgr.removeDoor(door.getDoorId());
-
-                                    // Remove stone blocks
                                     doorOpener.openDoor(door);
-
                                     player.sendMessage(ChatColor.GREEN
                                             + "Door '" + door.getDoorId() + "' opened!");
+                                }
+                                // 2) If trigger is doorkey, check if player is holding the correct item
+                                else if (trigger.equals("doorkey")) {
+                                    ItemStack inHand = player.getInventory().getItemInMainHand();
+                                    String requiredKeyId = door.getRequiredKeyItemId();
+
+                                    // Another debug line
+                                    Bukkit.getLogger().info("[DungeonEventHandler] Player in-hand item = "
+                                            + (inHand.hasItemMeta() ? inHand.getItemMeta().getDisplayName() : inHand.getType())
+                                            + "; door requires key='" + requiredKeyId + "'");
+
+                                    if (CustomItemUtils.isCustomItem(inHand)) {
+                                        // The ID of the item the player is holding
+                                        String playerItemId = CustomItemUtils.fromItemStack(inHand).getId();
+                                        if (playerItemId.equals(requiredKeyId)) {
+                                            // Holding the correct key => open the door
+                                            doorMgr.removeDoor(door.getDoorId());
+                                            doorOpener.openDoor(door);
+                                            player.sendMessage(ChatColor.GREEN
+                                                    + "Door '" + door.getDoorId() + "' opened using key: " + requiredKeyId);
+                                        } else {
+                                            player.sendMessage(ChatColor.RED
+                                                    + "You need the correct key item (" + requiredKeyId + ") to open this door.");
+                                        }
+                                    } else {
+                                        player.sendMessage(ChatColor.RED
+                                                + "You need the correct custom key item to open this door.");
+                                    }
                                 }
                             }
                         }

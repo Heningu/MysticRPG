@@ -172,6 +172,10 @@ public class DungeonConfigManager {
                         dd.setY2(parseDouble(ds.get("y2"), 0));
                         dd.setZ2(parseDouble(ds.get("z2"), 0));
                         dd.setTriggerType(parseString(ds.get("trigger"), "none"));
+
+                        // NEW: load keyItemId from config
+                        dd.setKeyItemId(parseString(ds.get("keyItemId"), null));
+
                         doorList.add(dd);
                     }
                 }
@@ -288,6 +292,9 @@ public class DungeonConfigManager {
             ds.put("y2", dd.getY2());
             ds.put("z2", dd.getZ2());
             ds.put("trigger", dd.getTriggerType());
+            // IMPORTANT: Save the keyItemId
+            ds.put("keyItemId", dd.getKeyItemId());
+
             doorsSec.put("door" + doorIndex++, ds);
         }
         dcfg.set("doors", doorsSec);

@@ -78,12 +78,15 @@ public class DoorManager {
      * that the trigger persists across server restarts.
      *
      * @param doorId         The ID of the door to update
-     * @param trigger        The new trigger type (e.g. "leftclick")
+     * @param trigger        The new trigger type (e.g. "leftclick", "doorkey", etc.)
+     * @param keyItemId      The custom item ID required if trigger = doorkey
      * @param dungeonConfig  The config object that holds the door definitions
      * @param configManager  The manager that can save dungeon configs
      */
     public void setDoorTriggerAndSave(
-            String doorId, String trigger,
+            String doorId,
+            String trigger,
+            String keyItemId,
             DungeonConfig dungeonConfig,
             DungeonConfigManager configManager
     ) {
@@ -91,10 +94,24 @@ public class DoorManager {
         if (door != null) {
             door.setTriggerType(trigger);
 
+            // If the trigger is doorkey, set the door's required key ID:
+            if ("doorkey".equalsIgnoreCase(trigger)) {
+                door.setRequiredKeyItemId(keyItemId);
+            } else {
+                // If some other trigger, clear any existing key requirement
+                door.setRequiredKeyItemId(null);
+            }
+
             // Update the matching DoorData in the config
             for (DungeonConfig.DoorData dd : dungeonConfig.getDoors()) {
                 if (dd.getDoorId().equals(doorId)) {
                     dd.setTriggerType(trigger);
+                    // Also persist the key ID to config
+                    if ("doorkey".equalsIgnoreCase(trigger)) {
+                        dd.setKeyItemId(keyItemId);
+                    } else {
+                        dd.setKeyItemId(null);
+                    }
                     break;
                 }
             }
@@ -110,19 +127,16 @@ public class DoorManager {
         return doors.values();
     }
 
-    /**
-     * In "setup" mode, show flame particles in all door regions.
-     */
+    // Other methods below are unchanged...
+    // buildAllDoors(), buildDoor(), closeAllDoors(),
+    // placeDoorAsStone(), finalizeDoors()
+
     public void buildAllDoors() {
         for (Door door : doors.values()) {
             buildDoor(door);
         }
     }
 
-    /**
-     * Schedules a repeating task to show flame particles in the door region.
-     * No barrier blocks are placed.
-     */
     public void buildDoor(Door door) {
         World w = door.getBottomLeft().getWorld();
         if (w == null) {
@@ -152,18 +166,12 @@ public class DoorManager {
         particleTasks.put(door.getDoorId(), task);
     }
 
-    /**
-     * Clears all particle tasks (for "setup" cleanup).
-     */
     public void closeAllDoors() {
         for (Door d : doors.values()) {
             closeDoor(d);
         }
     }
 
-    /**
-     * Cancels the flame particle task for the given door.
-     */
     private void closeDoor(Door door) {
         if (particleTasks.containsKey(door.getDoorId())) {
             particleTasks.get(door.getDoorId()).cancel();
@@ -171,10 +179,6 @@ public class DoorManager {
         }
     }
 
-    /**
-     * Called when the dungeon starts: fill the region with STONE (unless
-     * the door was removed from memory, e.g. already opened).
-     */
     public void placeDoorAsStone(Door door) {
         World w = door.getBottomLeft().getWorld();
         if (w == null) {
@@ -199,9 +203,6 @@ public class DoorManager {
         }
     }
 
-    /**
-     * Optional finalization logic. Not used if we only want STONE.
-     */
     public void finalizeDoors() {
         for (Door d : doors.values()) {
             if (particleTasks.containsKey(d.getDoorId())) {

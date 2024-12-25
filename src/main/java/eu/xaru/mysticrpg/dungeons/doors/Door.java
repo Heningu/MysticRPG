@@ -4,20 +4,24 @@ import org.bukkit.Location;
 
 /**
  * Represents a Door with a bounding box [bottomLeft => topRight]
- * and a trigger type (leftclick, rightclick, or none).
+ * and a trigger type (leftclick, rightclick, doorkey, or none).
  */
 public class Door {
 
     private final String doorId;
     private final Location bottomLeft;
     private final Location topRight;
-    private String triggerType; // e.g. "leftclick", "rightclick", or "none"
+    private String triggerType; // e.g. "leftclick", "rightclick", "doorkey", or "none"
+
+    // New field for the required key item ID (only relevant if triggerType == "doorkey")
+    private String requiredKeyItemId;
 
     public Door(String doorId, Location bottomLeft, Location topRight) {
         this.doorId = doorId;
         this.bottomLeft = bottomLeft;
         this.topRight = topRight;
         this.triggerType = "none";
+        this.requiredKeyItemId = null; // default
     }
 
     public String getDoorId() {
@@ -38,6 +42,14 @@ public class Door {
 
     public void setTriggerType(String triggerType) {
         this.triggerType = triggerType;
+    }
+
+    public String getRequiredKeyItemId() {
+        return requiredKeyItemId;
+    }
+
+    public void setRequiredKeyItemId(String requiredKeyItemId) {
+        this.requiredKeyItemId = requiredKeyItemId;
     }
 
     /**

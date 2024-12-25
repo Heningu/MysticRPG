@@ -236,8 +236,7 @@ public class DungeonInstance {
     }
 
     /**
-     * Key logic to place doors as STONE (if they still exist in memory),
-     * referencing the *correct* instance world. (FIX APPLIED)
+     * Places doors as STONE and ensures the doorkey is set from config.
      */
     private void initializeInstance() {
         // Spawn stuff
@@ -249,21 +248,33 @@ public class DungeonInstance {
         DoorManager doorManager = dungeonManager.getSetupManager().getDoorManager();
         if (doorManager != null) {
             for (DoorData dd : config.getDoors()) {
-                // Remove any old door reference from memory
+
+                // Remove old door if it exists
                 if (doorManager.getDoor(dd.getDoorId()) != null) {
                     doorManager.removeDoor(dd.getDoorId());
                 }
 
-                // Create a brand-new Door object referencing the instance world
+                // Debug: Show door data from config
+                Bukkit.getLogger().info("[initializeInstance] Reading door: " + dd.getDoorId()
+                        + " trigger=" + dd.getTriggerType()
+                        + " keyItemId=" + dd.getKeyItemId());
+
                 Location bottomLeft = new Location(instanceWorld, dd.getX1(), dd.getY1(), dd.getZ1());
                 Location topRight   = new Location(instanceWorld, dd.getX2(), dd.getY2(), dd.getZ2());
                 Door instanceDoor = new Door(dd.getDoorId(), bottomLeft, topRight);
+
                 instanceDoor.setTriggerType(dd.getTriggerType());
+                // IMPORTANT: set the required key from config
+                instanceDoor.setRequiredKeyItemId(dd.getKeyItemId());
 
-                // Store it in the DoorManager
+                // Debug: Confirm in memory
+                Bukkit.getLogger().info("[initializeInstance] Created door '"
+                        + instanceDoor.getDoorId()
+                        + "' => trigger=" + instanceDoor.getTriggerType()
+                        + ", requiredKey=" + instanceDoor.getRequiredKeyItemId());
+
+                // Add and place as STONE
                 doorManager.addDoor(instanceDoor);
-
-                // Fill the door region with STONE
                 doorManager.placeDoorAsStone(instanceDoor);
             }
         }
@@ -378,7 +389,7 @@ public class DungeonInstance {
 
     public int getTimeSpent() {
         long now = System.currentTimeMillis();
-        return (int)((now - startTime)/1000);
+        return (int) ((now - startTime) / 1000);
     }
 
     public List<Player> getPartyMembers() {

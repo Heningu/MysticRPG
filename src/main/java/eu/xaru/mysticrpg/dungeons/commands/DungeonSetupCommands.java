@@ -30,6 +30,7 @@ public class DungeonSetupCommands {
 
     private void registerCommands() {
         LootTableManager lootTableManager = new LootTableManager(plugin);
+
         new CommandAPICommand("ds")
                 .withSubcommand(new CommandAPICommand("setmobspawn")
                         .withArguments(new StringArgument("mobId"))
@@ -45,6 +46,7 @@ public class DungeonSetupCommands {
                             }
                         })
                 )
+
                 .withSubcommand(new CommandAPICommand("setchest")
                         // Use the lootTableManager's auto-complete suggestions
                         .withArguments(new StringArgument("lootTableId")
@@ -63,6 +65,7 @@ public class DungeonSetupCommands {
                             }
                         })
                 )
+
                 .withSubcommand(new CommandAPICommand("setfinishportal")
                         .executesPlayer((player, args) -> {
                             if (setupManager.isInSetup(player)) {
@@ -74,6 +77,7 @@ public class DungeonSetupCommands {
                             }
                         })
                 )
+
                 .withSubcommand(new CommandAPICommand("setdoor")
                         .withArguments(new StringArgument("doorId"))
                         .executesPlayer((player, args) -> {
@@ -86,10 +90,12 @@ public class DungeonSetupCommands {
                                 player.sendMessage(ChatColor.RED + "You are not in a setup session.");
                                 return;
                             }
-                            player.sendMessage(ChatColor.GREEN + "Door setup started for Door ID: " + doorId + ". Click two corners (bottom-left then top-right).");
+                            player.sendMessage(ChatColor.GREEN + "Door setup started for Door ID: " + doorId
+                                    + ". Click two corners (bottom-left then top-right).");
                             setupManager.startDoorSetupSession(player.getUniqueId(), doorId);
                         })
                 )
+
                 .withSubcommand(new CommandAPICommand("removedoor")
                         .withArguments(new StringArgument("doorId"))
                         .executesPlayer((player, args) -> {
@@ -101,13 +107,20 @@ public class DungeonSetupCommands {
                             }
                         })
                 )
+
                 .withSubcommand(new CommandAPICommand("setdoortrigger")
                         .withArguments(new StringArgument("doorId"))
                         .withArguments(new StringArgument("triggerType")
-                                .replaceSuggestions(ArgumentSuggestions.strings("leftclick","rightclick","none")))
+                                .replaceSuggestions(ArgumentSuggestions.strings("leftclick","rightclick","none","doorkey")))
+                        // If triggerType == "doorkey", we need a third argument for the key ID
+                        .withOptionalArguments(new StringArgument("keyItemId"))
                         .executesPlayer((player, args) -> {
+
                             String doorId = (String) args.get("doorId");
                             String triggerType = (String) args.get("triggerType");
+
+                            // Get the optional "keyItemId" as a String, defaulting to null if not present
+                            String keyItemId = (String) args.getOptional("keyItemId").orElse(null);
 
                             if (!setupManager.isInSetup(player)) {
                                 player.sendMessage(ChatColor.RED + "You are not in a setup session.");
@@ -118,18 +131,37 @@ public class DungeonSetupCommands {
                             if (doorManager.getDoor(doorId) == null) {
                                 player.sendMessage(ChatColor.RED + "No door found with ID '" + doorId + "'.");
                             } else {
-                                // This sets door's trigger in memory and updates config
+                                // If the user typed /ds setdoortrigger <doorId> doorkey
+                                // but forgot the keyItemId, let's enforce that:
+                                if (triggerType.equalsIgnoreCase("doorkey")
+                                        && (keyItemId == null || keyItemId.isEmpty())) {
+                                    player.sendMessage(ChatColor.RED
+                                            + "You must specify the key item ID after 'doorkey', e.g.: "
+                                            + ChatColor.YELLOW + "/ds setdoortrigger " + doorId
+                                            + " doorkey my_key_item_id");
+                                    return;
+                                }
+
+                                // Use the new setDoorTriggerAndSave that takes keyItemId
                                 doorManager.setDoorTriggerAndSave(
                                         doorId,
                                         triggerType,
-                                        session.getConfig(),             // from the session
-                                        setupManager.getConfigManager()  // config manager
+                                        keyItemId,               // pass the item ID
+                                        session.getConfig(),
+                                        setupManager.getConfigManager()
                                 );
-                                player.sendMessage(ChatColor.GREEN + "Door '" + doorId
-                                        + "' trigger set to " + triggerType + " and saved.");
+
+                                if (triggerType.equalsIgnoreCase("doorkey")) {
+                                    player.sendMessage(ChatColor.GREEN + "Door '" + doorId
+                                            + "' trigger set to doorkey. Required key: " + keyItemId);
+                                } else {
+                                    player.sendMessage(ChatColor.GREEN + "Door '" + doorId
+                                            + "' trigger set to " + triggerType + " and saved.");
+                                }
                             }
                         })
                 )
+
                 .withSubcommand(new CommandAPICommand("levelrequirement")
                         .withArguments(new IntegerArgument("level"))
                         .executesPlayer((player, args) -> {
@@ -144,6 +176,7 @@ public class DungeonSetupCommands {
                             }
                         })
                 )
+
                 .register();
     }
 }

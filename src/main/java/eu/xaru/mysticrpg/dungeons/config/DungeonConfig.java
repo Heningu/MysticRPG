@@ -99,6 +99,7 @@ public class DungeonConfig {
         private double x1, y1, z1;
         private double x2, y2, z2;
         private String triggerType = "none";
+        private String keyItemId;
 
         public String getDoorId() { return doorId; }
         public void setDoorId(String doorId) { this.doorId = doorId; }
@@ -116,6 +117,15 @@ public class DungeonConfig {
         public void setY2(double y2) { this.y2 = y2; }
         public double getZ2() { return z2; }
         public void setZ2(double z2) { this.z2 = z2; }
+
+        public String getKeyItemId() {
+            return keyItemId;
+        }
+
+        public void setKeyItemId(String keyItemId) {
+            this.keyItemId = keyItemId;
+        }
+
 
         public String getTriggerType() {
             return triggerType;
