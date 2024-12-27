@@ -3,6 +3,11 @@ package eu.xaru.mysticrpg.dungeons.lobby;
 import eu.xaru.mysticrpg.dungeons.DungeonManager;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfig;
 import eu.xaru.mysticrpg.dungeons.gui.DungeonLobbyGUI;
+import eu.xaru.mysticrpg.social.party.Party;
+import eu.xaru.mysticrpg.social.party.PartyHelper;
+import eu.xaru.mysticrpg.social.party.PartyModule;
+import eu.xaru.mysticrpg.managers.ModuleManager;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.*;
@@ -53,6 +58,40 @@ public class DungeonLobby {
     }
 
     public void addPlayer(Player player) {
+        //
+        // === New logic to handle Party behavior ===
+        //
+        // Get PartyHelper (adjust this to your actual retrieval logic)
+        PartyModule partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
+        PartyHelper partyHelper = partyModule.getPartyHelper();
+        Party party = partyHelper.getParty(player.getUniqueId());
+
+        if (players.isEmpty()) {
+            // This means we're effectively "creating" a new lobby. If player is in a party,
+            // invite all party members to this lobby automatically.
+            if (party != null) {
+                // Add every party member
+                for (UUID memberUUID : party.getMembers()) {
+                    Player member = Bukkit.getPlayer(memberUUID);
+                    if (member != null && member.isOnline() && !players.contains(member)) {
+                        players.add(member);
+                    }
+                }
+                // After bulk-adding, update GUI for everyone
+                updateLobbyGUI();
+            }
+        } else {
+            // The lobby is not empty => it's an existing lobby.
+            // If the player is in a party, have him leave the party first.
+            if (party != null) {
+                partyHelper.leaveParty(player);
+            }
+        }
+        //
+        // === End of new logic ===
+        //
+
+        // Keep the original code logic the same:
         if (!players.contains(player)) {
             players.add(player);
             updateLobbyGUI();

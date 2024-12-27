@@ -1,9 +1,10 @@
+// File: eu.xaru.mysticrpg.dungeons.instance.DungeonInstance.java
 package eu.xaru.mysticrpg.dungeons.instance;
 
 import eu.xaru.mysticrpg.dungeons.DungeonManager;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfig;
-import eu.xaru.mysticrpg.dungeons.config.DungeonConfig.DoorData;
 import eu.xaru.mysticrpg.dungeons.config.DungeonConfigManager;
+import eu.xaru.mysticrpg.dungeons.config.DungeonConfig.DoorData;
 import eu.xaru.mysticrpg.dungeons.doors.Door;
 import eu.xaru.mysticrpg.dungeons.doors.DoorManager;
 import eu.xaru.mysticrpg.dungeons.instance.puzzles.PuzzleManager;
@@ -239,7 +240,6 @@ public class DungeonInstance {
      * Places doors as STONE and ensures the doorkey is set from config.
      */
     private void initializeInstance() {
-        // Spawn stuff
         dungeonEnemyManager.spawnMobs();
         chestManager.placeChests();
         puzzleManager.initializePuzzles();
@@ -248,13 +248,11 @@ public class DungeonInstance {
         DoorManager doorManager = dungeonManager.getSetupManager().getDoorManager();
         if (doorManager != null) {
             for (DoorData dd : config.getDoors()) {
-
                 // Remove old door if it exists
                 if (doorManager.getDoor(dd.getDoorId()) != null) {
                     doorManager.removeDoor(dd.getDoorId());
                 }
 
-                // Debug: Show door data from config
                 Bukkit.getLogger().info("[initializeInstance] Reading door: " + dd.getDoorId()
                         + " trigger=" + dd.getTriggerType()
                         + " keyItemId=" + dd.getKeyItemId());
@@ -264,16 +262,13 @@ public class DungeonInstance {
                 Door instanceDoor = new Door(dd.getDoorId(), bottomLeft, topRight);
 
                 instanceDoor.setTriggerType(dd.getTriggerType());
-                // IMPORTANT: set the required key from config
                 instanceDoor.setRequiredKeyItemId(dd.getKeyItemId());
 
-                // Debug: Confirm in memory
                 Bukkit.getLogger().info("[initializeInstance] Created door '"
                         + instanceDoor.getDoorId()
                         + "' => trigger=" + instanceDoor.getTriggerType()
                         + ", requiredKey=" + instanceDoor.getRequiredKeyItemId());
 
-                // Add and place as STONE
                 doorManager.addDoor(instanceDoor);
                 doorManager.placeDoorAsStone(instanceDoor);
             }
@@ -305,7 +300,11 @@ public class DungeonInstance {
     }
 
     public void removePlayer(Player player) {
+        // Remove from both 'playersInInstance' and 'playerUUIDs' so
+        // 'containsPlayer(playerUUID)' returns false after they've left.
         playersInInstance.remove(player);
+        playerUUIDs.remove(player.getUniqueId());
+
         Location mainSpawn = Bukkit.getWorlds().get(0).getSpawnLocation();
         player.teleport(mainSpawn);
         showAllPlayers(player);
@@ -313,6 +312,9 @@ public class DungeonInstance {
                 + "You have been removed from the dungeon instance.");
         DebugLogger.getInstance().log(Level.INFO,
                 "Player " + player.getName() + " removed from dungeon instance " + instanceId, 0);
+
+        // Revert scoreboard for the leaving player
+        dungeonManager.playerLeaveInstance(this, player);
 
         if (playersInInstance.isEmpty()) {
             dungeonManager.checkAndRemoveInstance(this);

@@ -1,8 +1,4 @@
-// Simply remove the event registration line for the DungeonLobbyGUI in DungeonManager,
-// since the new InvUI-based GUI does not require manual Bukkit event registration.
-//
 // File: eu.xaru.mysticrpg.dungeons.DungeonManager.java
-
 package eu.xaru.mysticrpg.dungeons;
 
 import eu.xaru.mysticrpg.dungeons.commands.DungeonCommand;
@@ -51,9 +47,8 @@ public class DungeonManager {
         new DungeonSetupListener(setupManager, plugin);
         new DungeonEventHandler(plugin, this);
 
-        // Removed the line:
-        // plugin.getServer().getPluginManager().registerEvents(lobbyGUI, plugin);
-        // because DungeonLobbyGUI no longer needs to be a Listener with InvUI.
+        // We no longer register DungeonLobbyGUI as a Listener in code
+        // because it uses InvUI, which doesn't require manual event registration.
     }
 
     public void start() {
@@ -156,7 +151,7 @@ public class DungeonManager {
      * Called when a single player leaves the instance (but instance might remain).
      */
     public void playerLeaveInstance(DungeonInstance instance, Player player) {
-        // Player leaving dungeon: revert scoreboard
+        // Player leaving dungeon: revert scoreboard to the normal one
         UIModule uiModule = eu.xaru.mysticrpg.managers.ModuleManager.getInstance().getModuleInstance(UIModule.class);
         if (uiModule != null) {
             uiModule.getScoreboardManager().updatePlayerScoreboard(player);
@@ -165,7 +160,7 @@ public class DungeonManager {
 
     /**
      * Called when the dungeon ends (completed).
-     * All players should be reverted back to main scoreboard.
+     * All players should be reverted back to the main scoreboard.
      */
     public void endDungeon(DungeonInstance instance) {
         UIModule uiModule = eu.xaru.mysticrpg.managers.ModuleManager.getInstance().getModuleInstance(UIModule.class);

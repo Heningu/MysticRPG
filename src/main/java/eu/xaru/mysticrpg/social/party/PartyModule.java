@@ -24,7 +24,7 @@ public class PartyModule implements IBaseModule {
     private MysticCore plugin;
     private PartyHelper partyHelper;
     private EventManager eventManager;
-    
+
 
     @Override
     public void initialize() {

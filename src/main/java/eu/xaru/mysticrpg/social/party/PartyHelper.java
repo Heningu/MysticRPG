@@ -3,7 +3,6 @@ package eu.xaru.mysticrpg.social.party;
 import eu.xaru.mysticrpg.utils.Utils;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.ClickEvent;
-import net.md_5.bungee.api.chat.ComponentBuilder;
 import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
@@ -212,6 +211,7 @@ public class PartyHelper {
     public void handleEntityDeath(EntityDeathEvent event, Player killer) {
         // XP sharing is handled in MobManager
     }
+
     /**
      * Gets the party of a player.
      *
