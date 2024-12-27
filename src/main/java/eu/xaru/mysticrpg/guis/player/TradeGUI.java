@@ -5,379 +5,401 @@ import eu.xaru.mysticrpg.player.interaction.trading.TradeSession;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
-import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
-import org.jetbrains.annotations.NotNull;
 import xyz.xenondevs.invui.gui.Gui;
+import xyz.xenondevs.invui.gui.structure.Structure;
 import xyz.xenondevs.invui.item.Item;
 import xyz.xenondevs.invui.item.builder.ItemBuilder;
 import xyz.xenondevs.invui.item.impl.SimpleItem;
 import xyz.xenondevs.invui.window.Window;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Level;
 
 /**
- * TradeGUI manages the trading interface between two players.
+ * A TradeGUI using an InvUI "Approach A" structure-based method,
+ * but without using SlotElement or .update(). Instead, we define
+ * placeholders and rebuild the entire GUI whenever we need to refresh.
+ *
+ * Layout (6 rows, 9 columns => 54 placeholders):
+ *
+ * Row 0: # # # # # # # # #
+ * Row 1: # A B C # a b c #
+ * Row 2: # D E F # d e f #
+ * Row 3: # G H I # g h i #
+ * Row 4: # J K L # j k l #
+ * Row 5: R O # # # # # # X
+ *
+ * Where:
+ *   '#' => filler
+ *   'A'..'L' => placeholders for Player1's items (12 total)
+ *   'a'..'l' => placeholders for Player2's items (12 total)
+ *   'R' => "Ready" toggle
+ *   'O' => "Confirm"
+ *   'X' => "Cancel"
+ *
+ * For dynamic changes (like item added/removed), we close & reopen the GUI
+ * for both players rather than calling something like .update().
  */
 public class TradeGUI {
 
-    // Static registry to keep track of open TradeGUIs for each player
-    private static final Map<UUID, TradeGUI> openGUIs = new HashMap<>();
+    private static final Map<UUID, TradeGUI> OPEN_TRADE_GUIS = new HashMap<>();
+
+    // The 6×9 layout with placeholders
+    private static final String[] LAYOUT = {
+            "# # # # # # # # #",
+            "# A B C # a b c #",
+            "# D E F # d e f #",
+            "# G H I # g h i #",
+            "# J K L # j k l #",
+            "R O # # # # # # X"
+    };
 
     private final TradeSession session;
     private final Player viewer;
-    private final Window window;
 
-    // Corrected Slot indices based on the structure
-    private static final int PLAYER1_ITEMS_START = 10;    // Slot 10-12
-    private static final int PLAYER2_ITEMS_START = 14;    // Slot 14-16
-    private static final int READY_BUTTON_SLOT = 51;      // Slot 51
-    private static final int CONFIRM_BUTTON_SLOT = 52;    // Slot 52
-    private static final int CANCEL_BUTTON_SLOT = 45;     // Slot 45
+    private Gui gui;
+    private Window window;
 
-    /**
-     * Constructs a TradeGUI for a specific player within a trade session.
-     *
-     * @param session The active trade session.
-     * @param viewer  The player viewing the GUI.
-     */
     public TradeGUI(TradeSession session, Player viewer) {
         this.session = session;
         this.viewer = viewer;
-        this.window = createGui();
-        openGUIs.put(viewer.getUniqueId(), this);
-        DebugLogger.getInstance().log(Level.INFO, "Opened TradeGUI for " + viewer.getName(), 0);
     }
 
     /**
-     * Creates the GUI layout using InvUI.
-     *
-     * @return The constructed Window.
-     */
-    private Window createGui() {
-        // Define the structure of the GUI
-        String[] structure = {
-                "# # # # # # # # #",
-                "# P I I # T I I #",
-                "# . . . # . . . #",
-                "# . . . # . . . #",
-                "# . . . # . . . #",
-                "C # # # # # R C X"
-        };
-
-        // Create the GUI
-        Gui gui = Gui.normal()
-                .setStructure(structure)
-                .addIngredient('#', createFiller())
-                // Player 1 Items Header
-                .addIngredient('P', createPlayerHeader(session.getPlayer1(), ChatColor.GREEN))
-                // Player 2 Items Header
-                .addIngredient('T', createPlayerHeader(session.getPlayer2(), ChatColor.BLUE))
-                // Ready Button
-                .addIngredient('R', createReadyButton())
-                // Confirm Button
-                .addIngredient('C', createConfirmButton())
-                // Cancel Button
-                .addIngredient('X', createCancelButton())
-                .build();
-
-        // Populate Player 1 Items
-        populateItems(gui, session.getPlayer1Items(), PLAYER1_ITEMS_START, session.getPlayer1());
-
-        // Populate Player 2 Items
-        populateItems(gui, session.getPlayer2Items(), PLAYER2_ITEMS_START, session.getPlayer2());
-
-        // Create and build the window
-        Window createdWindow = Window.single()
-                .setViewer(viewer)
-                .setTitle(ChatColor.GOLD + "Trade with " + getOtherPlayer().getName())
-                .setGui(gui)
-                .build();
-
-        return createdWindow;
-    }
-
-    /**
-     * Creates a filler item (black stained glass pane).
-     *
-     * @return The filler Item.
-     */
-    private Item createFiller() {
-        return new SimpleItem(new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE)
-                .setDisplayName(" ")
-                .addAllItemFlags());
-    }
-
-    /**
-     * Creates a header item for a player.
-     *
-     * @param player The player.
-     * @param color  The color for the header text.
-     * @return The header Item.
-     */
-    private Item createPlayerHeader(Player player, ChatColor color) {
-        return new SimpleItem(new ItemBuilder(Material.PLAYER_HEAD)
-                .setDisplayName(color + player.getName() + "'s Items")
-                .addLoreLines("Click to manage your offered items")
-        ) {
-            @Override
-            public void handleClick(@NotNull ClickType clickType, @NotNull Player clickPlayer, @NotNull InventoryClickEvent event) {
-                // Optional: Implement any special behavior when clicking on the header
-                // For now, do nothing
-                clickPlayer.sendMessage(ChatColor.YELLOW + "Manage your items by clicking in your inventory.");
-            }
-        };
-    }
-
-    /**
-     * Creates the Ready/Not Ready button based on the player's current state.
-     *
-     * @return The Ready/Not Ready Item.
-     */
-    private Item createReadyButton() {
-        return new SimpleItem(new ItemBuilder(session.isPlayerReady(viewer) ? Material.GREEN_WOOL : Material.RED_WOOL)
-                .setDisplayName(session.isPlayerReady(viewer) ? ChatColor.GREEN + "Ready" : ChatColor.RED + "Not Ready")
-                .addLoreLines(
-                        "",
-                        ChatColor.GRAY + "Click to toggle your ready state"
-                )
-        ) {
-            @Override
-            public void handleClick(@NotNull ClickType clickType, @NotNull Player clickPlayer, @NotNull InventoryClickEvent event) {
-                toggleReady();
-            }
-        };
-    }
-
-    /**
-     * Creates the Confirm Trade button.
-     *
-     * @return The Confirm Trade Item.
-     */
-    private Item createConfirmButton() {
-        Material material = session.bothReady() ? Material.LIME_STAINED_GLASS_PANE : Material.GRAY_STAINED_GLASS_PANE;
-        String name = session.bothReady() ? ChatColor.GREEN + "Confirm Trade" : ChatColor.GRAY + "Waiting for both players to be ready";
-
-        return new SimpleItem(new ItemBuilder(material)
-                .setDisplayName(name)
-                .addLoreLines(
-                        "",
-                        session.bothReady() ? ChatColor.GRAY + "Click to confirm the trade" : ChatColor.GRAY + "Both players must be ready to confirm."
-                )
-        ) {
-            @Override
-            public void handleClick(@NotNull ClickType clickType, @NotNull Player clickPlayer, @NotNull InventoryClickEvent event) {
-                if (session.bothReady()) {
-                    confirmTrade();
-                } else {
-                    clickPlayer.sendMessage(ChatColor.RED + "Both players must be ready to confirm the trade.");
-                }
-            }
-        };
-    }
-
-    /**
-     * Creates the Cancel Trade button.
-     *
-     * @return The Cancel Trade Item.
-     */
-    private Item createCancelButton() {
-        return new SimpleItem(new ItemBuilder(Material.BARRIER)
-                .setDisplayName(ChatColor.RED + "Cancel Trade")
-                .addLoreLines(
-                        "",
-                        ChatColor.GRAY + "Click to cancel the trade"
-                )
-                .addEnchantment(Enchantment.UNBREAKING, 1, true)
-        ) {
-            @Override
-            public void handleClick(@NotNull ClickType clickType, @NotNull Player clickPlayer, @NotNull InventoryClickEvent event) {
-                cancelTrade();
-            }
-        };
-    }
-
-    /**
-     * Populates the GUI with the offered items from a player.
-     *
-     * @param gui       The GUI to populate.
-     * @param items     The list of items offered by the player.
-     * @param startSlot The starting slot index for the player's items.
-     * @param owner     The owner of the items.
-     */
-    private void populateItems(Gui gui, List<ItemStack> items, int startSlot, Player owner) {
-        for (int i = 0; i < items.size() && i < 3; i++) { // Adjusted to 3 items based on GUI layout
-            ItemStack item = items.get(i);
-            gui.setItem(startSlot + i, new SimpleItem(item) {
-                @Override
-                public void handleClick(@NotNull ClickType clickType, @NotNull Player clickPlayer, @NotNull InventoryClickEvent event) {
-                    // Remove the item from the trade
-                    items.remove(item);
-                    clickPlayer.getInventory().addItem(item.clone());
-                    DebugLogger.getInstance().log(Level.INFO, clickPlayer.getName() + " removed an item from the trade.", 0);
-                    updateGui();
-                }
-            });
-        }
-
-        // Fill remaining slots with placeholders
-        for (int i = items.size(); i < 3; i++) { // Adjusted to 3 items based on GUI layout
-            int slot = startSlot + i;
-            gui.setItem(slot, createAddItemPlaceholder(owner));
-        }
-    }
-
-    /**
-     * Creates a placeholder item that allows players to add items to the trade.
-     *
-     * @param owner The player who can add items.
-     * @return The placeholder Item.
-     */
-    private Item createAddItemPlaceholder(Player owner) {
-        return new SimpleItem(new ItemBuilder(Material.GREEN_STAINED_GLASS_PANE)
-                .setDisplayName(ChatColor.GRAY + "Add Item")
-                .addLoreLines("Click to add an item from your inventory")
-        ) {
-            @Override
-            public void handleClick(@NotNull ClickType clickType, @NotNull Player clickPlayer, @NotNull InventoryClickEvent event) {
-                ItemStack cursorItem = clickPlayer.getInventory().getItemInMainHand();
-                if (cursorItem == null || cursorItem.getType() == Material.AIR) {
-                    clickPlayer.sendMessage(ChatColor.RED + "You have no item in your main hand to add.");
-                    return;
-                }
-
-                // Add the item to the trade
-                boolean added = session.addItem(clickPlayer, cursorItem.clone());
-                if (added) {
-                    clickPlayer.getInventory().setItemInMainHand(null);
-                    clickPlayer.sendMessage(ChatColor.GREEN + "Added " + cursorItem.getType().toString() + " to the trade.");
-                    updateGui();
-                } else {
-                    clickPlayer.sendMessage(ChatColor.RED + "Cannot add this item to the trade.");
-                }
-            }
-        };
-    }
-
-    /**
-     * Toggles the ready state of the viewer.
-     */
-    private void toggleReady() {
-        boolean currentReady = session.isPlayerReady(viewer);
-        session.setPlayerReady(viewer, !currentReady);
-        viewer.sendMessage(ChatColor.YELLOW + "You are now " + (currentReady ? "not ready." : "ready."));
-        updateGui();
-    }
-
-    /**
-     * Confirms the trade if both players are ready.
-     */
-    private void confirmTrade() {
-        if (session.bothReady()) {
-            // Transfer items from Player1 to Player2
-            for (ItemStack item : session.getPlayer1Items()) {
-                session.getPlayer2().getInventory().addItem(item.clone());
-            }
-            // Transfer items from Player2 to Player1
-            for (ItemStack item : session.getPlayer2Items()) {
-                session.getPlayer1().getInventory().addItem(item.clone());
-            }
-
-            // Notify players
-            session.getPlayer1().sendMessage(ChatColor.GREEN + "Trade completed successfully!");
-            session.getPlayer2().sendMessage(ChatColor.GREEN + "Trade completed successfully!");
-
-            // End trade session
-            TradeManager.getInstance().endTrade(session);
-
-            // Close GUIs
-            closeTradeGUI(session.getPlayer1());
-            closeTradeGUI(session.getPlayer2());
-        } else {
-            viewer.sendMessage(ChatColor.RED + "Both players must be ready to confirm the trade.");
-        }
-    }
-
-    /**
-     * Cancels the trade, returning all items to their respective owners.
-     */
-    private void cancelTrade() {
-        // Return items to players
-        session.returnItems();
-
-        // Notify players
-        session.getPlayer1().sendMessage(ChatColor.RED + "Trade has been canceled.");
-        session.getPlayer2().sendMessage(ChatColor.RED + "Trade has been canceled.");
-
-        // End trade session
-        TradeManager.getInstance().endTrade(session);
-
-        // Close GUIs
-        closeTradeGUI(session.getPlayer1());
-        closeTradeGUI(session.getPlayer2());
-    }
-
-    /**
-     * Updates the GUI to reflect the current state of the trade.
-     */
-    public void updateGui() {
-        // Since window.refresh does not exist, close and reopen the window to update
-        window.close();
-        open();
-    }
-
-    /**
-     * Notifies the window to update its contents by closing and reopening it.
-     */
-    private void notifyWindow() {
-        window.close();
-        open();
-    }
-
-    /**
-     * Opens the trade GUI for the viewer.
+     * Opens (builds) the GUI for this viewer. We define placeholders
+     * via .addIngredient(...) + a Supplier<Item>.
      */
     public void open() {
+        buildGui(); // Build the actual GUI
         window.open();
     }
 
     /**
-     * Closes the trade GUI for a player.
-     *
-     * @param player The player whose GUI should be closed.
+     * Closes & re-opens the GUI (forcing a rebuild). Call this if you want to refresh.
      */
-    public static void closeTradeGUI(Player player) {
-        TradeGUI gui = openGUIs.get(player.getUniqueId());
-        if (gui != null && gui.window.isOpen()) {
-            gui.window.close();
-            openGUIs.remove(player.getUniqueId());
-            DebugLogger.getInstance().log(Level.INFO, "Closed TradeGUI for " + player.getName(), 0);
+    private void reopenGui() {
+        if (window != null && window.isOpen()) {
+            window.close();
+        }
+        buildGui();
+        window.open();
+    }
+
+    /**
+     * Actually build the GUI from placeholders. We remove references to
+     * setItem(...) or manual row/col logic.
+     */
+    private void buildGui() {
+        // 1) Create a normal GUI from our 6×9 layout
+        Gui.Builder.Normal builder = Gui.normal().setStructure(LAYOUT);
+
+        // 2) Filler => '#'
+        builder.addIngredient('#', getFillerItem());
+
+        // 3) Player1 placeholders => 'A'..'L' => 12 total
+        for (char c = 'A'; c <= 'L'; c++) {
+            char finalC = c;
+            builder.addIngredient(c, () -> getPlayer1Item(finalC));
+        }
+
+        // 4) Player2 placeholders => 'a'..'l'
+        for (char c = 'a'; c <= 'l'; c++) {
+            char finalC = c;
+            builder.addIngredient(c, () -> getPlayer2Item(finalC));
+        }
+
+        // 5) 'R' => readiness toggle
+        builder.addIngredient('R', () -> createReadyItem());
+
+        // 6) 'O' => confirm
+        builder.addIngredient('O', () -> createConfirmItem());
+
+        // 7) 'X' => cancel
+        builder.addIngredient('X', () -> createCancelItem());
+
+        // 8) Build the GUI
+        this.gui = builder.build();
+
+        // 9) Create the Window
+        this.window = Window.single()
+                .setViewer(viewer)
+                .setGui(gui)
+                .setTitle(ChatColor.GOLD + "Trading with " + getOtherPlayerName())
+                .setCloseable(true)
+                .build();
+
+        // 10) Add close handler => if trade in progress, cancel
+        this.window.addCloseHandler(() -> {
+            if (TradeManager.getInstance().getTradeSession(viewer) == session) {
+                // cancel
+                session.returnItems();
+                TradeManager.getInstance().endTrade(session);
+
+                Player other = getOtherPlayer();
+                if (other != null && other.isOnline()) {
+                    other.sendMessage(ChatColor.RED + viewer.getName() + " canceled the trade.");
+                    TradeGUI otherGUI = OPEN_TRADE_GUIS.get(other.getUniqueId());
+                    if (otherGUI != null) {
+                        otherGUI.forceClose();
+                    }
+                }
+            }
+            OPEN_TRADE_GUIS.remove(viewer.getUniqueId());
+        });
+
+        // 11) Register in static map
+        OPEN_TRADE_GUIS.put(viewer.getUniqueId(), this);
+    }
+
+    /**
+     * Returns a filler "black glass" item.
+     */
+    private Item getFillerItem() {
+        return new SimpleItem(
+                new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE).setDisplayName("")
+        );
+    }
+
+    /**
+     * Returns the Item for a given placeholder char 'A'..'L' (index 0..11).
+     * If there's a trade item at that index, show it, otherwise "add item".
+     */
+    private Item getPlayer1Item(char c) {
+        int index = c - 'A'; // 'A'=0, 'B'=1, etc.
+        if (index < 0 || index >= 12) return getFillerItem();
+
+        List<ItemStack> p1Items = session.getPlayer1Items();
+        if (index < p1Items.size()) {
+            // There's an item => show it
+            ItemStack stack = p1Items.get(index);
+            return createOfferedItem(stack, session.getPlayer1());
+        } else {
+            // "add item"
+            return createAddItemPlaceholder(session.getPlayer1());
         }
     }
 
     /**
-     * Retrieves the other player involved in the trade.
-     *
-     * @return The other player.
+     * For a given 'a'..'l' => index 0..11 for player2's items.
      */
+    private Item getPlayer2Item(char c) {
+        int index = c - 'a'; // 'a'=0, 'b'=1, etc.
+        if (index < 0 || index >= 12) return getFillerItem();
+
+        List<ItemStack> p2Items = session.getPlayer2Items();
+        if (index < p2Items.size()) {
+            // There's an item => show it
+            ItemStack stack = p2Items.get(index);
+            return createOfferedItem(stack, session.getPlayer2());
+        } else {
+            return createAddItemPlaceholder(session.getPlayer2());
+        }
+    }
+
+    /**
+     * "Offered item" => if the correct owner clicks, remove from trade.
+     */
+    private Item createOfferedItem(ItemStack stack, Player owner) {
+        return new SimpleItem(stack) {
+            @Override
+            public void handleClick(ClickType clickType, Player clickPlayer, InventoryClickEvent event) {
+                event.setCancelled(true);
+
+                if (!clickPlayer.equals(owner)) {
+                    clickPlayer.sendMessage(ChatColor.RED + "You cannot remove another player's items!");
+                    return;
+                }
+
+                // remove from session
+                if (owner.equals(session.getPlayer1())) {
+                    session.getPlayer1Items().remove(stack);
+                } else {
+                    session.getPlayer2Items().remove(stack);
+                }
+                owner.getInventory().addItem(stack.clone());
+
+                // reset readiness
+                session.setPlayerReady(session.getPlayer1(), false);
+                session.setPlayerReady(session.getPlayer2(), false);
+
+                // forcibly rebuild for both
+                updateTradeUIForBothPlayers(false);
+            }
+        };
+    }
+
+    /**
+     * Placeholder for "add item." SHIFT-click from inventory is typical,
+     * but you could do direct click logic if desired.
+     */
+    private Item createAddItemPlaceholder(Player owner) {
+        return new SimpleItem(
+                new ItemBuilder(Material.LIME_STAINED_GLASS_PANE)
+                        .setDisplayName(ChatColor.GRAY + "Add Item")
+                        .addLoreLines("", ChatColor.YELLOW + "SHIFT-click an item from your inventory")
+        ) {
+            @Override
+            public void handleClick(ClickType clickType, Player clickPlayer, InventoryClickEvent event) {
+                event.setCancelled(true);
+                clickPlayer.sendMessage(ChatColor.YELLOW + "Use SHIFT-click in your inventory to add an item to the trade.");
+            }
+        };
+    }
+
+    /**
+     * "Ready"/"Not Ready" => toggles for the viewer.
+     */
+    private Item createReadyItem() {
+        boolean isReady = session.isPlayerReady(viewer);
+        Material mat = isReady ? Material.GREEN_WOOL : Material.RED_WOOL;
+        String name = isReady ? ChatColor.GREEN + "Ready" : ChatColor.RED + "Not Ready";
+
+        return new SimpleItem(new ItemBuilder(mat).setDisplayName(name)) {
+            @Override
+            public void handleClick(ClickType clickType, Player clickPlayer, InventoryClickEvent event) {
+                event.setCancelled(true);
+
+                boolean current = session.isPlayerReady(clickPlayer);
+                session.setPlayerReady(clickPlayer, !current);
+
+                // forcibly rebuild
+                updateTradeUIForBothPlayers(false);
+            }
+        };
+    }
+
+    /**
+     * "Confirm" => if both are ready, finalize the trade.
+     */
+    private Item createConfirmItem() {
+        boolean bothReady = session.bothReady();
+        Material mat = bothReady ? Material.EMERALD_BLOCK : Material.COAL_BLOCK;
+        String name = bothReady
+                ? ChatColor.GREEN + "Confirm Trade"
+                : ChatColor.DARK_GRAY + "Waiting for both players";
+
+        return new SimpleItem(new ItemBuilder(mat).setDisplayName(name)) {
+            @Override
+            public void handleClick(ClickType clickType, Player clickPlayer, InventoryClickEvent event) {
+                event.setCancelled(true);
+
+                if (!session.bothReady()) {
+                    clickPlayer.sendMessage(ChatColor.RED + "Both players must be ready to confirm!");
+                    return;
+                }
+                finalizeTrade();
+            }
+        };
+    }
+
+    /**
+     * "Cancel" => end trade, return items
+     */
+    private Item createCancelItem() {
+        return new SimpleItem(
+                new ItemBuilder(Material.BARRIER).setDisplayName(ChatColor.RED + "Cancel Trade")
+        ) {
+            @Override
+            public void handleClick(ClickType clickType, Player clickPlayer, InventoryClickEvent event) {
+                event.setCancelled(true);
+
+                session.returnItems();
+                TradeManager.getInstance().endTrade(session);
+
+                session.getPlayer1().sendMessage(ChatColor.RED + "Trade canceled.");
+                session.getPlayer2().sendMessage(ChatColor.RED + "Trade canceled.");
+
+                updateTradeUIForBothPlayers(true);
+            }
+        };
+    }
+
+    /**
+     * Actually finalize => exchange items, end trade, close GUIs.
+     */
+    private void finalizeTrade() {
+        // p2 -> p1
+        for (ItemStack s : session.getPlayer2Items()) {
+            session.getPlayer1().getInventory().addItem(s.clone());
+        }
+        // p1 -> p2
+        for (ItemStack s : session.getPlayer1Items()) {
+            session.getPlayer2().getInventory().addItem(s.clone());
+        }
+        session.getPlayer1Items().clear();
+        session.getPlayer2Items().clear();
+
+        TradeManager.getInstance().endTrade(session);
+
+        session.getPlayer1().sendMessage(ChatColor.GREEN + "Trade completed successfully!");
+        session.getPlayer2().sendMessage(ChatColor.GREEN + "Trade completed successfully!");
+
+        updateTradeUIForBothPlayers(true);
+    }
+
+    /**
+     * Rebuild or close both players' GUIs.
+     * If close==true => forcibly close, else forcibly re-open so changes show.
+     */
+    private void updateTradeUIForBothPlayers(boolean close) {
+        Player p1 = session.getPlayer1();
+        Player p2 = session.getPlayer2();
+
+        for (Player p : new Player[]{p1, p2}) {
+            TradeGUI tgui = OPEN_TRADE_GUIS.get(p.getUniqueId());
+            if (tgui != null) {
+                if (close) {
+                    tgui.forceClose();
+                } else {
+                    // forcibly re-build & open for them => "refresh"
+                    tgui.reopenGui();
+                }
+            }
+        }
+    }
+
+    /**
+     * Force-close THIS window, removing from the map.
+     */
+    private void forceClose() {
+        if (window != null && window.isOpen()) {
+            window.close();
+        }
+        OPEN_TRADE_GUIS.remove(viewer.getUniqueId());
+    }
+
+    /**
+     * Public static: if SHIFT-click logic modifies the trade,
+     * we forcibly re-open for the player(s).
+     */
+    public static void refreshPlayerGUI(Player player) {
+        TradeGUI tg = OPEN_TRADE_GUIS.get(player.getUniqueId());
+        if (tg != null) {
+            tg.reopenGui(); // forcibly rebuild & re-open
+        }
+    }
+
+    public static void closeTradeGUI(Player player) {
+        TradeGUI tg = OPEN_TRADE_GUIS.get(player.getUniqueId());
+        if (tg != null) {
+            tg.forceClose();
+        }
+    }
+
+    public static TradeGUI getTradeGUI(Player player) {
+        return OPEN_TRADE_GUIS.get(player.getUniqueId());
+    }
+
     private Player getOtherPlayer() {
         return session.getPlayer1().equals(viewer) ? session.getPlayer2() : session.getPlayer1();
     }
 
-    /**
-     * Retrieves the TradeGUI instance for a player.
-     *
-     * @param player The player to retrieve the TradeGUI for.
-     * @return The TradeGUI instance if open, otherwise null.
-     */
-    public static TradeGUI getTradeGUI(Player player) {
-        return openGUIs.get(player.getUniqueId());
+    private String getOtherPlayerName() {
+        Player other = getOtherPlayer();
+        return (other != null) ? other.getName() : "???";
     }
 }

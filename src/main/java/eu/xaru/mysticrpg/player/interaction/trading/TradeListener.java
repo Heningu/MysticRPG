@@ -54,10 +54,6 @@ public class TradeListener implements Listener {
                 if (added) {
                     player.getInventory().removeItem(event.getCurrentItem());
                     player.sendMessage(ChatColor.GREEN + "Added " + itemToAdd.getType().toString() + " to the trade.");
-                    TradeGUI tradeGUI = TradeGUI.getTradeGUI(player);
-                    if (tradeGUI != null) {
-                        tradeGUI.updateGui();
-                    }
                 } else {
                     player.sendMessage(ChatColor.RED + "Cannot add this item to the trade.");
                 }

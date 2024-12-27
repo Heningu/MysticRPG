@@ -111,7 +111,7 @@ public class InteractionGUI {
             public void handleClick(@NotNull ClickType clickType, @NotNull Player clickPlayer, @NotNull InventoryClickEvent event) {
 
                 // Implemented but bugged. Needs to be fixed before proper use
-                // sendTradeRequest(clickPlayer, target);
+                //sendTradeRequest(clickPlayer, target);
 
                 clickPlayer.playSound(clickPlayer.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
             }
