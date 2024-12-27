@@ -1,4 +1,5 @@
 // File: eu.xaru.mysticrpg.dungeons.instance.DungeonInstance.java
+
 package eu.xaru.mysticrpg.dungeons.instance;
 
 import eu.xaru.mysticrpg.dungeons.DungeonManager;
@@ -156,18 +157,36 @@ public class DungeonInstance {
         }
     }
 
+    /**
+     * Fix: Only shift the portal X/Z if they're still an integer (e.g. 93.0).
+     * If they're already 93.5, skip further shifting.
+     */
     private void adjustPortalLocationToInstanceWorld() {
         Location originalPortal = config.getPortalPos1();
         if (originalPortal != null && instanceWorld != null) {
+            double x = originalPortal.getX();
+            double y = originalPortal.getY();
+            double z = originalPortal.getZ();
+
+            // Only shift X if it's exactly an integer (e.g., 93.0)
+            if (x % 1 == 0.0) {
+                x += 0.5;
+            }
+            // Only shift Z if it's exactly an integer
+            if (z % 1 == 0.0) {
+                z += 0.5;
+            }
+
             Location instancePortal = new Location(
                     instanceWorld,
-                    originalPortal.getX() + 0.5,
-                    originalPortal.getY(),
-                    originalPortal.getZ() + 0.5,
+                    x,
+                    y,
+                    z,
                     originalPortal.getYaw(),
                     originalPortal.getPitch()
             );
             config.setPortalPos1(instancePortal);
+
             DebugLogger.getInstance().log(Level.INFO,
                     "Portal position adjusted to instance world '"
                             + instanceWorld.getName() + "'.", 0);

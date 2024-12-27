@@ -1,4 +1,4 @@
-// File: eu/xaru/mysticrpg/dungeons/portals/PortalManager.java
+// File: eu.xaru.mysticrpg.dungeons.portals.PortalManager.java
 
 package eu.xaru.mysticrpg.dungeons.portals;
 
@@ -38,8 +38,8 @@ public class PortalManager {
      * Constructor for PortalManager.
      *
      * @param dungeonInstance The current dungeon instance.
-     * @param dungeonConfig    The configuration of the dungeon.
-     * @param plugin           The main JavaPlugin instance.
+     * @param dungeonConfig   The configuration of the dungeon.
+     * @param plugin          The main JavaPlugin instance.
      */
     public PortalManager(DungeonInstance dungeonInstance, DungeonConfig dungeonConfig, JavaPlugin plugin) {
         this.dungeonInstance = dungeonInstance;
@@ -107,10 +107,8 @@ public class PortalManager {
         // Generate a unique hologram ID based on the dungeon instance UUID
         exitHologramId = "dungeon_instance_" + dungeonInstance.getInstanceId() + "_exit_hologram";
 
-        // Center the hologram within the block by adding 0.5 to x and z
+        // Position the hologram at the same x,z but +2 in Y
         Location hologramLocation = portalLocation.clone();
-        hologramLocation.setX(hologramLocation.getX());
-        hologramLocation.setZ(hologramLocation.getZ());
         hologramLocation.setY(hologramLocation.getY() + 2);
 
         // Create the hologram using DHAPI
