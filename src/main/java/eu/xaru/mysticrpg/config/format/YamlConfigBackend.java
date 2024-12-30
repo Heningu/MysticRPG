@@ -5,7 +5,10 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.FileConfigurationOptions;
 import org.bukkit.configuration.file.YamlConfiguration;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.Collections;
 import java.util.Set;
 
@@ -18,17 +21,16 @@ public class YamlConfigBackend implements IConfigBackend {
     private boolean changed;
     private Set<String> defaultKeys;
 
-    public YamlConfigBackend() {
-        // Will initialize in load()
-    }
-
     @Override
     public Set<String> load(File file, InputStream resourceIn) throws IOException {
         if (!file.exists()) {
-            // If no file on disk, try to create it
             file.getParentFile().mkdirs();
-            file.createNewFile();
+            boolean created = file.createNewFile();
+            if (!created) {
+                DebugLogger.getInstance().warn("Failed to create new YAML config file: " + file.getName());
+            }
         }
+
         config = YamlConfiguration.loadConfiguration(file);
 
         if (resourceIn != null) {
@@ -57,34 +59,39 @@ public class YamlConfigBackend implements IConfigBackend {
 
     @Override
     public boolean contains(String path) {
+        if (config == null) {
+            return false;
+        }
         return config.contains(path);
     }
 
     @Override
     public Object get(String path) {
+        if (config == null) {
+            return null;
+        }
         return config.get(path);
     }
 
     @Override
     public void set(String path, Object value) {
+        if (config == null) {
+            return;
+        }
         config.set(path, value);
         changed = true;
     }
 
     @Override
     public Set<String> getKeys(boolean deep) {
+        if (config == null) {
+            return Collections.emptySet();
+        }
         return config.getKeys(deep);
     }
 
     @Override
     public FileConfigurationOptions getOptions() {
-        return config.options();
-    }
-
-    /**
-     * Exposes the default keys loaded from resource (if any).
-     */
-    public Set<String> getDefaultKeys() {
-        return defaultKeys;
+        return (config != null) ? config.options() : null;
     }
 }

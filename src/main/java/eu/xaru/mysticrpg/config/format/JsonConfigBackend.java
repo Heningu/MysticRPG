@@ -1,6 +1,7 @@
 package eu.xaru.mysticrpg.config.format;
 
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.configuration.file.FileConfigurationOptions;
 
@@ -10,11 +11,10 @@ import java.util.*;
 
 /**
  * JSON-based backend using Gson for simple key->value structures.
- * For nested lists/maps, it merges them. No direct "copyDefaults" is done
- * unless you parse the resource and do a manual merge.
- *
- * If you want advanced "config sections" logic, you'll have to adapt it more deeply.
+ * For nested lists/maps, merges them. No direct "copyDefaults" is done
+ * except by manually merging the resource map with the current root.
  */
+@SuppressWarnings("unchecked")
 public class JsonConfigBackend implements IConfigBackend {
 
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -26,9 +26,13 @@ public class JsonConfigBackend implements IConfigBackend {
     public Set<String> load(File file, InputStream resourceIn) throws IOException {
         if (!file.exists()) {
             file.getParentFile().mkdirs();
-            file.createNewFile();
+            boolean created = file.createNewFile();
+            if (!created) {
+                DebugLogger.getInstance().warn("Failed to create new JSON config file: " + file.getName());
+            }
         }
-        // read existing
+
+        // Read existing data
         try (FileReader reader = new FileReader(file, StandardCharsets.UTF_8)) {
             if (file.length() == 0) {
                 root = new LinkedHashMap<>();
@@ -53,10 +57,13 @@ public class JsonConfigBackend implements IConfigBackend {
                     mergeMaps(defMap, root); // merges defMap into root
                     defaultKeys = collectAllKeys(defMap, "");
                 }
+            } catch (Exception ex) {
+                DebugLogger.getInstance().error("Failed to parse JSON defaults resource.", ex);
             }
         }
 
-        save(file); // write out any merges
+        // Always save merges so the user sees any new defaults on disk
+        save(file);
         changed = false;
         return defaultKeys;
     }
@@ -64,30 +71,28 @@ public class JsonConfigBackend implements IConfigBackend {
     private void mergeMaps(Map<String, Object> from, Map<String, Object> into) {
         for (Map.Entry<String, Object> e : from.entrySet()) {
             if (!into.containsKey(e.getKey())) {
-                // doesn't exist => add
                 into.put(e.getKey(), e.getValue());
                 changed = true;
             } else {
-                // If it's a map, we can do deep merging
+                // If it's a map, we do deeper merging
                 Object existingVal = into.get(e.getKey());
-                if (existingVal instanceof Map<?,?> && e.getValue() instanceof Map<?,?>) {
-                    // cast
-                    Map<String, Object> existingMap = (Map<String, Object>) existingVal;
-                    Map<String, Object> fromMap = (Map<String, Object>) e.getValue();
-                    mergeMaps(fromMap, existingMap);
+                if (existingVal instanceof Map<?, ?> existingMap
+                        && e.getValue() instanceof Map<?, ?> fromMap) {
+                    mergeMaps((Map<String,Object>) fromMap, (Map<String,Object>) existingMap);
                 }
-                // else we do not override user values
             }
         }
     }
 
-    private Set<String> collectAllKeys(Map<String,Object> map, String prefix) {
+    private Set<String> collectAllKeys(Map<String, Object> map, String prefix) {
         Set<String> result = new HashSet<>();
-        for (Map.Entry<String,Object> e : map.entrySet()) {
-            String full = prefix.isEmpty() ? e.getKey() : prefix+"."+e.getKey();
+        for (Map.Entry<String, Object> e : map.entrySet()) {
+            String full = prefix.isEmpty() ? e.getKey() : prefix + "." + e.getKey();
             result.add(full);
-            if (e.getValue() instanceof Map<?,?> m2) {
-                result.addAll(collectAllKeys((Map<String,Object>)m2, full));
+            if (e.getValue() instanceof Map<?, ?> nested) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> casted = (Map<String, Object>) nested;
+                result.addAll(collectAllKeys(casted, full));
             }
         }
         return result;
@@ -96,7 +101,6 @@ public class JsonConfigBackend implements IConfigBackend {
     @Override
     public void save(File file) throws IOException {
         if (!changed && file.length() > 0) {
-            // No changes => skip
             return;
         }
         try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
@@ -112,7 +116,9 @@ public class JsonConfigBackend implements IConfigBackend {
 
     @Override
     public Object get(String path) {
-        if (path == null || path.isEmpty()) return root;
+        if (path == null || path.isEmpty()) {
+            return root;
+        }
         String[] parts = path.split("\\.");
         Map<String, Object> cursor = root;
         for (int i = 0; i < parts.length; i++) {
@@ -124,30 +130,39 @@ public class JsonConfigBackend implements IConfigBackend {
                 return cursor.get(key);
             }
             Object val = cursor.get(key);
-            if (!(val instanceof Map<?,?>)) {
+            if (!(val instanceof Map)) {
                 return null;
             }
-            cursor = (Map<String, Object>)val;
+            cursor = (Map<String, Object>) val;
         }
         return null;
     }
 
     @Override
     public void set(String path, Object value) {
+        if (path == null || path.isEmpty()) {
+            // Overwrite the entire root if someone does set("", someObj)
+            if (!Objects.equals(root, value)) {
+                root = (value instanceof Map) ? (Map<String, Object>) value : new LinkedHashMap<>();
+                changed = true;
+            }
+            return;
+        }
+
         String[] parts = path.split("\\.");
-        Map<String,Object> cursor = root;
-        for (int i=0; i< parts.length -1; i++) {
+        Map<String, Object> cursor = root;
+        for (int i = 0; i < parts.length - 1; i++) {
             String k = parts[i];
-            if (!cursor.containsKey(k) || !(cursor.get(k) instanceof Map<?,?>)) {
-                Map<String,Object> newMap = new LinkedHashMap<>();
+            if (!cursor.containsKey(k) || !(cursor.get(k) instanceof Map)) {
+                Map<String, Object> newMap = new LinkedHashMap<>();
                 cursor.put(k, newMap);
                 changed = true;
                 cursor = newMap;
             } else {
-                cursor = (Map<String,Object>)cursor.get(k);
+                cursor = (Map<String, Object>) cursor.get(k);
             }
         }
-        String lastKey = parts[parts.length-1];
+        String lastKey = parts[parts.length - 1];
         Object oldVal = cursor.get(lastKey);
         if (!Objects.equals(oldVal, value)) {
             cursor.put(lastKey, value);
@@ -160,13 +175,12 @@ public class JsonConfigBackend implements IConfigBackend {
         if (!deep) {
             return root.keySet();
         }
-        // Collect all
         return collectAllKeys(root, "");
     }
 
     @Override
     public FileConfigurationOptions getOptions() {
-        // Not applicable for JSON, return null
+        // Not applicable for JSON
         return null;
     }
 }

@@ -76,6 +76,7 @@ public class MysticCore extends JavaPlugin {
         CommandAPI.onDisable();
         DecentHologramsAPI.onDisable();
 
+        DynamicConfigManager.saveAll();
         try {
             moduleManager.shutdown();
             DebugLogger.getInstance().log("Core plugin disabled.", 0);
@@ -85,7 +86,6 @@ public class MysticCore extends JavaPlugin {
 
         PacketEvents.getAPI().terminate();
         // Save any dynamic config changes
-        DynamicConfigManager.saveAll();
     }
 
     /**

@@ -21,18 +21,14 @@ public final class ResourceDefaultLoader {
      * Loads defaults from the given InputStream (the .yml in your jar resources)
      * and merges them into the userConfig. Then returns all default keys found in the resource.
      *
-     * @param userConfig  The FileConfiguration from the user's config file.
-     * @param resourceIn  The resource InputStream from the plugin jar.
+     * @param userConfig The FileConfiguration from the user's config file.
+     * @param resourceIn The resource InputStream from the plugin jar.
      * @return A set of all keys present in the resource's default YML.
      */
     public static Set<String> mergeDefaults(FileConfiguration userConfig, InputStream resourceIn) {
         FileConfiguration defConfig = YamlConfiguration.loadConfiguration(new InputStreamReader(resourceIn));
-
         userConfig.setDefaults(defConfig);
-        // This copies any missing values from the defaults into userConfig
         userConfig.options().copyDefaults(true);
-
-        // Return all keys from the resource
         return defConfig.getKeys(true);
     }
 }

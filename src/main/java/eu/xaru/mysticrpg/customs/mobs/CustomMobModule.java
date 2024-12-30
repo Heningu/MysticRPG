@@ -92,7 +92,7 @@ public class CustomMobModule implements IBaseModule, Listener {
     }
 
     private void loadMobConfigurations() {
-        File mobFolder = new File(plugin.getDataFolder(), "custom/mobs");
+        File mobFolder = new File(plugin.getDataFolder(), "custom\\mobs");
         if (!mobFolder.exists() && !mobFolder.mkdirs()) {
             DebugLogger.getInstance().error("Failed to create mobs folder.");
             return;
@@ -102,16 +102,14 @@ public class CustomMobModule implements IBaseModule, Listener {
         if (files != null) {
             for (File file : files) {
                 try {
-                    String path = "custom/mobs/" + file.getName();
-
-                    DynamicConfig config = DynamicConfigManager.loadConfig(path);
+                    DynamicConfig config = DynamicConfigManager.loadConfig(file);
                     if (config == null) {
                         DebugLogger.getInstance().error("Failed to load config for file: " + file.getName());
                         continue;
                     }
 
-                    String mobId = config.getString("id", null);
-                    String mobName = config.getString("name", null);
+                    String mobId = config.getString("id", "-1");
+                    String mobName = config.getString("name", "Unknown Mob");
                     if (mobId == null || mobId.isEmpty()) {
                         DebugLogger.getInstance().error("Mob ID is missing in file: " + file.getName());
                         continue;
@@ -198,7 +196,7 @@ public class CustomMobModule implements IBaseModule, Listener {
                     }
 
                     // model_id
-                    String modelId = config.getString("model_id", null);
+                    String modelId = config.getString("model_id", "INVALID_ID"+mobId);
 
                     // animations
                     AnimationConfig animationConfig = loadAnimations(config);

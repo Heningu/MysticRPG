@@ -157,6 +157,8 @@ public class DungeonSetupSession {
                 player.sendMessage(ChatColor.GREEN + "Door '" + currentDoorId
                         + "' set from (" + minX + "," + minY + "," + minZ + ") to ("
                         + maxX + "," + maxY + "," + maxZ + ").");
+
+
             }
 
             isSettingDoor = false;

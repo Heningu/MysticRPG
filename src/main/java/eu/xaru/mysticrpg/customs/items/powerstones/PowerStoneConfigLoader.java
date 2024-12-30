@@ -26,18 +26,11 @@ public class PowerStoneConfigLoader {
      * @throws Exception if any required fields are missing or invalid
      */
     public PowerStone loadPowerStone() throws Exception {
-        // 1) Convert this file path into something recognized by DynamicConfigManager
-        //    For example: "customs/items/powerstones/<filename>.yml"
-        //    We'll reuse configFile.getName() to keep the same name.
-        String userFileName = "custom/items/powerstones/" + configFile.getName();
 
-        // 2) Use the manager to load the config (resourceName == userFileName for simplicity)
-        DynamicConfigManager.loadConfig(userFileName);
 
-        // 3) Retrieve the DynamicConfig
-        DynamicConfig config = DynamicConfigManager.getConfig(userFileName);
+        DynamicConfig config = DynamicConfigManager.loadConfig(configFile);
         if (config == null) {
-            throw new IllegalStateException("Failed to retrieve DynamicConfig for: " + userFileName);
+            throw new IllegalStateException("Failed to retrieve DynamicConfig for: " + configFile.getAbsolutePath());
         }
 
         // 4) Now retrieve values from the DynamicConfig

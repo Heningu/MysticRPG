@@ -12,6 +12,10 @@ import java.io.File;
 import java.util.*;
 import java.util.logging.Level;
 
+/**
+ * DungeonConfigManager handles reading and writing of .yml configs in
+ * /plugins/MyPlugin/dungeons/, using the new single-path DynamicConfig approach.
+ */
 public class DungeonConfigManager {
 
     private final JavaPlugin plugin;
@@ -24,34 +28,43 @@ public class DungeonConfigManager {
         this.lootTableManager = new LootTableManager(plugin);
     }
 
+    /**
+     * Loads all .yml files from /dungeons, building a path string "dungeons/<filename>",
+     * calling DynamicConfigManager.loadConfig(...) with that path, then parsing into a DungeonConfig.
+     */
     public void loadConfigs() {
         File configDir = new File(plugin.getDataFolder(), "dungeons");
         if (!configDir.exists()) {
             configDir.mkdirs();
         }
 
-        // Only .yml files, but we’re using your new config system
-        File[] configFiles = configDir.listFiles((dir, name) -> name.endsWith(".yml"));
+        File[] configFiles = configDir.listFiles((dir, name) -> name.toLowerCase().endsWith(".yml"));
         if (configFiles == null) return;
 
         for (File file : configFiles) {
-            // "userFileName" for DynamicConfigManager is "dungeons/<filename>"
-            String userFileName = "dungeons/" + file.getName();
-            DynamicConfigManager.loadConfig(userFileName);
-            // Then retrieve by the exact same key:
-            DynamicConfig config = DynamicConfigManager.getConfig(userFileName);
-            if (config == null) {
+            // This single string is the path used both on disk and (optionally) in jar resources
+            String path = "dungeons/" + file.getName();
+
+            // Load or reload from disk (merging defaults if jar resource matches path)
+            DynamicConfig dcfg = DynamicConfigManager.loadConfig(path);
+            if (dcfg == null) {
+                DebugLogger.getInstance().log(Level.WARNING,
+                        "Could not load dynamic config for: " + path, 0);
                 continue;
             }
 
-            DungeonConfig dungeonConfig = parseConfig(config);
+            DungeonConfig dungeonConfig = parseConfig(dcfg);
             if (dungeonConfig != null) {
                 dungeonConfigs.put(dungeonConfig.getId(), dungeonConfig);
-                DebugLogger.getInstance().log(Level.INFO, "Loaded dungeon config: " + dungeonConfig.getId(), 0);
+                DebugLogger.getInstance().log(Level.INFO,
+                        "Loaded dungeon config: " + dungeonConfig.getId(), 0);
             }
         }
     }
 
+    /**
+     * Internal helper that reads fields from the loaded DynamicConfig, building a DungeonConfig object.
+     */
     private DungeonConfig parseConfig(DynamicConfig config) {
         DungeonConfig dc = new DungeonConfig();
         dc.setId(config.getString("id", null));
@@ -63,19 +76,23 @@ public class DungeonConfigManager {
         dc.setLevelRequirement(config.getInt("levelRequirement", 1));
 
         if (dc.getId() == null) {
-            DebugLogger.getInstance().log(Level.SEVERE, "Dungeon config missing ID. Skipping...", 0);
+            DebugLogger.getInstance().log(Level.SEVERE,
+                    "Dungeon config missing ID. Skipping...", 0);
             return null;
         }
         if (dc.getWorldName() == null) {
-            DebugLogger.getInstance().log(Level.SEVERE, "Dungeon '" + dc.getId() + "' missing world name.", 0);
+            DebugLogger.getInstance().log(Level.SEVERE,
+                    "Dungeon '" + dc.getId() + "' missing world name.", 0);
             return null;
         }
 
+        // Attempt to ensure the world is loaded or create it if missing
         World w = Bukkit.getWorld(dc.getWorldName());
         if (w == null) {
             w = new WorldCreator(dc.getWorldName()).createWorld();
             if (w == null) {
-                DebugLogger.getInstance().log(Level.SEVERE, "World '" + dc.getWorldName() + "' can't be loaded.", 0);
+                DebugLogger.getInstance().log(Level.SEVERE,
+                        "World '" + dc.getWorldName() + "' can't be loaded.", 0);
                 return null;
             }
         }
@@ -90,12 +107,12 @@ public class DungeonConfigManager {
             dc.setSpawnLocation(new Location(w, sx, sy, sz, syaw, spitch));
         }
 
-        // mob spawn points
+        // mob spawn points => stored in "mob_spawn_points" as a sub-map
         if (config.contains("mob_spawn_points")) {
             Object mobObj = config.get("mob_spawn_points");
             if (mobObj instanceof Map<?,?> mobMap) {
                 List<DungeonConfig.MobSpawnPoint> mobList = new ArrayList<>();
-                for (Map.Entry<?, ?> e : mobMap.entrySet()) {
+                for (Map.Entry<?,?> e : mobMap.entrySet()) {
                     if (e.getValue() instanceof Map<?,?> ms) {
                         double x = parseDouble(ms.get("x"), 0);
                         double y = parseDouble(ms.get("y"), 0);
@@ -103,8 +120,8 @@ public class DungeonConfigManager {
                         float yaw = (float) parseDouble(ms.get("yaw"), 0);
                         float pit = (float) parseDouble(ms.get("pitch"), 0);
                         String mobId = parseString(ms.get("mob_id"), "zombie");
-
                         Location loc = new Location(w, x, y, z, yaw, pit);
+
                         DungeonConfig.MobSpawnPoint mp = new DungeonConfig.MobSpawnPoint();
                         mp.setLocation(loc);
                         mp.setMobId(mobId);
@@ -115,7 +132,7 @@ public class DungeonConfigManager {
             }
         }
 
-        // chest locations
+        // chest_locations => same approach
         if (config.contains("chest_locations")) {
             Object chestObj = config.get("chest_locations");
             if (chestObj instanceof Map<?,?> chestMap) {
@@ -146,7 +163,7 @@ public class DungeonConfigManager {
             }
         }
 
-        // portal
+        // portalPos1
         if (config.contains("portalPos1")) {
             double px = config.getDouble("portalPos1.x", 0);
             double py = config.getDouble("portalPos1.y", 0);
@@ -156,7 +173,7 @@ public class DungeonConfigManager {
             dc.setPortalPos1(new Location(w, px, py, pz, pyaw, ppitch));
         }
 
-        // Doors
+        // doors => "doors" sub-map
         if (config.contains("doors")) {
             Object doorsObj = config.get("doors");
             if (doorsObj instanceof Map<?,?> doorsMap) {
@@ -172,10 +189,7 @@ public class DungeonConfigManager {
                         dd.setY2(parseDouble(ds.get("y2"), 0));
                         dd.setZ2(parseDouble(ds.get("z2"), 0));
                         dd.setTriggerType(parseString(ds.get("trigger"), "none"));
-
-                        // NEW: load keyItemId from config
                         dd.setKeyItemId(parseString(ds.get("keyItemId"), null));
-
                         doorList.add(dd);
                     }
                 }
@@ -208,18 +222,15 @@ public class DungeonConfigManager {
             configDir.mkdirs();
         }
 
-        // We'll store it under "dungeons/<id>.yml"
-        String userFileName = "dungeons/" + config.getId() + ".yml";
-        // Force a reload to have a fresh config object
-
-        DynamicConfig dcfg = DynamicConfigManager.loadConfig(userFileName);
+        // The single path for reading/writing. e.g. "dungeons/<dungeonId>.yml"
+        String path = "dungeons/" + config.getId() + ".yml";
+        DynamicConfig dcfg = DynamicConfigManager.loadConfig(path);
         if (dcfg == null) {
-            // fallback
-            DebugLogger.getInstance().log(Level.SEVERE, "Could not create dynamic config for: " + userFileName, 0);
+            DebugLogger.getInstance().log(Level.SEVERE,
+                    "Could not create dynamic config for: " + path, 0);
             return;
         }
 
-        // Top-level fields
         dcfg.set("id", config.getId());
         dcfg.set("name", config.getName());
         dcfg.set("minPlayers", config.getMinPlayers());
@@ -228,7 +239,6 @@ public class DungeonConfigManager {
         dcfg.set("worldName", config.getWorldName());
         dcfg.set("levelRequirement", config.getLevelRequirement());
 
-        // spawn
         if (config.getSpawnLocation() != null) {
             Location sloc = config.getSpawnLocation();
             dcfg.set("spawnLocation.x", sloc.getX());
@@ -238,7 +248,7 @@ public class DungeonConfigManager {
             dcfg.set("spawnLocation.pitch", sloc.getPitch());
         }
 
-        // mob spawns (store as a map of sub-maps)
+        // mob_spawn_points
         Map<String, Object> mobSec = new LinkedHashMap<>();
         int mobIndex = 0;
         for (DungeonConfig.MobSpawnPoint sp : config.getMobSpawnPoints()) {
@@ -253,7 +263,7 @@ public class DungeonConfigManager {
         }
         dcfg.set("mob_spawn_points", mobSec);
 
-        // chest locations
+        // chest_locations
         Map<String, Object> chestSec = new LinkedHashMap<>();
         int chestIndex = 0;
         for (DungeonConfig.ChestLocation cl : config.getChestLocations()) {
@@ -269,7 +279,7 @@ public class DungeonConfigManager {
         }
         dcfg.set("chest_locations", chestSec);
 
-        // portal
+        // portalPos1
         if (config.getPortalPos1() != null) {
             Location pLoc = config.getPortalPos1();
             dcfg.set("portalPos1.x", pLoc.getX());
@@ -292,48 +302,31 @@ public class DungeonConfigManager {
             ds.put("y2", dd.getY2());
             ds.put("z2", dd.getZ2());
             ds.put("trigger", dd.getTriggerType());
-            // IMPORTANT: Save the keyItemId
             ds.put("keyItemId", dd.getKeyItemId());
-
             doorsSec.put("door" + doorIndex++, ds);
         }
         dcfg.set("doors", doorsSec);
 
-        // Finally, write to disk
         try {
-            dcfg.saveIfNeeded(); // writes if changed
-            DebugLogger.getInstance().log(Level.INFO, "Dungeon config saved: " + config.getId(), 0);
+            dcfg.saveIfNeeded();
+            DebugLogger.getInstance().log(Level.INFO,
+                    "Dungeon config saved: " + config.getId(), 0);
             dungeonConfigs.put(config.getId(), config);
         } catch (Exception e) {
-            DebugLogger.getInstance().log(Level.SEVERE, "Failed to save dungeon config:", e, 0);
+            DebugLogger.getInstance().log(Level.SEVERE,
+                    "Failed to save dungeon config:", e, 0);
         }
-    }
-
-    private String assignDefaultLootTable(Material chestType) {
-        String lootTableId = "default_loot";
-        if (chestType == Material.TRAPPED_CHEST) {
-            lootTableId = "elite_loot";
-        }
-
-        if (lootTableManager.getLootTable(lootTableId) == null) {
-            LootTable lt = new LootTable(lootTableId);
-            if (lootTableId.equals("default_loot")) {
-                lt.addItem("material", "DIAMOND", 1, 1.0);
-            } else if (lootTableId.equals("elite_loot")) {
-                lt.addItem("material", "NETHER_STAR", 1, 1.0);
-            }
-            lootTableManager.saveLootTable(lt);
-        }
-        return lootTableId;
     }
 
     public LootTableManager getLootTableManager() {
         return lootTableManager;
     }
 
-    // Helper for safely reading a double
+    // Helper for reading double
     private double parseDouble(Object val, double fallback) {
-        if (val instanceof Number) return ((Number) val).doubleValue();
+        if (val instanceof Number) {
+            return ((Number) val).doubleValue();
+        }
         try {
             return Double.parseDouble(String.valueOf(val));
         } catch (Exception e) {
@@ -341,7 +334,7 @@ public class DungeonConfigManager {
         }
     }
 
-    // Helper for safely reading a string
+    // Helper for reading string
     private String parseString(Object val, String fallback) {
         return val != null ? val.toString() : fallback;
     }

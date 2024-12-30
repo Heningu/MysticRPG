@@ -16,8 +16,8 @@ import java.util.*;
 public class DynamicConfig {
 
     private final JavaPlugin plugin;
-    private final String path;           // e.g. "config.yml" or "whatever.json"
-    private final File fileOnDisk;       // /plugins/MyPlugin/<path>
+    private final String path;      // e.g. "config.yml" or "custom/items.json" or a file name
+    private final File fileOnDisk;  // absolute or relative
     private final IConfigBackend backend;
 
     private Set<String> defaultKeys;
@@ -29,7 +29,7 @@ public class DynamicConfig {
      */
     public DynamicConfig(JavaPlugin plugin, String path, ConfigFormat format) {
         this.plugin = plugin;
-        this.path = path;
+        this.path = path; // For resource lookup
         this.fileOnDisk = new File(plugin.getDataFolder(), path);
 
         switch (format) {
@@ -39,29 +39,53 @@ public class DynamicConfig {
         }
     }
 
-    public void reload() {
-        try {
-            InputStream resourceIn = plugin.getResource(path);
-            defaultKeys = backend.load(fileOnDisk, resourceIn);
-            changed = false;
-        } catch (IOException e) {
-            DebugLogger.getInstance().error("Failed to reload config: " + path, e);
+    /**
+     * Creates a DynamicConfig with an exact File object (which could be absolute).
+     * If we still want to do resource merging, we can base that on the file name alone.
+     */
+    public DynamicConfig(JavaPlugin plugin, File exactFile, ConfigFormat format) {
+        this.plugin = plugin;
+        this.path = exactFile.getName(); // or exactFile.getPath() if you prefer
+        this.fileOnDisk = exactFile;
+
+        switch (format) {
+            case YAML -> this.backend = new YamlConfigBackend();
+            case JSON -> this.backend = new JsonConfigBackend();
+            default -> throw new IllegalArgumentException("Unsupported format: " + format);
         }
     }
 
+    /**
+     * Loads from disk, merges jar resource defaults (if any),
+     * and resets the local 'changed' flag.
+     */
+    public void reload() {
+        try {
+            InputStream resourceIn = plugin.getResource(path); // only works if path is relative
+            defaultKeys = backend.load(fileOnDisk, resourceIn);
+            changed = false;
+        } catch (IOException e) {
+            DebugLogger.getInstance().error("Failed to reload config: " + fileOnDisk.getAbsolutePath(), e);
+        }
+    }
+
+    /**
+     * Saves to disk if 'changed' is true in the backend. For JSON, "changed" is tracked
+     * internally. For YAML, "changed" is set on set(...).
+     */
     public void saveIfNeeded() {
         try {
             backend.save(fileOnDisk);
         } catch (IOException e) {
-            DebugLogger.getInstance().error("Failed to save config: " + path, e);
+            DebugLogger.getInstance().error("Failed to save config: " + fileOnDisk.getAbsolutePath(), e);
         }
     }
 
     private void handleMissingPath(String path, Object fallback) {
         DebugLogger.getInstance().warn("[DynamicConfig] Path '" + path + "' not found. Creating with default=" + fallback);
         if (defaultKeys != null && !defaultKeys.contains(path)) {
-            DebugLogger.getInstance().warn("[DynamicConfig] Also, path '" + path + "' is NOT in resource '" + this.path + "'. " +
-                    "Please add it to your default .yml if it's permanent!");
+            DebugLogger.getInstance().warn("[DynamicConfig] Also, path '" + path + "' is NOT in resource '" + this.path + "'. "
+                    + "Please add it to your defaults if it's permanent!");
         }
         backend.set(path, fallback);
         changed = true;
@@ -72,10 +96,11 @@ public class DynamicConfig {
     public int getInt(String node, int fallback) {
         if (!backend.contains(node)) {
             handleMissingPath(node, fallback);
+            return fallback;
         }
         Object val = backend.get(node);
-        if (val instanceof Number) {
-            return ((Number) val).intValue();
+        if (val instanceof Number n) {
+            return n.intValue();
         }
         return fallback;
     }
@@ -83,10 +108,11 @@ public class DynamicConfig {
     public long getLong(String node, long fallback) {
         if (!backend.contains(node)) {
             handleMissingPath(node, fallback);
+            return fallback;
         }
         Object val = backend.get(node);
-        if (val instanceof Number) {
-            return ((Number) val).longValue();
+        if (val instanceof Number n) {
+            return n.longValue();
         }
         return fallback;
     }
@@ -94,10 +120,11 @@ public class DynamicConfig {
     public double getDouble(String node, double fallback) {
         if (!backend.contains(node)) {
             handleMissingPath(node, fallback);
+            return fallback;
         }
         Object val = backend.get(node);
-        if (val instanceof Number) {
-            return ((Number) val).doubleValue();
+        if (val instanceof Number n) {
+            return n.doubleValue();
         }
         return fallback;
     }
@@ -105,13 +132,14 @@ public class DynamicConfig {
     public boolean getBoolean(String node, boolean fallback) {
         if (!backend.contains(node)) {
             handleMissingPath(node, fallback);
+            return fallback;
         }
         Object val = backend.get(node);
-        if (val instanceof Boolean) {
-            return (Boolean) val;
+        if (val instanceof Boolean b) {
+            return b;
         }
-        if (val instanceof Number) {
-            return ((Number) val).intValue() != 0;
+        if (val instanceof Number n) {
+            return n.intValue() != 0;
         }
         return fallback;
     }
@@ -119,45 +147,48 @@ public class DynamicConfig {
     public String getString(String node, String fallback) {
         if (!backend.contains(node)) {
             handleMissingPath(node, fallback);
+            return fallback;
         }
         Object val = backend.get(node);
-        if (val != null) {
-            return String.valueOf(val);
-        }
-        return fallback;
+        return (val != null) ? String.valueOf(val) : fallback;
     }
 
+    @SuppressWarnings("unchecked")
     public List<?> getList(String node, List<?> fallback) {
         if (!backend.contains(node)) {
             handleMissingPath(node, fallback);
+            return fallback;
         }
         Object val = backend.get(node);
-        if (val instanceof List<?>) {
-            return (List<?>) val;
+        if (val instanceof List<?> lst) {
+            return lst;
         }
         return fallback;
     }
 
     public List<String> getStringList(String node, List<String> fallback) {
-        List<?> list = getList(node, fallback);
-        List<String> strList = new ArrayList<>();
-        for (Object o : list) {
-            if (o != null) {
-                strList.add(String.valueOf(o));
-            }
+        List<?> raw = getList(node, fallback);
+        if (raw.isEmpty()) {
+            return fallback;
         }
-        return strList.isEmpty() ? fallback : strList;
+        List<String> strList = new ArrayList<>();
+        for (Object o : raw) {
+            strList.add(String.valueOf(o));
+        }
+        return strList;
     }
 
-    public List<Map<?,?>> getMapList(String node, List<Map<?,?>> fallback) {
+    @SuppressWarnings("unchecked")
+    public List<Map<?, ?>> getMapList(String node, List<Map<?, ?>> fallback) {
         if (!backend.contains(node)) {
             handleMissingPath(node, fallback);
+            return fallback;
         }
         Object val = backend.get(node);
         if (val instanceof List<?> rawList) {
-            List<Map<?,?>> newList = new ArrayList<>();
+            List<Map<?, ?>> newList = new ArrayList<>();
             for (Object item : rawList) {
-                if (item instanceof Map<?,?> m) {
+                if (item instanceof Map<?, ?> m) {
                     newList.add(m);
                 }
             }
@@ -190,14 +221,17 @@ public class DynamicConfig {
     public String getFileNameWithoutExtension() {
         String name = fileOnDisk.getName();
         int idx = name.lastIndexOf(".");
-        if (idx == -1) return name;
-        return name.substring(0, idx);
+        return (idx == -1) ? name : name.substring(0, idx);
     }
 
     public FileConfigurationOptions getOptions() {
-        return backend.getOptions(); // May be null if JSON
+        return backend.getOptions(); // may be null if JSON
     }
 
+    /**
+     * Whether we've set or changed any paths in code since last reload.
+     * Note that each backend also has its own "changed" logic.
+     */
     public boolean isChanged() {
         return changed;
     }

@@ -33,7 +33,7 @@ public class ItemManager {
      * of ConfigurationSection remains.
      */
     void loadCustomItems() {
-        File itemsFolder = new File(plugin.getDataFolder(), "custom/items");
+        File itemsFolder = new File(plugin.getDataFolder(), "custom\\items");
         if (!itemsFolder.exists() && !itemsFolder.mkdirs()) {
             DebugLogger.getInstance().severe("Failed to create items folder.");
             return;
@@ -43,13 +43,10 @@ public class ItemManager {
         if (files == null) return;
 
         for (File file : files) {
-            String userFileName = "custom/items/" + file.getName();
             try {
-                // 1) Load (or reload) the config
-                DynamicConfigManager.loadConfig(userFileName);
 
                 // 2) Retrieve the DynamicConfig
-                DynamicConfig config = DynamicConfigManager.getConfig(userFileName);
+                DynamicConfig config = DynamicConfigManager.loadConfig(file.getPath());
                 if (config == null) {
                     DebugLogger.getInstance().severe("Failed to load config for file: " + file.getName());
                     continue;

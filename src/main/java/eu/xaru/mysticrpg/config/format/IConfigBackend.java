@@ -9,15 +9,15 @@ import java.util.Set;
 
 /**
  * Defines the core operations needed to load, save, and manage
- * config data in different formats (YAML, JSON).
+ * config data in different formats (YAML, JSON, etc.).
  */
 public interface IConfigBackend {
 
     /**
      * Loads (or reloads) from disk, merging defaults from an InputStream resource if provided.
      *
-     * @param file         The file on disk to load from (creates if not exist).
-     * @param resourceIn   The jar resource for defaults (null if none).
+     * @param file       The file on disk to load from (creates if not exist).
+     * @param resourceIn The jar resource for defaults (null if none).
      * @return A set of default keys found in the resource (for logging/warning).
      * @throws IOException if something goes wrong reading/writing files.
      */
@@ -33,7 +33,7 @@ public interface IConfigBackend {
     void save(File file) throws IOException;
 
     /**
-     * Returns true if the path exists, false otherwise.
+     * Returns true if the path exists (non-null), false otherwise.
      */
     boolean contains(String path);
 

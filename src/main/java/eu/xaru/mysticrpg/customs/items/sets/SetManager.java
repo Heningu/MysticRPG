@@ -31,8 +31,8 @@ public class SetManager {
     }
 
     private void loadSets() {
-        JavaPlugin plugin = JavaPlugin.getPlugin(MysticCore.class);
-        File setsFolder = new File(plugin.getDataFolder(), "custom/items/sets");
+
+        File setsFolder = new File(MysticCore.getInstance().getDataFolder(), "custom\\items\\sets");
         if (!setsFolder.exists()) {
             if (!setsFolder.mkdirs()) {
                 DebugLogger.getInstance().severe("Failed to create sets folder.");
@@ -45,9 +45,8 @@ public class SetManager {
 
         for (File file : files) {
             try {
-                String path = "custom/items/sets/" + file.getName();
 
-                DynamicConfig config = DynamicConfigManager.loadConfig(path);
+                DynamicConfig config = DynamicConfigManager.loadConfig(file.getPath());
 
                 if (config == null) {
                     DebugLogger.getInstance().severe("Failed to load DynamicConfig for set file: " + file.getName());

@@ -40,7 +40,7 @@ public class PowerStoneManager {
     }
 
     private void loadPowerStones() {
-        File powerStonesFolder = new File(plugin.getDataFolder(), "custom/items/powerstones");
+        File powerStonesFolder = new File(plugin.getDataFolder(), "custom\\items\\powerstones");
         if (!powerStonesFolder.exists() && !powerStonesFolder.mkdirs()) {
             DebugLogger.getInstance().severe("Failed to create powerstones folder.");
             return;
