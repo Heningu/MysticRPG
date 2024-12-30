@@ -12,6 +12,8 @@ import eu.xaru.mysticrpg.player.stats.events.PlayerStatsChangedEvent;
 import eu.xaru.mysticrpg.storage.*;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
+import eu.xaru.mysticrpg.pets.PetsModule;  // <-- For pet XP share
+import eu.xaru.mysticrpg.pets.PetHelper; // <-- For pet XP share
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -24,6 +26,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.logging.Level;
 
+/**
+ * Handles player leveling logic, XP thresholds, rewards, and 50% XP share to equipped pets.
+ */
 public class LevelModule implements IBaseModule {
 
     private PlayerDataCache playerDataCache;
@@ -111,6 +116,10 @@ public class LevelModule implements IBaseModule {
                 .register();
     }
 
+    /**
+     * Adds XP to the player.
+     * Also grants 50% of that XP to the currently equipped pet (if any).
+     */
     public void addXp(Player player, int amount) {
         PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (playerData == null) {
@@ -118,6 +127,7 @@ public class LevelModule implements IBaseModule {
             return;
         }
 
+        // 1) Add XP to the player
         if (playerData.getLevel() < maxLevel) {
             int newXp = playerData.getXp() + amount;
             playerData.setXp(newXp);
@@ -140,7 +150,10 @@ public class LevelModule implements IBaseModule {
                     levelData.getRewards().forEach((stat, value) -> applyReward(playerData, stat, value));
                     String command = levelData.getCommand();
                     if (command != null) {
-                        Bukkit.getServer().dispatchCommand(Bukkit.getServer().getConsoleSender(), command.replace("{player}", player.getName()));
+                        Bukkit.getServer().dispatchCommand(
+                                Bukkit.getServer().getConsoleSender(),
+                                command.replace("{player}", player.getName())
+                        );
                     }
                 }
 
@@ -153,6 +166,7 @@ public class LevelModule implements IBaseModule {
                 Bukkit.getPluginManager().callEvent(new PlayerStatsChangedEvent(player));
             }
 
+            // Save new XP to DB
             playerDataCache.savePlayerData(player.getUniqueId(), new Callback<>() {
                 @Override
                 public void onSuccess(Void result) {
@@ -164,6 +178,15 @@ public class LevelModule implements IBaseModule {
                     DebugLogger.getInstance().log(Level.SEVERE, "Failed to save XP for player " + player.getName(), throwable);
                 }
             });
+        }
+
+        // 2) Give 50% XP to the equipped pet, if any
+        PetsModule petsModule = ModuleManager.getInstance().getModuleInstance(PetsModule.class);
+        if (petsModule != null) {
+            PetHelper petHelper = petsModule.getPetHelper();
+            // half XP
+            int petXp = (int) Math.floor(amount * 0.5);
+            petHelper.addPetXp(player, petXp);
         }
     }
 
@@ -179,7 +202,10 @@ public class LevelModule implements IBaseModule {
     }
 
     private void applyReward(PlayerData playerData, String stat, int value) {
-        playerData.getAttributes().put(stat, playerData.getAttributes().getOrDefault(stat, 0) + value);
+        playerData.getAttributes().put(
+                stat,
+                playerData.getAttributes().getOrDefault(stat, 0) + value
+        );
     }
 
     /**
@@ -188,7 +214,6 @@ public class LevelModule implements IBaseModule {
      * HEALTH = 20 + level*2
      * MANA = 10 + level
      * STRENGTH = 1 + (level/2)
-     * DEFENSE, CRIT_CHANCE, etc. can also be scaled.
      */
     private void applyLevelScaling(PlayerData playerData) {
         int level = playerData.getLevel();
@@ -198,10 +223,6 @@ public class LevelModule implements IBaseModule {
         attrs.put("HEALTH", 20 + level * 2);
         attrs.put("MANA", 10 + level);
         attrs.put("STRENGTH", 1 + (int)(level * 0.5));
-        // You can scale other attributes similarly:
-        // attrs.put("DEFENSE", 0 + level);
-        // attrs.put("CRIT_DAMAGE", 10 + level);
-        // etc.
 
         // Update current HP to not exceed new max
         int currentHp = playerData.getCurrentHp();

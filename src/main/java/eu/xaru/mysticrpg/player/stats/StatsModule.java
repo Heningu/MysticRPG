@@ -11,6 +11,9 @@ import eu.xaru.mysticrpg.customs.items.sets.SetManager;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.ModuleManager;
+import eu.xaru.mysticrpg.pets.Pet;
+import eu.xaru.mysticrpg.pets.PetHelper;
+import eu.xaru.mysticrpg.pets.PetsModule;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
@@ -20,6 +23,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
@@ -30,8 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 
-import org.bukkit.event.EventHandler;
-
+/**
+ * Manages the player stats system. We also re-apply pet stats in recalculatePlayerStatsFor(Player).
+ */
 public class StatsModule implements IBaseModule, Listener {
 
     private PlayerStatsManager statsManager;
@@ -48,8 +53,8 @@ public class StatsModule implements IBaseModule, Listener {
         statsManager = new PlayerStatsManager(dataCache);
 
         Bukkit.getPluginManager().registerEvents(this, JavaPlugin.getProvidingPlugin(getClass()));
-
         registerCommands();
+
         DebugLogger.getInstance().log(Level.INFO, "StatsModule initialized successfully.", 0);
     }
 
@@ -124,7 +129,7 @@ public class StatsModule implements IBaseModule, Listener {
                 .withPermission("mysticrpg.stats.view")
                 .executesPlayer((player, args) -> {
                     DebugLogger.getInstance().log(Level.INFO, "fullstats command used by " + player.getName());
-                    PlayerStats stats = recalculatePlayerStatsFor(player); // use the returned stats with temp stats included
+                    PlayerStats stats = recalculatePlayerStatsFor(player);
 
                     // Base Stats
                     player.sendMessage(ChatColor.GREEN + "=== Base Stats ===");
@@ -143,9 +148,9 @@ public class StatsModule implements IBaseModule, Listener {
                         }
                     }
 
-                    // Final Stats (Effective)
+                    // Final Stats
                     player.sendMessage("");
-                    player.sendMessage(ChatColor.GOLD + "=== Final Stats (Base + Armor) ===");
+                    player.sendMessage(ChatColor.GOLD + "=== Final Stats (Base + Armor + Pet) ===");
                     for (StatType type : StatType.values()) {
                         double eff = stats.getEffectiveStat(type);
                         player.sendMessage(ChatColor.YELLOW + type.name() + ": " + ChatColor.WHITE + eff);
@@ -154,10 +159,12 @@ public class StatsModule implements IBaseModule, Listener {
                 .register();
     }
 
-
     /**
-     * Recalculate the player's stats, applying temp stats from held non-armor items (main/off hand),
-     * and applying armor stats only if actually equipped in armor slots. Also applies set bonuses properly.
+     * Recalculate the player's stats, applying:
+     * 1) Clear temp stats
+     * 2) Armor/Item stats
+     * 3) If the player has a pet, re-apply the pet's additionalStats as well
+     * 4) Return the final combined result
      */
     public PlayerStats recalculatePlayerStatsFor(Player player) {
         PlayerStats stats = statsManager.loadStats(player);
@@ -167,34 +174,38 @@ public class StatsModule implements IBaseModule, Listener {
         ItemStack offHand = player.getInventory().getItemInOffHand();
         ItemStack[] armor = player.getInventory().getArmorContents();
 
-        // Apply stats from non-armor items if held in main/off hand
-        applyItemAttributesIfAppropriate(mainHand, stats, false);  // false = not armor slot
+        // 1) Non-armor items in main/off hand
+        applyItemAttributesIfAppropriate(mainHand, stats, false);
         applyItemAttributesIfAppropriate(offHand, stats, false);
 
         int setCount = 0;
         String setId = null;
 
-        // For armor items, only apply if they are actually in the armor slots.
+        // 2) Armor items in armor slots
         for (ItemStack piece : armor) {
-            applyItemAttributesIfAppropriate(piece, stats, true); // true = armor slot
+            applyItemAttributesIfAppropriate(piece, stats, true);
             // Check sets
-            if (piece != null && CustomItemUtils.isCustomItem(piece)) {
-                NamespacedKey setKey = new NamespacedKey(MysticCore.getInstance(), "custom_item_set");
-                if (piece.getItemMeta() != null && piece.getItemMeta().getPersistentDataContainer().has(setKey, PersistentDataType.STRING)) {
-                    String sId = piece.getItemMeta().getPersistentDataContainer().get(setKey, PersistentDataType.STRING);
-                    if (sId != null) {
-                        if (setId == null) {
-                            setId = sId;
-                            setCount = 1;
-                        } else if (setId.equals(sId)) {
-                            setCount++;
+            if (piece != null && piece.getType() != Material.AIR) {
+                if (CustomItemUtils.isCustomItem(piece)) {
+                    NamespacedKey setKey = new NamespacedKey(MysticCore.getInstance(), "custom_item_set");
+                    if (piece.getItemMeta() != null
+                            && piece.getItemMeta().getPersistentDataContainer().has(setKey, PersistentDataType.STRING)) {
+
+                        String sId = piece.getItemMeta().getPersistentDataContainer().get(setKey, PersistentDataType.STRING);
+                        if (sId != null) {
+                            if (setId == null) {
+                                setId = sId;
+                                setCount = 1;
+                            } else if (setId.equals(sId)) {
+                                setCount++;
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Apply set bonuses after all items are applied
+        // 3) Apply set bonuses
         if (setId != null) {
             var itemSet = SetManager.getInstance().getSet(setId);
             if (itemSet != null) {
@@ -207,11 +218,9 @@ public class StatsModule implements IBaseModule, Listener {
                 if (maxThreshold > 0) {
                     Map<StatType, Double> bonuses = itemSet.getPieceBonuses().get(maxThreshold);
                     if (bonuses != null) {
-                        // Now use effective stats (base + temp) before set bonus
-                        // Then apply bonus as percentage of current effective stat
                         for (Map.Entry<StatType, Double> bonus : bonuses.entrySet()) {
                             double currentValue = stats.getEffectiveStat(bonus.getKey());
-                            double addition = currentValue * bonus.getValue(); // e.g. 0.10 for 10%
+                            double addition = currentValue * bonus.getValue();
                             stats.addTempStat(bonus.getKey(), addition);
                         }
                     }
@@ -219,16 +228,20 @@ public class StatsModule implements IBaseModule, Listener {
             }
         }
 
+        // 4) Re-apply pet stats if the player has an equipped pet
+        reapplyPetStats(player, stats);
+
         return stats;
     }
 
     /**
-     * Applies item attributes if the item meets the criteria:
-     * - If checking armor slot and item is armor, apply attributes
-     * - If checking non-armor slot (main/off hand) and item is not armor, apply attributes
+     * Applies item attributes if appropriate.
+     * If isArmorSlot==true, only apply if item is armor.
+     * If isArmorSlot==false, only apply if item is not armor.
      */
     private void applyItemAttributesIfAppropriate(ItemStack item, PlayerStats stats, boolean isArmorSlot) {
         if (item == null || item.getType() == Material.AIR) return;
+
         if (!CustomItemUtils.isCustomItem(item)) {
             return;
         }
@@ -238,18 +251,70 @@ public class StatsModule implements IBaseModule, Listener {
             return;
         }
 
-        boolean isArmor = (customItem.getArmorType() != null); // If armorType is not null, it's armor
-        // If it's armor, only apply if isArmorSlot == true
-        // If it's not armor, only apply if isArmorSlot == false
+        boolean isArmor = (customItem.getArmorType() != null);
         if (isArmor == isArmorSlot) {
-            // Conditions met, apply stats
             Map<StatType, Double> itemStats = CustomItemUtils.getItemStats(item);
             for (Map.Entry<StatType, Double> entry : itemStats.entrySet()) {
                 stats.addTempStat(entry.getKey(), entry.getValue());
             }
         } else {
-            DebugLogger.getInstance().log(Level.INFO, "Item " + customItem.getId() + " ("+item.getType()+") is " + (isArmor?"armor":"not armor")
-                    + " and isArmorSlot=" + isArmorSlot + ", not applying stats.");
+            DebugLogger.getInstance().log(Level.INFO, "Item " + customItem.getId() + " is "
+                    + (isArmor ? "armor" : "not armor") + ", but isArmorSlot=" + isArmorSlot + "; skipping.");
+        }
+    }
+
+    /**
+     * If the player has an equipped pet, add that pet's stats to the player's temp stats.
+     */
+    private void reapplyPetStats(Player player, PlayerStats stats) {
+        PlayerDataCache cache = PlayerDataCache.getInstance();
+        PlayerData data = cache.getCachedPlayerData(player.getUniqueId());
+        if (data == null) return;
+
+        String equippedPetId = data.getEquippedPet();
+        if (equippedPetId == null || equippedPetId.isEmpty()) {
+            return; // no pet
+        }
+
+        // Grab the Pet from PetHelper
+        PetsModule petsModule = ModuleManager.getInstance().getModuleInstance(PetsModule.class);
+        if (petsModule == null) return;
+
+        PetHelper petHelper = petsModule.getPetHelper();
+        Pet pet = petHelper.getPetById(equippedPetId);
+        if (pet == null) return;
+
+        Map<String, Object> additionalStats = pet.getAdditionalStats();
+        if (additionalStats == null || additionalStats.isEmpty()) {
+            return;
+        }
+
+        for (Map.Entry<String, Object> entry : additionalStats.entrySet()) {
+            StatType st = parseStatType(entry.getKey());
+            double val = parseDouble(entry.getValue(), 0.0);
+            if (st != null && val != 0.0) {
+                stats.addTempStat(st, val);
+            }
+        }
+    }
+
+    private StatType parseStatType(String key) {
+        try {
+            return StatType.valueOf(key.toUpperCase());
+        } catch (Exception e) {
+            DebugLogger.getInstance().warning("Invalid pet stat type: " + key);
+            return null;
+        }
+    }
+
+    private double parseDouble(Object val, double fallback) {
+        if (val instanceof Number) {
+            return ((Number) val).doubleValue();
+        }
+        try {
+            return Double.parseDouble(String.valueOf(val));
+        } catch (Exception e) {
+            return fallback;
         }
     }
 

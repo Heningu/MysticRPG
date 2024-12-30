@@ -10,16 +10,11 @@ public class PetInstance {
     private ModeledEntity modeledEntity;
     private String currentAnimation;
     private double animationPhase;
-
-    // Add the armor stand reference
     private ArmorStand nameHologram;
 
     public PetInstance(Pet pet, LivingEntity petEntity) {
         this.pet = pet;
         this.petEntity = petEntity;
-        this.currentAnimation = null;
-        this.animationPhase = 0.0;
-        this.nameHologram = null;
     }
 
     public Pet getPet() {

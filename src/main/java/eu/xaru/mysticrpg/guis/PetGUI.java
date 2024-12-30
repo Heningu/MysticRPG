@@ -6,6 +6,8 @@ import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.pets.Pet;
 import eu.xaru.mysticrpg.pets.PetHelper;
 import eu.xaru.mysticrpg.pets.PetsModule;
+import eu.xaru.mysticrpg.pets.content.effects.EffectRegistry;
+import eu.xaru.mysticrpg.pets.content.effects.IPetEffect;
 import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.player.stats.StatsModule;
@@ -35,6 +37,7 @@ import xyz.xenondevs.invui.window.Window;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class PetGUI {
 
@@ -48,7 +51,6 @@ public class PetGUI {
     private final PlayerDataCache playerDataCache;
     private final PetsModule petsModule;
     private final PetHelper petHelper;
-
 
     public PetGUI() {
         this.petsModule = ModuleManager.getInstance().getModuleInstance(PetsModule.class);
@@ -64,10 +66,7 @@ public class PetGUI {
         this.partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
     }
 
-
-
-    public void openPetGUI(Player player){
-
+    public void openPetGUI(Player player) {
 
         Item controler = new FriendsGUI.ChangePageItem();
 
@@ -79,23 +78,27 @@ public class PetGUI {
         {
             @Override
             public void handleClick(@NotNull ClickType clickType, @NotNull Player clickPlayer, @NotNull InventoryClickEvent event) {
-                Window window = event.getView().getTopInventory().getHolder() instanceof Window ? (Window) event.getView().getTopInventory().getHolder() : null;
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window
+                        ? (Window) event.getView().getTopInventory().getHolder()
+                        : null;
                 if (window != null) {
                     window.close();
                 }
 
-                MainMenu mainMenu = new MainMenu(auctionHouse, equipmentModule, levelingModule, playerStat, questModule, friendsModule, partyModule);
+                MainMenu mainMenu = new MainMenu(
+                        auctionHouse, equipmentModule, levelingModule, playerStat,
+                        questModule, friendsModule, partyModule
+                );
                 mainMenu.openGUI(clickPlayer);
             }
         };
-
 
         Item border = new SimpleItem(new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE)
                 .setDisplayName("")
                 .addAllItemFlags()
         );
 
-        // Fetch player's owned pets
+        // Build a list of items for each owned pet
         List<Item> petItems = new ArrayList<>();
         for (String petId : petHelper.getOwnedPetIds(player)) {
             Pet pet = petHelper.getPetById(petId);
@@ -104,9 +107,6 @@ public class PetGUI {
             }
         }
 
-
-
-        // Create the paged GUI
         Gui gui = PagedGui.items()
                 .setStructure(
                         "# # # # # # # # #",
@@ -122,7 +122,6 @@ public class PetGUI {
                 .setContent(petItems)
                 .build();
 
-        // Open the GUI in a window
         Window.single()
                 .setViewer(player)
                 .setGui(gui)
@@ -130,12 +129,70 @@ public class PetGUI {
                 .open(player);
     }
 
-
     private Item createPetItem(Player player, Pet pet) {
-        return new SimpleItem(new ItemBuilder(Material.valueOf(pet.getDisplayItem()))
-                .setDisplayName(ChatColor.GOLD + pet.getName())
-                .addLoreLines("", ChatColor.YELLOW + "Click to equip or unequip this pet!", "")
-                .addAllItemFlags()
+
+        // We'll build the lore lines in code, combining stats/effects + custom lore
+        List<String> loreLines = new ArrayList<>();
+
+        // Show color-coded rarity
+        loreLines.add(ChatColor.GRAY + "Rarity: "
+                + pet.getRarity().getColor() + pet.getRarity().name());
+
+        // Level & XP
+        loreLines.add(ChatColor.GRAY + "Level: " + ChatColor.YELLOW + pet.getLevel());
+        loreLines.add(ChatColor.GRAY + "XP: " + ChatColor.YELLOW + pet.getCurrentXp()
+                + ChatColor.GRAY + " / "
+                + ChatColor.YELLOW + pet.getXpToNextLevel());
+        loreLines.add("");
+
+        // 1) Stats
+        if (pet.getAdditionalStats() != null && !pet.getAdditionalStats().isEmpty()) {
+            loreLines.add(ChatColor.GRAY + "Stats:");
+            for (Map.Entry<String, Object> entry : pet.getAdditionalStats().entrySet()) {
+                String statName = entry.getKey();
+                Object valueObj = entry.getValue();
+                loreLines.add(ChatColor.YELLOW + statName + ": " + ChatColor.WHITE + valueObj);
+            }
+            loreLines.add("");
+        }
+
+        // 2) Effects => fetch from registry for descriptions
+        if (pet.getEffects() != null && !pet.getEffects().isEmpty()) {
+            loreLines.add(ChatColor.GRAY + "Effects:");
+            for (String effectId : pet.getEffects()) {
+                var effectObj = EffectRegistry.get(effectId);
+                if (effectObj != null) {
+                    // e.g. "firetick - Sets targets on fire (2–5s) based on pet level."
+                    loreLines.add(ChatColor.YELLOW + effectObj.getId()
+                            + ChatColor.GRAY + " - "
+                            + ChatColor.WHITE + effectObj.getDescription());
+                } else {
+                    // fallback if not found
+                    loreLines.add(ChatColor.YELLOW + effectId);
+                }
+            }
+            loreLines.add("");
+        }
+
+        // 3) The custom `lore:` lines
+        if (pet.getLore() != null && !pet.getLore().isEmpty()) {
+            loreLines.add(ChatColor.GRAY + "Description:");
+            for (String loreLine : pet.getLore()) {
+                loreLines.add(ChatColor.RESET + loreLine);
+            }
+            loreLines.add("");
+        }
+
+        // Instruction
+        loreLines.add(ChatColor.YELLOW + "Click to equip or unequip this pet!");
+
+        String[] finalLoreArray = loreLines.toArray(new String[0]);
+
+        return new SimpleItem(
+                new ItemBuilder(Material.valueOf(pet.getDisplayItem()))
+                        .setDisplayName(ChatColor.GOLD + pet.getName())
+                        .addLoreLines(finalLoreArray)
+                        .addAllItemFlags()
         ) {
             @Override
             public void handleClick(@NotNull ClickType clickType, @NotNull Player clickPlayer, @NotNull InventoryClickEvent event) {
@@ -148,20 +205,17 @@ public class PetGUI {
                 }
 
                 String equippedPetId = playerData.getEquippedPet();
-
                 if (pet.getId().equals(equippedPetId)) {
-                    // Pet is currently equipped, so unequip it
+                    // Pet is currently equipped => unequip
                     petHelper.unequipPet(clickPlayer);
                     clickPlayer.sendMessage(ChatColor.RED + "You have unequipped the pet: " + pet.getName());
                 } else {
-                    // Pet is not equipped, so equip it
                     petHelper.equipPet(clickPlayer, pet.getId());
                     clickPlayer.sendMessage(ChatColor.GREEN + "You have equipped the pet: " + pet.getName());
                 }
             }
         };
     }
-
 
 
     public static class ChangePageItem extends ControlItem<PagedGui<?>> {
