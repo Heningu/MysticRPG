@@ -21,7 +21,7 @@ public class FireTickEffect implements IPetEffect {
 
     @Override
     public String getDescription() {
-        return "Sets targets on fire (2–5s) based on pet level.";
+        return "Sets targets on fire based on pet level.";
     }
 
     @Override

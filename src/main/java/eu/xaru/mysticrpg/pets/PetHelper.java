@@ -83,8 +83,8 @@ public class PetHelper implements Listener {
     }
 
     /**
-     * Equip a pet (by ID). If the pet is flying (e.g. "phoenix"), we do a custom approach,
-     * else let normal Wolf AI handle the following (for ground-based pets).
+     * Equip a pet (by ID). All pets behave like ground-based wolves,
+     * with normal Wolf AI & pathfinding.
      */
     public void equipPet(Player player, String petId) {
         Pet pet = petConfigurations.get(petId);
@@ -129,7 +129,7 @@ public class PetHelper implements Listener {
 
     /**
      * Unequip the player's current pet, removing stats/effects, model, etc.
-     * (MODIFIED to also save the pet's level/xp).
+     * Also saves the pet's level/xp so no data is lost.
      */
     public void unequipPet(Player player) {
         PlayerData data = PlayerDataCache.getInstance().getCachedPlayerData(player.getUniqueId());
@@ -153,14 +153,11 @@ public class PetHelper implements Listener {
             instance.getPetEntity().remove();
         }
 
-        // 2) Save the current level/XP to file, so we don't lose changes
+        // 2) Save the current level/XP to file
         Pet oldPet = petConfigurations.get(eqPetId);
         if (oldPet != null) {
-            // load existing map
             var map = PetFileStorage.loadPlayerPets(player);
-            // put updated level/xp
             map.put(eqPetId, new PetFileStorage.PetProgress(oldPet.getLevel(), oldPet.getCurrentXp()));
-            // save back
             PetFileStorage.savePlayerPets(player, map);
 
             // remove stats/effects
@@ -176,6 +173,7 @@ public class PetHelper implements Listener {
 
     /**
      * Add XP to the currently equipped pet, then save to local file.
+     * This is the correct approach to ensure leveling & leftover xp are handled.
      */
     public void addPetXp(Player player, int amount) {
         if (amount <= 0) return;
@@ -203,9 +201,7 @@ public class PetHelper implements Listener {
     }
 
     /**
-     * Actually spawn the Wolf (or the entity).
-     * If "phoenix" => we manually move it each tick (wolf.setAI(false)),
-     * otherwise let normal Wolf AI handle pathing.
+     * Actually spawn the Wolf (or the entity). All pets = normal Wolf AI.
      */
     private PetInstance spawnPetEntity(Player owner, Pet pet) {
         Wolf wolf = (Wolf) owner.getWorld().spawnEntity(owner.getLocation(), EntityType.WOLF);
@@ -221,19 +217,12 @@ public class PetHelper implements Listener {
         // If server version supports setCollidable(false):
         try {
             wolf.setCollidable(false);
-        } catch (NoSuchMethodError ignored) {
-        }
+        } catch (NoSuchMethodError ignored) {}
 
-        // For flying pets, disable AI. For ground-based, keep AI.
-        boolean isPhoenix = pet.getId().equalsIgnoreCase("phoenix");
-        if (isPhoenix) {
-            wolf.setAI(false);
-            wolf.setInvisible(true);
-        } else {
-            wolf.setAI(true);
-            if (wolf.getAttribute(Attribute.MOVEMENT_SPEED) != null) {
-                wolf.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(0.3);
-            }
+        // For all pets => normal Wolf AI + faster speed
+        wolf.setAI(true);
+        if (wolf.getAttribute(Attribute.MOVEMENT_SPEED) != null) {
+            wolf.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(0.3);
         }
 
         PetInstance instance = new PetInstance(pet, wolf);
@@ -248,9 +237,8 @@ public class PetHelper implements Listener {
             }
         }
 
-        // Overhead name hologram
-        double offsetY = isPhoenix ? 1.5 : 0.7;
-        ArmorStand holo = spawnNameHologram(pet.getFancyName(owner.getName()), wolf.getLocation(), offsetY);
+        // Overhead name hologram (use the same offset for all pets, e.g. 0.7)
+        ArmorStand holo = spawnNameHologram(pet.getFancyName(owner.getName()), wolf.getLocation(), 0.7);
         instance.setNameHologram(holo);
 
         return instance;
@@ -273,8 +261,7 @@ public class PetHelper implements Listener {
     }
 
     /**
-     * Example attack handler for "firetick" or "phoenixwill" logic.
-     * If you want to handle advanced logic, do it here.
+     * Example attack handler for "firetick" or "phoenixwill" (still possible if effect is defined).
      */
     @EventHandler
     public void onPlayerAttack(EntityDamageByEntityEvent event) {
@@ -295,7 +282,8 @@ public class PetHelper implements Listener {
                 target.setFireTicks(ticks);
             }
         }
-        // If "phoenixwill", we handle it in CustomDamageHandler or similarly
+        // "phoenixwill" effect is still recognized if it's in the pet's effect list,
+        // but we do not do any special "flying" code for phoenix.
     }
 
     /**
@@ -303,7 +291,6 @@ public class PetHelper implements Listener {
      */
     @EventHandler
     public void onPetDamage(EntityDamageEvent e) {
-        // Make pets invulnerable
         for (PetInstance pi : playerEquippedPets.values()) {
             if (pi.getPetEntity().equals(e.getEntity())) {
                 e.setCancelled(true);
@@ -346,8 +333,8 @@ public class PetHelper implements Listener {
 
     /**
      * Update logic each tick:
-     * - Only needed for "phoenix" (flying).
-     * - If ground pet (wolf), the default AI does follow logic.
+     * - Now all pets are ground-based, using default Wolf AI.
+     *   We only update the overhead hologram's position.
      */
     private void updatePets() {
         for (UUID playerId : playerEquippedPets.keySet()) {
@@ -360,33 +347,15 @@ public class PetHelper implements Listener {
             LivingEntity ent = pi.getPetEntity();
             if (ent.isDead()) continue;
 
-            // If it's a "phoenix", do manual follow
-            if (pi.getPet().getId().equalsIgnoreCase("phoenix")) {
-                double dist = ent.getLocation().distance(p.getLocation());
-                if (dist > 3.0) {
-                    Vector dir = p.getLocation().toVector().subtract(ent.getLocation().toVector()).normalize();
-                    dir.setY(0);
-                    ent.setVelocity(dir.multiply(0.25));
-                }
-                if (dist > 10.0) {
-                    ent.teleport(p.getLocation());
-                }
-                // Face the player
-                ent.setRotation(p.getLocation().getYaw(), p.getLocation().getPitch());
-            }
-            // For ground pets, Wolf AI handles pathing.
-
-            // Update hologram, if any
+            // Overhead hologram => keep at ~0.7 above the entity
             ArmorStand holo = pi.getNameHologram();
             if (holo != null && !holo.isDead()) {
-                double offsetY = pi.getPet().getId().equalsIgnoreCase("phoenix") ? 1.5 : 0.7;
-                holo.teleport(ent.getLocation().clone().add(0, offsetY, 0));
+                holo.teleport(ent.getLocation().clone().add(0, 0.7, 0));
             }
         }
     }
 
     // Utility methods
-
     public Pet getPetById(String petId) {
         return petConfigurations.get(petId);
     }

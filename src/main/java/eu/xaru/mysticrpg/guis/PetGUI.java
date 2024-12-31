@@ -7,7 +7,6 @@ import eu.xaru.mysticrpg.pets.Pet;
 import eu.xaru.mysticrpg.pets.PetHelper;
 import eu.xaru.mysticrpg.pets.PetsModule;
 import eu.xaru.mysticrpg.pets.content.effects.EffectRegistry;
-import eu.xaru.mysticrpg.pets.content.effects.IPetEffect;
 import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.player.stats.StatsModule;
@@ -131,18 +130,29 @@ public class PetGUI {
 
     private Item createPetItem(Player player, Pet pet) {
 
-        // We'll build the lore lines in code, combining stats/effects + custom lore
         List<String> loreLines = new ArrayList<>();
 
         // Show color-coded rarity
         loreLines.add(ChatColor.GRAY + "Rarity: "
                 + pet.getRarity().getColor() + pet.getRarity().name());
 
-        // Level & XP
+        // Level
         loreLines.add(ChatColor.GRAY + "Level: " + ChatColor.YELLOW + pet.getLevel());
-        loreLines.add(ChatColor.GRAY + "XP: " + ChatColor.YELLOW + pet.getCurrentXp()
-                + ChatColor.GRAY + " / "
-                + ChatColor.YELLOW + pet.getXpToNextLevel());
+
+        // XP display:
+        if (pet.getLevel() >= pet.getMaxLevel()) {
+            loreLines.add(ChatColor.GRAY + "XP: " + ChatColor.GREEN + "MAX LEVEL!");
+        } else {
+            // leftover needed to level up
+            int leftoverNeeded = pet.getXpToNextLevel();    // e.g. 60
+            int currentXp = pet.getCurrentXp();             // e.g. 90
+            int totalNeeded = currentXp + leftoverNeeded;   // e.g. 150
+            // So we show "90 / 150" instead of "90 / 60"
+            loreLines.add(ChatColor.GRAY + "XP: "
+                    + ChatColor.GREEN + currentXp
+                    + ChatColor.GRAY + " / "
+                    + ChatColor.RED + totalNeeded);
+        }
         loreLines.add("");
 
         // 1) Stats
@@ -151,7 +161,7 @@ public class PetGUI {
             for (Map.Entry<String, Object> entry : pet.getAdditionalStats().entrySet()) {
                 String statName = entry.getKey();
                 Object valueObj = entry.getValue();
-                loreLines.add(ChatColor.YELLOW + statName + ": " + ChatColor.WHITE + valueObj);
+                loreLines.add(ChatColor.YELLOW + statName + ChatColor.GRAY + ": " + ChatColor.GREEN + "+" + valueObj);
             }
             loreLines.add("");
         }
@@ -162,12 +172,10 @@ public class PetGUI {
             for (String effectId : pet.getEffects()) {
                 var effectObj = EffectRegistry.get(effectId);
                 if (effectObj != null) {
-                    // e.g. "firetick - Sets targets on fire (2–5s) based on pet level."
                     loreLines.add(ChatColor.YELLOW + effectObj.getId()
                             + ChatColor.GRAY + " - "
-                            + ChatColor.WHITE + effectObj.getDescription());
+                            + effectObj.getDescription());
                 } else {
-                    // fallback if not found
                     loreLines.add(ChatColor.YELLOW + effectId);
                 }
             }
@@ -176,9 +184,8 @@ public class PetGUI {
 
         // 3) The custom `lore:` lines
         if (pet.getLore() != null && !pet.getLore().isEmpty()) {
-            loreLines.add(ChatColor.GRAY + "Description:");
             for (String loreLine : pet.getLore()) {
-                loreLines.add(ChatColor.RESET + loreLine);
+                loreLines.add(ChatColor.GRAY + loreLine);
             }
             loreLines.add("");
         }
@@ -210,6 +217,7 @@ public class PetGUI {
                     petHelper.unequipPet(clickPlayer);
                     clickPlayer.sendMessage(ChatColor.RED + "You have unequipped the pet: " + pet.getName());
                 } else {
+                    // Equip it
                     petHelper.equipPet(clickPlayer, pet.getId());
                     clickPlayer.sendMessage(ChatColor.GREEN + "You have equipped the pet: " + pet.getName());
                 }

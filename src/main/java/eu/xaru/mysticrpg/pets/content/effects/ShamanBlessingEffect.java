@@ -13,7 +13,7 @@ public class ShamanBlessingEffect implements IPetEffect {
 
     @Override
     public String getDescription() {
-        return "Heals you every second, increasing with level (2/3/5 HP).";
+        return "Heals you every second, increasing with level.";
     }
 
     // We won't do direct logic here, because we apply it in CustomDamageHandler's regenerate logic.

@@ -8,6 +8,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 
+/**
+ * Represents a single pet, including level & XP logic.
+ */
 public class Pet {
 
     private final String id;
@@ -25,7 +28,11 @@ public class Pet {
     private int level;
     private int currentXp;
 
-    // xpTable: nextLevel -> xpNeeded
+    /**
+     * xpTable says how many XP are needed to go from (level) to (level+1).
+     * Key: nextLevel => xpNeeded.
+     * For example, xpTable.get(2) might be 60, meaning you need 60 XP to go from L1 to L2.
+     */
     private final Map<Integer, Integer> xpTable;
 
     public Pet(String id,
@@ -54,8 +61,12 @@ public class Pet {
         this.rarity = (rarity != null) ? rarity : PetRarity.COMMON;
 
         this.maxLevel = (maxLevel > 0) ? maxLevel : 10;
+        // Clamp initial level to [1..maxLevel].
         this.level = Math.min(Math.max(initialLevel, 1), this.maxLevel);
+        // XP cannot go below 0.
         this.currentXp = Math.max(0, initialXp);
+
+        // Table can’t be null. If missing, we fallback to an empty map, meaning no further leveling.
         this.xpTable = (xpTable != null) ? xpTable : Collections.emptyMap();
     }
 
@@ -87,37 +98,58 @@ public class Pet {
         currentXp = 0;
     }
 
+    /**
+     * Adds XP to this pet's "currentXp" and checks if it crosses the threshold for next level(s).
+     * - If we have leftover XP, we keep leveling up until we either run out of leftover or hit maxLevel.
+     * - If we EXACTLY match a threshold, we level up and set xp=0 for the new level.
+     */
     public void addXp(int amount) {
+        // If no XP added or already at max level, do nothing.
         if (amount <= 0 || level >= maxLevel) {
             return;
         }
+
         currentXp += amount;
 
+        // Keep leveling up as long as we cross the threshold for the next level
         while (level < maxLevel) {
             int nextLevel = level + 1;
             Integer xpNeeded = xpTable.get(nextLevel);
             if (xpNeeded == null) {
+                // If next level is not in xpTable, we can't proceed
                 DebugLogger.getInstance().log(Level.WARNING,
                         "Pet [" + id + "] xp_table missing for level " + nextLevel
-                                + ". Using fallback 999999999.");
+                                + ". Using fallback 999999999 => no further leveling possible!");
                 xpNeeded = 999999999;
             }
+
+            // If we have enough XP to go up at least 1 level:
             if (currentXp >= xpNeeded) {
+                // Subtract what's needed to reach the new level
                 currentXp -= xpNeeded;
                 level++;
+
+                // If we are now at max level, clamp XP to 0
                 if (level >= maxLevel) {
                     level = maxLevel;
                     currentXp = 0;
                     break;
                 }
             } else {
+                // Not enough XP for the next level => done leveling for now
                 break;
             }
         }
     }
 
+    /**
+     * @return How many more XP are needed from currentXp to reach (level+1).
+     *         Returns 0 if pet is at max level or if xp_table is missing that next level.
+     */
     public int getXpToNextLevel() {
-        if (level >= maxLevel) return 0;
+        if (level >= maxLevel) {
+            return 0;
+        }
         Integer xpNeeded = xpTable.get(level + 1);
         if (xpNeeded == null) {
             return 0;
@@ -126,7 +158,7 @@ public class Pet {
     }
 
     /**
-     * Overhead name: color-coded rarity + ownerName + petName + level
+     * The overhead name: color-coded rarity + ownerName + petName + level
      */
     public String getFancyName(String ownerName) {
         return "[" + rarity.getColor() + rarity.name() + ChatColor.RESET + "] "
