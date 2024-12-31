@@ -23,6 +23,10 @@ import org.bukkit.util.Vector;
 import java.util.*;
 import java.util.logging.Level;
 
+/**
+ * PetHelper that ALWAYS reads/writes level/XP from file,
+ * ignoring any leftover in-memory version.
+ */
 public class PetHelper implements Listener {
 
     private final JavaPlugin plugin;
@@ -33,13 +37,13 @@ public class PetHelper implements Listener {
         this.plugin = plugin;
         PetFileStorage.init(plugin);
 
-        // Load pets from our PetRegistry
+        // Load known pet definitions from PetRegistry
         for (Pet p : PetRegistry.getAllPets()) {
             petConfigurations.put(p.getId(), p);
             DebugLogger.getInstance().log(Level.INFO, "Registered pet: " + p.getId(), 0);
         }
 
-        // Update pets each tick
+        // Update pets each tick (for overhead name holograms, etc.)
         Bukkit.getScheduler().runTaskTimer(plugin, this::updatePets, 0L, 1L);
     }
 
@@ -52,10 +56,11 @@ public class PetHelper implements Listener {
 
     /**
      * Give a pet by ID to a player, if not owned already.
+     * This does not do any file-based XP logic; it just adds ownership to PlayerData.
      */
     public void givePet(Player player, String petId) {
-        Pet pet = petConfigurations.get(petId);
-        if (pet == null) {
+        Pet basePet = petConfigurations.get(petId);
+        if (basePet == null) {
             player.sendMessage(Utils.getInstance().$("Pet not found: " + petId));
             return;
         }
@@ -65,30 +70,30 @@ public class PetHelper implements Listener {
             return;
         }
         if (data.getOwnedPets().contains(petId)) {
-            player.sendMessage(Utils.getInstance().$("You already own this pet: " + pet.getName()));
+            player.sendMessage(Utils.getInstance().$("You already own this pet: " + basePet.getName()));
             return;
         }
         data.getOwnedPets().add(petId);
         PlayerDataCache.getInstance().savePlayerData(player.getUniqueId(), new Callback<>() {
             @Override
             public void onSuccess(Void result) {
-                player.sendMessage(Utils.getInstance().$("You have received pet: " + pet.getName()));
+                player.sendMessage(Utils.getInstance().$("You have received pet: " + basePet.getName()));
             }
 
             @Override
             public void onFailure(Throwable throwable) {
-                player.sendMessage(Utils.getInstance().$("Failed to receive pet: " + pet.getName()));
+                player.sendMessage(Utils.getInstance().$("Failed to receive pet: " + basePet.getName()));
             }
         });
     }
 
     /**
-     * Equip a pet (by ID). All pets behave like ground-based wolves,
-     * with normal Wolf AI & pathfinding.
+     * Equip a pet by ID, ignoring any in-memory data.
+     * We always read its level/xp from file to ensure correctness.
      */
     public void equipPet(Player player, String petId) {
-        Pet pet = petConfigurations.get(petId);
-        if (pet == null) {
+        Pet basePet = petConfigurations.get(petId);
+        if (basePet == null) {
             player.sendMessage(Utils.getInstance().$("Pet not found: " + petId));
             return;
         }
@@ -98,47 +103,50 @@ public class PetHelper implements Listener {
             return;
         }
         if (!data.getOwnedPets().contains(petId)) {
-            player.sendMessage(Utils.getInstance().$("You do not own pet: " + pet.getName()));
+            player.sendMessage(Utils.getInstance().$("You do not own pet: " + basePet.getName()));
             return;
         }
 
-        // Unequip any old pet first
+        // Unequip any previously equipped pet
         unequipPet(player);
 
-        // Load saved level/xp from local file
-        var petProgressMap = PetFileStorage.loadPlayerPets(player);
-        var prog = petProgressMap.get(petId);
-        if (prog != null) {
-            pet.setLevel(prog.getLevel());
-            pet.setCurrentXp(prog.getXp());
+        // 1) Read the player's pet data from file
+        var fileData = PetFileStorage.loadPlayerPets(player);
+        // 2) Overwrite the basePet's level/xp with what's in the file
+        var storedProgress = fileData.get(petId);
+        if (storedProgress != null) {
+            basePet.setLevel(storedProgress.getLevel());
+            basePet.setCurrentXp(storedProgress.getXp());
+        } else {
+            // If never saved before, presumably level=1 xp=0 from constructor
         }
 
-        // Apply stats/effects
-        PetStatManager.applyPetBonuses(player, pet);
+        // 3) Apply stats/effects to the player
+        PetStatManager.applyPetBonuses(player, basePet);
 
-        // Spawn entity
-        PetInstance instance = spawnPetEntity(player, pet);
+        // 4) Spawn the Wolf
+        PetInstance instance = spawnPetEntity(player, basePet);
         playerEquippedPets.put(player.getUniqueId(), instance);
 
-        // Mark in PlayerData
+        // 5) Mark in PlayerData which pet is equipped
         data.setEquippedPet(petId);
         PlayerDataCache.getInstance().savePlayerData(player.getUniqueId(), null);
 
-        player.sendMessage(Utils.getInstance().$("You have equipped pet: " + pet.getName()));
+        player.sendMessage(Utils.getInstance().$("You have equipped pet: " + basePet.getName()));
     }
 
     /**
-     * Unequip the player's current pet, removing stats/effects, model, etc.
-     * Also saves the pet's level/xp so no data is lost.
+     * Unequip the player's current pet, removing stats/effects,
+     * then saving the final level/XP to file.
      */
     public void unequipPet(Player player) {
         PlayerData data = PlayerDataCache.getInstance().getCachedPlayerData(player.getUniqueId());
         if (data == null) return;
 
         String eqPetId = data.getEquippedPet();
-        if (eqPetId == null) return; // none equipped
+        if (eqPetId == null) return; // none equipped => nothing to do
 
-        // 1) Remove from the internal map
+        // 1) Remove from our internal map
         PetInstance instance = playerEquippedPets.remove(player.getUniqueId());
         if (instance != null) {
             // remove model
@@ -153,18 +161,21 @@ public class PetHelper implements Listener {
             instance.getPetEntity().remove();
         }
 
-        // 2) Save the current level/XP to file
+        // 2) Overwrite the file data with the final level/xp from the in-memory Pet
         Pet oldPet = petConfigurations.get(eqPetId);
         if (oldPet != null) {
-            var map = PetFileStorage.loadPlayerPets(player);
-            map.put(eqPetId, new PetFileStorage.PetProgress(oldPet.getLevel(), oldPet.getCurrentXp()));
-            PetFileStorage.savePlayerPets(player, map);
+            // read file to ensure we don’t lose other pets’ data
+            var fileData = PetFileStorage.loadPlayerPets(player);
+            // update just eqPetId in that file
+            fileData.put(eqPetId, new PetFileStorage.PetProgress(oldPet.getLevel(), oldPet.getCurrentXp()));
+            // save back
+            PetFileStorage.savePlayerPets(player, fileData);
 
             // remove stats/effects
             PetStatManager.removePetBonuses(player, oldPet);
         }
 
-        // 3) remove "equippedPet" from PlayerData
+        // 3) Clear from PlayerData
         data.setEquippedPet(null);
         PlayerDataCache.getInstance().savePlayerData(player.getUniqueId(), null);
 
@@ -172,36 +183,51 @@ public class PetHelper implements Listener {
     }
 
     /**
-     * Add XP to the currently equipped pet, then save to local file.
-     * This is the correct approach to ensure leveling & leftover xp are handled.
+     * Add XP to the player's equipped pet.
+     * ALWAYS re-read from file first, apply the XP, then rewrite to file
+     * so we never trust the old in-memory data.
      */
     public void addPetXp(Player player, int amount) {
         if (amount <= 0) return;
+
         PlayerData data = PlayerDataCache.getInstance().getCachedPlayerData(player.getUniqueId());
         if (data == null) return;
-        String eqId = data.getEquippedPet();
-        if (eqId == null) return;
+
+        String eqPetId = data.getEquippedPet();
+        if (eqPetId == null) return; // no pet equipped => do nothing
 
         PetInstance inst = playerEquippedPets.get(player.getUniqueId());
-        if (inst == null) return;
+        if (inst == null) return; // no Wolf? => do nothing
 
+        // 1) Re-read from file, to get the "true" current xp/level
+        var fileData = PetFileStorage.loadPlayerPets(player);
+
+        // 2) Overwrite the in-memory Pet with the file data
         Pet pet = inst.getPet();
+        PetFileStorage.PetProgress prior = fileData.get(eqPetId);
+        if (prior != null) {
+            pet.setLevel(prior.getLevel());
+            pet.setCurrentXp(prior.getXp());
+        }
+        // else if there's no prior entry, we keep the constructor's level=1 xp=0
+
         int oldLvl = pet.getLevel();
+
+        // 3) Actually add XP
         pet.addXp(amount);
 
-        // Save updated
-        var map = PetFileStorage.loadPlayerPets(player);
-        map.put(eqId, new PetFileStorage.PetProgress(pet.getLevel(), pet.getCurrentXp()));
-        PetFileStorage.savePlayerPets(player, map);
+        // 4) Save it back to file
+        fileData.put(eqPetId, new PetFileStorage.PetProgress(pet.getLevel(), pet.getCurrentXp()));
+        PetFileStorage.savePlayerPets(player, fileData);
 
-        // If level changed => update overhead name
+        // 5) If level changed => update overhead hologram name
         if (pet.getLevel() != oldLvl && inst.getNameHologram() != null) {
             inst.getNameHologram().setCustomName(pet.getFancyName(player.getName()));
         }
     }
 
     /**
-     * Actually spawn the Wolf (or the entity). All pets = normal Wolf AI.
+     * Spawns a ground-based Wolf with normal AI, plus an overhead name hologram.
      */
     private PetInstance spawnPetEntity(Player owner, Pet pet) {
         Wolf wolf = (Wolf) owner.getWorld().spawnEntity(owner.getLocation(), EntityType.WOLF);
@@ -219,7 +245,7 @@ public class PetHelper implements Listener {
             wolf.setCollidable(false);
         } catch (NoSuchMethodError ignored) {}
 
-        // For all pets => normal Wolf AI + faster speed
+        // normal Wolf AI + slightly faster movement
         wolf.setAI(true);
         if (wolf.getAttribute(Attribute.MOVEMENT_SPEED) != null) {
             wolf.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(0.3);
@@ -227,7 +253,7 @@ public class PetHelper implements Listener {
 
         PetInstance instance = new PetInstance(pet, wolf);
 
-        // If using ModelEngine
+        // If you're using ModelEngine
         String modelId = pet.getModelId();
         if (modelId != null && !modelId.isEmpty()) {
             var modeledEntity = ModelHandler.applyModel(wolf, modelId);
@@ -237,16 +263,13 @@ public class PetHelper implements Listener {
             }
         }
 
-        // Overhead name hologram (use the same offset for all pets, e.g. 0.7)
+        // overhead name
         ArmorStand holo = spawnNameHologram(pet.getFancyName(owner.getName()), wolf.getLocation(), 0.7);
         instance.setNameHologram(holo);
 
         return instance;
     }
 
-    /**
-     * Summon a floating ArmorStand with a custom name at a given offset above the entity.
-     */
     private ArmorStand spawnNameHologram(String name, Location loc, double offsetY) {
         return loc.getWorld().spawn(loc.clone().add(0, offsetY, 0), ArmorStand.class, a -> {
             a.setCustomName(name);
@@ -261,7 +284,7 @@ public class PetHelper implements Listener {
     }
 
     /**
-     * Example attack handler for "firetick" or "phoenixwill" (still possible if effect is defined).
+     * Example logic for "firetick" or "phoenixwill" effects.
      */
     @EventHandler
     public void onPlayerAttack(EntityDamageByEntityEvent event) {
@@ -273,21 +296,20 @@ public class PetHelper implements Listener {
         Pet pet = pi.getPet();
         if (pet == null) return;
 
-        // Example effect check: "firetick"
+        // If the pet has "firetick", apply fire ticks
         if (pet.getEffects().contains("firetick")) {
-            var target = event.getEntity();
+            Entity target = event.getEntity();
             if (target.getFireTicks() <= 0) {
                 int lvl = pet.getLevel();
                 int ticks = (lvl >= 10) ? 100 : (lvl >= 5 ? 80 : 40);
                 target.setFireTicks(ticks);
             }
         }
-        // "phoenixwill" effect is still recognized if it's in the pet's effect list,
-        // but we do not do any special "flying" code for phoenix.
+        // "phoenixwill" effect is recognized but no special flight code
     }
 
     /**
-     * Prevent pet from taking damage.
+     * Prevent the Wolf from taking damage.
      */
     @EventHandler
     public void onPetDamage(EntityDamageEvent e) {
@@ -300,7 +322,7 @@ public class PetHelper implements Listener {
     }
 
     /**
-     * Prevent pet from targeting or being angry at anything.
+     * Prevent the Wolf from targeting or being angry at anything.
      */
     @EventHandler
     public void onPetTarget(EntityTargetEvent e) {
@@ -332,9 +354,8 @@ public class PetHelper implements Listener {
     }
 
     /**
-     * Update logic each tick:
-     * - Now all pets are ground-based, using default Wolf AI.
-     *   We only update the overhead hologram's position.
+     * Called every tick. We only reposition the overhead name if it exists.
+     * No custom AI (since all are normal Wolves).
      */
     private void updatePets() {
         for (UUID playerId : playerEquippedPets.keySet()) {
@@ -347,7 +368,6 @@ public class PetHelper implements Listener {
             LivingEntity ent = pi.getPetEntity();
             if (ent.isDead()) continue;
 
-            // Overhead hologram => keep at ~0.7 above the entity
             ArmorStand holo = pi.getNameHologram();
             if (holo != null && !holo.isDead()) {
                 holo.teleport(ent.getLocation().clone().add(0, 0.7, 0));
@@ -355,7 +375,8 @@ public class PetHelper implements Listener {
         }
     }
 
-    // Utility methods
+    // Utility methods:
+
     public Pet getPetById(String petId) {
         return petConfigurations.get(petId);
     }

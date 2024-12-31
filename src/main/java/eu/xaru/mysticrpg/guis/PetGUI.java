@@ -3,9 +3,7 @@ package eu.xaru.mysticrpg.guis;
 import eu.xaru.mysticrpg.auctionhouse.AuctionHouseModule;
 import eu.xaru.mysticrpg.guis.player.social.FriendsGUI;
 import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.pets.Pet;
-import eu.xaru.mysticrpg.pets.PetHelper;
-import eu.xaru.mysticrpg.pets.PetsModule;
+import eu.xaru.mysticrpg.pets.*;
 import eu.xaru.mysticrpg.pets.content.effects.EffectRegistry;
 import eu.xaru.mysticrpg.player.equipment.EquipmentModule;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
@@ -102,7 +100,8 @@ public class PetGUI {
         for (String petId : petHelper.getOwnedPetIds(player)) {
             Pet pet = petHelper.getPetById(petId);
             if (pet != null) {
-                petItems.add(createPetItem(player, pet));
+                // We create an item for that pet
+                petItems.add(createPetItem(player, petId, pet));
             }
         }
 
@@ -128,8 +127,22 @@ public class PetGUI {
                 .open(player);
     }
 
-    private Item createPetItem(Player player, Pet pet) {
+    /**
+     * Load from file each time, so we see the up-to-date level/xp for each pet.
+     */
+    private Item createPetItem(Player player, String petId, Pet pet) {
 
+        // 1) read from file
+        Map<String, PetFileStorage.PetProgress> fileData = PetFileStorage.loadPlayerPets(player);
+        PetFileStorage.PetProgress progress = fileData.get(petId);
+        if (progress != null) {
+            pet.setLevel(progress.getLevel());
+            pet.setCurrentXp(progress.getXp());
+        } else {
+            // If no entry => default from constructor
+        }
+
+        // Now 'pet' object has the correct level & xp from the file
         List<String> loreLines = new ArrayList<>();
 
         // Show color-coded rarity
@@ -143,11 +156,10 @@ public class PetGUI {
         if (pet.getLevel() >= pet.getMaxLevel()) {
             loreLines.add(ChatColor.GRAY + "XP: " + ChatColor.GREEN + "MAX LEVEL!");
         } else {
-            // leftover needed to level up
-            int leftoverNeeded = pet.getXpToNextLevel();    // e.g. 60
-            int currentXp = pet.getCurrentXp();             // e.g. 90
-            int totalNeeded = currentXp + leftoverNeeded;   // e.g. 150
-            // So we show "90 / 150" instead of "90 / 60"
+            int leftoverNeeded = pet.getXpToNextLevel(); // e.g. 60
+            int currentXp = pet.getCurrentXp();          // e.g. 90
+            int totalNeeded = currentXp + leftoverNeeded; // e.g. 150
+            // "90 / 150" instead of "90 / 60"
             loreLines.add(ChatColor.GRAY + "XP: "
                     + ChatColor.GREEN + currentXp
                     + ChatColor.GRAY + " / "
@@ -212,19 +224,18 @@ public class PetGUI {
                 }
 
                 String equippedPetId = playerData.getEquippedPet();
-                if (pet.getId().equals(equippedPetId)) {
+                if (petId.equals(equippedPetId)) {
                     // Pet is currently equipped => unequip
                     petHelper.unequipPet(clickPlayer);
                     clickPlayer.sendMessage(ChatColor.RED + "You have unequipped the pet: " + pet.getName());
                 } else {
                     // Equip it
-                    petHelper.equipPet(clickPlayer, pet.getId());
+                    petHelper.equipPet(clickPlayer, petId);
                     clickPlayer.sendMessage(ChatColor.GREEN + "You have equipped the pet: " + pet.getName());
                 }
             }
         };
     }
-
 
     public static class ChangePageItem extends ControlItem<PagedGui<?>> {
         @Override

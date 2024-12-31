@@ -16,6 +16,7 @@ import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -110,10 +111,25 @@ public class PetsModule implements IBaseModule, Listener {
                 .register();
     }
 
-//    @EventHandler
-//    public void onPlayerJoin(PlayerJoinEvent event) {
-//        // Optionally equip a pet if the player has one in their data
-//    }
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+
+        // This loads the pet's level/XP from file into memory,
+        // so if you do `equipPet(...)` or check data, it won't be reset to 1/0.
+        PetFileStorage.loadPlayerPets(player);
+
+        // If you also want to re-equip automatically:
+        PlayerData data = PlayerDataCache.getInstance().getCachedPlayerData(player.getUniqueId());
+        if (data != null) {
+            String equippedPetId = data.getEquippedPet();
+            if (equippedPetId != null) {
+                // This will re-equip the same pet, restoring its level & XP from PetFileStorage
+                petHelper.equipPet(player, equippedPetId);
+                player.sendMessage(Utils.getInstance().$("Re-equipped your pet: " + equippedPetId));
+            }
+        }
+    }
 
     public PetHelper getPetHelper() {
         return petHelper;
