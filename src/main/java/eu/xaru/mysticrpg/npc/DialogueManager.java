@@ -16,7 +16,7 @@ import java.util.*;
 
 public class DialogueManager {
 
-    private final NPC npc;
+    private final XaruNPC npc;
     private final Map<String, Dialogue> dialogues = new LinkedHashMap<>();
     private final List<String> dialogueOrder = new ArrayList<>();
 
@@ -24,7 +24,7 @@ public class DialogueManager {
     private final LevelModule levelModule;
     private final File dialoguesFolder;
 
-    public DialogueManager(NPC npc) {
+    public DialogueManager(XaruNPC npc) {
         this.npc = npc;
 
         // Retrieve SaveModule and LevelModule from ModuleManager

@@ -6,10 +6,7 @@ import eu.xaru.mysticrpg.guis.quests.QuestHandInGUI;
 import eu.xaru.mysticrpg.guis.quests.ShopGUI;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
-import eu.xaru.mysticrpg.quests.Quest;
-import eu.xaru.mysticrpg.quests.QuestModule;
-import eu.xaru.mysticrpg.quests.QuestPhase;
-import eu.xaru.mysticrpg.quests.QuestManager;
+import eu.xaru.mysticrpg.quests.*;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
@@ -19,36 +16,31 @@ import net.citizensnpcs.api.npc.NPCRegistry;
 import net.citizensnpcs.trait.LookClose;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.TextComponent;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.*;
 
-public class NPC {
+public class XaruNPC {
 
     private String id;
     private String name;
     private Location location;
     private DynamicConfig config;
-    private File configFile;
 
     private final QuestModule questModule;
     private final QuestManager questManager;
     private final PlayerDataCache playerDataCache;
     private final LevelModule levelModule;
-
     private final DialogueManager dialogueManager;
     private final JavaPlugin plugin;
-    net.citizensnpcs.api.npc.NPC npcEntity;
 
-    public NPC(String id, String name, Location location) {
+    // The Citizens NPC reference
+    public net.citizensnpcs.api.npc.NPC npcEntity;
+
+    public XaruNPC(String id, String name, Location location) {
         this.id = id;
         this.name = name;
         this.location = location;
@@ -64,7 +56,7 @@ public class NPC {
 
         this.dialogueManager = new DialogueManager(this);
         dialogueManager.loadDialogues();
-        spawn();
+        // No direct spawn call here — let Citizens handle it, or call spawnIfMissing()
     }
 
     private void loadConfig() {
@@ -72,17 +64,44 @@ public class NPC {
         if (!npcsFolder.exists()) {
             npcsFolder.mkdirs();
         }
-
         this.config = DynamicConfigManager.loadConfig("npcs/" + id + ".yml");
     }
 
-    public void spawn() {
+    /**
+     * If Citizens hasn’t reloaded this NPC from saves, spawn it now.
+     */
+    public void spawnIfMissing() {
         NPCRegistry registry = CitizensAPI.getNPCRegistry();
+
+        net.citizensnpcs.api.npc.NPC existing = registry.getByUniqueIdGlobal(
+                UUID.nameUUIDFromBytes(id.getBytes())
+        );
+
+        // If found, just link and spawn if needed
+        if (existing != null) {
+            this.npcEntity = existing;
+            if (!npcEntity.isSpawned() && location != null) {
+                npcEntity.spawn(location);
+            }
+            return;
+        }
+
+        // Otherwise create a new NPC
         npcEntity = registry.createNPC(org.bukkit.entity.EntityType.PLAYER, name);
         npcEntity.setName(name);
-        npcEntity.addTrait(new NPCInteractTrait(this));
-        npcEntity.getOrAddTrait(LookClose.class).lookClose(true); // Always look at player
-        npcEntity.spawn(location);
+
+        // Attach your trait by class
+        npcEntity.addTrait(NPCInteractTrait.class);
+
+        // Optionally, add LookClose trait
+        npcEntity.getOrAddTrait(LookClose.class).lookClose(true);
+
+        // Actually spawn, if we have a location
+        if (location != null) {
+            npcEntity.spawn(location);
+        }
+        NPCInteractTrait trait = npcEntity.getOrAddTrait(NPCInteractTrait.class);
+        trait.setXaruNPC(this);
     }
 
     public void despawn() {
@@ -93,54 +112,41 @@ public class NPC {
 
     public void interact(Player player) {
         PlayerData data = playerDataCache.getCachedPlayerData(player.getUniqueId());
-        if (data==null) {
+        if (data == null) {
             player.sendMessage(Utils.getInstance().$("No player data found."));
             return;
         }
 
         boolean handledQuest = false;
-
-        // Check active quests for submit_items_to_npc or talk_to_npc objectives
         for (String questId : new ArrayList<>(data.getActiveQuests())) {
             Quest quest = questManager.getQuest(questId);
             if (quest == null) continue;
-            int phaseIndex = data.getQuestPhaseIndex().getOrDefault(questId,0);
-            if (phaseIndex>=quest.getPhases().size()) continue;
+            int phaseIndex = data.getQuestPhaseIndex().getOrDefault(questId, 0);
+            if (phaseIndex >= quest.getPhases().size()) continue;
             QuestPhase phase = quest.getPhases().get(phaseIndex);
 
             for (String obj : phase.getObjectives()) {
                 if (obj.startsWith("talk_to_npc:")) {
                     String npcId = obj.split(":")[1];
                     if (npcId.equalsIgnoreCase(this.id)) {
-                        // Send the message to the player
-                        String message = "Oh, you got the items for me?";
-                        player.sendMessage(ChatColor.translateAlternateColorCodes('&', message));
-
-                        // Schedule the GUI to open after 1 second (20 ticks)
+                        player.sendMessage(ChatColor.translateAlternateColorCodes('&', "Oh, you got the items for me?"));
                         Bukkit.getScheduler().runTaskLater(plugin, () -> {
                             Map<Material, Integer> requiredItems = new HashMap<>();
                             requiredItems.put(Material.OAK_LOG, 16);
                             new QuestHandInGUI(player, questId, requiredItems, playerDataCache, questModule, obj).open();
-                        }, 20L); // 20 ticks = 1 second
-
+                        }, 20L);
                         handledQuest = true;
                         break;
                     }
-                }
-                else if (obj.startsWith("submit_items_to_npc:")) {
+                } else if (obj.startsWith("submit_items_to_npc:")) {
                     String npcId = obj.split(":")[1];
                     if (npcId.equalsIgnoreCase(this.id)) {
-                        // Send the message to the player
-                        String message ="Oh, you got items for me?";
-                        player.sendMessage(ChatColor.translateAlternateColorCodes('&', message));
-
-                        // Schedule the GUI to open after 1 second (20 ticks)
+                        player.sendMessage(ChatColor.translateAlternateColorCodes('&', "Oh, you got items for me?"));
                         Bukkit.getScheduler().runTaskLater(plugin, () -> {
                             Map<Material, Integer> requiredItems = new HashMap<>();
                             requiredItems.put(Material.OAK_LOG, 16);
                             new QuestHandInGUI(player, questId, requiredItems, playerDataCache, questModule, obj).open();
-                        }, 20L); // 20 ticks = 1 second
-
+                        }, 20L);
                         handledQuest = true;
                         break;
                     }
@@ -148,24 +154,23 @@ public class NPC {
             }
             if (handledQuest) break;
         }
-
         if (handledQuest) return;
 
-        // If not handled as an active quest step, check if NPC has dialogues
+        // Dialogue approach
         if (dialogueManager.hasDialogues()) {
             dialogueManager.startDialogue(player);
             return;
         }
 
-        // If NPC is a merchant (from config) open ShopGUI
+        // If NPC is a merchant => open shop
         String behavior = getConfig().getString("behavior", "default");
         if ("merchant".equalsIgnoreCase(behavior)) {
-            Map<String,Integer> shopItems = Map.of("iron_sword",100,"iron_pickaxe",200);
+            Map<String, Integer> shopItems = Map.of("iron_sword", 100, "iron_pickaxe", 200);
             new ShopGUI(player, shopItems).open();
             return;
         }
 
-        // Just greet if nothing else
+        // else greet
         String message = config.getString("interaction.message", "Hello, %player%!");
         message = message.replace("%player%", player.getName());
         player.sendMessage(ChatColor.translateAlternateColorCodes('&', name + ": " + message));
@@ -179,11 +184,17 @@ public class NPC {
 
         player.sendMessage(Utils.getInstance().$(name + ": " + dialogue.getQuestion()));
 
-        TextComponent yesComponent = new TextComponent(ChatColor.GREEN +"[Yes]");
-        yesComponent.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/npcdialogue yes " + id + " " + dialogue.getId()));
+        TextComponent yesComponent = new TextComponent(ChatColor.GREEN + "[Yes]");
+        yesComponent.setClickEvent(new ClickEvent(
+                ClickEvent.Action.RUN_COMMAND,
+                "/npcdialogue yes " + id + " " + dialogue.getId()
+        ));
 
         TextComponent noComponent = new TextComponent(ChatColor.RED + "[No]");
-        noComponent.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/npcdialogue no " + id + " " + dialogue.getId()));
+        noComponent.setClickEvent(new ClickEvent(
+                ClickEvent.Action.RUN_COMMAND,
+                "/npcdialogue no " + id + " " + dialogue.getId()
+        ));
 
         TextComponent message = new TextComponent();
         message.addExtra(yesComponent);
@@ -207,5 +218,13 @@ public class NPC {
 
     public DialogueManager getDialogueManager() {
         return dialogueManager;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public net.citizensnpcs.api.npc.NPC getNpcEntity() {
+        return npcEntity;
     }
 }

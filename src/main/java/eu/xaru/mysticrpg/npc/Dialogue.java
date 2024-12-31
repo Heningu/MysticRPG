@@ -32,9 +32,9 @@ public class Dialogue {
     private final QuestModule questModule;
     private final QuestManager questManager;
     private final PlayerDataCache playerDataCache;
-    private final NPC npc;
+    private final XaruNPC npc;
 
-    public Dialogue(DynamicConfig config, NPC npc) {
+    public Dialogue(DynamicConfig config, XaruNPC npc) {
         this.id = config.getString("id", "default");
         this.npc = npc;
         this.levelRequirement = config.getInt("levelRequirement", 1);

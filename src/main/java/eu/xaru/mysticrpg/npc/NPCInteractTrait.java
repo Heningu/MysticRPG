@@ -10,10 +10,18 @@ import org.bukkit.event.EventHandler;
 
 public class NPCInteractTrait extends Trait {
 
-    private final NPC npc;
+    // We can store an XaruNPC reference, but it cannot be final
+    // because Citizens needs a no-args constructor.
+    private XaruNPC npc;
 
-    public NPCInteractTrait(NPC npc) {
+    // REQUIRED no-arguments constructor for Citizens:
+    public NPCInteractTrait() {
         super("NPCInteractTrait");
+    }
+
+    // Optional: If you still want to pass in an XaruNPC
+    // from your code at runtime, you can do so via a setter:
+    public void setXaruNPC(XaruNPC npc) {
         this.npc = npc;
     }
 
@@ -21,7 +29,12 @@ public class NPCInteractTrait extends Trait {
     public void onRightClick(NPCRightClickEvent event) {
         if (event.getNPC() == this.getNPC()) {
             Player player = event.getClicker();
-            npc.interact(player);
+            // Only call npc.interact(...) if npc != null
+            if (npc != null) {
+                npc.interact(player);
+            } else {
+                player.sendMessage(ChatColor.RED + "This NPC has no associated XaruNPC instance!");
+            }
         }
     }
 
@@ -29,7 +42,12 @@ public class NPCInteractTrait extends Trait {
     public void onLeftClick(NPCLeftClickEvent event) {
         if (event.getNPC() == this.getNPC()) {
             Player player = event.getClicker();
-            player.sendMessage(ChatColor.translateAlternateColorCodes('&', Utils.getInstance().$("Please don't attack " + npc.getName() + "!")));
+            if (npc != null) {
+                player.sendMessage(ChatColor.translateAlternateColorCodes('&',
+                        Utils.getInstance().$("Please don't attack " + npc.getName() + "!")));
+            } else {
+                player.sendMessage(ChatColor.RED + "This NPC has no associated XaruNPC instance!");
+            }
         }
     }
 }

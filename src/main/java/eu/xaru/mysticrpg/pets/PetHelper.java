@@ -370,7 +370,8 @@ public class PetHelper implements Listener {
 
             ArmorStand holo = pi.getNameHologram();
             if (holo != null && !holo.isDead()) {
-                holo.teleport(ent.getLocation().clone().add(0, 0.7, 0));
+                double offsetY = pi.getPet().getId().equalsIgnoreCase("phoenix") ? 1.5 : 0.7;
+                holo.teleport(ent.getLocation().clone().add(0, offsetY, 0));
             }
         }
     }

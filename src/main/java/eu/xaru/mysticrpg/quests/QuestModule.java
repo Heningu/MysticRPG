@@ -17,13 +17,17 @@ import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.npc.Dialogue;
-import eu.xaru.mysticrpg.npc.NPC;
+
+import eu.xaru.mysticrpg.npc.NPCInteractTrait;
 import eu.xaru.mysticrpg.npc.NPCManager;
+import eu.xaru.mysticrpg.npc.XaruNPC;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
+import net.citizensnpcs.api.CitizensAPI;
+import net.citizensnpcs.api.npc.NPCRegistry;
 import org.bukkit.*;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -86,6 +90,33 @@ public class QuestModule implements IBaseModule {
     @Override
     public void start() {
         DebugLogger.getInstance().log(Level.INFO, "QuestModule started", 0);
+
+        // Let Citizens finish loading & spawning. Then do your re-association.
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            NPCRegistry registry = CitizensAPI.getNPCRegistry();
+
+            for (net.citizensnpcs.api.npc.NPC cNpc : registry) {
+                if (!cNpc.hasTrait(NPCInteractTrait.class)) continue;
+
+                String xaruId = cNpc.data().get("xaruid");
+                if (xaruId == null || xaruId.isEmpty()) continue;
+
+                XaruNPC existing = npcManager.getNPC(xaruId);
+                if (existing == null) {
+                    // Create brand-new XaruNPC, or load from config
+                    String name = cNpc.getName();
+                    Location loc = cNpc.isSpawned() ? cNpc.getStoredLocation() : null;
+                    existing = new XaruNPC(xaruId, name, loc);
+                    existing.npcEntity = cNpc;
+                    npcManager.getAllNPCs().put(xaruId, existing);
+                }
+
+                // Link the trait
+                NPCInteractTrait trait = cNpc.getOrAddTrait(NPCInteractTrait.class);
+                trait.setXaruNPC(existing);
+            }
+            DebugLogger.getInstance().log(Level.INFO, "NPC re-association complete.", 0);
+        }, 60L); // 1-second delay
     }
 
     @Override
@@ -184,12 +215,12 @@ public class QuestModule implements IBaseModule {
                         }))
                 .withSubcommand(new CommandAPICommand("list")
                         .executesPlayer((player, args) -> {
-                            Map<String, NPC> npcs = npcManager.getAllNPCs();
+                            Map<String, XaruNPC> npcs = npcManager.getAllNPCs();
                             if (npcs.isEmpty()) {
                                 player.sendMessage(Utils.getInstance().$("No NPCs available."));
                             } else {
                                 player.sendMessage(Utils.getInstance().$("NPCs:"));
-                                for (Map.Entry<String, NPC> entry : npcs.entrySet()) {
+                                for (Map.Entry<String, XaruNPC> entry : npcs.entrySet()) {
                                     player.sendMessage(Utils.getInstance().$(" - " + entry.getKey() + ": " + entry.getValue().getName()));
                                 }
                             }
@@ -206,7 +237,7 @@ public class QuestModule implements IBaseModule {
                     String npcId = (String) args.get("npcId");
                     String dialogueId = (String) args.get("dialogueId");
 
-                    NPC npc = npcManager.getNPC(npcId);
+                    XaruNPC npc = npcManager.getNPC(npcId);
                     if (npc == null) {
                         player.sendMessage(Utils.getInstance().$("No NPC found with id " + npcId));
                         return;
