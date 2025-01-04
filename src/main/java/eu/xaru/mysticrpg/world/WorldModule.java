@@ -26,22 +26,19 @@ public class WorldModule implements IBaseModule {
         regionManager = new RegionManager(plugin, eventManager, worldManager);
         worldManager.setRegionManager(regionManager);
 
-        DebugLogger.getInstance().log(Level.INFO, "WorldModule initialized", 0);
+       // DebugLogger.getInstance().log(Level.INFO, "WorldModule initialized", 0);
     }
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "WorldModule started", 0);
     }
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "WorldModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "WorldModule unloaded", 0);
     }
 
     @Override

@@ -2,6 +2,7 @@ package eu.xaru.mysticrpg.quests;
 
 import dev.jorel.commandapi.CommandAPICommand;
 import dev.jorel.commandapi.arguments.ArgumentSuggestions;
+import dev.jorel.commandapi.arguments.LocationArgument;
 import dev.jorel.commandapi.arguments.PlayerArgument;
 import dev.jorel.commandapi.arguments.StringArgument;
 import eu.xaru.mysticrpg.cores.MysticCore;
@@ -16,11 +17,6 @@ import eu.xaru.mysticrpg.guis.quests.QuestGUI;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.npc.Dialogue;
-
-import eu.xaru.mysticrpg.npc.NPCInteractTrait;
-import eu.xaru.mysticrpg.npc.NPCManager;
-import eu.xaru.mysticrpg.npc.XaruNPC;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
@@ -28,7 +24,10 @@ import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
 import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.npc.NPCRegistry;
-import org.bukkit.*;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -38,7 +37,9 @@ import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 
 public class QuestModule implements IBaseModule {
@@ -50,7 +51,6 @@ public class QuestModule implements IBaseModule {
     private ItemManager itemManager;
     private CustomMobModule customMobModule;
     private MobManager mobManager;
-    private NPCManager npcManager;
 
     public QuestModule() {
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
@@ -77,56 +77,25 @@ public class QuestModule implements IBaseModule {
         mobManager = customMobModule.getMobManager();
 
         eventManager = new EventManager(plugin);
-        npcManager = new NPCManager();
 
         questManager = new QuestManager(plugin, playerDataCache, itemManager);
 
         registerCommands();
         registerEventHandlers();
 
-        DebugLogger.getInstance().log(Level.INFO, "QuestModule initialized successfully.", 0);
+        //DebugLogger.getInstance().log(Level.INFO, "QuestModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "QuestModule started", 0);
-
-        // Let Citizens finish loading & spawning. Then do your re-association.
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            NPCRegistry registry = CitizensAPI.getNPCRegistry();
-
-            for (net.citizensnpcs.api.npc.NPC cNpc : registry) {
-                if (!cNpc.hasTrait(NPCInteractTrait.class)) continue;
-
-                String xaruId = cNpc.data().get("xaruid");
-                if (xaruId == null || xaruId.isEmpty()) continue;
-
-                XaruNPC existing = npcManager.getNPC(xaruId);
-                if (existing == null) {
-                    // Create brand-new XaruNPC, or load from config
-                    String name = cNpc.getName();
-                    Location loc = cNpc.isSpawned() ? cNpc.getStoredLocation() : null;
-                    existing = new XaruNPC(xaruId, name, loc);
-                    existing.npcEntity = cNpc;
-                    npcManager.getAllNPCs().put(xaruId, existing);
-                }
-
-                // Link the trait
-                NPCInteractTrait trait = cNpc.getOrAddTrait(NPCInteractTrait.class);
-                trait.setXaruNPC(existing);
-            }
-            DebugLogger.getInstance().log(Level.INFO, "NPC re-association complete.", 0);
-        }, 60L); // 1-second delay
     }
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "QuestModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "QuestModule unloaded", 0);
     }
 
     @Override
@@ -140,7 +109,6 @@ public class QuestModule implements IBaseModule {
     }
 
     private void registerCommands() {
-
         new CommandAPICommand("progress")
                 .withPermission("mysticrpg.questadmin")
                 .withArguments(new PlayerArgument("player"))
@@ -156,14 +124,16 @@ public class QuestModule implements IBaseModule {
                         .executes((sender, args) -> {
                             Player player = (Player) sender;
                             questManager.listAllQuests(player);
-                        }))
+                        })
+                )
                 .withSubcommand(new CommandAPICommand("check")
                         .withPermission("mysticrpg.questadmin")
                         .withArguments(new PlayerArgument("player"))
                         .executes((sender, args) -> {
                             Player target = (Player) args.get("player");
                             questManager.checkPlayerQuests(sender, target);
-                        }))
+                        })
+                )
                 .withSubcommand(new CommandAPICommand("give")
                         .withPermission("mysticrpg.questadmin")
                         .withArguments(
@@ -175,7 +145,8 @@ public class QuestModule implements IBaseModule {
                             Player target = (Player) args.get("player");
                             String questId = (String) args.get("questId");
                             questManager.giveQuest(sender, target, questId);
-                        }))
+                        })
+                )
                 .withSubcommand(new CommandAPICommand("reset")
                         .withPermission("mysticrpg.questadmin")
                         .withArguments(
@@ -187,69 +158,8 @@ public class QuestModule implements IBaseModule {
                             Player target = (Player) args.get("player");
                             String questId = (String) args.get("questId");
                             questManager.resetQuest(sender, target, questId);
-                        }))
-                .register();
-
-        // NPC commands
-        new CommandAPICommand("npc")
-                .withPermission("mysticrpg.npcadmin")
-                .withSubcommand(new CommandAPICommand("create")
-                        .withArguments(new StringArgument("id"), new StringArgument("name"))
-                        .executesPlayer((player, args) -> {
-                            String npcId = (String) args.get("id");
-                            String npcName = (String) args.get("name");
-                            Location loc = player.getLocation();
-                            npcManager.createNPC(loc, npcId, npcName);
-                            player.sendMessage(Utils.getInstance().$("NPC " + npcName + " created with id " + npcId + " at your location."));
-                        }))
-                .withSubcommand(new CommandAPICommand("delete")
-                        .withArguments(new StringArgument("id"))
-                        .executesPlayer((player, args) -> {
-                            String npcId = (String) args.get("id");
-                            boolean success = npcManager.deleteNPC(npcId);
-                            if (success) {
-                                player.sendMessage(Utils.getInstance().$("NPC with id " + npcId + " deleted."));
-                            } else {
-                                player.sendMessage(Utils.getInstance().$("No NPC found with id " + npcId + "."));
-                            }
-                        }))
-                .withSubcommand(new CommandAPICommand("list")
-                        .executesPlayer((player, args) -> {
-                            Map<String, XaruNPC> npcs = npcManager.getAllNPCs();
-                            if (npcs.isEmpty()) {
-                                player.sendMessage(Utils.getInstance().$("No NPCs available."));
-                            } else {
-                                player.sendMessage(Utils.getInstance().$("NPCs:"));
-                                for (Map.Entry<String, XaruNPC> entry : npcs.entrySet()) {
-                                    player.sendMessage(Utils.getInstance().$(" - " + entry.getKey() + ": " + entry.getValue().getName()));
-                                }
-                            }
-                        }))
-                .register();
-
-        // npcdialogue command
-        new CommandAPICommand("npcdialogue")
-                .withArguments(new StringArgument("response").replaceSuggestions(ArgumentSuggestions.strings("yes","no")))
-                .withArguments(new StringArgument("npcId"))
-                .withArguments(new StringArgument("dialogueId"))
-                .executesPlayer((player, args) -> {
-                    String response = (String) args.get("response");
-                    String npcId = (String) args.get("npcId");
-                    String dialogueId = (String) args.get("dialogueId");
-
-                    XaruNPC npc = npcManager.getNPC(npcId);
-                    if (npc == null) {
-                        player.sendMessage(Utils.getInstance().$("No NPC found with id " + npcId));
-                        return;
-                    }
-                    Dialogue dialogue = npc.getDialogueManager().getDialogueById(dialogueId);
-                    if (dialogue == null) {
-                        player.sendMessage(Utils.getInstance().$("No dialogue found with id " + dialogueId));
-                        return;
-                    }
-
-                    dialogue.handleResponse(player, response);
-                })
+                        })
+                )
                 .register();
     }
 
@@ -297,10 +207,8 @@ public class QuestModule implements IBaseModule {
     }
 
     public void openQuestGUI(Player player) {
-        // Open new Paged QuestGUI
         QuestGUI gui = new QuestGUI(player, questManager, playerDataCache);
         gui.openQuestGUI(player);
-
     }
 
     public void chooseQuestBranch(Player player, String questId, String choice) {

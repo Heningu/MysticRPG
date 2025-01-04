@@ -4,5 +4,5 @@ main: eu.xaru.mysticrpg.cores.MysticCore
 author: Xaru
 description: An RPG plugin to bring a mystical adventure to Minecraft.
 api-version: 1.13
-depend: [Citizens, LuckPerms]
+depend: [Citizens, LuckPerms, ModelEngine]
 commands:

@@ -43,27 +43,23 @@ public class PowerStoneModule implements IBaseModule {
         powerStoneManager = new PowerStoneManager();
 
         // Initialize and register all effects
-        EffectRegistry.initializeEffects(); // <-- Registering effects here
+        EffectRegistry.initializeEffects();
 
         registerCommands();
         registerEventHandlers();
 
-        DebugLogger.getInstance().log(Level.INFO, "PowerStoneModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "PowerStoneModule started", 0);
     }
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "PowerStoneModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "PowerStoneModule unloaded", 0);
     }
 
     @Override

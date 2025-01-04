@@ -29,25 +29,22 @@ public class DungeonModule implements IBaseModule {
 
         dungeonManager = new DungeonManager(plugin, this);
 
-        DebugLogger.getInstance().log(Level.INFO, "DungeonModule initialized successfully.", 0);
+     //   DebugLogger.getInstance().log(Level.INFO, "DungeonModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
         dungeonManager.start();
-        DebugLogger.getInstance().log(Level.INFO, "DungeonModule started", 0);
     }
 
     @Override
     public void stop() {
         dungeonManager.stop();
-        DebugLogger.getInstance().log(Level.INFO, "DungeonModule stopped", 0);
     }
 
     @Override
     public void unload() {
         dungeonManager.stop();
-        DebugLogger.getInstance().log(Level.INFO, "DungeonModule unloaded", 0);
     }
 
     @Override

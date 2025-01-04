@@ -84,6 +84,7 @@ public class FriendsModule implements IBaseModule {
     @Override
     public void start() {
         registerCommands();
+
     }
 
     /**

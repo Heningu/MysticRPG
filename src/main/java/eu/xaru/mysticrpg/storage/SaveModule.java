@@ -49,7 +49,6 @@ public class SaveModule implements IBaseModule {
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "SaveModule started", 0);
 
         // Register /dbbench command for DB benchmarking
         DbBenchmarkCommand.register();
@@ -129,13 +128,10 @@ public class SaveModule implements IBaseModule {
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "SaveModule stopped", 0);
-        // Optionally: final flush of dirty data if you want
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "SaveModule unloaded", 0);
     }
 
     @Override

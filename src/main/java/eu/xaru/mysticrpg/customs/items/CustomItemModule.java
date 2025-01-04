@@ -52,22 +52,19 @@ public class CustomItemModule implements IBaseModule {
         registerCommands();
         registerEventHandlers();
 
-        DebugLogger.getInstance().log(Level.INFO, "CustomItemModule initialized successfully.", 0);
+    //    DebugLogger.getInstance().log(Level.INFO, "CustomItemModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "CustomItemModule started", 0);
     }
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "CustomItemModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "CustomItemModule unloaded", 0);
     }
 
     @Override

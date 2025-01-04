@@ -63,7 +63,7 @@ public class DiscordModule implements IBaseModule, Listener {
         discordHelper = new DiscordHelper(this);
 
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
-        DebugLogger.getInstance().log(Level.INFO, "DiscordModule initialized successfully.", 0);
+     //   DebugLogger.getInstance().log(Level.INFO, "DiscordModule initialized successfully.", 0);
     }
 
     @Override
@@ -80,19 +80,15 @@ public class DiscordModule implements IBaseModule, Listener {
                                     .addOption(net.dv8tion.jda.api.interactions.commands.OptionType.STRING, "type", "Type of leaderboard (LEVEL/RICH)", true)
                     ).queue();
         }
-
-        DebugLogger.getInstance().log(Level.INFO, "DiscordModule started.", 0);
     }
 
     @Override
     public void stop() {
         discordHelper.shutdownBot();
-        DebugLogger.getInstance().log(Level.INFO, "DiscordModule stopped.", 0);
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "DiscordModule unloaded.", 0);
     }
 
     @Override

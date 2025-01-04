@@ -60,24 +60,19 @@ public class AuctionHouseModule implements IBaseModule {
 
         this.customItemModule = ModuleManager.getInstance()
                 .getModuleInstance(CustomItemModule.class);
-
-        loggerModule.log(Level.INFO, "AuctionHouseModule initialized");
     }
 
     @Override
     public void start() {
-        loggerModule.log(Level.INFO, "AuctionHouseModule started");
         registerEvents();
     }
 
     @Override
     public void stop() {
-        loggerModule.log(Level.INFO, "AuctionHouseModule stopped");
     }
 
     @Override
     public void unload() {
-        loggerModule.log(Level.INFO, "AuctionHouseModule unloaded");
     }
 
     @Override

@@ -55,12 +55,11 @@ public class LevelModule implements IBaseModule {
         this.maxLevel = levelDataMap.keySet().stream().max(Integer::compare).orElse(100);
 
         registerLevelsCommand();
-        DebugLogger.getInstance().log(Level.INFO, "LevelModule initialized", 0);
+        //DebugLogger.getInstance().log(Level.INFO, "LevelModule initialized", 0);
     }
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "LevelModule started", 0);
 
         eventManager.registerEvent(InventoryDragEvent.class, event -> {
             String inventoryTitle = event.getView().getTitle();
@@ -73,12 +72,10 @@ public class LevelModule implements IBaseModule {
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "LevelModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "LevelModule unloaded", 0);
     }
 
     @Override

@@ -61,7 +61,7 @@ public class UIModule implements IBaseModule {
 
             this.actionBarManager = new ActionBarManager(MysticCore.getPlugin(MysticCore.class), playerDataCache, statsManager);
             this.scoreboardManager = new ScoreboardManager();
-            DebugLogger.getInstance().log(Level.INFO, "UIModule initialized successfully.", 0);
+           // DebugLogger.getInstance().log(Level.INFO, "UIModule initialized successfully.", 0);
         } else {
             DebugLogger.getInstance().severe("[MysticRPG] SaveModule or LevelModule is not initialized. UIModule cannot function without them.");
             return;
@@ -82,13 +82,11 @@ public class UIModule implements IBaseModule {
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "UIModule started", 0);
         registerCommands();
     }
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "UIModule stopped", 0);
     }
 
     @Override
@@ -96,7 +94,6 @@ public class UIModule implements IBaseModule {
         if (scoreboardManager != null) {
             scoreboardManager.cleanup();
         }
-        DebugLogger.getInstance().log(Level.INFO, "UIModule unloaded", 0);
     }
 
     @Override

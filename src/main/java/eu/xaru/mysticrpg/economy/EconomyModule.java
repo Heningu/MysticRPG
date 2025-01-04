@@ -34,7 +34,7 @@ public class EconomyModule implements IBaseModule {
         if (saveModule != null) {
             PlayerDataCache playerDataCache = PlayerDataCache.getInstance();
             this.economyHelper = new EconomyHelper(playerDataCache);
-            DebugLogger.getInstance().log(Level.INFO, "EconomyModule initialized successfully.", 0);
+          //  DebugLogger.getInstance().log(Level.INFO, "EconomyModule initialized successfully.", 0);
         } else {
             DebugLogger.getInstance().log(String.valueOf(Level.SEVERE), "SaveModule is not initialized. EconomyModule cannot function without it.");
             return;
@@ -45,17 +45,14 @@ public class EconomyModule implements IBaseModule {
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "EconomyModule started", 0);
     }
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "EconomyModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "EconomyModule unloaded", 0);
     }
 
     @Override

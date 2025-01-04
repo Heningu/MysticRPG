@@ -42,12 +42,11 @@ public class SlotGameModule implements IBaseModule {
         // Create our slot game helper for spinning logic & payouts
         this.slotGameHelper = new SlotGameHelper(plugin, economyHelper);
 
-        DebugLogger.getInstance().log(Level.INFO, "SlotGameModule initialized", 0);
+       // DebugLogger.getInstance().log(Level.INFO, "SlotGameModule initialized", 0);
     }
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "SlotGameModule started", 0);
 
         // Create the SlotGameManager, which registers the /game command automatically
         this.slotGameManager = new SlotGameManager(economyHelper);
@@ -57,12 +56,10 @@ public class SlotGameModule implements IBaseModule {
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "SlotGameModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "SlotGameModule unloaded", 0);
     }
 
     @Override

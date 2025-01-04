@@ -7,7 +7,6 @@ import eu.decentsoftware.holograms.api.DecentHologramsAPI;
 import eu.xaru.mysticrpg.config.DynamicConfig;
 import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
-import eu.xaru.mysticrpg.npc.NPCInteractTrait;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder;
 import net.citizensnpcs.api.CitizensAPI;
@@ -59,15 +58,6 @@ public class MysticCore extends JavaPlugin {
         PacketEvents.getAPI().init();
 
         try {
-            // Load all modules (eagerly loaded modules)
-            if (getServer().getPluginManager().getPlugin("Citizens") != null) {
-                CitizensAPI.getTraitFactory().registerTrait(
-                        TraitInfo.create(NPCInteractTrait.class).withName("NPCInteractTrait")
-                );
-                getLogger().info("Registered NPCInteractTrait with Citizens!");
-            } else {
-                getLogger().warning("Citizens not found! NPC traits won't be persisted.");
-            }
             moduleManager.loadAllModules();
             CommandAPI.onEnable();
             DecentHologramsAPI.onEnable();

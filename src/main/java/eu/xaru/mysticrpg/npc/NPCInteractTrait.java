@@ -1,3 +1,4 @@
+/*
 package eu.xaru.mysticrpg.npc;
 
 import eu.xaru.mysticrpg.utils.Utils;
@@ -51,3 +52,4 @@ public class NPCInteractTrait extends Trait {
         }
     }
 }
+*/

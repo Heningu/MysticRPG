@@ -3,6 +3,9 @@ package eu.xaru.mysticrpg.utils;
 import eu.xaru.mysticrpg.config.DynamicConfig;
 import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.cores.MysticCore;
+import net.md_5.bungee.api.chat.BaseComponent;
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.*;
 
 import org.bukkit.block.Block;
@@ -75,6 +78,35 @@ public class Utils {
 
     public String $(String message) {
         return translateMessage(message);
+    }
+
+
+    /**
+     * Creates a [Yes] [No] clickable component array for the given command.
+     * e.g. "/npcdialogue yes <npcId> <dialogueId>"
+     */
+    public static BaseComponent[] makeYesNoComponents(String baseCommand, String npcId, String dialogueId) {
+        // Example: baseCommand = "npcdialogue"
+        // We want clickable [Yes] => "/npcdialogue yes npcId dialogueId"
+        // and clickable [No]  => "/npcdialogue no npcId dialogueId"
+
+        TextComponent yesComponent = new TextComponent(ChatColor.GREEN + "[Yes]");
+        yesComponent.setClickEvent(new ClickEvent(
+                ClickEvent.Action.RUN_COMMAND,
+                "/" + baseCommand + " yes " + npcId + " " + dialogueId
+        ));
+
+        TextComponent noComponent = new TextComponent(ChatColor.RED + "[No]");
+        noComponent.setClickEvent(new ClickEvent(
+                ClickEvent.Action.RUN_COMMAND,
+                "/" + baseCommand + " no " + npcId + " " + dialogueId
+        ));
+
+        // Space between them
+        TextComponent space = new TextComponent(" ");
+
+        // Return an array of components: Yes, space, No
+        return new BaseComponent[] { yesComponent, space, noComponent };
     }
 
 

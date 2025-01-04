@@ -32,25 +32,20 @@ public class PartyModule implements IBaseModule {
         this.eventManager = new EventManager(plugin);
         this.partyHelper = new PartyHelper();
 
-        DebugLogger.getInstance().log(Level.INFO, "PartyModule initialized", 0);
     }
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "PartyModule started", 0);
-
         registerCommands();
         registerEvents();
     }
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "PartyModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "PartyModule unloaded", 0);
     }
 
     @Override

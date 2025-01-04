@@ -46,25 +46,20 @@ public class AdminModule implements IBaseModule, Listener {
 
         registerCommands();
         Bukkit.getPluginManager().registerEvents(this, Bukkit.getPluginManager().getPlugin("MysticRPG"));
-
-        DebugLogger.getInstance().log(Level.INFO, "AdminModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "AdminModule started", 0);
     }
 
     @Override
     public void stop() {
         saveAdminStates();
-        DebugLogger.getInstance().log(Level.INFO, "AdminModule stopped", 0);
     }
 
     @Override
     public void unload() {
         saveAdminStates();
-        DebugLogger.getInstance().log(Level.INFO, "AdminModule unloaded", 0);
     }
 
     @Override

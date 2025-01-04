@@ -55,22 +55,19 @@ public class StatsModule implements IBaseModule, Listener {
         Bukkit.getPluginManager().registerEvents(this, JavaPlugin.getProvidingPlugin(getClass()));
         registerCommands();
 
-        DebugLogger.getInstance().log(Level.INFO, "StatsModule initialized successfully.", 0);
+       // DebugLogger.getInstance().log(Level.INFO, "StatsModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "StatsModule started", 0);
     }
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "StatsModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "StatsModule unloaded", 0);
     }
 
     @Override

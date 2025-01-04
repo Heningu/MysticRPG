@@ -29,24 +29,21 @@ public class InteractionModule implements IBaseModule {
 
     @Override
     public void initialize() {
-        DebugLogger.getInstance().log(Level.INFO, "InteractionModule initialized", 0);
+      //  DebugLogger.getInstance().log(Level.INFO, "InteractionModule initialized", 0);
     }
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "InteractionModule started", 0);
         registerEvents();
         registerCommands();
     }
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "InteractionModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "InteractionModule unloaded", 0);
     }
 
     @Override

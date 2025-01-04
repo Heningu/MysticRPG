@@ -49,22 +49,19 @@ public class PetsModule implements IBaseModule, Listener {
         Bukkit.getPluginManager().registerEvents(this, plugin);
         Bukkit.getPluginManager().registerEvents(petHelper, plugin);
 
-        DebugLogger.getInstance().log(Level.INFO, "PetsModule initialized successfully.", 0);
+     //   DebugLogger.getInstance().log(Level.INFO, "PetsModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "PetsModule started", 0);
     }
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "PetsModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "PetsModule unloaded", 0);
     }
 
     @Override

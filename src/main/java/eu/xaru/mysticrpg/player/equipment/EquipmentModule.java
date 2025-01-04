@@ -41,22 +41,19 @@ public class EquipmentModule implements IBaseModule, Listener {
         // Initialize EquipmentManager
         equipmentManager = new EquipmentManager(plugin);
 
-        DebugLogger.getInstance().log(Level.INFO, "EquipmentModule initialized successfully.", 0);
+     //   DebugLogger.getInstance().log(Level.INFO, "EquipmentModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "EquipmentModule started.", 0);
     }
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "EquipmentModule stopped.", 0);
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "EquipmentModule unloaded.", 0);
     }
 
     @Override

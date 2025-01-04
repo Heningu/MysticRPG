@@ -75,12 +75,11 @@ public class CustomDamageHandler implements IBaseModule {
 
         this.statsManager = statsModule.getStatsManager();
 
-        DebugLogger.getInstance().log(Level.INFO, "CustomDamageHandler initialized", 0);
+       // DebugLogger.getInstance().log(Level.INFO, "CustomDamageHandler initialized", 0);
     }
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "CustomDamageHandler started", 0);
 
         // 1) Handle direct attacks
         eventManager.registerEvent(EntityDamageByEntityEvent.class, event -> {
@@ -145,12 +144,10 @@ public class CustomDamageHandler implements IBaseModule {
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "CustomDamageHandler stopped", 0);
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "CustomDamageHandler unloaded", 0);
     }
 
     @Override

@@ -63,22 +63,19 @@ public class CustomMobModule implements IBaseModule, Listener {
         registerCommands();
         Bukkit.getPluginManager().registerEvents(this, plugin);
 
-        DebugLogger.getInstance().log(Level.INFO, "CustomMobModule initialized successfully.", 0);
+       // DebugLogger.getInstance().log(Level.INFO, "CustomMobModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "CustomMobModule started", 0);
     }
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "CustomMobModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "CustomMobModule unloaded", 0);
     }
 
     @Override

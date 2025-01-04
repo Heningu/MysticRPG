@@ -1,3 +1,4 @@
+/*
 package eu.xaru.mysticrpg.npc;
 
 import eu.xaru.mysticrpg.managers.ModuleManager;
@@ -40,9 +41,11 @@ public class DialogueManager {
         }
     }
 
-    /**
+    */
+/**
      * Loads dialog configurations for this NPC based on the "dialogues.order" list in the NPC config.
-     */
+     *//*
+
     public void loadDialogues() {
         // Clear any existing data
         dialogues.clear();
@@ -83,17 +86,21 @@ public class DialogueManager {
         }
     }
 
-    /**
+    */
+/**
      * Returns true if we actually have loaded dialogues.
-     */
+     *//*
+
     public boolean hasDialogues() {
         return !dialogues.isEmpty();
     }
 
-    /**
+    */
+/**
      * Attempts to start the next dialogue for the player, if their level is high enough,
      * and the file has not been completed yet.
-     */
+     *//*
+
     public void startDialogue(Player player) {
         PlayerData data = playerDataCache.getCachedPlayerData(player.getUniqueId());
         if (data == null) {
@@ -126,9 +133,11 @@ public class DialogueManager {
         dialogue.start(player);
     }
 
-    /**
+    */
+/**
      * Finds the next dialogue ID that the player has not completed.
-     */
+     *//*
+
     private String getNextDialogueIdForPlayer(Player player) {
         PlayerData data = playerDataCache.getCachedPlayerData(player.getUniqueId());
         List<String> completedDialogues = data.getCompletedDialogues();
@@ -141,10 +150,13 @@ public class DialogueManager {
         return null;
     }
 
-    /**
+    */
+/**
      * Retrieves an already loaded Dialogue by ID.
-     */
+     *//*
+
     public Dialogue getDialogueById(String dialogueId) {
         return dialogues.get(dialogueId);
     }
 }
+*/

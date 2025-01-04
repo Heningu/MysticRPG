@@ -50,7 +50,7 @@ public class PlayerTitleModule implements IBaseModule {
             }
         }, JavaPlugin.getProvidingPlugin(getClass()));
 
-        DebugLogger.getInstance().log(Level.INFO, "PlayerTitleModule initialized successfully.", 0);
+       //  DebugLogger.getInstance().log(Level.INFO, "PlayerTitleModule initialized successfully.", 0);
     }
 
     private void registerCommands() {
@@ -97,17 +97,14 @@ public class PlayerTitleModule implements IBaseModule {
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "PlayerTitleModule started", 0);
     }
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "PlayerTitleModule stopped", 0);
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "PlayerTitleModule unloaded", 0);
     }
 
     @Override

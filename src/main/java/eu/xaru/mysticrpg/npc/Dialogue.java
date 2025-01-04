@@ -1,3 +1,4 @@
+/*
 package eu.xaru.mysticrpg.npc;
 
 import eu.xaru.mysticrpg.config.DynamicConfig;
@@ -154,3 +155,4 @@ public class Dialogue {
     }
 
 }
+*/

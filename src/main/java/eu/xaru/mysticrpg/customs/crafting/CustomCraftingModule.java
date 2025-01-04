@@ -41,22 +41,18 @@ public class CustomCraftingModule implements IBaseModule {
         // Register commands
         registerCommands();
 
-        DebugLogger.getInstance().log(Level.INFO, "CustomCraftingModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
-        DebugLogger.getInstance().log(Level.INFO, "CustomCraftingModule started.", 0);
     }
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "CustomCraftingModule stopped.", 0);
     }
 
     @Override
     public void unload() {
-        DebugLogger.getInstance().log(Level.INFO, "CustomCraftingModule unloaded.", 0);
     }
 
     @Override

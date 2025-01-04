@@ -37,8 +37,6 @@ public class LeaderBoardsModule implements IBaseModule {
 
     @Override
     public void initialize() {
-        DebugLogger.getInstance().log(Level.INFO, "Initializing LeaderBoardsModule...", 0);
-
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
         this.eventManager = new EventManager(plugin);
 
@@ -47,7 +45,7 @@ public class LeaderBoardsModule implements IBaseModule {
             this.databaseManager = DatabaseManager.getInstance();
             if (this.databaseManager != null) {
                 this.leaderBoardsHelper = new LeaderBoardsHelper(databaseManager);
-                DebugLogger.getInstance().log(Level.INFO, "LeaderBoardsHelper initialized successfully.", 0);
+               // DebugLogger.getInstance().log(Level.INFO, "LeaderBoardsHelper initialized successfully.", 0);
 
                 // Set DiscordUpdateHandler if needed from DiscordModule
                 this.leaderBoardsHelper.setDiscordUpdateHandler((type, topPlayers) -> {
@@ -67,7 +65,7 @@ public class LeaderBoardsModule implements IBaseModule {
             throw new IllegalStateException("SaveModule is not loaded.");
         }
 
-        DebugLogger.getInstance().log(Level.INFO, "LeaderBoardsModule initialization complete.", 0);
+        DebugLogger.getInstance().log(Level.INFO, "Leaderboards init complete.", 0);
     }
 
     @Override
@@ -84,8 +82,6 @@ public class LeaderBoardsModule implements IBaseModule {
 
         // Refresh all scoreboards every 1 min
         Bukkit.getScheduler().runTaskTimer(plugin, this::updateAllScoreboards, 1200L, 1200L);
-
-        DebugLogger.getInstance().log(Level.INFO, "LeaderBoardsModule started.", 0);
     }
 
     private void updateAllScoreboards() {
@@ -95,7 +91,6 @@ public class LeaderBoardsModule implements IBaseModule {
 
     @Override
     public void stop() {
-        DebugLogger.getInstance().log(Level.INFO, "LeaderBoardsModule stopped", 0);
     }
 
     @Override
@@ -103,7 +98,6 @@ public class LeaderBoardsModule implements IBaseModule {
         if (leaderBoardsHelper != null) {
             leaderBoardsHelper.saveHologramsToFile();
         }
-        DebugLogger.getInstance().log(Level.INFO, "LeaderBoardsModule unloaded", 0);
     }
 
     @Override

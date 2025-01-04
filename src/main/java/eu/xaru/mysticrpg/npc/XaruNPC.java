@@ -1,12 +1,19 @@
+/*
 package eu.xaru.mysticrpg.npc;
 
+import com.ticxo.modelengine.api.ModelEngineAPI;
+import com.ticxo.modelengine.api.model.ActiveModel;
+import com.ticxo.modelengine.api.model.ModeledEntity;
 import eu.xaru.mysticrpg.config.DynamicConfig;
 import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.guis.quests.QuestHandInGUI;
 import eu.xaru.mysticrpg.guis.quests.ShopGUI;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import eu.xaru.mysticrpg.player.leveling.LevelModule;
-import eu.xaru.mysticrpg.quests.*;
+import eu.xaru.mysticrpg.quests.Quest;
+import eu.xaru.mysticrpg.quests.QuestManager;
+import eu.xaru.mysticrpg.quests.QuestModule;
+import eu.xaru.mysticrpg.quests.QuestPhase;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.storage.SaveModule;
@@ -14,9 +21,14 @@ import eu.xaru.mysticrpg.utils.Utils;
 import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.npc.NPCRegistry;
 import net.citizensnpcs.trait.LookClose;
+import net.citizensnpcs.trait.SkinTrait;  // IMPORTANT: import the SkinTrait
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.TextComponent;
-import org.bukkit.*;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -34,16 +46,28 @@ public class XaruNPC {
     private final QuestManager questManager;
     private final PlayerDataCache playerDataCache;
     private final LevelModule levelModule;
+*/
+/*
     private final DialogueManager dialogueManager;
+*//*
+
     private final JavaPlugin plugin;
 
     // The Citizens NPC reference
     public net.citizensnpcs.api.npc.NPC npcEntity;
 
-    public XaruNPC(String id, String name, Location location) {
+    // Whether to use ModelEngine + which model
+    private boolean modeled;
+    private String modelId;
+
+    public XaruNPC(String id, String name, Location location,
+                   boolean modeled, String modelId) {
         this.id = id;
         this.name = name;
         this.location = location;
+        this.modeled = modeled;
+        this.modelId = modelId;
+
         this.plugin = JavaPlugin.getPlugin(eu.xaru.mysticrpg.cores.MysticCore.class);
 
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
@@ -54,9 +78,16 @@ public class XaruNPC {
 
         loadConfig();
 
-        this.dialogueManager = new DialogueManager(this);
-        dialogueManager.loadDialogues();
-        // No direct spawn call here — let Citizens handle it, or call spawnIfMissing()
+*/
+/*        this.dialogueManager = new DialogueManager(this);
+        dialogueManager.loadDialogues();*//*
+
+        // We don't spawn right here; spawnIfMissing() is called later
+    }
+
+    // Overload for normal creation
+    public XaruNPC(String id, String name, Location location) {
+        this(id, name, location, false, null);
     }
 
     private void loadConfig() {
@@ -67,9 +98,12 @@ public class XaruNPC {
         this.config = DynamicConfigManager.loadConfig("npcs/" + id + ".yml");
     }
 
-    /**
-     * If Citizens hasn’t reloaded this NPC from saves, spawn it now.
-     */
+    */
+/**
+     * If Citizens hasn’t reloaded this NPC from its saves, create/spawn it now.
+     * We forcibly remove any default skin references so we don't see a random player skin.
+     *//*
+
     public void spawnIfMissing() {
         NPCRegistry registry = CitizensAPI.getNPCRegistry();
 
@@ -77,31 +111,124 @@ public class XaruNPC {
                 UUID.nameUUIDFromBytes(id.getBytes())
         );
 
-        // If found, just link and spawn if needed
         if (existing != null) {
+            // Already in Citizens registry
             this.npcEntity = existing;
+
+            // (Optionally despawn first to ensure we apply the blank skin properly)
+            if (npcEntity.isSpawned()) {
+                npcEntity.despawn();
+            }
+
+            // Remove the default SkinTrait if present
+            if (npcEntity.hasTrait(SkinTrait.class)) {
+                npcEntity.removeTrait(SkinTrait.class);
+            }
+
+            // Clear all references to a real skin
+            npcEntity.data().setPersistent("player-skin-use-latest", false);
+            npcEntity.data().setPersistent("player-skin-name", "none");
+            npcEntity.data().remove("cached-skin-uuid");
+            npcEntity.data().remove("cached-skin-uuid-name");
+            npcEntity.setProtected(true);
+
+            // Re-add your standard traits
+            npcEntity.addTrait(NPCInteractTrait.class);
+            npcEntity.getOrAddTrait(LookClose.class).lookClose(true);
+
+            // Now spawn if needed
             if (!npcEntity.isSpawned() && location != null) {
                 npcEntity.spawn(location);
             }
+        } else {
+            // Otherwise create a brand-new NPC as a PLAYER
+            npcEntity = registry.createNPC(EntityType.PLAYER, name);
+            npcEntity.setName(name);
+
+            // Remove or disable any default Citizen skins
+            if (npcEntity.hasTrait(SkinTrait.class)) {
+                npcEntity.removeTrait(SkinTrait.class);
+            }
+            npcEntity.data().setPersistent("player-skin-use-latest", false);
+            npcEntity.data().setPersistent("player-skin-name", "none");
+            npcEntity.data().remove("cached-skin-uuid");
+            npcEntity.data().remove("cached-skin-uuid-name");
+            // Add your traits
+            npcEntity.addTrait(NPCInteractTrait.class);
+            npcEntity.getOrAddTrait(LookClose.class).lookClose(true);
+
+            // Spawn
+            if (location != null) {
+                npcEntity.spawn(location);
+            }
+
+            // Link trait => XaruNPC
+            NPCInteractTrait trait = npcEntity.getOrAddTrait(NPCInteractTrait.class);
+            trait.setXaruNPC(this);
+        }
+
+        // Attach ModelEngine if needed
+        if (modeled && modelId != null && !modelId.isEmpty()) {
+            try {
+                org.bukkit.entity.Entity bukkitEnt = npcEntity.getEntity();
+                if (bukkitEnt == null) return;
+
+                ModeledEntity me = ModelEngineAPI.createModeledEntity(bukkitEnt);
+                if (me == null) return;
+
+                ActiveModel am = ModelEngineAPI.createActiveModel(modelId);
+                if (am == null) return;
+
+                me.addModel(am, true);
+
+                // Hide the underlying player
+                me.setBaseEntityVisible(false);
+
+                // e.g. am.setState("idle", true);
+            } catch (Exception e) {
+                plugin.getLogger().severe("Failed to attach ModelEngine model " + modelId + " to NPC " + id);
+                e.printStackTrace();
+            }
+        }
+    }
+
+    */
+/**
+     * Re-apply the model after a server restart if Citizens re-spawns the NPC.
+     *//*
+
+    public void reapplyModelIfNeeded() {
+        if (!modeled || modelId == null || modelId.isEmpty()) {
+            return;
+        }
+        if (npcEntity == null || !npcEntity.isSpawned()) {
             return;
         }
 
-        // Otherwise create a new NPC
-        npcEntity = registry.createNPC(org.bukkit.entity.EntityType.PLAYER, name);
-        npcEntity.setName(name);
+        org.bukkit.entity.Entity bukkitEnt = npcEntity.getEntity();
+        if (bukkitEnt == null) return;
 
-        // Attach your trait by class
-        npcEntity.addTrait(NPCInteractTrait.class);
-
-        // Optionally, add LookClose trait
-        npcEntity.getOrAddTrait(LookClose.class).lookClose(true);
-
-        // Actually spawn, if we have a location
-        if (location != null) {
-            npcEntity.spawn(location);
+        ModeledEntity me = ModelEngineAPI.getModeledEntity(bukkitEnt);
+        if (me == null) {
+            me = ModelEngineAPI.createModeledEntity(bukkitEnt);
+            if (me == null) {
+                plugin.getLogger().warning("Failed to (re)create ModeledEntity for NPC " + id);
+                return;
+            }
         }
-        NPCInteractTrait trait = npcEntity.getOrAddTrait(NPCInteractTrait.class);
-        trait.setXaruNPC(this);
+
+        Optional<ActiveModel> maybeExisting = me.getModel(modelId);
+        if (maybeExisting.isEmpty()) {
+            ActiveModel newModel = ModelEngineAPI.createActiveModel(modelId);
+            if (newModel == null) {
+                plugin.getLogger().warning("Invalid modelId '" + modelId + "' for NPC " + id);
+                return;
+            }
+            me.addModel(newModel, true);
+        }
+
+        me.setBaseEntityVisible(false);
+        // maybeExisting.ifPresent(am -> am.setState("idle", true));
     }
 
     public void despawn() {
@@ -156,11 +283,13 @@ public class XaruNPC {
         }
         if (handledQuest) return;
 
-        // Dialogue approach
+*/
+/*        // Dialogue approach
         if (dialogueManager.hasDialogues()) {
             dialogueManager.startDialogue(player);
             return;
-        }
+        }*//*
+
 
         // If NPC is a merchant => open shop
         String behavior = getConfig().getString("behavior", "default");
@@ -170,13 +299,14 @@ public class XaruNPC {
             return;
         }
 
-        // else greet
+        // else just greet
         String message = config.getString("interaction.message", "Hello, %player%!");
         message = message.replace("%player%", player.getName());
         player.sendMessage(ChatColor.translateAlternateColorCodes('&', name + ": " + message));
     }
 
-    public void sendQuestion(Player player, Dialogue dialogue) {
+    */
+/*public void sendQuestion(Player player, Dialogue dialogue) {
         if (dialogue.getQuestion() == null) {
             player.sendMessage(Utils.getInstance().$(name + ": I have nothing more to ask right now."));
             return;
@@ -202,7 +332,8 @@ public class XaruNPC {
         message.addExtra(noComponent);
 
         player.spigot().sendMessage(message);
-    }
+    }*//*
+
 
     public DynamicConfig getConfig() {
         return config;
@@ -216,9 +347,11 @@ public class XaruNPC {
         return name;
     }
 
-    public DialogueManager getDialogueManager() {
+*/
+/*    public DialogueManager getDialogueManager() {
         return dialogueManager;
-    }
+    }*//*
+
 
     public String getId() {
         return id;
@@ -227,4 +360,13 @@ public class XaruNPC {
     public net.citizensnpcs.api.npc.NPC getNpcEntity() {
         return npcEntity;
     }
+
+    public boolean isModeled() {
+        return modeled;
+    }
+
+    public String getModelId() {
+        return modelId;
+    }
 }
+*/

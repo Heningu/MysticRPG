@@ -69,7 +69,7 @@ public class GUIRegisterModule implements IBaseModule {
 
         validateModules();
 
-        DebugLogger.getInstance().log(Level.INFO, "GUIRegisterModule initialization complete.", 0);
+       // DebugLogger.getInstance().log(Level.INFO, "GUIRegisterModule initialization complete.", 0);
     }
 
     private void validateModules() {
@@ -112,6 +112,7 @@ public class GUIRegisterModule implements IBaseModule {
     @Override
     public void start() {
         registerCommands();
+        DebugLogger.getInstance().log(Level.INFO, "GUIS registered ✅", 0);
     }
 
     @Override
