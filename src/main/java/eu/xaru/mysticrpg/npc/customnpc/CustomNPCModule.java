@@ -14,6 +14,7 @@ import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -22,9 +23,8 @@ import java.util.List;
 import java.util.logging.Level;
 
 /**
- * CustomNPCModule loads the NPC data from "customnpcs" files, handles
- * commands for creating/editing NPCs, registers events for interaction,
- * and now includes commands to reload models from config.
+ * CustomNPCModule loads the NPC data, handles commands for create/delete/list,
+ * reload models, and now behaviour subcommands (rotate, lookclosest).
  */
 public class CustomNPCModule implements IBaseModule {
 
@@ -51,18 +51,17 @@ public class CustomNPCModule implements IBaseModule {
 
     @Override
     public void start() {
-        // 1) Load existing NPC data from disk (but do not spawn them here)
+        // 1) Load existing NPC data from disk (but do NOT spawn them automatically).
         npcManager.loadAllFromDisk();
 
-        // 2) Load dialogues from folder
+        // 2) Load dialogues
         File dialoguesFolder = new File(plugin.getDataFolder(), "customnpcs/dialogues");
         DialogueManager.getInstance().loadAllDialogues(dialoguesFolder);
 
-        // 3) Register event handlers
+        // 3) Register event
         registerEventHandlers();
 
         DebugLogger.getInstance().log(Level.INFO, "CustomNPCModule started", 0);
-        Bukkit.getScheduler().runTaskLater(plugin, this::reloadAllModels, 120L);
     }
 
     @Override
@@ -74,11 +73,10 @@ public class CustomNPCModule implements IBaseModule {
     }
 
     /**
-     * This is where we define all subcommands (via CommandAPI).
-     *
-     * We add two new subcommands:
-     * - /xarunpc reloadmodels
-     * - /xarunpc reloadmodel <npcId>
+     * Define all subcommands:
+     * - create, delete, list
+     * - reloadmodels, reloadmodel
+     * - behaviour (rotate, lookclosest)
      */
     private void registerCommands() {
         new CommandAPICommand("xarunpc")
@@ -94,8 +92,7 @@ public class CustomNPCModule implements IBaseModule {
 
                             Location loc = player.getLocation();
                             CustomNPC npc = npcManager.createNPC(id, npcName, loc, modelId);
-                            player.sendMessage(Utils.getInstance().$(
-                                    "Created custom NPC '" + npcName + "' with ID " + id));
+                            player.sendMessage(Utils.getInstance().$("Created NPC '" + npcName + "' (ID=" + id + ")"));
                         })
                 )
                 // /xarunpc delete <npcId>
@@ -105,11 +102,9 @@ public class CustomNPCModule implements IBaseModule {
                             String id = (String) args.get("npcId");
                             boolean success = npcManager.deleteNPC(id);
                             if (success) {
-                                player.sendMessage(Utils.getInstance().$(
-                                        "Deleted custom NPC with ID " + id));
+                                player.sendMessage(Utils.getInstance().$("Deleted NPC with ID " + id));
                             } else {
-                                player.sendMessage(Utils.getInstance().$(
-                                        "No custom NPC found with ID " + id));
+                                player.sendMessage(Utils.getInstance().$("No NPC found with ID " + id));
                             }
                         })
                 )
@@ -140,33 +135,7 @@ public class CustomNPCModule implements IBaseModule {
                             }
                         })
                 )
-                // /xarunpc dialogue add <npcId> <dialogueId>
-                .withSubcommand(new CommandAPICommand("dialogue")
-                        .withSubcommand(new CommandAPICommand("add")
-                                .withArguments(new StringArgument("npcId"))
-                                .withArguments(new StringArgument("dialogueId"))
-                                .executesPlayer((player, args) -> {
-                                    String npcId = (String) args.get("npcId");
-                                    String dialogueId = (String) args.get("dialogueId");
-
-                                    CustomNPC npc = npcManager.getNPC(npcId);
-                                    if (npc == null) {
-                                        player.sendMessage(Utils.getInstance().$(
-                                                "No NPC found with ID: " + npcId));
-                                        return;
-                                    }
-                                    npc.addDialogue(dialogueId);
-                                    player.sendMessage(Utils.getInstance().$(
-                                            "Dialogue '" + dialogueId + "' was added to NPC '" + npcId + "'."
-                                    ));
-                                })
-                        )
-                )
-
-                /*
-                 * NEW SUBCOMMAND #1: /xarunpc reloadmodels
-                 * Reloads the model from config for ALL NPCs in memory
-                 */
+                // /xarunpc reloadmodels => despawn & re-spawn ALL
                 .withSubcommand(new CommandAPICommand("reloadmodels")
                         .executesPlayer((player, args) -> {
                             if (npcManager.getAllNPCs().isEmpty()) {
@@ -174,23 +143,19 @@ public class CustomNPCModule implements IBaseModule {
                                 return;
                             }
 
-                            // For each NPC, despawn & spawn => reattach the model from config
                             for (CustomNPC npc : npcManager.getAllNPCs()) {
-                                npc.despawn();
-                                npc.spawn();
+                                // remove old stands
+                                eu.xaru.mysticrpg.entityhandling.EntityHandler.getInstance().deleteNPC(npc);
+                                // re-spawn
+                                eu.xaru.mysticrpg.entityhandling.EntityHandler.getInstance().spawnNPC(npc, true);
                             }
                             player.sendMessage(Utils.getInstance().$("All NPC models have been reloaded!"));
                         })
                 )
-
-                /*
-                 * NEW SUBCOMMAND #2: /xarunpc reloadmodel <npcId>
-                 * Reloads the model from config for ONE specific NPC
-                 */
+                // /xarunpc reloadmodel <npcId>
                 .withSubcommand(new CommandAPICommand("reloadmodel")
                         .withArguments(new StringArgument("npcId")
                                 .replaceSuggestions(ArgumentSuggestions.strings(info -> {
-                                    // Provide suggestions of existing NPC IDs
                                     return npcManager.getAllNPCs().stream()
                                             .map(CustomNPC::getId)
                                             .toArray(String[]::new);
@@ -200,17 +165,103 @@ public class CustomNPCModule implements IBaseModule {
                             String npcId = (String) args.get("npcId");
                             CustomNPC npc = npcManager.getNPC(npcId);
                             if (npc == null) {
-                                player.sendMessage(Utils.getInstance().$(
-                                        "No NPC found with ID: " + npcId));
+                                player.sendMessage(Utils.getInstance().$("No NPC found with ID: " + npcId));
                                 return;
                             }
 
-                            npc.despawn();
-                            npc.spawn();
-                            player.sendMessage(Utils.getInstance().$("NPC '" + npcId + "' model has been reloaded!"));
+                            // remove old stands
+                            eu.xaru.mysticrpg.entityhandling.EntityHandler.getInstance().deleteNPC(npc);
+                            // re-spawn new stands
+                            eu.xaru.mysticrpg.entityhandling.EntityHandler.getInstance().spawnNPC(npc, true);
+
+                            player.sendMessage(Utils.getInstance().$("Model reloaded for NPC '" + npcId + "'"));
                         })
                 )
+                // behaviour subcommands: /xarunpc behaviour rotate, lookclosest
+                .withSubcommand(new CommandAPICommand("behaviour")
+                        // /xarunpc behaviour rotate <npcId> <yaw>
+                        .withSubcommand(new CommandAPICommand("rotate")
+                                .withArguments(new StringArgument("npcId")
+                                        .replaceSuggestions(ArgumentSuggestions.strings(info -> {
+                                            return npcManager.getAllNPCs().stream()
+                                                    .map(CustomNPC::getId)
+                                                    .toArray(String[]::new);
+                                        }))
+                                )
+                                .withArguments(new StringArgument("yaw")
+                                        .replaceSuggestions(ArgumentSuggestions.strings("0","90","180","270"))
+                                )
+                                .executesPlayer((player, args) -> {
+                                    String npcId = (String) args.get("npcId");
+                                    String yawStr = (String) args.get("yaw");
 
+                                    float yaw;
+                                    try {
+                                        yaw = Float.parseFloat(yawStr);
+                                    } catch (NumberFormatException e) {
+                                        player.sendMessage("Invalid yaw value: " + yawStr);
+                                        return;
+                                    }
+
+                                    CustomNPC npc = npcManager.getNPC(npcId);
+                                    if (npc == null) {
+                                        player.sendMessage("No NPC found with ID " + npcId);
+                                        return;
+                                    }
+
+                                    boolean success = eu.xaru.mysticrpg.entityhandling.EntityHandler
+                                            .getInstance().rotateNPC(npc, yaw);
+
+                                    if (success) {
+                                        player.sendMessage("Rotated NPC '" + npcId + "' to yaw=" + yaw);
+                                    } else {
+                                        player.sendMessage("Entity not found in memory for NPC '" + npcId + "'");
+                                    }
+                                })
+                        )
+                        // /xarunpc behaviour lookclosest <npcId>
+                        .withSubcommand(new CommandAPICommand("lookclosest")
+                                .withArguments(new StringArgument("npcId")
+                                        .replaceSuggestions(ArgumentSuggestions.strings(info -> {
+                                            return npcManager.getAllNPCs().stream()
+                                                    .map(CustomNPC::getId)
+                                                    .toArray(String[]::new);
+                                        }))
+                                )
+                                .executesPlayer((player, args) -> {
+                                    String npcId = (String) args.get("npcId");
+                                    CustomNPC npc = npcManager.getNPC(npcId);
+                                    if (npc == null) {
+                                        player.sendMessage("No NPC found with ID " + npcId);
+                                        return;
+                                    }
+
+                                    // find the closest player
+                                    Player closest = null;
+                                    double closestDist = Double.MAX_VALUE;
+                                    for (Player p : player.getWorld().getPlayers()) {
+                                        double dist = p.getLocation().distance(npc.getLocation());
+                                        if (dist < closestDist) {
+                                            closestDist = dist;
+                                            closest = p;
+                                        }
+                                    }
+                                    if (closest == null) {
+                                        player.sendMessage("No players nearby to look at!");
+                                        return;
+                                    }
+
+                                    boolean success = eu.xaru.mysticrpg.entityhandling.EntityHandler
+                                            .getInstance().lookAtLocation(npc, closest.getLocation());
+
+                                    if (success) {
+                                        player.sendMessage("NPC '" + npcId + "' is now looking at " + closest.getName());
+                                    } else {
+                                        player.sendMessage("Entity not found or invalid location for NPC '" + npcId + "'");
+                                    }
+                                })
+                        )
+                )
                 .register();
 
         // /xarudialogue <response> <dialogueId>
@@ -226,25 +277,6 @@ public class CustomNPCModule implements IBaseModule {
                 .register();
     }
 
-    public void reloadAllModels() {
-        if (npcManager.getAllNPCs().isEmpty()) {
-            return;
-        }
-        DebugLogger.getInstance().log(Level.INFO, "Tackling ModelEngine Errors", 0);
-
-        // For each NPC, despawn & spawn => reattach the model from config
-        for (CustomNPC npc : npcManager.getAllNPCs()) {
-            npc.despawn();
-            npc.spawn();
-
-        }
-    }
-
-
-
-    /**
-     * Registers the event that handles right-click interaction on NPC stands.
-     */
     private void registerEventHandlers() {
         eventManager.registerEvent(PlayerInteractAtEntityEvent.class, event -> {
             if (!(event.getRightClicked() instanceof ArmorStand stand)) {

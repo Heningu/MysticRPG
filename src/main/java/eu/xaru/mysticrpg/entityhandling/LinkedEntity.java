@@ -51,6 +51,7 @@ public class LinkedEntity {
         }
         despawnEntities();
 
+        // Bottom stand (model)
         modelStand = (ArmorStand) spawnLocation.getWorld().spawnEntity(spawnLocation, EntityType.ARMOR_STAND);
         modelStand.setInvisible(true);
         modelStand.setCustomNameVisible(false);
@@ -58,6 +59,7 @@ public class LinkedEntity {
         modelStand.setInvulnerable(true);
         modelStand.addScoreboardTag("XaruLinkedEntity_" + entityId + "_model");
 
+        // Top stand (name) => slightly above
         Location nameLoc = spawnLocation.clone().add(0, 0.3, 0);
         nameStand = (ArmorStand) spawnLocation.getWorld().spawnEntity(nameLoc, EntityType.ARMOR_STAND);
         nameStand.setInvisible(true);
@@ -148,10 +150,36 @@ public class LinkedEntity {
         }
     }
 
+    /**
+     * Rotate stands around the yaw axis. (We ignore pitch here for simplicity.)
+     */
+    public void setYaw(float yaw) {
+        if (modelStand != null && !modelStand.isDead()) {
+            modelStand.setRotation(yaw, modelStand.getLocation().getPitch());
+        }
+        if (nameStand != null && !nameStand.isDead()) {
+            nameStand.setRotation(yaw, nameStand.getLocation().getPitch());
+        }
+    }
+
+    /**
+     * A simple "look at" method ignoring pitch. We just compute yaw difference.
+     */
+    public void lookAt(Location target) {
+        if (target == null || spawnLocation == null) {
+            return;
+        }
+        double dx = target.getX() - spawnLocation.getX();
+        double dz = target.getZ() - spawnLocation.getZ();
+        float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
+        setYaw(yaw);
+    }
+
     public void interact(org.bukkit.entity.Player player) {
         player.sendMessage(ChatColor.YELLOW + "You interacted with " + entityId + "!");
     }
 
+    // Getters
     public String getEntityId()        { return entityId; }
     public boolean isPersistent()      { return persistent; }
     public Location getSpawnLocation() { return spawnLocation; }
