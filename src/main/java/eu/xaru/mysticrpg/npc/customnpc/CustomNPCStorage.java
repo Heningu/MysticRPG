@@ -10,10 +10,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Reads all <id>.yml from "plugins/MysticRPG/customnpcs" => builds CustomNPC objects,
- * but does NOT spawn them. We spawn them in CustomNPCModule.start().
- */
 public class CustomNPCStorage {
 
     public static List<CustomNPC> loadAllCustomNPCs() {
@@ -21,14 +17,10 @@ public class CustomNPCStorage {
 
         File folder = new File(JavaPlugin.getProvidingPlugin(CustomNPCStorage.class)
                 .getDataFolder(), "customnpcs");
-        if (!folder.exists()) {
-            folder.mkdirs();
-        }
+        if (!folder.exists()) folder.mkdirs();
 
         File[] files = folder.listFiles((dir, name) -> name.toLowerCase().endsWith(".yml"));
-        if (files == null) {
-            return result;
-        }
+        if (files == null) return result;
 
         for (File file : files) {
             try {

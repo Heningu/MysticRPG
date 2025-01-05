@@ -22,20 +22,32 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A simple data container for a single NPC: id, name, location, modelId, dialogues, etc.
- * Actual entity spawn/remove is done by EntityHandler, not here.
+ * Updated to:
+ *  - Store prefix, suffix
+ *  - Use one space after prefix and one space before suffix
+ *  - Convert underscores -> spaces in the name at creation time
+ *  - Display prefix + " " + name + " " + suffix in the greet text
+ *  - Also store them in the .yml
  */
 public class CustomNPC {
 
     private final String id;
-    private String name;
-    private Location location;
-    private String modelId;  // e.g. "miner" or null
 
-    // dialogue data
+    /**
+     * Example usage:
+     *   prefix = "&7["
+     *   name   = "Bob the Builder"
+     *   suffix = "&7]"
+     * The final display => "&7[ Bob the Builder &7]"
+     */
+    private String prefix;
+    private String name;
+    private String suffix;
+
+    private Location location;
+    private String modelId;
     private final List<String> dialoguesOrder;
 
-    // YML
     private File dataFile;
     private org.bukkit.configuration.file.YamlConfiguration yml;
 
@@ -47,9 +59,20 @@ public class CustomNPC {
     private final LevelModule levelModule;
     private final JavaPlugin plugin;
 
+    /**
+     * Note: underscores -> spaces typically done in the create command:
+     *   npcName = npcName.replace('_',' ');
+     */
     public CustomNPC(String id, String name, Location location, String modelId) {
         this.id = id;
+
+        // We'll assume name is already underscore->space replaced by the create command
         this.name = name;
+
+        // Default prefix/suffix to empty string if you want no prefix/suffix
+        this.prefix = "";
+        this.suffix = "";
+
         this.location = location;
         this.modelId = (modelId != null && !modelId.isEmpty()) ? modelId : null;
 
@@ -64,7 +87,6 @@ public class CustomNPC {
 
         this.dialoguesOrder = new ArrayList<>();
 
-        // data file
         File folder = new File(plugin.getDataFolder(), "customnpcs");
         if (!folder.exists()) folder.mkdirs();
         this.dataFile = new File(folder, id + ".yml");
@@ -82,6 +104,10 @@ public class CustomNPC {
                 e.printStackTrace();
             }
             this.name = yml.getString("name", this.name);
+
+            // Load prefix, suffix from config if present
+            this.prefix = yml.getString("prefix", this.prefix);
+            this.suffix = yml.getString("suffix", this.suffix);
 
             String worldName = yml.getString("location.world", "world");
             double x = yml.getDouble("location.x", 0.0);
@@ -110,6 +136,11 @@ public class CustomNPC {
         try {
             yml.set("id", id);
             yml.set("name", name);
+
+            // store prefix & suffix
+            yml.set("prefix", prefix);
+            yml.set("suffix", suffix);
+
             if (location != null && location.getWorld() != null) {
                 yml.set("location.world", location.getWorld().getName());
                 yml.set("location.x", location.getX());
@@ -130,31 +161,38 @@ public class CustomNPC {
     }
 
     /**
-     * Called when a player right-clicks (interacts) one of the NPC's stands (via scoreboard tag).
+     * When a player right-clicks the NPC stands.
      */
     public void interact(Player player) {
-        // If the NPC has dialogues
+        String npcUniqueId = "NPC_" + id;
+
         if (!dialoguesOrder.isEmpty()) {
             String firstDialogueId = dialoguesOrder.get(0);
             Dialogue dialogue = dialogueManager.getDialogue(firstDialogueId);
             if (dialogue != null) {
-                dialogue.start(player);
+                dialogueManager.startDialogue(firstDialogueId, player, npcUniqueId);
                 return;
             }
         }
 
-        // If "merchant", open a shop or do something else
+        // If "merchant", open shop, else greet
         String behavior = yml.getString("behavior", "default");
         if ("merchant".equalsIgnoreCase(behavior)) {
-            player.sendMessage(ChatColor.GREEN + "[Opening merchant shop!]");
+            player.sendMessage(ChatColor.GREEN + "[Opening merchant shop!] (example)");
             return;
         }
+
+        // Combine prefix + " " + name + " " + suffix
+        // then translate color codes
+        String combinedName = ChatColor.translateAlternateColorCodes('&',
+                prefix + " " + name + " " + suffix);
 
         // Default greet
         String greetMsg = yml.getString("interaction.message", "Hello, %player%!");
         greetMsg = greetMsg.replace("%player%", player.getName());
-        player.sendMessage(ChatColor.translateAlternateColorCodes('&',
-                name + ": " + greetMsg));
+
+        player.sendMessage(combinedName + ChatColor.RESET + ": " +
+                ChatColor.translateAlternateColorCodes('&', greetMsg));
     }
 
     public void addDialogue(String dialogueId) {
@@ -164,25 +202,39 @@ public class CustomNPC {
         saveYML();
     }
 
-    // getters
-    public String getId()        { return id; }
-    public String getName()      { return name; }
-    public Location getLocation() { return location; }
-    public String getModelId()   { return modelId; }
+    // If you want the stands themselves to have prefix + " " + name + " " + suffix,
+    // do that in your spawn logic. For example:
+    // armorStand.setCustomName( ChatColor.translateAlternateColorCodes('&', prefix+" "+name+" "+suffix) );
+    // or do it in EntityHandler
 
-    public List<String> getDialoguesOrder() {
-        return dialoguesOrder;
-    }
+    // getters
+    public String getId()         { return id; }
+    public String getName()       { return name; }
+    public String getPrefix()     { return prefix; }
+    public String getSuffix()     { return suffix; }
+    public Location getLocation() { return location; }
+    public String getModelId()    { return modelId; }
+    public List<String> getDialoguesOrder() { return dialoguesOrder; }
 
     // setters
     public void setName(String newName) {
         this.name = newName;
-        saveYML(); // persist change
+        saveYML();
+    }
+
+    public void setPrefix(String newPrefix) {
+        this.prefix = newPrefix;
+        saveYML();
+    }
+
+    public void setSuffix(String newSuffix) {
+        this.suffix = newSuffix;
+        saveYML();
     }
 
     public void setLocation(Location newLoc) {
         this.location = newLoc;
-        saveYML(); // persist change
+        saveYML();
     }
 
     public void setModelId(String newModelId) {

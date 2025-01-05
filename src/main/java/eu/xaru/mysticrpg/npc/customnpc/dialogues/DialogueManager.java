@@ -12,8 +12,9 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Loads dialogues from "plugins/MysticRPG/customnpcs/dialogues/*.yml".
- * By default, if 'messages' is empty => we set it to ["Hello, %player%!"].
+ * Loads dialogues from "plugins/MysticRPG/customnpcs/dialogues/*.yml" and
+ * blocks spam by storing "playerUUID_npcId" in a set.
+ * If a conversation is ongoing, we do not show the lines again.
  */
 public class DialogueManager {
 
@@ -25,8 +26,16 @@ public class DialogueManager {
         return instance;
     }
 
-    // All dialogues loaded from disk, keyed by dialogueId
     private final Map<String, Dialogue> dialogues = new ConcurrentHashMap<>();
+
+    /**
+     * A set of "ongoing conversation" => "playerUUID_npcId".
+     */
+    private final Set<String> ongoingConversations = ConcurrentHashMap.newKeySet();
+
+    private String conversationKey(Player player, String npcId) {
+        return player.getUniqueId() + "_" + npcId;
+    }
 
     public void loadAllDialogues(File dialoguesFolder) {
         dialogues.clear();
@@ -66,31 +75,57 @@ public class DialogueManager {
         }
     }
 
-    /**
-     * This just means "Are there ANY dialogues loaded from the folder at all?"
-     */
     public boolean hasDialogues() {
         return !dialogues.isEmpty();
-    }
-
-    /**
-     * If code calls this, we used to pick the first loaded from the entire manager.
-     * But we do NOT want that if the NPC itself has an empty list. => We'll let the NPC decide.
-     */
-    public void startDialogue(String dialogueId, Player player) {
-        Dialogue d = dialogues.get(dialogueId);
-        if (d == null) {
-            player.sendMessage(Utils.getInstance().$("No such dialogue: " + dialogueId));
-            return;
-        }
-        d.start(player);
     }
 
     public Dialogue getDialogue(String dialogueId) {
         return dialogues.get(dialogueId);
     }
 
-    public void askQuestion(Player player, Dialogue dialogue) {
+    public String[] getAllDialogueIds() {
+        return dialogues.keySet().toArray(new String[0]);
+    }
+
+    /**
+     * Called by NPC. If no conversation is active, we add to set & start the dialogue.
+     */
+    public void startDialogue(String dialogueId, Player player, String npcId) {
+        String key = conversationKey(player, npcId);
+        if (ongoingConversations.contains(key)) {
+            player.sendMessage(Utils.getInstance().$("You are already talking to this NPC!"));
+            return;
+        }
+
+        Dialogue d = dialogues.get(dialogueId);
+        if (d == null) {
+            player.sendMessage(Utils.getInstance().$("No such dialogue: " + dialogueId));
+            return;
+        }
+        // Mark them in conversation
+        ongoingConversations.add(key);
+
+        // Start with npcId
+        d.start(player, npcId);
+    }
+
+    /**
+     * If the dialogue finishes (no question) or the user picks yes/no => remove from set.
+     */
+    public void finishConversation(Player player, String npcId) {
+        if (npcId == null) {
+            // fallback => remove all for that player's UUID
+            ongoingConversations.removeIf(s -> s.startsWith(player.getUniqueId().toString()));
+        } else {
+            String key = conversationKey(player, npcId);
+            ongoingConversations.remove(key);
+        }
+    }
+
+    /**
+     * askQuestion(..., npcId) => embed <npcId> in the clickable commands
+     */
+    public void askQuestion(Player player, Dialogue dialogue, String npcId) {
         if (dialogue.getQuestion() == null) return;
 
         String questionLine = dialogue.getQuestion().replace("%player%", player.getName());
@@ -98,22 +133,28 @@ public class DialogueManager {
 
         TextComponent yes = new TextComponent(ChatColor.GREEN + "[Yes]");
         yes.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND,
-                "/xarudialogue yes " + dialogue.getId()));
+                "/xarudialogue yes " + dialogue.getId() + " " + npcId));
 
         TextComponent no = new TextComponent(ChatColor.RED + "[No]");
         no.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND,
-                "/xarudialogue no " + dialogue.getId()));
+                "/xarudialogue no " + dialogue.getId() + " " + npcId));
 
         TextComponent space = new TextComponent(" ");
         player.spigot().sendMessage(yes, space, no);
     }
 
-    public void handleResponse(Player player, String response, String dialogueId) {
+    /**
+     * The final step: /xarudialogue yes/no <dialogueId> <npcId>
+     */
+    public void handleResponse(Player player, String response, String dialogueId, String npcId) {
         Dialogue d = dialogues.get(dialogueId);
         if (d == null) {
             player.sendMessage(Utils.getInstance().$("Dialogue not found: " + dialogueId));
             return;
         }
         d.handleResponse(player, response);
+
+        // done => remove from set
+        finishConversation(player, npcId);
     }
 }

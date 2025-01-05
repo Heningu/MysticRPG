@@ -22,10 +22,6 @@ import java.io.File;
 import java.util.List;
 import java.util.logging.Level;
 
-/**
- * CustomNPCModule loads the NPC data, handles commands for create/delete/list,
- * reload models, and now behaviour subcommands (rotate, lookclosest).
- */
 public class CustomNPCModule implements IBaseModule {
 
     private final JavaPlugin plugin;
@@ -51,10 +47,10 @@ public class CustomNPCModule implements IBaseModule {
 
     @Override
     public void start() {
-        // 1) Load existing NPC data from disk (but do NOT spawn them automatically).
+        // 1) Load existing NPC data
         npcManager.loadAllFromDisk();
 
-        // 2) Load dialogues
+        // 2) Load dialogues from folder
         File dialoguesFolder = new File(plugin.getDataFolder(), "customnpcs/dialogues");
         DialogueManager.getInstance().loadAllDialogues(dialoguesFolder);
 
@@ -72,30 +68,67 @@ public class CustomNPCModule implements IBaseModule {
     public void unload() {
     }
 
-    /**
-     * Define all subcommands:
-     * - create, delete, list
-     * - reloadmodels, reloadmodel
-     * - behaviour (rotate, lookclosest)
-     */
     private void registerCommands() {
         new CommandAPICommand("xarunpc")
-                // /xarunpc create <npcId> <npcName> <modelId>
                 .withSubcommand(new CommandAPICommand("create")
                         .withArguments(new StringArgument("npcId"))
                         .withArguments(new StringArgument("npcName"))
                         .withArguments(new StringArgument("modelId"))
                         .executesPlayer((player, args) -> {
                             String id = (String) args.get("npcId");
-                            String npcName = (String) args.get("npcName");
+
+                            // underscores => spaces
+                            String rawName = ((String) args.get("npcName")).replace('_',' ');
                             String modelId = (String) args.get("modelId");
 
                             Location loc = player.getLocation();
-                            CustomNPC npc = npcManager.createNPC(id, npcName, loc, modelId);
-                            player.sendMessage(Utils.getInstance().$("Created NPC '" + npcName + "' (ID=" + id + ")"));
+                            CustomNPC npc = npcManager.createNPC(id, rawName, loc, modelId);
+
+                            player.sendMessage(Utils.getInstance().$("Created NPC '" + rawName + "' (ID=" + id + ")"));
                         })
                 )
-                // /xarunpc delete <npcId>
+                .withSubcommand(new CommandAPICommand("setprefix")
+                        .withArguments(new StringArgument("npcId")
+                                .replaceSuggestions(ArgumentSuggestions.strings(info -> {
+                                    return npcManager.getAllNPCs().stream()
+                                            .map(CustomNPC::getId).toArray(String[]::new);
+                                }))
+                        )
+                        .withArguments(new StringArgument("prefix"))
+                        .executesPlayer((player, args) -> {
+                            String npcId = (String) args.get("npcId");
+                            String prefix = (String) args.get("prefix");
+
+                            CustomNPC npc = npcManager.getNPC(npcId);
+                            if (npc == null) {
+                                player.sendMessage(Utils.getInstance().$("No NPC found with ID: " + npcId));
+                                return;
+                            }
+                            npc.setPrefix(prefix);
+                            player.sendMessage(Utils.getInstance().$("Set prefix for NPC '" + npcId + "' to '" + prefix + "'"));
+                        })
+                )
+                .withSubcommand(new CommandAPICommand("setsuffix")
+                        .withArguments(new StringArgument("npcId")
+                                .replaceSuggestions(ArgumentSuggestions.strings(info -> {
+                                    return npcManager.getAllNPCs().stream()
+                                            .map(CustomNPC::getId).toArray(String[]::new);
+                                }))
+                        )
+                        .withArguments(new StringArgument("suffix"))
+                        .executesPlayer((player, args) -> {
+                            String npcId = (String) args.get("npcId");
+                            String suffix = (String) args.get("suffix");
+
+                            CustomNPC npc = npcManager.getNPC(npcId);
+                            if (npc == null) {
+                                player.sendMessage(Utils.getInstance().$("No NPC found with ID: " + npcId));
+                                return;
+                            }
+                            npc.setSuffix(suffix);
+                            player.sendMessage(Utils.getInstance().$("Set suffix for NPC '" + npcId + "' to '" + suffix + "'"));
+                        })
+                )
                 .withSubcommand(new CommandAPICommand("delete")
                         .withArguments(new StringArgument("npcId"))
                         .executesPlayer((player, args) -> {
@@ -108,7 +141,6 @@ public class CustomNPCModule implements IBaseModule {
                             }
                         })
                 )
-                // /xarunpc list
                 .withSubcommand(new CommandAPICommand("list")
                         .executesPlayer((player, args) -> {
                             if (npcManager.getAllNPCs().isEmpty()) {
@@ -135,7 +167,6 @@ public class CustomNPCModule implements IBaseModule {
                             }
                         })
                 )
-                // /xarunpc reloadmodels => despawn & re-spawn ALL
                 .withSubcommand(new CommandAPICommand("reloadmodels")
                         .executesPlayer((player, args) -> {
                             if (npcManager.getAllNPCs().isEmpty()) {
@@ -144,15 +175,12 @@ public class CustomNPCModule implements IBaseModule {
                             }
 
                             for (CustomNPC npc : npcManager.getAllNPCs()) {
-                                // remove old stands
                                 eu.xaru.mysticrpg.entityhandling.EntityHandler.getInstance().deleteNPC(npc);
-                                // re-spawn
                                 eu.xaru.mysticrpg.entityhandling.EntityHandler.getInstance().spawnNPC(npc, true);
                             }
                             player.sendMessage(Utils.getInstance().$("All NPC models have been reloaded!"));
                         })
                 )
-                // /xarunpc reloadmodel <npcId>
                 .withSubcommand(new CommandAPICommand("reloadmodel")
                         .withArguments(new StringArgument("npcId")
                                 .replaceSuggestions(ArgumentSuggestions.strings(info -> {
@@ -169,17 +197,13 @@ public class CustomNPCModule implements IBaseModule {
                                 return;
                             }
 
-                            // remove old stands
                             eu.xaru.mysticrpg.entityhandling.EntityHandler.getInstance().deleteNPC(npc);
-                            // re-spawn new stands
                             eu.xaru.mysticrpg.entityhandling.EntityHandler.getInstance().spawnNPC(npc, true);
 
                             player.sendMessage(Utils.getInstance().$("Model reloaded for NPC '" + npcId + "'"));
                         })
                 )
-                // behaviour subcommands: /xarunpc behaviour rotate, lookclosest
                 .withSubcommand(new CommandAPICommand("behaviour")
-                        // /xarunpc behaviour rotate <npcId> <yaw>
                         .withSubcommand(new CommandAPICommand("rotate")
                                 .withArguments(new StringArgument("npcId")
                                         .replaceSuggestions(ArgumentSuggestions.strings(info -> {
@@ -219,7 +243,6 @@ public class CustomNPCModule implements IBaseModule {
                                     }
                                 })
                         )
-                        // /xarunpc behaviour lookclosest <npcId>
                         .withSubcommand(new CommandAPICommand("lookclosest")
                                 .withArguments(new StringArgument("npcId")
                                         .replaceSuggestions(ArgumentSuggestions.strings(info -> {
@@ -236,7 +259,6 @@ public class CustomNPCModule implements IBaseModule {
                                         return;
                                     }
 
-                                    // find the closest player
                                     Player closest = null;
                                     double closestDist = Double.MAX_VALUE;
                                     for (Player p : player.getWorld().getPlayers()) {
@@ -262,17 +284,50 @@ public class CustomNPCModule implements IBaseModule {
                                 })
                         )
                 )
+                .withSubcommand(new CommandAPICommand("adddialogue")
+                        .withArguments(new StringArgument("npcId")
+                                .replaceSuggestions(ArgumentSuggestions.strings(info -> {
+                                    return npcManager.getAllNPCs().stream()
+                                            .map(CustomNPC::getId)
+                                            .toArray(String[]::new);
+                                }))
+                        )
+                        .withArguments(new StringArgument("dialogueId")
+                                .replaceSuggestions(ArgumentSuggestions.strings(info -> {
+                                    if (!DialogueManager.getInstance().hasDialogues()) {
+                                        return new String[]{"no_dialogues_loaded"};
+                                    } else {
+                                        return DialogueManager.getInstance().getAllDialogueIds();
+                                    }
+                                }))
+                        )
+                        .executesPlayer((player, args) -> {
+                            String npcId = (String) args.get("npcId");
+                            String dialogueId = (String) args.get("dialogueId");
+
+                            CustomNPC npc = npcManager.getNPC(npcId);
+                            if (npc == null) {
+                                player.sendMessage(Utils.getInstance().$("No NPC found with ID: " + npcId));
+                                return;
+                            }
+                            npc.addDialogue(dialogueId);
+                            player.sendMessage(Utils.getInstance().$("Dialogue '" + dialogueId + "' was added to NPC '" + npcId + "'." ));
+                        })
+                )
                 .register();
 
-        // /xarudialogue <response> <dialogueId>
+        // /xarudialogue <yes/no> <dialogueId> <npcId>
         new CommandAPICommand("xarudialogue")
                 .withArguments(new StringArgument("response")
                         .replaceSuggestions(ArgumentSuggestions.strings("yes","no")))
                 .withArguments(new StringArgument("dialogueId"))
+                .withArguments(new StringArgument("npcId"))
                 .executesPlayer((player, args) -> {
                     String response = (String) args.get("response");
                     String dialogueId = (String) args.get("dialogueId");
-                    DialogueManager.getInstance().handleResponse(player, response, dialogueId);
+                    String npcId = (String) args.get("npcId");
+
+                    DialogueManager.getInstance().handleResponse(player, response, dialogueId, npcId);
                 })
                 .register();
     }

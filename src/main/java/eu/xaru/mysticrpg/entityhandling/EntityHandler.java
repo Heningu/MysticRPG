@@ -70,9 +70,11 @@ public class EntityHandler {
 
     /**
      * Spawn an NPC by creating a LinkedEntity. "NPC_" + npc.getId() is used as entity ID.
+     * We incorporate prefix + " " + name + " " + suffix into the displayed name for the stands.
      */
     public void spawnNPC(CustomNPC npc, boolean markAsSaved) {
         String entityId = "NPC_" + npc.getId();
+
         // If it's already in memory, remove old stands first
         if (entities.containsKey(entityId)) {
             LinkedEntity existing = entities.get(entityId);
@@ -84,10 +86,13 @@ public class EntityHandler {
                 "[EntityHandler] Spawning NPC ID='" + npc.getId()
                         + "' with entityId='" + entityId + "', model='" + npc.getModelId() + "'", 0);
 
+        // Build final name => prefix + " " + name + " " + suffix
+        String finalName = npc.getPrefix() + " " + npc.getName() + " " + npc.getSuffix();
+        // We pass that to LinkedEntity. LinkedEntity itself calls setDisplayName(...) => stands show color codes.
         LinkedEntity linkedEntity = new LinkedEntity(
                 entityId,
                 npc.getLocation(),
-                npc.getName(),
+                finalName,
                 npc.getModelId(),
                 markAsSaved
         );

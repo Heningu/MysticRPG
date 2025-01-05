@@ -7,25 +7,15 @@ import eu.xaru.mysticrpg.quests.QuestManager;
 import eu.xaru.mysticrpg.quests.QuestModule;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
+import eu.xaru.mysticrpg.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
-import eu.xaru.mysticrpg.utils.Utils;
 
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * Represents a single dialogue from a .yml:
- *  - id
- *  - levelRequirement
- *  - insufficientLevelMessage
- *  - messages
- *  - question
- *  - yesResponse / noResponse
- *  - questId (optional)
- */
 public class Dialogue {
 
     private final String id;
@@ -37,11 +27,13 @@ public class Dialogue {
     private final String noResponse;
     private final String questId;
 
-    // Modules
     private final QuestModule questModule;
     private final QuestManager questManager;
     private final PlayerDataCache playerDataCache;
     private final LevelModule levelModule;
+
+    // The NPC ID for this conversation (used for yes/no clickable commands)
+    private String currentNpcId;
 
     public Dialogue(String id,
                     int levelRequirement,
@@ -55,10 +47,7 @@ public class Dialogue {
         this.id = id;
         this.levelRequirement = levelRequirement;
         this.insufficientLevelMessage = insufficientLevelMessage;
-
-        // We assume the manager ensures messages won't be empty. Or if empty => ["Hello, %player%!"].
         this.messages = messages;
-
         this.question = question;
         this.yesResponse = yesResponse;
         this.noResponse = noResponse;
@@ -70,27 +59,59 @@ public class Dialogue {
         this.levelModule = ModuleManager.getInstance().getModuleInstance(LevelModule.class);
     }
 
-    public void start(Player player) {
+    public void start(Player player, String npcId) {
+        this.currentNpcId = npcId;
+
+        // 1) If this dialogue references a quest => skip if user is "in the middle" (active) or completed
+        if (questId != null) {
+            PlayerData pd = playerDataCache.getCachedPlayerData(player.getUniqueId());
+            if (pd != null) {
+                // Middle of quest => quest is in activeQuests
+                boolean isActive = pd.getActiveQuests().contains(questId);
+                // Completed => quest is in completedQuests
+                boolean isCompleted = pd.getCompletedQuests().contains(questId);
+
+                if (isCompleted) {
+                    // They fully finished the quest
+                    player.sendMessage(Utils.getInstance().$("You already completed this quest, so the dialogue is skipped."));
+                    DialogueManager.getInstance().finishConversation(player, npcId);
+                    return;
+
+                } else if (isActive) {
+                    // They’re in the middle => skip lines
+                    player.sendMessage(Utils.getInstance().$("You are already in the middle of this quest! No need to repeat dialogue."));
+                    DialogueManager.getInstance().finishConversation(player, npcId);
+                    return;
+                }
+            }
+        }
+
+        // 2) Now check the player's level if needed
         int playerLevel = getPlayerLevel(player);
         if (playerLevel < levelRequirement) {
             player.sendMessage(Utils.getInstance().$(insufficientLevelMessage));
+            DialogueManager.getInstance().finishConversation(player, npcId);
             return;
         }
-        // Show messages (2s interval)
+
+        // 3) Show the lines (and possibly question at the end)
         Iterator<String> it = messages.iterator();
         sendMessagesWithDelay(player, 0, it);
     }
 
     private int getPlayerLevel(Player player) {
         PlayerData pd = playerDataCache.getCachedPlayerData(player.getUniqueId());
-        if (pd == null) return 0;
-        return pd.getLevel(); // or your custom leveling system
+        return (pd == null) ? 0 : pd.getLevel();
     }
 
     private void sendMessagesWithDelay(Player player, int delay, Iterator<String> it) {
         if (!it.hasNext()) {
             if (question != null) {
-                DialogueManager.getInstance().askQuestion(player, this);
+                // Wait for yes/no => do not remove from set
+                DialogueManager.getInstance().askQuestion(player, this, currentNpcId);
+            } else {
+                // No question => done => remove from set
+                DialogueManager.getInstance().finishConversation(player, currentNpcId);
             }
             return;
         }
@@ -98,7 +119,6 @@ public class Dialogue {
         Bukkit.getScheduler().runTaskLater(
                 JavaPlugin.getProvidingPlugin(Dialogue.class),
                 () -> {
-                    // Replace %player% in the line if desired
                     String replaced = line.replace("%player%", player.getName());
                     player.sendMessage(Utils.getInstance().$(replaced));
                     sendMessagesWithDelay(player, 40, it);
@@ -107,9 +127,13 @@ public class Dialogue {
         );
     }
 
+    /**
+     * Called after user picks yes/no => we remove from set in DialogueManager
+     */
     public void handleResponse(Player player, String response) {
         if ("yes".equalsIgnoreCase(response)) {
             player.sendMessage(Utils.getInstance().$(yesResponse));
+
             if (questId != null) {
                 PlayerData pd = playerDataCache.getCachedPlayerData(player.getUniqueId());
                 if (pd == null) return;
@@ -135,7 +159,5 @@ public class Dialogue {
     }
 
     public String getId() { return id; }
-    public int getLevelRequirement() { return levelRequirement; }
-    public String getInsufficientLevelMessage() { return insufficientLevelMessage; }
     public String getQuestion() { return question; }
 }
