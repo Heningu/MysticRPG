@@ -11,6 +11,7 @@ import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -23,6 +24,9 @@ import java.util.*;
 
 /**
  * Manages loading, saving, and usage of Regions in /plugins/MysticRPG/regions/regions.yml
+ *
+ * Enhanced to avoid reapplying titles/effects while moving inside the same region,
+ * and to support multi-word titles/subtitles (underscore => space).
  */
 public class RegionManager {
 
@@ -35,7 +39,9 @@ public class RegionManager {
     private final Map<String, Region> regions = new HashMap<>();
     private final Map<UUID, RegionSetup> setupMap = new HashMap<>();
     private final Map<UUID, String> viewingRegion = new HashMap<>();
-    private final Map<UUID, Region> lastRegion = new HashMap<>();
+
+    // Track the last Region for each player
+    private final Map<UUID, Region> lastRegionMap = new HashMap<>();
 
     private DynamicConfig regionConfig;
 
@@ -60,14 +66,12 @@ public class RegionManager {
     }
 
     private void loadRegions() {
-        regionConfig =
-                DynamicConfigManager.loadConfig(REGIONS_FILE_PATH);
+        regionConfig = DynamicConfigManager.loadConfig(REGIONS_FILE_PATH);
         if (regionConfig == null) {
             DebugLogger.getInstance().error("Failed to load region config: " + REGIONS_FILE_PATH);
             return;
         }
 
-        // "regions" is presumably a sub-map of ID->region data
         Object regionsObj = regionConfig.get("regions");
         if (!(regionsObj instanceof Map<?,?> regionsMap)) {
             DebugLogger.getInstance().log("No regions to load or 'regions' not a map.");
@@ -90,7 +94,7 @@ public class RegionManager {
                     r.setPos2(loadLocation(p2Map));
                 }
 
-                // flags: rMap->"flags" -> map of string->bool
+                // flags
                 Object flagsObj = rMap.get("flags");
                 if (flagsObj instanceof Map<?,?> flMap) {
                     for (Map.Entry<?,?> fl : flMap.entrySet()) {
@@ -100,7 +104,7 @@ public class RegionManager {
                     }
                 }
 
-                // effects: rMap->"effects" -> map of effectName->amplifier
+                // effects
                 Object effObj = rMap.get("effects");
                 if (effObj instanceof Map<?,?> effMap) {
                     for (Map.Entry<?,?> eff : effMap.entrySet()) {
@@ -136,7 +140,6 @@ public class RegionManager {
     }
 
     private void saveRegions() {
-        // Clear "regions" in config
         regionConfig.set("regions", null);
 
         Map<String, Object> newRegionsMap = new HashMap<>();
@@ -302,21 +305,28 @@ public class RegionManager {
                             player.sendMessage("Removed effect " + eff + " from region " + id);
                             saveRegions();
                         }))
+                // Title subcommand: underscores in <title> and <subtitle> => spaces
                 .withSubcommand(new CommandAPICommand("title")
                         .withArguments(new StringArgument("id"))
-                        .withArguments(new StringArgument("title"))
-                        .withArguments(new StringArgument("subtitle"))
+                        .withArguments(new StringArgument("rawTitle"))
+                        .withArguments(new StringArgument("rawSubtitle"))
                         .executesPlayer((player, args) -> {
                             String id = (String) args.get("id");
-                            String title = ((String) args.get("title")).replace("_", " ");
-                            String subtitle = ((String) args.get("subtitle")).replace("_", " ");
+                            String rawTitle = (String) args.get("rawTitle");
+                            String rawSubtitle = (String) args.get("rawSubtitle");
+
                             Region r = regions.get(id);
                             if (r == null) {
                                 player.sendMessage("No such region");
                                 return;
                             }
-                            r.setTitle(title, subtitle);
-                            player.sendMessage("Set title for region " + id);
+                            // Replace underscores => spaces
+                            String finalTitle = rawTitle.replace("_", " ");
+                            String finalSubtitle = rawSubtitle.replace("_", " ");
+                            r.setTitle(finalTitle, finalSubtitle);
+
+                            player.sendMessage("Set multi-word title for region " + id + ": "
+                                    + finalTitle + " / " + finalSubtitle);
                             saveRegions();
                         }))
                 .withSubcommand(new CommandAPICommand("removetitle")
@@ -359,6 +369,7 @@ public class RegionManager {
     }
 
     private void registerEvents() {
+        // Setup logic (clicking blocks)
         eventManager.registerEvent(PlayerInteractEvent.class, event -> {
             Player p = event.getPlayer();
             if (!setupMap.containsKey(p.getUniqueId())) return;
@@ -387,32 +398,66 @@ public class RegionManager {
             }
         }, org.bukkit.event.EventPriority.HIGHEST);
 
-        eventManager.registerEvent(PlayerMoveEvent.class, event -> {
-            Player p = event.getPlayer();
-            Region current = getRegionAt(p.getLocation());
-            Region last = lastRegion.get(p.getUniqueId());
-            if (current != last) {
-                if (last != null) {
-                    for (PotionEffectType pe : last.getEffects().keySet()) {
-                        p.removePotionEffect(pe);
-                    }
-                }
-                if (current != null) {
-                    for (Map.Entry<PotionEffectType, Integer> eff : current.getEffects().entrySet()) {
-                        p.addPotionEffect(new PotionEffect(eff.getKey(), Integer.MAX_VALUE, eff.getValue(), true, false));
-                    }
-                    if (current.getTitle() != null) {
-                        p.sendTitle(current.getTitle(), current.getSubtitle() == null ? "" : current.getSubtitle(), 10, 70, 20);
-                    }
-                }
-                lastRegion.put(p.getUniqueId(), current);
-            }
-        }, org.bukkit.event.EventPriority.MONITOR);
+        // Enhanced move event
+        eventManager.registerEvent(PlayerMoveEvent.class, this::onPlayerMove, EventPriority.MONITOR);
     }
 
+    /**
+     * Called on player movement, skipping minor movements in the same block,
+     * and only reapplying region logic if region changes.
+     */
+    private void onPlayerMove(PlayerMoveEvent event) {
+        Player p = event.getPlayer();
+        // Skip if didn't change block coords
+        if (!hasChangedBlock(event)) {
+            return;
+        }
+        // Determine new region vs old
+        Region current = getRegionAt(p.getLocation());
+        Region last = lastRegionMap.get(p.getUniqueId());
+        if (current == last) {
+            // same region => do nothing
+            return;
+        }
+        // region changed => remove old region effects, apply new
+        if (last != null) {
+            for (PotionEffectType pe : last.getEffects().keySet()) {
+                p.removePotionEffect(pe);
+            }
+        }
+        if (current != null) {
+            for (Map.Entry<PotionEffectType, Integer> eff : current.getEffects().entrySet()) {
+                p.addPotionEffect(new PotionEffect(eff.getKey(), Integer.MAX_VALUE, eff.getValue(), true, false));
+            }
+            if (current.getTitle() != null) {
+                String sub = current.getSubtitle() == null ? "" : current.getSubtitle();
+                p.sendTitle(current.getTitle(), sub, 10, 70, 20);
+            }
+        }
+        lastRegionMap.put(p.getUniqueId(), current);
+    }
+
+    /**
+     * Returns true if the player's from->to integer block coords changed.
+     */
+    private boolean hasChangedBlock(PlayerMoveEvent event) {
+        Location from = event.getFrom();
+        Location to = event.getTo();
+        if (to == null) return false;
+        return (from.getBlockX() != to.getBlockX()
+                || from.getBlockY() != to.getBlockY()
+                || from.getBlockZ() != to.getBlockZ());
+    }
+
+    /**
+     * Finds which region the loc is inside, or null if none.
+     * If multiple overlap, returns the first found.
+     */
     public Region getRegionAt(Location loc) {
         for (Region r : regions.values()) {
-            if (r.contains(loc)) return r;
+            if (r.contains(loc)) {
+                return r;
+            }
         }
         return null;
     }
@@ -464,7 +509,7 @@ public class RegionManager {
     }
 
     private void spawnParticle(Player p, Location loc) {
-        p.spawnParticle(Particle.FLAME, loc, 1, 0,0,0,0);
+        p.spawnParticle(Particle.FLAME, loc, 1, 0, 0, 0, 0);
     }
 
     private int parseInt(Object val, int fallback) {
