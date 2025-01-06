@@ -3,30 +3,30 @@ package eu.xaru.mysticrpg.customs.mobs;
 import com.ticxo.modelengine.api.model.ModeledEntity;
 import eu.xaru.mysticrpg.customs.mobs.bossbar.MobBossBarHandler;
 import eu.xaru.mysticrpg.utils.DebugLogger;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 
-import java.util.List;
 import java.util.UUID;
 
+/**
+ * Represents a live, spawned custom mob in the world.
+ * No 'actions' or custom animations. We just handle HP, boss bar, etc.
+ */
 public class CustomMobInstance {
 
     private final CustomMob customMob;
     private final Location spawnLocation;
     private final LivingEntity entity;
     private final ModeledEntity modeledEntity;
+
     private UUID lastDamager;
     private Entity target;
-    private boolean isPerformingAction = false;
-    private boolean inCombat = false;
-    private String currentAnimation;
+    private boolean inCombat;
     private double currentHp;
+
+    // Optional boss bar
     private MobBossBarHandler bossBarHandler;
-    private List<String> aiTargetSelectors;
-
-
 
     public CustomMobInstance(CustomMob customMob, Location spawnLocation, LivingEntity entity, ModeledEntity modeledEntity) {
         this.customMob = customMob;
@@ -40,83 +40,38 @@ public class CustomMobInstance {
         }
     }
 
-    public MobBossBarHandler getBossBarHandler() {
-        return bossBarHandler;
+    public CustomMob getCustomMob()        { return customMob; }
+    public Location getSpawnLocation()     { return spawnLocation; }
+    public LivingEntity getEntity()        { return entity; }
+    public ModeledEntity getModeledEntity() { return modeledEntity; }
+
+    public UUID getLastDamager()           { return lastDamager; }
+    public void setLastDamager(UUID damager) {
+        this.lastDamager = damager;
     }
 
-
-    public CustomMob getCustomMob() {
-        return customMob;
-    }
-
-    public Location getSpawnLocation() {
-        return spawnLocation;
-    }
-
-    public LivingEntity getEntity() {
-        return entity;
-    }
-
-    public ModeledEntity getModeledEntity() {
-        return modeledEntity;
-    }
-
-    public UUID getLastDamager() {
-        return lastDamager;
-    }
-
-    public void setLastDamager(UUID lastDamager) {
-        this.lastDamager = lastDamager;
-    }
-
-    public Entity getTarget() {
-        return target;
-    }
-
-    public void setTarget(Entity target) {
-        this.target = target;
-        DebugLogger.getInstance().log("Mob " + customMob.getName() + " set target to " + (target != null ? target.getName() : "null"));
-    }
-
-    public boolean isPerformingAction() {
-        return isPerformingAction;
-    }
-
-    public void setPerformingAction(boolean isPerformingAction) {
-        this.isPerformingAction = isPerformingAction;
+    public Entity getTarget()              { return target; }
+    public void setTarget(Entity tgt) {
+        this.target = tgt;
+        DebugLogger.getInstance().log("Mob " + customMob.getName()
+                + " set target to " + (tgt != null ? tgt.getName() : "null"));
     }
 
     public boolean isInCombat() {
         return inCombat;
     }
-
     public void setInCombat(boolean inCombat) {
         this.inCombat = inCombat;
-    }
-
-    public String getCurrentAnimation() {
-        return currentAnimation;
-    }
-
-    public void setCurrentAnimation(String currentAnimation) {
-        this.currentAnimation = currentAnimation;
     }
 
     public double getCurrentHp() {
         return currentHp;
     }
-
-    public void setCurrentHp(double currentHp) {
-        this.currentHp = currentHp;
-    }
-    // Add the getter method
-    public List<String> getAiTargetSelectors() {
-        return aiTargetSelectors;
+    public void setCurrentHp(double hp) {
+        this.currentHp = hp;
     }
 
-    // Add the setter method
-    public void setAiTargetSelectors(List<String> aiTargetSelectors) {
-        this.aiTargetSelectors = aiTargetSelectors;
+    public MobBossBarHandler getBossBarHandler() {
+        return bossBarHandler;
     }
-
 }

@@ -85,8 +85,6 @@ public class LeaderBoardsModule implements IBaseModule {
     }
 
     private void updateAllScoreboards() {
-        // Update all scoreboards (level, rich, etc.)
-        DebugLogger.getInstance().log(Level.INFO, "All scoreboards refreshed.", 0);
     }
 
     @Override

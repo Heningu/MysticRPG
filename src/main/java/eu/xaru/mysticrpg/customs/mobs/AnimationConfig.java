@@ -1,14 +1,20 @@
 package eu.xaru.mysticrpg.customs.mobs;
 
+/**
+ * A minimal animation config with only idle & walk references.
+ *
+ * If you want more, just add them here. ModelEngine 4.0.8
+ * has default animations so you typically only need an
+ * idle/walk if you want custom ones.
+ */
 public class AnimationConfig {
+
     private String idleAnimation = "idle";
     private String walkAnimation = "walk";
-    private String attackAnimation = "attack"; // Default attack animation
 
-    // Constructor
-    public AnimationConfig() {}
+    public AnimationConfig() {
+    }
 
-    // Getters and Setters
     public String getIdleAnimation() {
         return idleAnimation;
     }
@@ -23,13 +29,5 @@ public class AnimationConfig {
 
     public void setWalkAnimation(String walkAnimation) {
         this.walkAnimation = walkAnimation;
-    }
-
-    public String getAttackAnimation() {
-        return attackAnimation;
-    }
-
-    public void setAttackAnimation(String attackAnimation) {
-        this.attackAnimation = attackAnimation;
     }
 }

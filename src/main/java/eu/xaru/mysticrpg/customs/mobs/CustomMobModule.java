@@ -3,15 +3,9 @@ package eu.xaru.mysticrpg.customs.mobs;
 import dev.jorel.commandapi.CommandAPICommand;
 import dev.jorel.commandapi.arguments.ArgumentSuggestions;
 import dev.jorel.commandapi.arguments.StringArgument;
-import eu.xaru.mysticrpg.config.DynamicConfig;
-import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.cores.MysticCore;
-import eu.xaru.mysticrpg.customs.mobs.actions.Action;
-import eu.xaru.mysticrpg.customs.mobs.actions.ActionStep;
-import eu.xaru.mysticrpg.customs.mobs.actions.Condition;
-import eu.xaru.mysticrpg.customs.mobs.actions.conditions.DistanceCondition;
-import eu.xaru.mysticrpg.customs.mobs.actions.steps.*;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
+import eu.xaru.mysticrpg.economy.EconomyModule;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.guis.admin.MobGUI;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
@@ -20,11 +14,11 @@ import eu.xaru.mysticrpg.player.leveling.LevelModule;
 import eu.xaru.mysticrpg.social.party.PartyModule;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import eu.xaru.mysticrpg.utils.Utils;
-import org.bukkit.*;
+import org.bukkit.Material;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.EntityType;
-import eu.xaru.mysticrpg.economy.EconomyModule;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -32,6 +26,11 @@ import java.io.File;
 import java.util.*;
 import java.util.logging.Level;
 
+/**
+ * CustomMobModule is responsible for loading custom mob YAML files from
+ * "plugins/MysticRPG/custom/mobs/*.yml", storing them in a mobConfigurations map,
+ * then allowing you to spawn them in-game via commands.
+ */
 public class CustomMobModule implements IBaseModule, Listener {
 
     private final JavaPlugin plugin;
@@ -39,457 +38,247 @@ public class CustomMobModule implements IBaseModule, Listener {
     private MobManager mobManager;
 
     public CustomMobModule() {
+        // We load the plugin reference from MysticCore
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
     }
 
     @Override
     public void initialize() {
+        // Check dependencies
         PartyModule partyModule = ModuleManager.getInstance().getModuleInstance(PartyModule.class);
         if (partyModule == null) {
-            DebugLogger.getInstance().error("PartyModule is not loaded. CustomMobModule requires PartyModule as a dependency.");
+            DebugLogger.getInstance().error("PartyModule not found. CustomMobModule requires PartyModule!");
             return;
         }
+        EconomyModule econMod = ModuleManager.getInstance().getModuleInstance(EconomyModule.class);
+        if (econMod == null) {
+            DebugLogger.getInstance().error("EconomyModule not found. CustomMobModule requires EconomyModule!");
+            return;
+        }
+        EconomyHelper economyHelper = econMod.getEconomyHelper();
 
+        // Load from standard YAML approach
         loadMobConfigurations();
 
-        EconomyModule economyModule = ModuleManager.getInstance().getModuleInstance(EconomyModule.class);
-        if (economyModule == null) {
-            DebugLogger.getInstance().error("EconomyModule is not loaded. CustomMobModule requires EconomyModule as a dependency.");
-            return;
-        }
-        EconomyHelper economyHelper = economyModule.getEconomyHelper();
-
+        // Create manager
         mobManager = new MobManager(plugin, mobConfigurations, economyHelper);
         registerCommands();
-        Bukkit.getPluginManager().registerEvents(this, plugin);
 
-       // DebugLogger.getInstance().log(Level.INFO, "CustomMobModule initialized successfully.", 0);
+        // Register the event listener
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
+        DebugLogger.getInstance().log(Level.INFO, "CustomMobModule initialized successfully.", 0);
     }
 
     @Override
-    public void start() {
-    }
+    public void start() { }
 
     @Override
-    public void stop() {
-    }
+    public void stop()  { }
 
     @Override
-    public void unload() {
-    }
+    public void unload(){ }
 
     @Override
     public List<Class<? extends IBaseModule>> getDependencies() {
+        // We rely on LevelModule, EconomyModule, and PartyModule
         return List.of(LevelModule.class, EconomyModule.class, PartyModule.class);
     }
 
     @Override
     public EModulePriority getPriority() {
+        // Priority can be LOW if desired
         return EModulePriority.LOW;
     }
 
+    /**
+     * Loads all .yml files from "plugins/MysticRPG/custom/mobs" and parses them
+     * into CustomMob objects, stored in mobConfigurations.
+     */
     private void loadMobConfigurations() {
-        File mobFolder = new File(plugin.getDataFolder(), "custom\\mobs");
-        if (!mobFolder.exists() && !mobFolder.mkdirs()) {
-            DebugLogger.getInstance().error("Failed to create mobs folder.");
+        mobConfigurations.clear();
+        File folder = new File(plugin.getDataFolder(), "custom/mobs");
+        if (!folder.exists()) {
+            folder.mkdirs();
+        }
+        File[] files = folder.listFiles((dir, name) -> name.toLowerCase().endsWith(".yml"));
+        if (files == null) {
             return;
         }
 
-        File[] files = mobFolder.listFiles((dir, name) -> name.endsWith(".yml"));
-        if (files != null) {
-            for (File file : files) {
-                try {
-                    DynamicConfig config = DynamicConfigManager.loadConfig(file);
-                    if (config == null) {
-                        DebugLogger.getInstance().error("Failed to load config for file: " + file.getName());
-                        continue;
+        for (File file : files) {
+            YamlConfiguration yml = new YamlConfiguration();
+            try {
+                yml.load(file);
+
+                String mobId = yml.getString("id", "missing_id");
+                String mobName = yml.getString("name", "UnnamedMob");
+                String typeStr = yml.getString("type", "ZOMBIE").toUpperCase(Locale.ROOT);
+                EntityType et = EntityType.valueOf(typeStr);
+
+                double health = yml.getDouble("health", 20.0);
+                int level = yml.getInt("level", 1);
+                int xpReward = yml.getInt("experienceReward", 0);
+                int goldReward = yml.getInt("currencyReward", 0);
+
+                double baseDmg = yml.getDouble("damage", 2.0);
+                double baseArmor = yml.getDouble("armor", 0.0);
+                double moveSpeed = yml.getDouble("movement_speed", 0.2);
+
+                // customAttributes
+                Map<String, Integer> customAttrs = new HashMap<>();
+                if (yml.isConfigurationSection("customAttributes")) {
+                    for (String attrKey : yml.getConfigurationSection("customAttributes").getKeys(false)) {
+                        int val = yml.getInt("customAttributes." + attrKey, 0);
+                        customAttrs.put(attrKey, val);
                     }
+                }
 
-                    String mobId = config.getString("id", "-1");
-                    String mobName = config.getString("name", "Unknown Mob");
-                    if (mobId == null || mobId.isEmpty()) {
-                        DebugLogger.getInstance().error("Mob ID is missing in file: " + file.getName());
-                        continue;
+                // assignedAreas
+                List<String> assignedAreas = yml.getStringList("assigned_areas");
+
+                // area_settings
+                Map<String, CustomMob.AreaSettings> areaSettingsMap = new HashMap<>();
+                if (yml.isConfigurationSection("area_settings")) {
+                    for (String areaKey : yml.getConfigurationSection("area_settings").getKeys(false)) {
+                        int maxAmt = yml.getInt("area_settings." + areaKey + ".max_amount", 1);
+                        int respawnSecs = yml.getInt("area_settings." + areaKey + ".respawn_after_seconds", -1);
+                        boolean respawnIfAllDead = yml.getBoolean("area_settings." + areaKey + ".respawn_if_all_dead", false);
+                        areaSettingsMap.put(areaKey, new CustomMob.AreaSettings(maxAmt, respawnSecs, respawnIfAllDead));
                     }
-                    if (mobName == null || mobName.isEmpty()) {
-                        DebugLogger.getInstance().error("Mob name is missing in file: " + file.getName());
-                        continue;
-                    }
-                    EntityType entityType = EntityType.valueOf(config.getString("type", "ZOMBIE").toUpperCase(Locale.ROOT));
-                    double health = config.getDouble("health", 20.0);
-                    int level = config.getInt("level", 1);
+                }
 
-                    int experienceReward = config.getInt("experienceReward", 0);
-                    int currencyReward = config.getInt("currencyReward", 0);
+                // drops
+                List<CustomMob.DropItem> drops = new ArrayList<>();
+                if (yml.isList("drops")) {
+                    for (Object o : yml.getList("drops")) {
+                        if (o instanceof Map) {
+                            @SuppressWarnings("unchecked")
+                            Map<String,Object> dropMap = (Map<String,Object>) o;
+                            String type = (String) dropMap.getOrDefault("type", "material");
+                            String dId = (String) dropMap.getOrDefault("id", "");
+                            String mat = (String) dropMap.getOrDefault("material", Material.DIRT.name());
+                            int amt = (int) dropMap.getOrDefault("amount", 1);
+                            double chance = ((Number) dropMap.getOrDefault("chance", 1.0)).doubleValue();
 
-                    double baseDamage = config.getDouble("damage", 2.0);
-                    double baseArmor = config.getDouble("armor", 0.0);
-                    double movementSpeed = config.getDouble("movement_speed", 0.2);
-
-                    // customAttributes -> key->int
-                    Map<String, Integer> customAttributes = new HashMap<>();
-                    Object customAttrObj = config.get("customAttributes");
-                    if (customAttrObj instanceof Map<?,?> cMap) {
-                        for (Map.Entry<?,?> e : cMap.entrySet()) {
-                            String key = String.valueOf(e.getKey());
-                            int val = parseInt(e.getValue(), 0);
-                            customAttributes.put(key, val);
+                            CustomMob.DropItem di = new CustomMob.DropItem(type, dId, mat, amt, chance);
+                            drops.add(di);
                         }
                     }
-
-                    List<String> assignedAreas = config.getStringList("assigned_areas", new ArrayList<>());
-
-                    // area_settings -> map of areaKey -> { max_amount, respawn_after_seconds, respawn_if_all_dead }
-                    Map<String, CustomMob.AreaSettings> areaSettingsMap = new HashMap<>();
-                    Object areaSetObj = config.get("area_settings");
-                    if (areaSetObj instanceof Map<?,?> areaMap) {
-                        for (Map.Entry<?,?> e : areaMap.entrySet()) {
-                            String areaKey = String.valueOf(e.getKey());
-                            Object areaVal = e.getValue();
-                            if (areaVal instanceof Map<?,?> subMap) {
-                                int maxAmount = parseInt(subMap.get("max_amount"), 1);
-                                int respawnAfter = parseInt(subMap.get("respawn_after_seconds"), -1);
-                                boolean respawnIfAllDead = parseBoolean(subMap.get("respawn_if_all_dead"), false);
-
-                                CustomMob.AreaSettings areaSettings = new CustomMob.AreaSettings(maxAmount, respawnAfter, respawnIfAllDead);
-                                areaSettingsMap.put(areaKey, areaSettings);
-                            }
-                        }
-                    }
-
-                    // drops -> list of maps
-                    List<CustomMob.DropItem> drops = new ArrayList<>();
-                    Object dropsObj = config.get("drops");
-                    if (dropsObj instanceof List<?> rawList) {
-                        for (Object dropItemObj : rawList) {
-                            if (dropItemObj instanceof Map<?,?> dMap) {
-                                String type = parseString(dMap.get("type"), null);
-                                String id = parseString(dMap.get("id"), null);
-                                String materialStr = parseString(dMap.get("material"), null);
-                                int amount = parseInt(dMap.get("amount"), 1);
-                                double chance = parseDouble(dMap.get("chance"), 1.0);
-
-                                if (type == null) {
-                                    DebugLogger.getInstance().error("Drop type is missing for mob: " + mobName);
-                                    continue;
-                                }
-                                CustomMob.DropItem dropItem = new CustomMob.DropItem(type, id, materialStr, amount, chance);
-                                drops.add(dropItem);
-                            }
-                        }
-                    }
-
-                    // equipment
-                    CustomMob.Equipment equipment = null;
-                    Object equipObj = config.get("equipment");
-                    if (equipObj instanceof Map<?,?> eqMap) {
-                        String helmet = parseString(getNested(eqMap, "helmet.custom_item_id"), null);
-                        String chestplate = parseString(getNested(eqMap, "chestplate.custom_item_id"), null);
-                        String leggings = parseString(getNested(eqMap, "leggings.custom_item_id"), null);
-                        String boots = parseString(getNested(eqMap, "boots.custom_item_id"), null);
-                        String weapon = parseString(getNested(eqMap, "weapon.custom_item_id"), null);
-
-                        equipment = new CustomMob.Equipment(helmet, chestplate, leggings, boots, weapon);
-                    }
-
-                    // model_id
-                    String modelId = config.getString("model_id", "INVALID_ID"+mobId);
-
-                    // animations
-                    AnimationConfig animationConfig = loadAnimations(config);
-
-                    // actions
-                    Map<String, List<Action>> actions = loadActions(config, animationConfig);
-
-                    // boss bar
-                    CustomMob.BossBarConfig bossBarConfig = null;
-                    Object bossBarObj = config.get("BossBar");
-                    if (bossBarObj instanceof Map<?,?> bossMap) {
-                        boolean enabled = parseBoolean(bossMap.get("Enabled"), false);
-                        String title = parseString(bossMap.get("Title"), mobName);
-                        String colorName = parseString(bossMap.get("Color"), "RED");
-                        double range = parseDouble(bossMap.get("Range"), 64.0);
-                        String styleName = parseString(bossMap.get("Style"), "SEGMENTED_20");
-
-                        BarColor color = BarColor.valueOf(colorName.toUpperCase(Locale.ROOT));
-                        BarStyle style = BarStyle.valueOf(styleName.toUpperCase(Locale.ROOT));
-                        // Append level to title
-                        title = title + " [LVL " + level + "]";
-
-                        bossBarConfig = new CustomMob.BossBarConfig(enabled, title, color, range, style);
-                    }
-
-                    CustomMob customMob = new CustomMob(
-                            mobId, mobName, entityType, health, level, experienceReward, currencyReward, customAttributes,
-                            assignedAreas, areaSettingsMap, drops, baseDamage, baseArmor, movementSpeed, equipment,
-                            modelId, actions, animationConfig, bossBarConfig
-                    );
-
-                    mobConfigurations.put(mobId, customMob);
-                    DebugLogger.getInstance().log(Level.INFO, "Loaded mob configuration: " + mobId, 0);
-
-                } catch (Exception e) {
-                    DebugLogger.getInstance().error("Failed to load mob configuration from file " + file.getName() + ":", e);
                 }
+
+                // equipment
+                CustomMob.Equipment eq = null;
+                if (yml.isConfigurationSection("equipment")) {
+                    String helmet    = yml.getString("equipment.helmet.custom_item_id", null);
+                    String chestplate= yml.getString("equipment.chestplate.custom_item_id", null);
+                    String leggings  = yml.getString("equipment.leggings.custom_item_id", null);
+                    String boots     = yml.getString("equipment.boots.custom_item_id", null);
+                    String weapon    = yml.getString("equipment.weapon.custom_item_id", null);
+                    eq = new CustomMob.Equipment(helmet, chestplate, leggings, boots, weapon);
+                }
+
+                // model
+                String modelId = yml.getString("model_id", "");
+
+                // boss bar
+                CustomMob.BossBarConfig bossBarConfig = null;
+                if (yml.isConfigurationSection("BossBar")) {
+                    boolean enabled = yml.getBoolean("BossBar.Enabled", false);
+                    String bTitle = yml.getString("BossBar.Title", mobName);
+                    String bColor = yml.getString("BossBar.Color", "RED");
+                    double bRange = yml.getDouble("BossBar.Range", 64.0);
+                    String bStyle = yml.getString("BossBar.Style", "SEGMENTED_20");
+
+                    BarColor bc = BarColor.valueOf(bColor.toUpperCase(Locale.ROOT));
+                    BarStyle bs = BarStyle.valueOf(bStyle.toUpperCase(Locale.ROOT));
+                    bTitle = bTitle + " [LVL " + level + "]";
+                    bossBarConfig = new CustomMob.BossBarConfig(enabled, bTitle, bc, bRange, bs);
+                }
+
+                // Create the CustomMob object
+                CustomMob cMob = new CustomMob(
+                        mobId, mobName, et, health, level,
+                        xpReward, goldReward, customAttrs,
+                        assignedAreas, areaSettingsMap, drops,
+                        baseDmg, baseArmor, moveSpeed, eq,
+                        modelId, bossBarConfig
+                );
+
+                mobConfigurations.put(mobId, cMob);
+                DebugLogger.getInstance().log(Level.INFO, "Loaded mob config: " + mobId + " from " + file.getName(), 0);
+
+            } catch (Exception ex) {
+                DebugLogger.getInstance().error("Failed to load custom mob from " + file.getName(), ex);
             }
         }
+        DebugLogger.getInstance().log(Level.INFO, "Finished loading " + mobConfigurations.size() + " custom mobs.", 0);
     }
 
-    private AnimationConfig loadAnimations(DynamicConfig config) {
-        AnimationConfig animationConfig = new AnimationConfig();
-        Object animObj = config.get("animations");
-        if (animObj instanceof Map<?,?> animationsMap) {
-            // "idle", "walk", "attack"
-            String idle = parseString(animationsMap.get("idle"), null);
-            String walk = parseString(animationsMap.get("walk"), null);
-            String attack = parseString(animationsMap.get("attack"), null);
-            animationConfig.setIdleAnimation(idle);
-            animationConfig.setWalkAnimation(walk);
-            animationConfig.setAttackAnimation(attack);
-        }
-        return animationConfig;
-    }
-
-    private Map<String, List<Action>> loadActions(DynamicConfig config, AnimationConfig animationConfig) {
-        Map<String, List<Action>> actions = new HashMap<>();
-        List<String> actionEntries = config.getStringList("actions", new ArrayList<>());
-        for (String actionEntry : actionEntries) {
-            String[] parts = actionEntry.split("~");
-            if (parts.length == 2) {
-                String actionPath = parts[0].trim();
-                String trigger = parts[1].trim();
-                Action action = loadActionFromFile(actionPath, animationConfig);
-                if (action != null) {
-                    actions.computeIfAbsent(trigger, k -> new ArrayList<>()).add(action);
-                }
-            } else {
-                DebugLogger.getInstance().error("Invalid action entry: " + actionEntry);
-            }
-        }
-        return actions;
-    }
-
-    private Action loadActionFromFile(String actionPath, AnimationConfig animationConfig) {
-        File actionFile = new File(plugin.getDataFolder(), "custom/mobs/" + actionPath + ".yml");
-        if (!actionFile.exists()) {
-            DebugLogger.getInstance().error("Action file not found: " + actionFile.getPath());
-            return null;
-        }
-        try {
-
-            DynamicConfig actionConfig = DynamicConfigManager.loadConfig(actionPath);
-            if (actionConfig == null) {
-                DebugLogger.getInstance().error("Failed to load action config: " + actionFile.getPath());
-                return null;
-            }
-
-            int cooldown = actionConfig.getInt("cooldown", 0);
-            List<String> targetConditionStrings = actionConfig.getStringList("target_conditions", new ArrayList<>());
-            List<String> doActionsStrings = actionConfig.getStringList("do_actions", new ArrayList<>());
-
-            // Parse target conditions
-            List<Condition> targetConditions = new ArrayList<>();
-            for (String conditionString : targetConditionStrings) {
-                Condition condition = parseCondition(conditionString);
-                if (condition != null) targetConditions.add(condition);
-            }
-
-            // Parse action steps
-            List<ActionStep> actionSteps = new ArrayList<>();
-            for (String actionString : doActionsStrings) {
-                ActionStep step = parseActionStep(actionString, animationConfig);
-                if (step != null) {
-                    actionSteps.add(step);
-                }
-            }
-            return new Action(cooldown, targetConditions, actionSteps);
-
-        } catch (Exception e) {
-            DebugLogger.getInstance().error("Failed to load action from file " + actionFile.getPath() + ":", e);
-            return null;
-        }
-    }
-
-    private Condition parseCondition(String conditionString) {
-        String[] parts = conditionString.trim().split("\\s+", 2);
-        if (parts.length != 2) {
-            DebugLogger.getInstance().error("Invalid condition format: " + conditionString);
-            return null;
-        }
-        String conditionType = parts[0].trim();
-        String conditionParam = parts[1].trim();
-
-        switch (conditionType.toLowerCase()) {
-            case "distance":
-                return new DistanceCondition(conditionParam);
-            default:
-                DebugLogger.getInstance().error("Unknown condition type: " + conditionType);
-                return null;
-        }
-    }
-
-    private ActionStep parseActionStep(String actionString, AnimationConfig animationConfig) {
-        String[] parts = actionString.split(":", 2);
-        String command = parts[0].trim();
-        String parameter = (parts.length > 1) ? parts[1].trim() : null;
-
-        if (parameter != null) {
-            parameter = replacePlaceholders(parameter, animationConfig);
-        }
-
-        switch (command.toLowerCase()) {
-            case "animation":
-                if (parameter == null) {
-                    DebugLogger.getInstance().error("Missing parameter for animation action.");
-                    return null;
-                }
-                return new AnimationActionStep(parameter.replace("\"", ""));
-            case "delay":
-                if (parameter == null) {
-                    DebugLogger.getInstance().error("Missing parameter for delay action.");
-                    return null;
-                }
-                double delaySeconds = parseDouble(parameter, 0.0);
-                return new DelayActionStep(delaySeconds);
-            case "sound":
-                if (parameter == null) {
-                    DebugLogger.getInstance().error("Missing parameter for sound action.");
-                    return null;
-                }
-                return new SoundActionStep(parameter);
-            case "damage":
-                if (parameter == null) {
-                    DebugLogger.getInstance().error("Missing parameter for damage action.");
-                    return null;
-                }
-                double damageAmount = parseDouble(parameter, 0.0);
-                return new DamageActionStep(damageAmount);
-            case "particles":
-                if (parameter == null) {
-                    DebugLogger.getInstance().error("Missing parameter for particles action.");
-                    return null;
-                }
-                String[] params = parameter.split("\\s+");
-                if (params.length == 2) {
-                    String particleName = params[0];
-                    int count = parseInt(params[1], 1);
-                    return new ParticleActionStep(particleName, count);
-                } else {
-                    DebugLogger.getInstance().error("Invalid parameters for particles action: " + parameter);
-                    return null;
-                }
-            case "reset_to_default_animation":
-                return new ResetAnimationActionStep(mobManager);
-            default:
-                DebugLogger.getInstance().error("Unknown action command: " + command);
-                return null;
-        }
-    }
-
-    private String replacePlaceholders(String input, AnimationConfig animationConfig) {
-        return input
-                .replace("%idle_animation%", animationConfig.getIdleAnimation() == null ? "" : animationConfig.getIdleAnimation())
-                .replace("%walk_animation%", animationConfig.getWalkAnimation() == null ? "" : animationConfig.getWalkAnimation())
-                .replace("%attack_animation%", animationConfig.getAttackAnimation() == null ? "" : animationConfig.getAttackAnimation());
-    }
-
+    /**
+     * Registers the /custommob command (and subcommands) using CommandAPI
+     */
     private void registerCommands() {
         new CommandAPICommand("custommob")
                 .withPermission("mysticcore.custommob")
+
+                // /custommob list
                 .withSubcommand(new CommandAPICommand("list")
                         .executesPlayer((player, args) -> {
                             if (mobConfigurations.isEmpty()) {
-                                player.sendMessage(Utils.getInstance().$("No mobs are loaded."));
+                                player.sendMessage(Utils.getInstance().$("No mobs loaded."));
                             } else {
                                 player.sendMessage(Utils.getInstance().$("Loaded Mobs:"));
-                                mobConfigurations.keySet().forEach(mobId -> player.sendMessage(Utils.getInstance().$("- " + mobId)));
+                                for (String mobId : mobConfigurations.keySet()) {
+                                    player.sendMessage(Utils.getInstance().$("- " + mobId));
+                                }
                             }
-                        }))
+                        })
+                )
+
+                // /custommob spawn <mobId>
                 .withSubcommand(new CommandAPICommand("spawn")
                         .withArguments(new StringArgument("mobId")
-                                .replaceSuggestions(ArgumentSuggestions.strings(mobConfigurations.keySet().toArray(new String[0]))))
+                                // Use strings(...) for suggestions
+                                .replaceSuggestions(ArgumentSuggestions.strings(
+                                        mobConfigurations.keySet().toArray(new String[0])
+                                ))
+                        )
                         .executesPlayer((player, args) -> {
                             String mobId = (String) args.get(0);
                             CustomMob customMob = mobConfigurations.get(mobId);
-
                             if (customMob == null) {
                                 player.sendMessage(Utils.getInstance().$("Mob not found: " + mobId));
                                 return;
                             }
+                            mobManager.spawnMobAtLocation(customMob, player.getLocation());
+                            player.sendMessage(Utils.getInstance().$("Spawned " + customMob.getName() + " at your location."));
+                        })
+                )
 
-                            Location location = player.getLocation();
-                            mobManager.spawnMobAtLocation(customMob, location);
-
-                            player.sendMessage(Utils.getInstance().$("Spawned mob: " + customMob.getName() + " at your location."));
-                        }))
+                // /custommob gui
                 .withSubcommand(new CommandAPICommand("gui")
                         .executesPlayer((player, args) -> {
-                            MobGUI mobGUI = new MobGUI();
-                            mobGUI.openMobGUI(player);
-                        }))
+                            MobGUI gui = new MobGUI();
+                            gui.openMobGUI(player);
+                        })
+                )
+
+                // /custommob reload
                 .withSubcommand(new CommandAPICommand("reload")
                         .executes((sender, args) -> {
                             loadMobConfigurations();
-                            sender.sendMessage(Utils.getInstance().$("Mob configurations reloaded successfully."));
-                        }))
+                            sender.sendMessage("Mob configurations reloaded successfully.");
+                        })
+                )
+
+                // Finally register the base command
                 .register();
     }
 
-    // Helper parsing methods
-    private int parseInt(Object val, int fallback) {
-        if (val instanceof Number) {
-            return ((Number)val).intValue();
-        }
-        try {
-            return Integer.parseInt(String.valueOf(val));
-        } catch (Exception e) {
-            return fallback;
-        }
-    }
-
-    private double parseDouble(Object val, double fallback) {
-        if (val instanceof Number) {
-            return ((Number) val).doubleValue();
-        }
-        try {
-            return Double.parseDouble(String.valueOf(val));
-        } catch (Exception e) {
-            return fallback;
-        }
-    }
-
-    private boolean parseBoolean(Object val, boolean fallback) {
-        if (val instanceof Boolean) return (Boolean) val;
-        if (val instanceof Number) return ((Number) val).intValue() != 0;
-        if (val instanceof String) {
-            String s = ((String) val).toLowerCase(Locale.ROOT);
-            if (s.equals("true") || s.equals("yes") || s.equals("1")) return true;
-            if (s.equals("false") || s.equals("no") || s.equals("0")) return false;
-        }
-        return fallback;
-    }
-
-    private String parseString(Object val, String fallback) {
-        return (val != null) ? val.toString() : fallback;
-    }
-
     /**
-     * A small helper to fetch nested keys like "helmet.custom_item_id" from a map,
-     * returning the value or null if missing.
+     * Gives external access to the MobManager,
+     * so other modules can call customMobModule.getMobManager().
      */
-    private Object getNested(Map<?,?> parent, String path) {
-        String[] parts = path.split("\\.");
-        Object cursor = parent;
-        for (String part : parts) {
-            if (cursor instanceof Map<?,?> m) {
-                cursor = m.get(part);
-            } else {
-                return null;
-            }
-        }
-        return cursor;
-    }
-
     public MobManager getMobManager() {
         return mobManager;
     }

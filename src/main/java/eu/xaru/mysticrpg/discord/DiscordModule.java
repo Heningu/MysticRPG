@@ -1,6 +1,9 @@
+//
+// DiscordModule.java
+//
+
 package eu.xaru.mysticrpg.discord;
 
-import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.enums.EModulePriority;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
@@ -16,8 +19,8 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.event.Listener;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.awt.*;
 import java.util.*;
@@ -25,6 +28,10 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+/**
+ * Main Discord module that orchestrates linking logic, leaderboard updates, etc.
+ * Refactored to remove DynamicConfig usage, using plugin's config directly.
+ */
 public class DiscordModule implements IBaseModule, Listener {
 
     private final JavaPlugin plugin;
@@ -49,6 +56,7 @@ public class DiscordModule implements IBaseModule, Listener {
 
     @Override
     public void initialize() {
+        // Rely on SaveModule for DB, caching, etc.
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
         if (saveModule != null) {
             playerDataCache = PlayerDataCache.getInstance();
@@ -56,28 +64,29 @@ public class DiscordModule implements IBaseModule, Listener {
         }
 
         if (playerDataCache == null || databaseManager == null) {
-            DebugLogger.getInstance().error("SaveModule or PlayerDataCache or DatabaseManager not initialized. DiscordModule cannot function without it.");
+            DebugLogger.getInstance().error("SaveModule / PlayerDataCache / DatabaseManager not initialized. DiscordModule cannot function.");
             return;
         }
 
         discordHelper = new DiscordHelper(this);
 
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
-     //   DebugLogger.getInstance().log(Level.INFO, "DiscordModule initialized successfully.", 0);
     }
 
     @Override
     public void start() {
+        // Start the Discord Bot
         discordHelper.startBot();
 
-        // Register /leaderboard command after JDA is ready
-        String guildId = MysticCore.getInstance().getMysticConfig().getString("discord.guild_id", "");
-        if (guildId != null && !guildId.isEmpty()) {
+        // Optionally register /leaderboard command with the guild if desired
+        String guildId = plugin.getConfig().getString("discordGuildId", "");
+        if (guildId != null && !guildId.isEmpty() && discordHelper.getJDA() != null) {
             discordHelper.getJDA().getGuildById(guildId)
                     .updateCommands()
                     .addCommands(
                             net.dv8tion.jda.api.interactions.commands.build.Commands.slash("leaderboard", "Show a specific leaderboard")
-                                    .addOption(net.dv8tion.jda.api.interactions.commands.OptionType.STRING, "type", "Type of leaderboard (LEVEL/RICH)", true)
+                                    .addOption(net.dv8tion.jda.api.interactions.commands.OptionType.STRING,
+                                            "type", "Type of leaderboard (LEVEL/RICH)", true)
                     ).queue();
         }
     }
@@ -89,6 +98,7 @@ public class DiscordModule implements IBaseModule, Listener {
 
     @Override
     public void unload() {
+        // no special logic
     }
 
     @Override
@@ -101,14 +111,17 @@ public class DiscordModule implements IBaseModule, Listener {
         return EModulePriority.NORMAL;
     }
 
+    /**
+     * Once we have a code + discordId, link them in the DB so the player
+     * data includes the discordId. (This is invoked by DiscordHelper).
+     */
     public void handleDiscordLinking(long discordId, String code) {
         UUID playerUUID = discordHelper.getPlayerUUIDByCode(code);
         if (playerUUID != null) {
-            boolean alreadyLinked = playerDataCache.getAllCachedPlayerUUIDs().stream()
-                    .anyMatch(uuid -> {
-                        PlayerData data = playerDataCache.getCachedPlayerData(uuid);
-                        return data != null && data.getDiscordId() != null && data.getDiscordId().equals(discordId);
-                    });
+            boolean alreadyLinked = playerDataCache.getAllCachedPlayerUUIDs().stream().anyMatch(uuid -> {
+                PlayerData data = playerDataCache.getCachedPlayerData(uuid);
+                return data != null && data.getDiscordId() != null && data.getDiscordId().equals(discordId);
+            });
 
             if (alreadyLinked) {
                 DebugLogger.getInstance().error("Discord ID " + discordId + " is already linked to another Minecraft account.");
@@ -131,10 +144,9 @@ public class DiscordModule implements IBaseModule, Listener {
 
                     @Override
                     public void onFailure(Throwable throwable) {
-                        DebugLogger.getInstance().error("Failed to save Discord linking for player UUID " + playerUUID + ": ", throwable);
+                        DebugLogger.getInstance().error("Failed saving Discord linking for player UUID " + playerUUID, throwable);
                     }
                 });
-
             } else {
                 DebugLogger.getInstance().error("No player found for linking code: " + code);
             }
@@ -143,20 +155,32 @@ public class DiscordModule implements IBaseModule, Listener {
         }
     }
 
+    /**
+     * Called by a background job or something to update the embed if it exists.
+     */
     public void updateLeaderboardEmbed(LeaderboardType type, List<PlayerData> topPlayers) {
         LeaderboardMessageData msgData = leaderboardEmbeds.get(type);
-        if (msgData == null) return; // No embed for this type
+        if (msgData == null) return; // no existing embed
 
         EmbedBuilder embed = buildLeaderboardEmbed(type, topPlayers);
+
+        if (discordHelper.getJDA() == null) {
+            DebugLogger.getInstance().error("JDA is null, cannot update leaderboard embed.");
+            return;
+        }
 
         discordHelper.getJDA().getTextChannelById(msgData.channelId)
                 .retrieveMessageById(msgData.messageId)
                 .queue(message -> message.editMessageEmbeds(embed.build()).queue(),
-                        failure -> DebugLogger.getInstance().error("Failed to update leaderboard embed message: " + failure.getMessage()));
+                        failure -> DebugLogger.getInstance().error("Failed updating leaderboard embed message: " + failure.getMessage()));
     }
 
+    /**
+     * Create a brand new leaderboard embed for the given slash command invocation.
+     */
     public void createLeaderboardEmbed(LeaderboardType type, SlashCommandInteractionEvent event) {
-        event.deferReply(true).queue(); // Defer ephemerally
+        event.deferReply(true).queue(); // ephemeral "thinking"
+
         databaseManager.getPlayerRepository().loadAll(new Callback<List<PlayerData>>() {
             @Override
             public void onSuccess(List<PlayerData> allPlayers) {
@@ -164,25 +188,27 @@ public class DiscordModule implements IBaseModule, Listener {
 
                 EmbedBuilder embed = buildLeaderboardEmbed(type, sortedPlayers);
 
-                // Send normal channel message
+                // Send to the channel
                 event.getChannel().sendMessageEmbeds(embed.build()).queue(message -> {
                     long channelId = message.getChannel().getIdLong();
                     long messageId = message.getIdLong();
-                    leaderboardEmbeds.put(type, new LeaderboardMessageData(channelId, messageId));
-                    DebugLogger.getInstance().log(Level.INFO, "Created leaderboard embed for " + type + " at message " + messageId, 0);
 
-                    // Remove the ephemeral "thinking" message
+                    // track it for updates
+                    leaderboardEmbeds.put(type, new LeaderboardMessageData(channelId, messageId));
+                    DebugLogger.getInstance().log(Level.INFO, "Created leaderboard embed for " + type + " at messageId=" + messageId, 0);
+
+                    // remove ephemeral waiting message
                     event.getHook().deleteOriginal().queue();
                 }, failure -> {
                     event.getHook().editOriginal("Failed to create leaderboard message in channel.").queue();
-                    DebugLogger.getInstance().error("Failed to send leaderboard embed message: " + failure.getMessage());
+                    DebugLogger.getInstance().error("Failed sending leaderboard embed message: " + failure.getMessage());
                 });
             }
 
             @Override
             public void onFailure(Throwable throwable) {
                 event.getHook().editOriginal("Failed to fetch leaderboard data.").queue();
-                DebugLogger.getInstance().error("Failed to fetch leaderboard data for Discord embed: ", throwable);
+                DebugLogger.getInstance().error("Failed to fetch leaderboard data for Discord embed:", throwable);
             }
         });
     }
@@ -194,6 +220,7 @@ public class DiscordModule implements IBaseModule, Listener {
                     .limit(5)
                     .collect(Collectors.toList());
         } else {
+            // RICH => sort by bankGold
             return allPlayers.stream()
                     .sorted((p1, p2) -> Integer.compare(p2.getBankGold(), p1.getBankGold()))
                     .limit(5)
@@ -210,7 +237,8 @@ public class DiscordModule implements IBaseModule, Listener {
         for (PlayerData pd : topPlayers) {
             UUID playerUUID = UUID.fromString(pd.getUuid());
             OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerUUID);
-            String playerName = (offlinePlayer.hasPlayedBefore() && offlinePlayer.getName() != null) ? offlinePlayer.getName() : "Unknown";
+            String playerName = (offlinePlayer.hasPlayedBefore() && offlinePlayer.getName() != null)
+                    ? offlinePlayer.getName() : "Unknown";
 
             if (type == LeaderboardType.LEVEL) {
                 embed.addField("#" + rank, playerName + " - Level " + pd.getLevel(), false);
@@ -220,6 +248,7 @@ public class DiscordModule implements IBaseModule, Listener {
             rank++;
         }
 
+        // If fewer than 5 players, fill in blank spots
         for (; rank <= 5; rank++) {
             embed.addField("#" + rank, "N/A", false);
         }
@@ -230,7 +259,7 @@ public class DiscordModule implements IBaseModule, Listener {
     private static class LeaderboardMessageData {
         long channelId;
         long messageId;
-        public LeaderboardMessageData(long channelId, long messageId) {
+        LeaderboardMessageData(long channelId, long messageId) {
             this.channelId = channelId;
             this.messageId = messageId;
         }
