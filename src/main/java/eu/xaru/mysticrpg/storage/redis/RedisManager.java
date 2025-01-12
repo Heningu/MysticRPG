@@ -1,13 +1,12 @@
 package eu.xaru.mysticrpg.storage.redis;
 
-import eu.xaru.mysticrpg.config.DynamicConfig;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.configuration.file.FileConfiguration;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 /**
@@ -19,19 +18,25 @@ public class RedisManager {
 
     private final boolean redisEnabled;
     private boolean mockInMemory;
-
     private JedisPool jedisPool;
+
     private final Map<String, String> mockData = new ConcurrentHashMap<>();
 
+    /**
+     * Private constructor. Use initialize(...) to set up the singleton.
+     */
     private RedisManager(boolean enabled, boolean mock, String host, int port, String password) {
         this.redisEnabled = enabled;
         this.mockInMemory = mock;
 
         if (redisEnabled && !mockInMemory) {
             try {
-                // If your redis requires auth, you'd do that with Jedis
+                // Connect to Redis (password handling may vary)
                 jedisPool = new JedisPool(host, port);
-                DebugLogger.getInstance().log(Level.INFO, "RedisManager: Connected to Redis at " + host + ":" + port, 0);
+                DebugLogger.getInstance().log(Level.INFO,
+                        "RedisManager: Connected to Redis at " + host + ":" + port, 0);
+                // If password is required, you might do Jedis auth each time you get a resource.
+                // e.g., if(!password.isEmpty()) { jedis.auth(password); } inside try-with-resources.
             } catch (Exception e) {
                 DebugLogger.getInstance().error("RedisManager: failed to connect, using in-memory fallback", e);
                 this.mockInMemory = true;
@@ -41,7 +46,12 @@ public class RedisManager {
         }
     }
 
-    public static synchronized void initialize(DynamicConfig config) {
+    /**
+     * Initializes the RedisManager singleton using values from a Bukkit {@link FileConfiguration}.
+     *
+     * @param config the plugin's config containing "database.redis.*" keys
+     */
+    public static synchronized void initialize(FileConfiguration config) {
         if (instance == null) {
             boolean enabled = config.getBoolean("database.redis.enabled", false);
             boolean mock = config.getBoolean("database.redis.mockInMemory", false);
@@ -54,7 +64,7 @@ public class RedisManager {
 
     public static RedisManager getInstance() {
         if (instance == null) {
-            throw new IllegalStateException("RedisManager not initialized.");
+            throw new IllegalStateException("RedisManager not initialized. Call initialize(...) first!");
         }
         return instance;
     }
@@ -66,9 +76,11 @@ public class RedisManager {
     public void set(String key, String value) {
         if (isRedisFullyEnabled()) {
             try (Jedis jedis = jedisPool.getResource()) {
+                // If a password is needed:
+                // if (!password.isEmpty()) { jedis.auth(password); }
                 jedis.set(key, value);
             } catch (Exception e) {
-                DebugLogger.getInstance().error("RedisManager: set failed, fallback to mock", e);
+                DebugLogger.getInstance().error("RedisManager: set failed, falling back to mock data", e);
                 mockData.put(key, value);
             }
         } else {
@@ -79,9 +91,10 @@ public class RedisManager {
     public String get(String key) {
         if (isRedisFullyEnabled()) {
             try (Jedis jedis = jedisPool.getResource()) {
+                // if (!password.isEmpty()) { jedis.auth(password); }
                 return jedis.get(key);
             } catch (Exception e) {
-                DebugLogger.getInstance().error("RedisManager: get failed, fallback to mock", e);
+                DebugLogger.getInstance().error("RedisManager: get failed, falling back to mock data", e);
                 return mockData.get(key);
             }
         }
@@ -91,9 +104,10 @@ public class RedisManager {
     public void delete(String key) {
         if (isRedisFullyEnabled()) {
             try (Jedis jedis = jedisPool.getResource()) {
+                // if (!password.isEmpty()) { jedis.auth(password); }
                 jedis.del(key);
             } catch (Exception e) {
-                DebugLogger.getInstance().error("RedisManager: delete failed, fallback to mock", e);
+                DebugLogger.getInstance().error("RedisManager: delete failed, falling back to mock data", e);
                 mockData.remove(key);
             }
         } else {

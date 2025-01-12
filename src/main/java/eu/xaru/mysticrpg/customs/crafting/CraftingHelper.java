@@ -1,7 +1,5 @@
 package eu.xaru.mysticrpg.customs.crafting;
 
-import eu.xaru.mysticrpg.config.DynamicConfig;
-import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.customs.items.CustomItem;
 import eu.xaru.mysticrpg.customs.items.CustomItemModule;
 import eu.xaru.mysticrpg.customs.items.ItemManager;
@@ -12,6 +10,7 @@ import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.utils.CustomInventoryManager;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.*;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -50,14 +49,14 @@ public class CraftingHelper implements Listener {
                     "CustomItemModule not found. Custom items in recipes won't be available.", 0);
         }
 
-        // Load recipe files using DynamicConfig
+        // Load recipe files (now using YamlConfiguration)
         loadCustomRecipes();
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
     /**
-     * Loads all custom recipe .yml files from /custom/recipes using the DynamicConfig system.
+     * Loads all custom recipe .yml files from /custom/recipes using YamlConfiguration.
      */
     public void loadCustomRecipes() {
         File recipesFolder = new File(plugin.getDataFolder(), "custom/recipes");
@@ -66,30 +65,24 @@ public class CraftingHelper implements Listener {
             return;
         }
 
-        File[] files = recipesFolder.listFiles((dir, name) -> name.endsWith(".yml"));
+        File[] files = recipesFolder.listFiles((dir, name) -> name.toLowerCase().endsWith(".yml"));
         if (files == null) return;
 
         for (File file : files) {
-            String userFileName = "custom/recipes/" + file.getName();
             try {
-                // 1) Load or reload this file into DynamicConfig
-                DynamicConfigManager.loadConfig(userFileName);
+                // Create a YamlConfiguration and load this file
+                YamlConfiguration ycfg = new YamlConfiguration();
+                ycfg.load(file);
 
-                // 2) Retrieve the config object
-                DynamicConfig config = DynamicConfigManager.getConfig(userFileName);
-                if (config == null) {
-                    DebugLogger.getInstance().error("Failed to load config for file: " + file.getName());
-                    continue;
-                }
-
-                // 3) Extract data from config
-                String id = config.getString("id", "");
+                // Extract data from ycfg
+                String id = ycfg.getString("id", "");
                 if (id.isEmpty()) {
                     DebugLogger.getInstance().error("Recipe ID is missing in file: " + file.getName());
                     continue;
                 }
 
-                List<String> shape = config.getStringList("shape", new ArrayList<>());
+                // shape must be exactly 3 rows
+                List<String> shape = ycfg.getStringList("shape");
                 if (shape.size() != 3) {
                     DebugLogger.getInstance().error("Invalid shape in recipe " + id + ". Must have 3 rows.");
                     continue;
@@ -97,9 +90,9 @@ public class CraftingHelper implements Listener {
 
                 Map<Character, RecipeIngredient> ingredients = new HashMap<>();
                 // "ingredients" is a sub-map of key->value (like 'A': 'custom:something')
-                Object ingrObj = config.get("ingredients");
-                if (ingrObj instanceof Map<?,?> ingrMap) {
-                    for (Map.Entry<?,?> e : ingrMap.entrySet()) {
+                Object ingrObj = ycfg.get("ingredients");
+                if (ingrObj instanceof Map<?, ?> ingrMap) {
+                    for (Map.Entry<?, ?> e : ingrMap.entrySet()) {
                         String keyStr = String.valueOf(e.getKey());
                         if (keyStr.length() != 1) {
                             DebugLogger.getInstance().error("Ingredient key '" + keyStr + "' must be a single character.");
@@ -116,7 +109,7 @@ public class CraftingHelper implements Listener {
                     }
                 }
 
-                String resultValue = config.getString("result", "");
+                String resultValue = ycfg.getString("result", "");
                 RecipeIngredient resultIngredient = parseIngredient(resultValue);
                 if (resultIngredient == null) {
                     DebugLogger.getInstance().error("Invalid result in recipe " + id);
@@ -243,9 +236,12 @@ public class CraftingHelper implements Listener {
 
         if (slot >= 0 && slot < gui.getSize()) {
             if (isInArray(slot, craftingGridSlots)) {
+                // Let them place/pick items from the crafting area
                 event.setCancelled(false);
+                // Update the result after a tick
                 Bukkit.getScheduler().runTaskLater(plugin, () -> updateCraftingResult(gui, player), 1);
             } else if (slot == resultSlot) {
+                // Attempt to craft
                 event.setCancelled(true);
                 ItemStack resultItem = gui.getItem(resultSlot);
                 if (resultItem != null && resultItem.getType() != Material.AIR) {
@@ -257,9 +253,11 @@ public class CraftingHelper implements Listener {
                     Bukkit.getScheduler().runTaskLater(plugin, () -> updateCraftingResult(gui, player), 1);
                 }
             } else {
+                // Clicked outside crafting or result => block it
                 event.setCancelled(true);
             }
         } else {
+            // Clicked in player's own inventory
             event.setCancelled(false);
             Bukkit.getScheduler().runTaskLater(plugin, () -> updateCraftingResult(gui, player), 1);
         }
@@ -272,8 +270,8 @@ public class CraftingHelper implements Listener {
         Inventory gui = event.getInventory();
         Player player = (Player) event.getWhoClicked();
         int[] craftingGridSlots = {20, 21, 22, 29, 30, 31, 38, 39, 40};
-        boolean updateNeeded = false;
 
+        boolean updateNeeded = false;
         for (int slot : event.getRawSlots()) {
             if (isInArray(slot, craftingGridSlots)) {
                 updateNeeded = true;
@@ -295,6 +293,7 @@ public class CraftingHelper implements Listener {
         HumanEntity player = event.getPlayer();
         Inventory gui = event.getInventory();
 
+        // Return any items in the 3x3 grid to the player's inventory
         int[] craftingGridSlots = {20, 21, 22, 29, 30, 31, 38, 39, 40};
         for (int slot : craftingGridSlots) {
             ItemStack item = gui.getItem(slot);
@@ -306,6 +305,7 @@ public class CraftingHelper implements Listener {
     }
 
     private CustomRecipe matchRecipe(ItemStack[] matrix, Player player) {
+        // Check if player has unlocked recipes
         PlayerData pData = PlayerDataCache.getInstance().getCachedPlayerData(player.getUniqueId());
         if (pData == null) return null;
 
@@ -363,6 +363,10 @@ public class CraftingHelper implements Listener {
         }
         return false;
     }
+
+    // -------------------------------------------------------------------------
+    // Additional Methods for unlocking/locking recipes
+    // -------------------------------------------------------------------------
 
     public Set<String> getRecipeIds() {
         return customRecipes.keySet();

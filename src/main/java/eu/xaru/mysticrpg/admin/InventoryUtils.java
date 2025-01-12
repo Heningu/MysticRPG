@@ -1,8 +1,7 @@
 package eu.xaru.mysticrpg.admin;
 
-import eu.xaru.mysticrpg.config.DynamicConfig;
-import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.utils.DebugLogger;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -12,56 +11,63 @@ import java.util.List;
 import java.util.logging.Level;
 
 /**
- * Utility methods for saving/loading player inventories using the DynamicConfig system.
+ * Utility methods for saving/loading player inventories using YamlConfiguration.
  */
 public class InventoryUtils {
 
     /**
-     * Saves a player's inventory (main + armor) to the specified file using DynamicConfig.
+     * Saves a player's inventory (main + armor) to the specified file using YamlConfiguration.
      *
      * @param player The player whose inventory to save.
      * @param file   The target .yml file (e.g., /plugins/MysticRPG/admin/player_inventories/SomePlayer.yml).
      */
     public static void saveInventoryToFile(Player player, File file) {
         try {
-            // Step 1: Create parent folders if they do not exist
+            // Ensure parent folders exist
             if (!file.getParentFile().exists()) {
                 file.getParentFile().mkdirs();
             }
-            // If the file doesn't exist yet, create it so DynamicConfig has something to load
+            // Create the file if it doesn't exist
             if (!file.exists()) {
                 file.createNewFile();
             }
         } catch (IOException e) {
-            DebugLogger.getInstance().log(Level.SEVERE, "Failed to prepare inventory file: " + file.getName(), e);
+            DebugLogger.getInstance().log(Level.SEVERE,
+                    "Failed to prepare inventory file: " + file.getName(), e);
             return;
         }
 
-        String pathKey = getRelativeOrName(file);
-
-        DynamicConfig config = DynamicConfigManager.loadConfig(pathKey);
-        if (config == null) {
-            DebugLogger.getInstance().log(Level.SEVERE, "Could not load DynamicConfig for " + pathKey);
-            return;
+        // Create and load the configuration
+        YamlConfiguration config = new YamlConfiguration();
+        try {
+            config.load(file);
+        } catch (Exception e) {
+            // If loading fails, we'll just overwrite it
+            DebugLogger.getInstance().log(Level.WARNING,
+                    "Could not load existing inventory data from " + file.getName() + ", will overwrite.", e);
         }
 
-        // Step 3: Retrieve and store inventory contents
+        // Grab the inventory contents
         ItemStack[] contents = player.getInventory().getContents();
         ItemStack[] armor = player.getInventory().getArmorContents();
 
-        // We store them as a List<ItemStack> so DynamicConfig can handle them easily
+        // Store them under "inventory.contents" and "inventory.armor"
         config.set("inventory.contents", contents);
         config.set("inventory.armor", armor);
 
-        // Step 4: Save changes if needed
-        config.saveIfNeeded();
-
-        DebugLogger.getInstance().log(Level.INFO,
-                "Saved inventory for player " + player.getName() + " to " + file.getName());
+        // Save to disk
+        try {
+            config.save(file);
+            DebugLogger.getInstance().log(Level.INFO,
+                    "Saved inventory for player " + player.getName() + " to " + file.getName());
+        } catch (IOException e) {
+            DebugLogger.getInstance().log(Level.SEVERE,
+                    "Failed to save inventory data to " + file.getName(), e);
+        }
     }
 
     /**
-     * Loads a player's inventory from the specified file using DynamicConfig.
+     * Loads a player's inventory from the specified file using YamlConfiguration.
      *
      * @param player The player whose inventory to load.
      * @param file   The .yml file containing the saved inventory.
@@ -74,23 +80,21 @@ public class InventoryUtils {
             return;
         }
 
-        // Build the same path key used when saving
-        String pathKey = getRelativeOrName(file);
-
-        // Load from DynamicConfig
-
-        DynamicConfig config = DynamicConfigManager.loadConfig(pathKey);
-        if (config == null) {
-            DebugLogger.getInstance().log(Level.WARNING,
-                    "Could not load DynamicConfig for " + pathKey);
+        // Create and load the config
+        YamlConfiguration config = new YamlConfiguration();
+        try {
+            config.load(file);
+        } catch (Exception e) {
+            DebugLogger.getInstance().log(Level.SEVERE,
+                    "Could not load inventory data from " + file.getName(), e);
             return;
         }
 
-        // Retrieve the lists from config
-        List<ItemStack> contentList = (List<ItemStack>) config.getList("inventory.contents", null);
-        List<ItemStack> armorList   = (List<ItemStack>) config.getList("inventory.armor", null);
+        // Retrieve lists from the config
+        List<ItemStack> contentList = (List<ItemStack>) config.getList("inventory.contents");
+        List<ItemStack> armorList   = (List<ItemStack>) config.getList("inventory.armor");
 
-        // If they're null or empty, there's nothing to load
+        // If they're not null/empty, apply to player's inventory
         if (contentList != null && !contentList.isEmpty()) {
             player.getInventory().setContents(contentList.toArray(new ItemStack[0]));
         }
@@ -104,17 +108,10 @@ public class InventoryUtils {
     }
 
     /**
-     * A helper method that decides how to build the path key for DynamicConfig based on a file.
-     * Adjust if you want a different mapping scheme.
+     * (Optional) If you need a path key generator, adapt or remove this method.
      */
     private static String getRelativeOrName(File file) {
-        // Option A: Use the absolute path as the load key
-        // return file.getAbsolutePath().replace("\\", "/");
-
-        // Option B: Use some relative path under your plugin's data folder
-        // e.g. "admin/player_inventories/SomePlayer.yml"
-        // For simplicity, let's just combine the parent folder name + file name:
-        String parent = file.getParentFile().getName();
+        String parent = file.getParentFile() != null ? file.getParentFile().getName() : "";
         return parent + "/" + file.getName();
     }
 }

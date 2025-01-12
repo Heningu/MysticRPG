@@ -1,18 +1,16 @@
 package eu.xaru.mysticrpg.customs.items.sets;
 
-import eu.xaru.mysticrpg.config.DynamicConfig;
-import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.player.stats.StatType;
 import eu.xaru.mysticrpg.utils.DebugLogger;
-import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.util.*;
 import java.util.logging.Level;
 
 /**
- * Handles loading ItemSets from /plugins/MysticRPG/custom/items/sets/*.yml using DynamicConfig.
+ * Handles loading ItemSets from /plugins/MysticRPG/custom/items/sets/*.yml using YamlConfiguration.
  */
 public class SetManager {
 
@@ -31,7 +29,7 @@ public class SetManager {
     }
 
     private void loadSets() {
-
+        // Locate or create the "custom/items/sets" folder
         File setsFolder = new File(MysticCore.getInstance().getDataFolder(), "custom\\items\\sets");
         if (!setsFolder.exists()) {
             if (!setsFolder.mkdirs()) {
@@ -40,32 +38,30 @@ public class SetManager {
             }
         }
 
-        File[] files = setsFolder.listFiles((dir, name) -> name.endsWith(".yml"));
+        // Collect all *.yml files
+        File[] files = setsFolder.listFiles((dir, name) -> name.toLowerCase().endsWith(".yml"));
         if (files == null) return;
 
+        // Iterate each file and parse it as YamlConfiguration
         for (File file : files) {
             try {
+                YamlConfiguration config = new YamlConfiguration();
+                config.load(file);
 
-                DynamicConfig config = DynamicConfigManager.loadConfig(file.getPath());
-
-                if (config == null) {
-                    DebugLogger.getInstance().severe("Failed to load DynamicConfig for set file: " + file.getName());
-                    continue;
-                }
-
+                // Retrieve the set ID
                 String id = config.getString("id", "");
                 if (id.isEmpty()) {
                     DebugLogger.getInstance().severe("Set ID is missing in file: " + file.getName());
                     continue;
                 }
 
-                // bonuses -> Map<Integer, Map<StatType, Double>>
+                // Parse bonuses -> Map<Integer, Map<StatType, Double>>
                 Map<Integer, Map<StatType, Double>> pieceBonuses = new HashMap<>();
 
                 Object bonusesObj = config.get("bonuses");
-                if (bonusesObj instanceof Map<?,?> bonusesMap) {
-                    // Each key is thresholdKey (string), value is a sub-map of stat->value
-                    for (Map.Entry<?,?> e : bonusesMap.entrySet()) {
+                if (bonusesObj instanceof Map<?, ?> bonusesMap) {
+                    // Each key is a threshold (string), each value is a sub-map of stat->value
+                    for (Map.Entry<?, ?> e : bonusesMap.entrySet()) {
                         String thresholdKey = String.valueOf(e.getKey());
                         int threshold;
                         try {
@@ -76,9 +72,9 @@ public class SetManager {
                             continue;
                         }
 
-                        if (e.getValue() instanceof Map<?,?> statsMap) {
+                        if (e.getValue() instanceof Map<?, ?> statsMap) {
                             Map<StatType, Double> statsMapConverted = new EnumMap<>(StatType.class);
-                            for (Map.Entry<?,?> statEntry : statsMap.entrySet()) {
+                            for (Map.Entry<?, ?> statEntry : statsMap.entrySet()) {
                                 String statKey = String.valueOf(statEntry.getKey()).toUpperCase(Locale.ROOT);
                                 StatType statType;
                                 try {
@@ -96,12 +92,14 @@ public class SetManager {
                     }
                 }
 
+                // Create the ItemSet and store it
                 ItemSet itemSet = new ItemSet(id, pieceBonuses);
                 sets.put(id, itemSet);
                 DebugLogger.getInstance().log(Level.INFO, "Loaded set: " + id);
 
             } catch (Exception e) {
-                DebugLogger.getInstance().severe("Failed to load set configuration from file " + file.getName() + ":", e);
+                DebugLogger.getInstance().severe("Failed to load set configuration from file "
+                        + file.getName() + ":", e);
             }
         }
     }
@@ -110,6 +108,9 @@ public class SetManager {
         return sets.get(id);
     }
 
+    /**
+     * Formats a set ID (e.g. "dragon_scale") into a more readable name ("Dragon Scale").
+     */
     public String formatSetName(String setId) {
         if (setId == null || setId.isEmpty()) return "";
         String[] parts = setId.toLowerCase(Locale.ROOT).split("_");
@@ -117,7 +118,8 @@ public class SetManager {
         for (String part : parts) {
             if (part.isEmpty()) continue;
             sb.append(Character.toUpperCase(part.charAt(0)))
-                    .append(part.substring(1)).append(" ");
+                    .append(part.substring(1))
+                    .append(" ");
         }
         return sb.toString().trim();
     }
