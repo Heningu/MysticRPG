@@ -5,10 +5,11 @@ import dev.jorel.commandapi.arguments.ArgumentSuggestions;
 import dev.jorel.commandapi.arguments.BooleanArgument;
 import dev.jorel.commandapi.arguments.IntegerArgument;
 import dev.jorel.commandapi.arguments.StringArgument;
+import eu.xaru.mysticrpg.config.DynamicConfig;
+import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.*;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.Action;
@@ -19,10 +20,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.*;
-import java.util.logging.Level;
 
 /**
  * Manages loading, saving, and usage of Regions in /plugins/MysticRPG/regions/regions.yml
@@ -45,9 +43,7 @@ public class RegionManager {
     // Track the last Region for each player
     private final Map<UUID, Region> lastRegionMap = new HashMap<>();
 
-    // Instead of DynamicConfig, we use YamlConfiguration
-    private YamlConfiguration regionConfig;
-    private File regionFile;
+    private DynamicConfig regionConfig;
 
     static class RegionSetup {
         String id;
@@ -69,55 +65,39 @@ public class RegionManager {
         startBorderTask();
     }
 
-    // ------------------------------------------------------------------------
-    // Region Loading / Saving
-    // ------------------------------------------------------------------------
-
     private void loadRegions() {
-        try {
-            regionFile = new File(plugin.getDataFolder(), REGIONS_FILE_PATH);
-            if (!regionFile.exists()) {
-                // Make sure parent directories exist
-                regionFile.getParentFile().mkdirs();
-                // Create an empty file if needed
-                regionFile.createNewFile();
-            }
-
-            regionConfig = new YamlConfiguration();
-            regionConfig.load(regionFile);
-
-        } catch (Exception e) {
-            DebugLogger.getInstance().error("Failed to load regions file: " + REGIONS_FILE_PATH, e);
-            // If loading fails, we still continue with an empty YamlConfiguration
-            regionConfig = new YamlConfiguration();
-        }
-
-        Object regionsObj = regionConfig.get("regions");
-        if (!(regionsObj instanceof Map<?, ?> regionsMap)) {
-            DebugLogger.getInstance().log("No regions to load or 'regions' is not a map.");
+        regionConfig = DynamicConfigManager.loadConfig(REGIONS_FILE_PATH);
+        if (regionConfig == null) {
+            DebugLogger.getInstance().error("Failed to load region config: " + REGIONS_FILE_PATH);
             return;
         }
 
-        for (Map.Entry<?, ?> e : regionsMap.entrySet()) {
+        Object regionsObj = regionConfig.get("regions");
+        if (!(regionsObj instanceof Map<?,?> regionsMap)) {
+            DebugLogger.getInstance().log("No regions to load or 'regions' not a map.");
+            return;
+        }
+
+        for (Map.Entry<?,?> e : regionsMap.entrySet()) {
             String id = String.valueOf(e.getKey());
-            if (e.getValue() instanceof Map<?, ?> rMap) {
+            if (e.getValue() instanceof Map<?,?> rMap) {
                 Region r = new Region(id);
 
                 // pos1
                 Object pos1Obj = rMap.get("pos1");
-                if (pos1Obj instanceof Map<?, ?> p1Map) {
+                if (pos1Obj instanceof Map<?,?> p1Map) {
                     r.setPos1(loadLocation(p1Map));
                 }
                 // pos2
                 Object pos2Obj = rMap.get("pos2");
-                if (pos2Obj instanceof Map<?, ?> p2Map) {
+                if (pos2Obj instanceof Map<?,?> p2Map) {
                     r.setPos2(loadLocation(p2Map));
                 }
 
                 // flags
                 Object flagsObj = rMap.get("flags");
-                if (flagsObj instanceof Map<?, ?> flMap) {
-                    for (Map.Entry<?, ?> fl : flMap.entrySet()) {
+                if (flagsObj instanceof Map<?,?> flMap) {
+                    for (Map.Entry<?,?> fl : flMap.entrySet()) {
                         String key = String.valueOf(fl.getKey());
                         boolean val = parseBoolean(fl.getValue(), false);
                         r.setFlag(key, val);
@@ -126,8 +106,8 @@ public class RegionManager {
 
                 // effects
                 Object effObj = rMap.get("effects");
-                if (effObj instanceof Map<?, ?> effMap) {
-                    for (Map.Entry<?, ?> eff : effMap.entrySet()) {
+                if (effObj instanceof Map<?,?> effMap) {
+                    for (Map.Entry<?,?> eff : effMap.entrySet()) {
                         String effName = eff.getKey().toString().toUpperCase(Locale.ROOT);
                         PotionEffectType pet = PotionEffectType.getByName(effName);
                         if (pet != null) {
@@ -136,7 +116,7 @@ public class RegionManager {
                         }
                     }
                 } else if (effObj instanceof List<?> oldList) {
-                    // old format: a simple list
+                    // old format
                     for (Object eff : oldList) {
                         String effStr = String.valueOf(eff).toUpperCase(Locale.ROOT);
                         PotionEffectType pet = PotionEffectType.getByName(effStr);
@@ -160,7 +140,6 @@ public class RegionManager {
     }
 
     private void saveRegions() {
-        // Clear old "regions" key first
         regionConfig.set("regions", null);
 
         Map<String, Object> newRegionsMap = new HashMap<>();
@@ -172,7 +151,7 @@ public class RegionManager {
 
             // pos1
             if (r.getPos1() != null) {
-                Map<String, Object> p1 = new HashMap<>();
+                Map<String,Object> p1 = new HashMap<>();
                 p1.put("world", r.getPos1().getWorld().getName());
                 p1.put("x", r.getPos1().getBlockX());
                 p1.put("y", r.getPos1().getBlockY());
@@ -181,7 +160,7 @@ public class RegionManager {
             }
             // pos2
             if (r.getPos2() != null) {
-                Map<String, Object> p2 = new HashMap<>();
+                Map<String,Object> p2 = new HashMap<>();
                 p2.put("world", r.getPos2().getWorld().getName());
                 p2.put("x", r.getPos2().getBlockX());
                 p2.put("y", r.getPos2().getBlockY());
@@ -191,7 +170,7 @@ public class RegionManager {
 
             // flags
             if (!r.getFlags().isEmpty()) {
-                Map<String, Object> flMap = new HashMap<>();
+                Map<String,Object> flMap = new HashMap<>();
                 for (Map.Entry<String, Boolean> fl : r.getFlags().entrySet()) {
                     flMap.put(fl.getKey(), fl.getValue());
                 }
@@ -200,8 +179,8 @@ public class RegionManager {
 
             // effects
             if (!r.getEffects().isEmpty()) {
-                Map<String, Object> effMap = new HashMap<>();
-                for (Map.Entry<PotionEffectType, Integer> eff : r.getEffects().entrySet()) {
+                Map<String,Object> effMap = new HashMap<>();
+                for (Map.Entry<PotionEffectType,Integer> eff : r.getEffects().entrySet()) {
                     effMap.put(eff.getKey().getName(), eff.getValue());
                 }
                 rMap.put("effects", effMap);
@@ -219,15 +198,10 @@ public class RegionManager {
         }
 
         regionConfig.set("regions", newRegionsMap);
-
-        try {
-            regionConfig.save(regionFile);
-        } catch (IOException e) {
-            DebugLogger.getInstance().error("Failed to save regions to " + regionFile.getName(), e);
-        }
+        regionConfig.saveIfNeeded();
     }
 
-    private Location loadLocation(Map<?, ?> map) {
+    private Location loadLocation(Map<?,?> map) {
         String worldName = parseString(map.get("world"), null);
         World w = Bukkit.getWorld(worldName);
         if (w == null) return null;
@@ -236,10 +210,6 @@ public class RegionManager {
         int z = parseInt(map.get("z"), 0);
         return new Location(w, x, y, z);
     }
-
-    // ------------------------------------------------------------------------
-    // Command Registration
-    // ------------------------------------------------------------------------
 
     private void registerCommands() {
         new CommandAPICommand("region")
@@ -259,7 +229,6 @@ public class RegionManager {
 
         CommandAPICommand regionsCmd = new CommandAPICommand("regions")
                 .withPermission("mysticrpg.region.manage")
-
                 .withSubcommand(new CommandAPICommand("see")
                         .withArguments(new StringArgument("id"))
                         .executesPlayer((player, args) -> {
@@ -277,11 +246,9 @@ public class RegionManager {
                                 player.sendMessage("Showing region " + id);
                             }
                         }))
-
                 .withSubcommand(new CommandAPICommand("flag")
                         .withArguments(new StringArgument("id"))
-                        .withArguments(new StringArgument("flag")
-                                .replaceSuggestions(ArgumentSuggestions.strings("break", "pvp", "place")))
+                        .withArguments(new StringArgument("flag").replaceSuggestions(ArgumentSuggestions.strings("break", "pvp", "place")))
                         .withArguments(new BooleanArgument("value"))
                         .executesPlayer((player, args) -> {
                             String id = (String) args.get("id");
@@ -296,7 +263,6 @@ public class RegionManager {
                             player.sendMessage("Set flag " + flag + " to " + val + " for region " + id);
                             saveRegions();
                         }))
-
                 .withSubcommand(new CommandAPICommand("seteffect")
                         .withArguments(new StringArgument("id"))
                         .withArguments(new StringArgument("effect"))
@@ -319,7 +285,6 @@ public class RegionManager {
                             player.sendMessage("Added effect " + eff + " with amplifier " + amplifier + " to region " + id);
                             saveRegions();
                         }))
-
                 .withSubcommand(new CommandAPICommand("removeeffect")
                         .withArguments(new StringArgument("id"))
                         .withArguments(new StringArgument("effect"))
@@ -340,7 +305,6 @@ public class RegionManager {
                             player.sendMessage("Removed effect " + eff + " from region " + id);
                             saveRegions();
                         }))
-
                 // Title subcommand: underscores in <title> and <subtitle> => spaces
                 .withSubcommand(new CommandAPICommand("title")
                         .withArguments(new StringArgument("id"))
@@ -365,7 +329,6 @@ public class RegionManager {
                                     + finalTitle + " / " + finalSubtitle);
                             saveRegions();
                         }))
-
                 .withSubcommand(new CommandAPICommand("removetitle")
                         .withArguments(new StringArgument("id"))
                         .executesPlayer((player, args) -> {
@@ -379,7 +342,6 @@ public class RegionManager {
                             player.sendMessage("Removed title for region " + id);
                             saveRegions();
                         }))
-
                 .withSubcommand(new CommandAPICommand("list")
                         .executesPlayer((player, args) -> {
                             if (regions.isEmpty()) {
@@ -391,7 +353,6 @@ public class RegionManager {
                                 }
                             }
                         }))
-
                 .withSubcommand(new CommandAPICommand("remove")
                         .withArguments(new StringArgument("id"))
                         .executesPlayer((player, args) -> {
@@ -406,10 +367,6 @@ public class RegionManager {
 
         regionsCmd.register();
     }
-
-    // ------------------------------------------------------------------------
-    // Event Handling
-    // ------------------------------------------------------------------------
 
     private void registerEvents() {
         // Setup logic (clicking blocks)
@@ -439,7 +396,7 @@ public class RegionManager {
                 p.sendMessage("Region " + rs.id + " created!");
                 saveRegions();
             }
-        }, EventPriority.HIGHEST);
+        }, org.bukkit.event.EventPriority.HIGHEST);
 
         // Enhanced move event
         eventManager.registerEvent(PlayerMoveEvent.class, this::onPlayerMove, EventPriority.MONITOR);
@@ -480,6 +437,9 @@ public class RegionManager {
         lastRegionMap.put(p.getUniqueId(), current);
     }
 
+    /**
+     * Returns true if the player's from->to integer block coords changed.
+     */
     private boolean hasChangedBlock(PlayerMoveEvent event) {
         Location from = event.getFrom();
         Location to = event.getTo();
@@ -489,6 +449,10 @@ public class RegionManager {
                 || from.getBlockZ() != to.getBlockZ());
     }
 
+    /**
+     * Finds which region the loc is inside, or null if none.
+     * If multiple overlap, returns the first found.
+     */
     public Region getRegionAt(Location loc) {
         for (Region r : regions.values()) {
             if (r.contains(loc)) {
@@ -497,10 +461,6 @@ public class RegionManager {
         }
         return null;
     }
-
-    // ------------------------------------------------------------------------
-    // Drawing the border to players who used "regions see <id>"
-    // ------------------------------------------------------------------------
 
     private void startBorderTask() {
         Bukkit.getScheduler().runTaskTimer(plugin, () -> {
@@ -529,32 +489,28 @@ public class RegionManager {
         int z2 = Math.max(p1.getBlockZ(), p2.getBlockZ());
 
         for (int x = x1; x <= x2; x++) {
-            spawnParticle(p, new Location(p1.getWorld(), x + 0.5, y1, z1 + 0.5));
-            spawnParticle(p, new Location(p1.getWorld(), x + 0.5, y2, z1 + 0.5));
-            spawnParticle(p, new Location(p1.getWorld(), x + 0.5, y1, z2 + 0.5));
-            spawnParticle(p, new Location(p1.getWorld(), x + 0.5, y2, z2 + 0.5));
+            spawnParticle(p, new Location(p1.getWorld(), x+0.5, y1, z1+0.5));
+            spawnParticle(p, new Location(p1.getWorld(), x+0.5, y2, z1+0.5));
+            spawnParticle(p, new Location(p1.getWorld(), x+0.5, y1, z2+0.5));
+            spawnParticle(p, new Location(p1.getWorld(), x+0.5, y2, z2+0.5));
         }
         for (int y = y1; y <= y2; y++) {
-            spawnParticle(p, new Location(p1.getWorld(), x1 + 0.5, y, z1 + 0.5));
-            spawnParticle(p, new Location(p1.getWorld(), x2 + 0.5, y, z1 + 0.5));
-            spawnParticle(p, new Location(p1.getWorld(), x1 + 0.5, y, z2 + 0.5));
-            spawnParticle(p, new Location(p1.getWorld(), x2 + 0.5, y, z2 + 0.5));
+            spawnParticle(p, new Location(p1.getWorld(), x1+0.5, y, z1+0.5));
+            spawnParticle(p, new Location(p1.getWorld(), x2+0.5, y, z1+0.5));
+            spawnParticle(p, new Location(p1.getWorld(), x1+0.5, y, z2+0.5));
+            spawnParticle(p, new Location(p1.getWorld(), x2+0.5, y, z2+0.5));
         }
         for (int z = z1; z <= z2; z++) {
-            spawnParticle(p, new Location(p1.getWorld(), x1 + 0.5, y1, z + 0.5));
-            spawnParticle(p, new Location(p1.getWorld(), x1 + 0.5, y2, z + 0.5));
-            spawnParticle(p, new Location(p1.getWorld(), x2 + 0.5, y1, z + 0.5));
-            spawnParticle(p, new Location(p1.getWorld(), x2 + 0.5, y2, z + 0.5));
+            spawnParticle(p, new Location(p1.getWorld(), x1+0.5, y1, z+0.5));
+            spawnParticle(p, new Location(p1.getWorld(), x1+0.5, y2, z+0.5));
+            spawnParticle(p, new Location(p1.getWorld(), x2+0.5, y1, z+0.5));
+            spawnParticle(p, new Location(p1.getWorld(), x2+0.5, y2, z+0.5));
         }
     }
 
     private void spawnParticle(Player p, Location loc) {
         p.spawnParticle(Particle.FLAME, loc, 1, 0, 0, 0, 0);
     }
-
-    // ------------------------------------------------------------------------
-    // Parse Helpers
-    // ------------------------------------------------------------------------
 
     private int parseInt(Object val, int fallback) {
         if (val instanceof Number) {

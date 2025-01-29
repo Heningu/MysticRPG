@@ -1,19 +1,20 @@
 package eu.xaru.mysticrpg.dungeons.config;
 
+import eu.xaru.mysticrpg.config.DynamicConfig;
+import eu.xaru.mysticrpg.config.DynamicConfigManager;
+import eu.xaru.mysticrpg.dungeons.loot.LootTable;
 import eu.xaru.mysticrpg.dungeons.loot.LootTableManager;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.*;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.*;
 import java.util.logging.Level;
 
 /**
- * Handles reading and writing of .yml configs in /plugins/MyPlugin/dungeons/,
- * using the built-in Bukkit/Spigot YamlConfiguration directly.
+ * DungeonConfigManager handles reading and writing of .yml configs in
+ * /plugins/MyPlugin/dungeons/, using the new single-path DynamicConfig approach.
  */
 public class DungeonConfigManager {
 
@@ -28,8 +29,8 @@ public class DungeonConfigManager {
     }
 
     /**
-     * Loads all *.yml files in "plugins/MyPlugin/dungeons" into memory,
-     * parsing each into a DungeonConfig object.
+     * Loads all .yml files from /dungeons, building a path string "dungeons/<filename>",
+     * calling DynamicConfigManager.loadConfig(...) with that path, then parsing into a DungeonConfig.
      */
     public void loadConfigs() {
         File configDir = new File(plugin.getDataFolder(), "dungeons");
@@ -41,19 +42,19 @@ public class DungeonConfigManager {
         if (configFiles == null) return;
 
         for (File file : configFiles) {
-            YamlConfiguration ycfg = new YamlConfiguration();
-            try {
-                ycfg.load(file);
-            } catch (Exception e) {
-                DebugLogger.getInstance().log(Level.SEVERE,
-                        "Failed to load dungeon config: " + file.getName(), e);
+            // This single string is the path used both on disk and (optionally) in jar resources
+            String path = "dungeons/" + file.getName();
+
+            // Load or reload from disk (merging defaults if jar resource matches path)
+            DynamicConfig dcfg = DynamicConfigManager.loadConfig(path);
+            if (dcfg == null) {
+                DebugLogger.getInstance().log(Level.WARNING,
+                        "Could not load dynamic config for: " + path, 0);
                 continue;
             }
 
-            // Convert the YAML data into a DungeonConfig object
-            DungeonConfig dungeonConfig = parseConfig(ycfg);
+            DungeonConfig dungeonConfig = parseConfig(dcfg);
             if (dungeonConfig != null) {
-                // Optionally store the file name or path if you need it
                 dungeonConfigs.put(dungeonConfig.getId(), dungeonConfig);
                 DebugLogger.getInstance().log(Level.INFO,
                         "Loaded dungeon config: " + dungeonConfig.getId(), 0);
@@ -62,70 +63,68 @@ public class DungeonConfigManager {
     }
 
     /**
-     * Reads fields from YamlConfiguration and returns a DungeonConfig.
-     * Returns null if critical data (e.g., "id", "worldName") is missing or invalid.
+     * Internal helper that reads fields from the loaded DynamicConfig, building a DungeonConfig object.
      */
-    private DungeonConfig parseConfig(YamlConfiguration ycfg) {
+    private DungeonConfig parseConfig(DynamicConfig config) {
         DungeonConfig dc = new DungeonConfig();
-        dc.setId(ycfg.getString("id", null));
-        dc.setName(ycfg.getString("name", "Unknown"));
-        dc.setMinPlayers(ycfg.getInt("minPlayers", 1));
-        dc.setMaxPlayers(ycfg.getInt("maxPlayers", 5));
-        dc.setDifficulty(ycfg.getString("difficulty", "Normal"));
-        dc.setWorldName(ycfg.getString("worldName", null));
-        dc.setLevelRequirement(ycfg.getInt("levelRequirement", 1));
+        dc.setId(config.getString("id", null));
+        dc.setName(config.getString("name", "Unknown"));
+        dc.setMinPlayers(config.getInt("minPlayers", 1));
+        dc.setMaxPlayers(config.getInt("maxPlayers", 5));
+        dc.setDifficulty(config.getString("difficulty", "Normal"));
+        dc.setWorldName(config.getString("worldName", null));
+        dc.setLevelRequirement(config.getInt("levelRequirement", 1));
 
         if (dc.getId() == null) {
             DebugLogger.getInstance().log(Level.SEVERE,
-                    "Dungeon config missing 'id'. Skipping...", 0);
+                    "Dungeon config missing ID. Skipping...", 0);
             return null;
         }
         if (dc.getWorldName() == null) {
             DebugLogger.getInstance().log(Level.SEVERE,
-                    "Dungeon '" + dc.getId() + "' missing 'worldName'. Skipping...", 0);
+                    "Dungeon '" + dc.getId() + "' missing world name.", 0);
             return null;
         }
 
-        // Attempt to load or create the world
+        // Attempt to ensure the world is loaded or create it if missing
         World w = Bukkit.getWorld(dc.getWorldName());
         if (w == null) {
             w = new WorldCreator(dc.getWorldName()).createWorld();
             if (w == null) {
                 DebugLogger.getInstance().log(Level.SEVERE,
-                        "Dungeon '" + dc.getId() + "': could not load/create world '"
-                                + dc.getWorldName() + "'.", 0);
+                        "World '" + dc.getWorldName() + "' can't be loaded.", 0);
                 return null;
             }
         }
 
         // spawnLocation
-        if (ycfg.contains("spawnLocation")) {
-            double sx = ycfg.getDouble("spawnLocation.x", 0);
-            double sy = ycfg.getDouble("spawnLocation.y", 0);
-            double sz = ycfg.getDouble("spawnLocation.z", 0);
-            float syaw   = (float) ycfg.getDouble("spawnLocation.yaw", 0);
-            float spitch = (float) ycfg.getDouble("spawnLocation.pitch", 0);
+        if (config.contains("spawnLocation")) {
+            double sx = config.getDouble("spawnLocation.x", 0);
+            double sy = config.getDouble("spawnLocation.y", 0);
+            double sz = config.getDouble("spawnLocation.z", 0);
+            float syaw   = (float) config.getDouble("spawnLocation.yaw", 0);
+            float spitch = (float) config.getDouble("spawnLocation.pitch", 0);
             dc.setSpawnLocation(new Location(w, sx, sy, sz, syaw, spitch));
         }
 
-        // mob_spawn_points => stored as a Map
-        if (ycfg.contains("mob_spawn_points")) {
-            Object mobObj = ycfg.get("mob_spawn_points");
-            if (mobObj instanceof Map<?, ?> mobMap) {
+        // mob spawn points => stored in "mob_spawn_points" as a sub-map
+        if (config.contains("mob_spawn_points")) {
+            Object mobObj = config.get("mob_spawn_points");
+            if (mobObj instanceof Map<?,?> mobMap) {
                 List<DungeonConfig.MobSpawnPoint> mobList = new ArrayList<>();
-                for (Map.Entry<?, ?> e : mobMap.entrySet()) {
-                    if (e.getValue() instanceof Map<?, ?> ms) {
+                for (Map.Entry<?,?> e : mobMap.entrySet()) {
+                    if (e.getValue() instanceof Map<?,?> ms) {
                         double x = parseDouble(ms.get("x"), 0);
                         double y = parseDouble(ms.get("y"), 0);
                         double z = parseDouble(ms.get("z"), 0);
                         float yaw = (float) parseDouble(ms.get("yaw"), 0);
-                        float pitch = (float) parseDouble(ms.get("pitch"), 0);
+                        float pit = (float) parseDouble(ms.get("pitch"), 0);
                         String mobId = parseString(ms.get("mob_id"), "zombie");
+                        Location loc = new Location(w, x, y, z, yaw, pit);
 
                         DungeonConfig.MobSpawnPoint mp = new DungeonConfig.MobSpawnPoint();
-                        mp.setLocation(new Location(w, x, y, z, yaw, pitch));
+                        mp.setLocation(loc);
                         mp.setMobId(mobId);
-
                         mobList.add(mp);
                     }
                 }
@@ -133,27 +132,28 @@ public class DungeonConfigManager {
             }
         }
 
-        // chest_locations => similar approach
-        if (ycfg.contains("chest_locations")) {
-            Object chestObj = ycfg.get("chest_locations");
-            if (chestObj instanceof Map<?, ?> chestMap) {
+        // chest_locations => same approach
+        if (config.contains("chest_locations")) {
+            Object chestObj = config.get("chest_locations");
+            if (chestObj instanceof Map<?,?> chestMap) {
                 List<DungeonConfig.ChestLocation> chestList = new ArrayList<>();
-                for (Map.Entry<?, ?> e : chestMap.entrySet()) {
-                    if (e.getValue() instanceof Map<?, ?> c2) {
+                for (Map.Entry<?,?> e : chestMap.entrySet()) {
+                    if (e.getValue() instanceof Map<?,?> c2) {
                         double x = parseDouble(c2.get("x"), 0);
                         double y = parseDouble(c2.get("y"), 0);
                         double z = parseDouble(c2.get("z"), 0);
                         float yaw = (float) parseDouble(c2.get("yaw"), 0);
-                        float pitch = (float) parseDouble(c2.get("pitch"), 0);
-                        String typeStr = parseString(c2.get("type"), "CHEST").toUpperCase();
-                        Material mat = Material.matchMaterial(typeStr);
+                        float pit = (float) parseDouble(c2.get("pitch"), 0);
+                        String typeStr = parseString(c2.get("type"), "CHEST");
+                        Material mat = Material.matchMaterial(typeStr.toUpperCase());
                         if (mat == null) {
                             mat = Material.CHEST;
                         }
                         String lootId = parseString(c2.get("loot_table"), "default_loot");
 
+                        Location loc = new Location(w, x, y, z, yaw, pit);
                         DungeonConfig.ChestLocation cl = new DungeonConfig.ChestLocation();
-                        cl.setLocation(new Location(w, x, y, z, yaw, pitch));
+                        cl.setLocation(loc);
                         cl.setType(mat);
                         cl.setLootTableId(lootId);
                         chestList.add(cl);
@@ -164,22 +164,22 @@ public class DungeonConfigManager {
         }
 
         // portalPos1
-        if (ycfg.contains("portalPos1")) {
-            double px = ycfg.getDouble("portalPos1.x", 0);
-            double py = ycfg.getDouble("portalPos1.y", 0);
-            double pz = ycfg.getDouble("portalPos1.z", 0);
-            float pyaw   = (float) ycfg.getDouble("portalPos1.yaw", 0);
-            float ppitch = (float) ycfg.getDouble("portalPos1.pitch", 0);
+        if (config.contains("portalPos1")) {
+            double px = config.getDouble("portalPos1.x", 0);
+            double py = config.getDouble("portalPos1.y", 0);
+            double pz = config.getDouble("portalPos1.z", 0);
+            float pyaw   = (float) config.getDouble("portalPos1.yaw", 0);
+            float ppitch = (float) config.getDouble("portalPos1.pitch", 0);
             dc.setPortalPos1(new Location(w, px, py, pz, pyaw, ppitch));
         }
 
-        // doors => Map-based
-        if (ycfg.contains("doors")) {
-            Object doorsObj = ycfg.get("doors");
-            if (doorsObj instanceof Map<?, ?> doorsMap) {
+        // doors => "doors" sub-map
+        if (config.contains("doors")) {
+            Object doorsObj = config.get("doors");
+            if (doorsObj instanceof Map<?,?> doorsMap) {
                 List<DungeonConfig.DoorData> doorList = new ArrayList<>();
-                for (Map.Entry<?, ?> e : doorsMap.entrySet()) {
-                    if (e.getValue() instanceof Map<?, ?> ds) {
+                for (Map.Entry<?,?> e : doorsMap.entrySet()) {
+                    if (e.getValue() instanceof Map<?,?> ds) {
                         DungeonConfig.DoorData dd = new DungeonConfig.DoorData();
                         dd.setDoorId(parseString(ds.get("id"), "unknown"));
                         dd.setX1(parseDouble(ds.get("x1"), 0));
@@ -214,7 +214,7 @@ public class DungeonConfigManager {
 
     /**
      * Saves the given DungeonConfig as a .yml in "dungeons/<id>.yml"
-     * using YamlConfiguration, overwriting any existing config with the same ID.
+     * using DynamicConfig. Overwrites any existing config with the same ID.
      */
     public void saveDungeonConfig(DungeonConfig config) {
         File configDir = new File(plugin.getDataFolder(), "dungeons");
@@ -222,27 +222,33 @@ public class DungeonConfigManager {
             configDir.mkdirs();
         }
 
-        File file = new File(configDir, config.getId() + ".yml");
-        YamlConfiguration ycfg = new YamlConfiguration();
+        // The single path for reading/writing. e.g. "dungeons/<dungeonId>.yml"
+        String path = "dungeons/" + config.getId() + ".yml";
+        DynamicConfig dcfg = DynamicConfigManager.loadConfig(path);
+        if (dcfg == null) {
+            DebugLogger.getInstance().log(Level.SEVERE,
+                    "Could not create dynamic config for: " + path, 0);
+            return;
+        }
 
-        ycfg.set("id", config.getId());
-        ycfg.set("name", config.getName());
-        ycfg.set("minPlayers", config.getMinPlayers());
-        ycfg.set("maxPlayers", config.getMaxPlayers());
-        ycfg.set("difficulty", config.getDifficulty());
-        ycfg.set("worldName", config.getWorldName());
-        ycfg.set("levelRequirement", config.getLevelRequirement());
+        dcfg.set("id", config.getId());
+        dcfg.set("name", config.getName());
+        dcfg.set("minPlayers", config.getMinPlayers());
+        dcfg.set("maxPlayers", config.getMaxPlayers());
+        dcfg.set("difficulty", config.getDifficulty());
+        dcfg.set("worldName", config.getWorldName());
+        dcfg.set("levelRequirement", config.getLevelRequirement());
 
         if (config.getSpawnLocation() != null) {
             Location sloc = config.getSpawnLocation();
-            ycfg.set("spawnLocation.x", sloc.getX());
-            ycfg.set("spawnLocation.y", sloc.getY());
-            ycfg.set("spawnLocation.z", sloc.getZ());
-            ycfg.set("spawnLocation.yaw", sloc.getYaw());
-            ycfg.set("spawnLocation.pitch", sloc.getPitch());
+            dcfg.set("spawnLocation.x", sloc.getX());
+            dcfg.set("spawnLocation.y", sloc.getY());
+            dcfg.set("spawnLocation.z", sloc.getZ());
+            dcfg.set("spawnLocation.yaw", sloc.getYaw());
+            dcfg.set("spawnLocation.pitch", sloc.getPitch());
         }
 
-        // mob_spawn_points => store as Map
+        // mob_spawn_points
         Map<String, Object> mobSec = new LinkedHashMap<>();
         int mobIndex = 0;
         for (DungeonConfig.MobSpawnPoint sp : config.getMobSpawnPoints()) {
@@ -255,7 +261,7 @@ public class DungeonConfigManager {
             spawnSec.put("mob_id", sp.getMobId());
             mobSec.put("spawn" + mobIndex++, spawnSec);
         }
-        ycfg.set("mob_spawn_points", mobSec);
+        dcfg.set("mob_spawn_points", mobSec);
 
         // chest_locations
         Map<String, Object> chestSec = new LinkedHashMap<>();
@@ -271,16 +277,16 @@ public class DungeonConfigManager {
             csc.put("loot_table", cl.getLootTableId());
             chestSec.put("chest" + chestIndex++, csc);
         }
-        ycfg.set("chest_locations", chestSec);
+        dcfg.set("chest_locations", chestSec);
 
         // portalPos1
         if (config.getPortalPos1() != null) {
             Location pLoc = config.getPortalPos1();
-            ycfg.set("portalPos1.x", pLoc.getX());
-            ycfg.set("portalPos1.y", pLoc.getY());
-            ycfg.set("portalPos1.z", pLoc.getZ());
-            ycfg.set("portalPos1.yaw", pLoc.getYaw());
-            ycfg.set("portalPos1.pitch", pLoc.getPitch());
+            dcfg.set("portalPos1.x", pLoc.getX());
+            dcfg.set("portalPos1.y", pLoc.getY());
+            dcfg.set("portalPos1.z", pLoc.getZ());
+            dcfg.set("portalPos1.yaw", pLoc.getYaw());
+            dcfg.set("portalPos1.pitch", pLoc.getPitch());
         }
 
         // doors
@@ -299,17 +305,16 @@ public class DungeonConfigManager {
             ds.put("keyItemId", dd.getKeyItemId());
             doorsSec.put("door" + doorIndex++, ds);
         }
-        ycfg.set("doors", doorsSec);
+        dcfg.set("doors", doorsSec);
 
         try {
-            ycfg.save(file);
+            dcfg.saveIfNeeded();
             DebugLogger.getInstance().log(Level.INFO,
                     "Dungeon config saved: " + config.getId(), 0);
-            // Keep it in memory too
             dungeonConfigs.put(config.getId(), config);
-        } catch (IOException e) {
+        } catch (Exception e) {
             DebugLogger.getInstance().log(Level.SEVERE,
-                    "Failed to save dungeon config '" + config.getId() + "':", e, 0);
+                    "Failed to save dungeon config:", e, 0);
         }
     }
 
@@ -317,9 +322,7 @@ public class DungeonConfigManager {
         return lootTableManager;
     }
 
-    // -----------------------
-    // Helper parse methods
-    // -----------------------
+    // Helper for reading double
     private double parseDouble(Object val, double fallback) {
         if (val instanceof Number) {
             return ((Number) val).doubleValue();
@@ -331,6 +334,7 @@ public class DungeonConfigManager {
         }
     }
 
+    // Helper for reading string
     private String parseString(Object val, String fallback) {
         return val != null ? val.toString() : fallback;
     }

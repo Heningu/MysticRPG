@@ -1,12 +1,13 @@
 package eu.xaru.mysticrpg.player.titles;
 
+import eu.xaru.mysticrpg.config.DynamicConfig;
+import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.player.stats.PlayerStatsManager;
 import eu.xaru.mysticrpg.player.stats.StatType;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.PlayerDataCache;
 import eu.xaru.mysticrpg.utils.DebugLogger;
 import org.bukkit.ChatColor;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
 import java.io.File;
@@ -14,7 +15,7 @@ import java.util.*;
 import java.util.logging.Level;
 
 /**
- * Manages the acquisition, listing, loading, and equipping of player titles.
+ * Manages the acquisition, listing, loading and equipping of player titles.
  * Titles are loaded from YML files in the /plugins/MysticRPG/titles folder.
  */
 public class PlayerTitleManager {
@@ -29,9 +30,6 @@ public class PlayerTitleManager {
         loadTitlesFromDisk();
     }
 
-    /**
-     * Loads all title .yml files from /plugins/MysticRPG/titles using YamlConfiguration.
-     */
     private void loadTitlesFromDisk() {
         File titlesFolder = new File("plugins/MysticRPG/titles");
         if (!titlesFolder.exists()) {
@@ -43,24 +41,26 @@ public class PlayerTitleManager {
 
         for (File file : files) {
             try {
-                // Create a YamlConfiguration and load from file
-                YamlConfiguration ycfg = new YamlConfiguration();
-                ycfg.load(file);
+                String userFileName = "titles/" + file.getName();
+                DynamicConfigManager.loadConfig(userFileName);
+                DynamicConfig config = DynamicConfigManager.getConfig(userFileName);
+                if (config == null) {
+                    DebugLogger.getInstance().error("Failed to retrieve DynamicConfig for file " + file.getName());
+                    continue;
+                }
 
-                // Read ID and name
-                String id = ycfg.getString("id", null);
-                String name = ycfg.getString("name", null);
+                String id = config.getString("id", null);
+                String name = config.getString("name", null);
                 if (id == null || name == null) {
                     DebugLogger.getInstance().error("Title file " + file.getName() + " missing 'id' or 'name'");
                     continue;
                 }
 
-                // Parse attributes => "attributes" is a map of stat -> int
                 Map<StatType, Integer> bonuses = new EnumMap<>(StatType.class);
 
-                Object attrObj = ycfg.get("attributes");
-                if (attrObj instanceof Map<?, ?> attrsMap) {
-                    for (Map.Entry<?, ?> e : attrsMap.entrySet()) {
+                Object attrObj = config.get("attributes");
+                if (attrObj instanceof Map<?,?> attrsMap) {
+                    for (Map.Entry<?,?> e : attrsMap.entrySet()) {
                         String statKey = e.getKey().toString();
                         StatType statType;
                         try {
@@ -75,9 +75,7 @@ public class PlayerTitleManager {
                 }
 
                 PlayerTitle title = new PlayerTitle(name, bonuses);
-                // Store using a lowercase version of id
                 availableTitles.put(id.toLowerCase(Locale.ROOT), title);
-
                 DebugLogger.getInstance().log(Level.INFO, "Loaded title: " + id + " (" + name + ")", 0);
 
             } catch (Exception ex) {
@@ -197,9 +195,6 @@ public class PlayerTitleManager {
         return (title != null) ? title.getName() : null;
     }
 
-    /**
-     * Safely parse an int from an Object, with fallback if it fails.
-     */
     private int parseInt(Object val, int fallback) {
         if (val instanceof Number) {
             return ((Number) val).intValue();

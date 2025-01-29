@@ -6,6 +6,7 @@ import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoClients;
 import com.mongodb.reactivestreams.client.MongoDatabase;
 import eu.xaru.mysticrpg.auctionhouse.Auction;
+import eu.xaru.mysticrpg.config.DynamicConfig;
 import eu.xaru.mysticrpg.cores.MysticCore;
 import eu.xaru.mysticrpg.storage.PlayerData;
 import eu.xaru.mysticrpg.storage.redis.RedisManager;
@@ -16,6 +17,8 @@ import org.bson.UuidRepresentation;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
 
+import java.util.List;
+import java.util.UUID;
 import java.util.logging.Level;
 
 import static org.bson.codecs.configuration.CodecRegistries.*;
@@ -27,7 +30,6 @@ import static org.bson.codecs.configuration.CodecRegistries.*;
 public class DatabaseManager {
 
     private static DatabaseManager instance;
-
     private IRepository<PlayerData> playerRepository;
     private IRepository<Auction> auctionRepository;
 
@@ -35,9 +37,6 @@ public class DatabaseManager {
         initializeRepositories();
     }
 
-    /**
-     * Initializes the singleton instance (if not already).
-     */
     public static synchronized void initialize() {
         if (instance == null) {
             instance = new DatabaseManager();
@@ -46,9 +45,6 @@ public class DatabaseManager {
         }
     }
 
-    /**
-     * @return The singleton instance, or throws if not yet initialized.
-     */
     public static DatabaseManager getInstance() {
         if (instance == null) {
             throw new IllegalStateException("DatabaseManager not initialized.");
@@ -56,13 +52,9 @@ public class DatabaseManager {
         return instance;
     }
 
-    /**
-     * Reads from plugin config to set up DB type (mongo vs. sqlite) and Redis (optional).
-     */
     private void initializeRepositories() {
-        FileConfiguration config = MysticCore.getInstance().getConfig();
-
-        // Initialize Redis first with values from config
+        DynamicConfig config = MysticCore.getInstance().getMysticConfig();
+        // Initialize RedisManager first
         RedisManager.initialize(config);
 
         String dbType = config.getString("database.type", "sqlite").toLowerCase();
@@ -79,7 +71,7 @@ public class DatabaseManager {
             initializeSQLite(dbPath);
         }
 
-        // If redis is enabled, wrap repositories in RedisRepository
+        // If redis is enabled, wrap repositories
         if (redisEnabled) {
             this.playerRepository = new RedisRepository<>(
                     PlayerData.class,
@@ -156,5 +148,9 @@ public class DatabaseManager {
 
     public IRepository<Auction> getAuctionRepository() {
         return auctionRepository;
+    }
+
+    private FileConfiguration getConfig() {
+        return eu.xaru.mysticrpg.cores.MysticCore.getInstance().getConfig();
     }
 }

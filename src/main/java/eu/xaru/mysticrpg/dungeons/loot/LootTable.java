@@ -1,20 +1,19 @@
 package eu.xaru.mysticrpg.dungeons.loot;
 
+import eu.xaru.mysticrpg.config.DynamicConfig;
+import eu.xaru.mysticrpg.config.DynamicConfigManager;
 import eu.xaru.mysticrpg.customs.items.CustomItem;
 import eu.xaru.mysticrpg.customs.items.CustomItemModule;
 import eu.xaru.mysticrpg.customs.items.ItemManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
 import org.bukkit.Material;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.*;
 
 /**
- * Represents a loot table with an ID and a list of item entries,
- * saving/loading via YamlConfiguration (no DynamicConfig).
+ * Represents a loot table with an ID and a list of item entries.
  */
 public class LootTable {
 
@@ -44,10 +43,10 @@ public class LootTable {
     /**
      * Adds a LootItem to this table.
      *
-     * @param sourceType   "material" or "custom_item"
-     * @param idOrMaterial The custom item ID or the Material name
-     * @param amount       The stack size to drop
-     * @param chance       The probability (0.0 -> 1.0)
+     * @param sourceType     "material" or "custom_item"
+     * @param idOrMaterial   The custom item ID or the Material name
+     * @param amount         The stack size to drop
+     * @param chance         The probability (0.0 -> 1.0)
      */
     public void addItem(String sourceType, String idOrMaterial, int amount, double chance) {
         lootItems.add(new LootItem(sourceType, idOrMaterial, amount, chance));
@@ -84,15 +83,17 @@ public class LootTable {
     }
 
     /**
-     * Saves this LootTable into a YamlConfiguration file (e.g., "dungeons/loottables/goblin_loot.yml").
+     * Saves this loot table into a DynamicConfig whose resourceName == userFileName.
      */
     public void saveToFile(File file) {
-        YamlConfiguration ycfg = new YamlConfiguration();
+        // e.g. "dungeons/loottables/goblin_loot.yml"
+        String userFileName = "dungeons/loottables/" + file.getName();
+        // Use the same string for resourceName to fulfill "identical" usage
+        DynamicConfig config = DynamicConfigManager.loadConfig(userFileName);
 
-        // Basic fields
-        ycfg.set("id", this.id);
+        config.set("id", id);
 
-        // Convert loot items to a list of maps
+        // Build a list of item entries
         List<Map<String, Object>> itemsData = new ArrayList<>();
         for (LootItem li : lootItems) {
             Map<String, Object> map = new HashMap<>();
@@ -102,52 +103,66 @@ public class LootTable {
             map.put("chance", li.getChance());
             itemsData.add(map);
         }
-        ycfg.set("loot_items", itemsData);
+        config.set("loot_items", itemsData);
 
-        // Write out
-        try {
-            ycfg.save(file);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        // Attempt to save if needed
+        config.saveIfNeeded();
     }
 
     /**
-     * Loads a LootTable from the specified file using YamlConfiguration.
+     * Loads a LootTable from the specified 'file' via resourceName == userFileName as well.
      */
     @SuppressWarnings("unchecked")
     public static LootTable loadFromFile(File file) {
-        YamlConfiguration ycfg = new YamlConfiguration();
         try {
-            ycfg.load(file);
+            // e.g. "dungeons/loottables/goblin_loot.yml"
+            String userFileName = "dungeons/loottables/" + file.getName();
+
+            // Attempt to get existing config or load anew
+            DynamicConfig config = DynamicConfigManager.getConfig(userFileName);
+            if (config == null) {
+                config = DynamicConfigManager.loadConfig(userFileName);
+            }
+
+            // read ID from config (fallback to the file name if missing)
+            String lootId = config.getString("id", stripExtension(file.getName()));
+            if (lootId == null || lootId.isEmpty()) {
+                // If no ID is found in config or fallback, we can't proceed
+                return null;
+            }
+
+            LootTable table = new LootTable(lootId);
+
+            // parse item entries from "loot_items"
+            List<Map<?, ?>> rawList = config.getMapList("loot_items", new ArrayList<>());
+            for (Map<?, ?> raw : rawList) {
+                String sourceType = (String) raw.get("sourceType");
+                String idOrMat = (String) raw.get("id_or_material");
+
+                int amount = 1;
+                if (raw.containsKey("amount")) {
+                    Object amtObj = raw.get("amount");
+                    if (amtObj instanceof Number) {
+                        amount = ((Number) amtObj).intValue();
+                    }
+                }
+
+                double chance = 1.0;
+                if (raw.containsKey("chance")) {
+                    Object chObj = raw.get("chance");
+                    if (chObj instanceof Number) {
+                        chance = ((Number) chObj).doubleValue();
+                    }
+                }
+
+                table.addItem(sourceType, idOrMat, amount, chance);
+            }
+            return table;
+
         } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
-
-        // Attempt to find an "id" in the file, or fallback to the filename minus extension
-        String lootId = ycfg.getString("id", stripExtension(file.getName()));
-        if (lootId == null || lootId.isEmpty()) {
-            return null; // No valid ID found
-        }
-
-        LootTable table = new LootTable(lootId);
-
-        // Parse the list of loot items
-        List<Map<?, ?>> rawList = (List<Map<?, ?>>) ycfg.getList("loot_items", Collections.emptyList());
-        for (Map<?, ?> raw : rawList) {
-            if (raw == null) continue;
-
-            String sourceType = parseString(raw.get("sourceType"), "material");
-            String idOrMat = parseString(raw.get("id_or_material"), "STONE");
-
-            int amount = parseInt(raw.get("amount"), 1);
-            double chance = parseDouble(raw.get("chance"), 1.0);
-
-            table.addItem(sourceType, idOrMat, amount, chance);
-        }
-
-        return table;
     }
 
     /**
@@ -155,38 +170,9 @@ public class LootTable {
      * e.g. "goblin_loot.yml" => "goblin_loot"
      */
     private static String stripExtension(String fileName) {
-        int idx = fileName.lastIndexOf('.');
+        int idx = fileName.lastIndexOf(".");
         if (idx == -1) return fileName;
         return fileName.substring(0, idx);
-    }
-
-    // --------------------------------------------------
-    // Private parse helpers
-    // --------------------------------------------------
-    private static String parseString(Object obj, String fallback) {
-        return (obj != null) ? obj.toString() : fallback;
-    }
-
-    private static int parseInt(Object obj, int fallback) {
-        if (obj instanceof Number num) {
-            return num.intValue();
-        }
-        try {
-            return Integer.parseInt(obj.toString());
-        } catch (Exception e) {
-            return fallback;
-        }
-    }
-
-    private static double parseDouble(Object obj, double fallback) {
-        if (obj instanceof Number num) {
-            return num.doubleValue();
-        }
-        try {
-            return Double.parseDouble(obj.toString());
-        } catch (Exception e) {
-            return fallback;
-        }
     }
 
     // --------------------------------------------------
