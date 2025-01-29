@@ -30,6 +30,11 @@ import java.util.logging.Level;
 
 public class ScoreboardManager {
 
+    private enum ScoreboardLine {
+        SEPARATOR_1, EMPTY_1, YOUR_STATS, LEVEL, XP, BALANCE, EMPTY_2, INFORMATION, RANK, PET, QUEST, EMPTY_3, SEPARATOR_2, WEBSITE,
+        DUNGEON_NAME, MONSTERS, TIME, PARTY_LABEL, PARTY_MEMBER_1, PARTY_MEMBER_2, PARTY_MEMBER_3, PARTY_MEMBER_4, PARTY_MEMBER_5
+    }
+
     private final JavaPlugin plugin;
     private final LevelModule levelModule;
     private final EconomyHelper economyHelper;
@@ -40,8 +45,10 @@ public class ScoreboardManager {
 
     private final Map<UUID, Scoreboard> playerScoreboards = new HashMap<>();
     private final Set<UUID> onlinePlayerUUIDs = new HashSet<>();
-    private final Map<UUID, Set<String>> playerEntries = new HashMap<>();
+    private final Map<UUID, Map<ScoreboardLine, Team>> playerLineTeams = new HashMap<>();
+    private final Map<UUID, Map<ScoreboardLine, String>> playerLineCache = new HashMap<>();
     private final AtomicBoolean isScheduled = new AtomicBoolean(false);
+    private static final ChatColor[] ENTRY_COLORS = ChatColor.values();
 
     public ScoreboardManager() {
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
@@ -106,6 +113,7 @@ public class ScoreboardManager {
             DebugLogger.getInstance().log("[MysticRPG] Created side scoreboard for player " + player.getName());
 
             setupPerPlayerScoreboard(scoreboard, player);
+            initializePlayerTeams(scoreboard, player);
 
             for (UUID otherUUID : onlinePlayerUUIDs) {
                 Player otherPlayer = Bukkit.getPlayer(otherUUID);
@@ -125,8 +133,40 @@ public class ScoreboardManager {
                     ChatColor.translateAlternateColorCodes('&', "け"));
             objective.setDisplaySlot(DisplaySlot.SIDEBAR);
         }
+    }
 
-        playerEntries.put(player.getUniqueId(), new HashSet<>());
+    private void initializePlayerTeams(Scoreboard scoreboard, Player player) {
+        try {
+            Map<ScoreboardLine, Team> lineTeams = new EnumMap<>(ScoreboardLine.class);
+            Map<ScoreboardLine, String> lineCache = new EnumMap<>(ScoreboardLine.class);
+
+            Objective objective = scoreboard.getObjective("mysticSidebar");
+            int scoreValue = 15;
+
+            for (ScoreboardLine line : ScoreboardLine.values()) {
+                String entryKey = getEntryKey(line);
+                String teamName = player.getUniqueId() + "_" + line.name();
+
+                Team team = scoreboard.registerNewTeam(teamName);
+                team.addEntry(entryKey);
+                objective.getScore(entryKey).setScore(scoreValue--);
+
+                lineTeams.put(line, team);
+                lineCache.put(line, "");
+            }
+
+            playerLineTeams.put(player.getUniqueId(), lineTeams);
+            playerLineCache.put(player.getUniqueId(), lineCache);
+        } catch (Exception e) {
+            DebugLogger.getInstance().log(Level.SEVERE, "Failed to initialize teams for " + player.getName() + ": " + e.getMessage());
+        }
+    }
+
+    private String getEntryKey(ScoreboardLine line) {
+        int ordinal = line.ordinal();
+        int color1 = ordinal % ENTRY_COLORS.length;
+        int color2 = (ordinal / ENTRY_COLORS.length) % ENTRY_COLORS.length;
+        return ENTRY_COLORS[color1].toString() + ENTRY_COLORS[color2].toString() + ChatColor.RESET;
     }
 
     private void addPlayerToScoreboard(Scoreboard scoreboard, Player player) {
@@ -166,7 +206,6 @@ public class ScoreboardManager {
     public void updatePlayerScoreboard(Player player) {
         if (playerDataCache == null) return;
 
-        // Check if player is inside a dungeon instance
         DungeonInstance instance = null;
         if (dungeonManager != null) {
             instance = dungeonManager.getInstanceByPlayer(player.getUniqueId());
@@ -179,195 +218,127 @@ public class ScoreboardManager {
             if (scoreboard == null) return;
         }
 
-        Objective objective = scoreboard.getObjective("mysticSidebar");
-        if (objective == null) {
-            objective = scoreboard.registerNewObjective("mysticSidebar", "dummy",
-                    ChatColor.translateAlternateColorCodes('&', "け"));
-            objective.setDisplaySlot(DisplaySlot.SIDEBAR);
-        }
-
-        Set<String> entries = playerEntries.get(player.getUniqueId());
-        if (entries != null) {
-            for (String entry : entries) {
-                scoreboard.resetScores(entry);
-            }
-            entries.clear();
-        }
-
-        Set<String> newEntries = new HashSet<>();
-
         if (instance != null) {
-            // Player is in a dungeon, show dungeon scoreboard lines
-            String dungeonName = instance.getConfig().getName();
-            int monstersKilled = instance.getMonstersKilledByPlayer(player);
-            int timeSpent = instance.getTimeSpent();
-            List<Player> partyMembers = instance.getPartyMembers();
-
-            // Format time: mm:ss
-            int minutes = timeSpent / 60;
-            int seconds = timeSpent % 60;
-            String formattedTime = String.format("%02d:%02d", minutes, seconds);
-
-            objective.setDisplayName(ChatColor.GOLD + dungeonName);
-
-            int score = 10;
-
-            String monsterEntry = ChatColor.GREEN + "Monsters: " + ChatColor.WHITE + monstersKilled;
-            objective.getScore(monsterEntry).setScore(score--);
-            newEntries.add(monsterEntry);
-
-            String timeEntry = ChatColor.YELLOW + "Time: " + ChatColor.WHITE + formattedTime;
-            objective.getScore(timeEntry).setScore(score--);
-            newEntries.add(timeEntry);
-
-            String partyLabel = ChatColor.AQUA + "Party Members:";
-            objective.getScore(partyLabel).setScore(score--);
-            newEntries.add(partyLabel);
-
-            for (Player pm : partyMembers) {
-                String memberLine = ChatColor.GRAY + " - " + pm.getName();
-                objective.getScore(memberLine).setScore(score--);
-                newEntries.add(memberLine);
-            }
-
-            String emptyLine = ChatColor.BLACK.toString() + ChatColor.RESET;
-            objective.getScore(emptyLine).setScore(score--);
-            newEntries.add(emptyLine);
-
-            playerEntries.put(player.getUniqueId(), newEntries);
-
-            // In a dungeon, always set scoreboard
-            player.setScoreboard(scoreboard);
-
+            updateDungeonScoreboard(player, instance, scoreboard);
         } else {
-            // Player is not in a dungeon, show normal scoreboard lines
-            PlayerData playerData = playerDataCache.getCachedPlayerData(player.getUniqueId());
-            if (playerData == null) return;
+            updateRegularScoreboard(player, scoreboard);
+        }
 
-            objective.setDisplayName(ChatColor.translateAlternateColorCodes('&', "け"));
+        if (player.getWorld().getName().equals("world")) {
+            player.setScoreboard(scoreboard);
+        } else {
+            player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+        }
+    }
 
-            String separatorLine1 = "げげ";
-            objective.getScore(separatorLine1).setScore(15);
-            newEntries.add(separatorLine1);
+    private void updateRegularScoreboard(Player player, Scoreboard scoreboard) {
+        UUID uuid = player.getUniqueId();
+        PlayerData playerData = playerDataCache.getCachedPlayerData(uuid);
+        if (playerData == null) return;
 
-            String firstemptyline = "  ";
-            objective.getScore(firstemptyline).setScore(14);
-            newEntries.add(firstemptyline);
+        Map<ScoreboardLine, String> cache = playerLineCache.get(uuid);
+        Map<ScoreboardLine, Team> teams = playerLineTeams.get(uuid);
 
-            String yourStats = "ぁ YOUR STATS";
-            objective.getScore(yourStats).setScore(13);
-            newEntries.add(yourStats);
+        if (cache == null || teams == null) {
+            DebugLogger.getInstance().warning("Scoreboard not initialized properly for " + player.getName());
+            return;
+        }
 
-            int level = playerData.getLevel();
+        updateLine(teams, cache, ScoreboardLine.SEPARATOR_1, "げげ");
+        updateLine(teams, cache, ScoreboardLine.EMPTY_1, "  ");
+        updateLine(teams, cache, ScoreboardLine.YOUR_STATS, "ぁ YOUR STATS");
 
-            String levelEntry;
-            if( level <= 10){
-                levelEntry = "   あ LEVEL " + ChatColor.WHITE + level;
-            } else if(level > 10 && level <= 20){
-                levelEntry = "   あ LEVEL " + ChatColor.GREEN + level;
-            } else if(level > 20 && level < 25){
-                levelEntry = "   あ LEVEL " + ChatColor.GOLD + level;
+        int level = playerData.getLevel();
+        updateLine(teams, cache, ScoreboardLine.LEVEL, generateLevelText(level));
+
+        int currentXp = playerData.getXp();
+        int xpNeeded = levelModule != null ? levelModule.getLevelThreshold(level + 1) : 100;
+        updateLine(teams, cache, ScoreboardLine.XP,
+                ChatColor.RED + "   あ " + ChatColor.WHITE + "XP " +
+                        ChatColor.GREEN + currentXp + ChatColor.WHITE + "/" + ChatColor.GOLD + xpNeeded);
+
+        int balance = economyHelper != null ? economyHelper.getHeldGold(player) : 0;
+        updateLine(teams, cache, ScoreboardLine.BALANCE,
+                ChatColor.YELLOW + "   い " + ChatColor.WHITE + balance + ChatColor.GOLD + " held Gold");
+
+        updateLine(teams, cache, ScoreboardLine.EMPTY_2, "   ");
+        updateLine(teams, cache, ScoreboardLine.INFORMATION, "ぇ INFORMATION");
+        updateLine(teams, cache, ScoreboardLine.RANK, "   え " + chatFormatter.getPrefixFromLuckPerms(player));
+
+        String petText = "   シ " + (playerData.getEquippedPet() != null ?
+                formatPetName(playerData.getEquippedPet()) : ChatColor.RED + "No Pet");
+        updateLine(teams, cache, ScoreboardLine.PET, petText);
+
+        String questText = "   う " + (playerData.getPinnedQuest() != null ?
+                ChatColor.GREEN + getCurrentObjective(player) : ChatColor.RED + "No Pinned Quest");
+        updateLine(teams, cache, ScoreboardLine.QUEST, questText);
+
+        updateLine(teams, cache, ScoreboardLine.EMPTY_3, "    ");
+        updateLine(teams, cache, ScoreboardLine.SEPARATOR_2, "げげ ");
+        updateLine(teams, cache, ScoreboardLine.WEBSITE, ChatColor.DARK_GRAY + "さ");
+    }
+
+    private void updateDungeonScoreboard(Player player, DungeonInstance instance, Scoreboard scoreboard) {
+        UUID uuid = player.getUniqueId();
+        Map<ScoreboardLine, String> cache = playerLineCache.get(uuid);
+        Map<ScoreboardLine, Team> teams = playerLineTeams.get(uuid);
+
+        if (cache == null || teams == null) {
+            DebugLogger.getInstance().warning("Scoreboard not initialized properly for " + player.getName());
+            return;
+        }
+
+        int minutes = instance.getTimeSpent() / 60;
+        int seconds = instance.getTimeSpent() % 60;
+        String formattedTime = String.format("%02d:%02d", minutes, seconds);
+
+        updateLine(teams, cache, ScoreboardLine.DUNGEON_NAME, ChatColor.GOLD + instance.getConfig().getName());
+        updateLine(teams, cache, ScoreboardLine.MONSTERS,
+                ChatColor.GREEN + "Monsters: " + ChatColor.WHITE + instance.getMonstersKilledByPlayer(player));
+        updateLine(teams, cache, ScoreboardLine.TIME,
+                ChatColor.YELLOW + "Time: " + ChatColor.WHITE + formattedTime);
+        updateLine(teams, cache, ScoreboardLine.PARTY_LABEL, ChatColor.AQUA + "Party Members:");
+
+        List<Player> partyMembers = instance.getPartyMembers();
+        for (int i = 0; i < 5; i++) {
+            ScoreboardLine line = ScoreboardLine.values()[ScoreboardLine.PARTY_MEMBER_1.ordinal() + i];
+            if (i < partyMembers.size()) {
+                updateLine(teams, cache, line, ChatColor.GRAY + " - " + partyMembers.get(i).getName());
             } else {
-                levelEntry = "   あ LEVEL " + ChatColor.RED + "MAXEDぅ";
-            }
-            objective.getScore(levelEntry).setScore(12);
-            newEntries.add(levelEntry);
-
-            int currentXp = playerData.getXp();
-            int xpNeeded = levelModule != null ? levelModule.getLevelThreshold(level + 1) : 100;
-            String xpEntry = ChatColor.RED + "   あ " + ChatColor.WHITE + "XP " + ChatColor.GREEN + currentXp + ChatColor.WHITE + "/" + ChatColor.GOLD + xpNeeded;
-            objective.getScore(xpEntry).setScore(11);
-            newEntries.add(xpEntry);
-
-            int balance = economyHelper != null ? economyHelper.getHeldGold(player) : 0;
-            String balanceEntry = ChatColor.YELLOW + "   い " + ChatColor.WHITE + balance + ChatColor.GOLD + " held Gold";
-            objective.getScore(balanceEntry).setScore(10);
-            newEntries.add(balanceEntry);
-
-            String secondemptyline = "   ";
-            objective.getScore(secondemptyline).setScore(9);
-            newEntries.add(secondemptyline);
-
-            String information = "ぇ INFORMATION";
-            objective.getScore(information).setScore(8);
-            newEntries.add(information);
-
-            String yourRank = "   え " + chatFormatter.getPrefixFromLuckPerms(player);
-            objective.getScore(yourRank).setScore(7);
-            newEntries.add(yourRank);
-
-            String petID = playerData.getEquippedPet();
-            if (petID != null) {
-                String formattedName = formatPetName(petID);
-                String yourpet = "   シ "+ formattedName;
-                objective.getScore(yourpet).setScore(5);
-                newEntries.add(yourpet);
-            } else {
-                String yourpet = "   シ " + ChatColor.RED + "No Pet";
-                objective.getScore(yourpet).setScore(5);
-                newEntries.add(yourpet);
-            }
-
-            String pinnedQuestId = playerData.getPinnedQuest();
-            UUID playerUUID = player.getUniqueId();
-            String currentObjective = questManager != null ? questManager.getCurrentObjective(playerUUID) : "No Objective";
-
-            if (pinnedQuestId == null) {
-                String noPinnedQuestEntry = "   う " + ChatColor.RED + "No Pinned Quest";
-                objective.getScore(noPinnedQuestEntry).setScore(3);
-                newEntries.add(noPinnedQuestEntry);
-            } else {
-                String questID = "   う " + ChatColor.GREEN + currentObjective;
-                objective.getScore(questID).setScore(3);
-                newEntries.add(questID);
-            }
-
-            String thirdemptyline = "    ";
-            objective.getScore(thirdemptyline).setScore(2);
-            newEntries.add(thirdemptyline);
-
-            String separatorLine2 ="げげ ";
-            objective.getScore(separatorLine2).setScore(1);
-            newEntries.add(separatorLine2);
-
-            String websiteEntry = ChatColor.DARK_GRAY + "さ";
-            objective.getScore(websiteEntry).setScore(0);
-            newEntries.add(websiteEntry);
-
-            playerEntries.put(player.getUniqueId(), newEntries);
-
-            // Only assign scoreboard if player in "world"
-            if (player.getWorld().getName().equals("world")) {
-                player.setScoreboard(scoreboard);
-            } else {
-                // If not in "world", revert to main scoreboard (no side)
-                player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+                updateLine(teams, cache, line, "");
             }
         }
     }
 
-    private String formatObjectiveKey(String objectiveKey) {
-        if (objectiveKey.startsWith("collect_")) {
-            String itemName = objectiveKey.substring("collect_".length());
-            itemName = itemName.replace("_", " ");
-            return "Collect " + capitalizeWords(itemName);
-        } else if (objectiveKey.startsWith("kill_")) {
-            String mobName = objectiveKey.substring("kill_".length());
-            mobName = mobName.replace("_", " ");
-            return "Kill " + capitalizeWords(mobName);
-        }
-        return capitalizeWords(objectiveKey.replace("_", " "));
-    }
-
-    private String capitalizeWords(String str) {
-        String[] words = str.split(" ");
-        StringBuilder sb = new StringBuilder();
-        for (String word : words) {
-            if (word.length() > 0) {
-                sb.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1)).append(" ");
+    private void updateLine(Map<ScoreboardLine, Team> teams, Map<ScoreboardLine, String> cache,
+                            ScoreboardLine line, String newValue) {
+        String current = cache.get(line);
+        if (current == null || !current.equals(newValue)) {
+            Team team = teams.get(line);
+            if (team != null) {
+                team.setPrefix(newValue);
+                cache.put(line, newValue);
             }
         }
-        return sb.toString().trim();
+    }
+
+    private String generateLevelText(int level) {
+        if (level >= 25) {
+            return "   あ LEVEL " + ChatColor.RED + "MAXEDぅ";
+        }
+
+        ChatColor color = ChatColor.WHITE;
+        if (level > 20) {
+            color = ChatColor.GOLD;
+        } else if (level > 10) {
+            color = ChatColor.GREEN;
+        }
+        return "   あ LEVEL " + color + level;
+    }
+
+    private String getCurrentObjective(Player player) {
+        if (questManager == null) return "No Objective";
+        return questManager.getCurrentObjective(player.getUniqueId());
     }
 
     private String getPrefixFromLuckPerms(Player player) {
@@ -387,18 +358,13 @@ public class ScoreboardManager {
         }
 
         String prefix = user.getCachedData().getMetaData().getPrefix();
-        if (prefix == null) {
-            return "";
-        }
-
-        return ChatColor.translateAlternateColorCodes('&', prefix);
+        return prefix != null ? ChatColor.translateAlternateColorCodes('&', prefix) : "";
     }
 
     public int getPlayerLevel(UUID uuid) {
         if (playerDataCache == null) return 1;
         PlayerData playerData = playerDataCache.getCachedPlayerData(uuid);
-        if (playerData == null) return 1;
-        return playerData.getLevel();
+        return playerData != null ? playerData.getLevel() : 1;
     }
 
     public String formatPetName(String petId) {
@@ -408,7 +374,7 @@ public class ScoreboardManager {
         String[] words = petId.split("_");
         StringBuilder formattedName = new StringBuilder();
         for (String word : words) {
-            if (word.length() > 0) {
+            if (!word.isEmpty()) {
                 formattedName.append(Character.toUpperCase(word.charAt(0)))
                         .append(word.substring(1).toLowerCase())
                         .append(" ");
@@ -418,22 +384,19 @@ public class ScoreboardManager {
     }
 
     public void cleanup() {
-        for (Map.Entry<UUID, Scoreboard> entry : playerScoreboards.entrySet()) {
-            Scoreboard scoreboard = entry.getValue();
-            if (scoreboard != null) {
-                for (Team team : scoreboard.getTeams()) {
-                    team.unregister();
-                }
-
-                for (Objective objective : scoreboard.getObjectives()) {
-                    objective.unregister();
-                }
+        for (Scoreboard scoreboard : playerScoreboards.values()) {
+            for (Team team : scoreboard.getTeams()) {
+                team.unregister();
+            }
+            for (Objective objective : scoreboard.getObjectives()) {
+                objective.unregister();
             }
         }
         playerScoreboards.clear();
-        playerEntries.clear();
+        playerLineTeams.clear();
+        playerLineCache.clear();
         onlinePlayerUUIDs.clear();
-        DebugLogger.getInstance().log("[MysticRPG] ScoreboardManager cleanup called. Cleared all scoreboards.");
+        DebugLogger.getInstance().log("[MysticRPG] ScoreboardManager cleanup completed.");
     }
 
     public void addNewPlayer(Player newPlayer) {
@@ -476,46 +439,32 @@ public class ScoreboardManager {
             for (Team team : departingScoreboard.getTeams()) {
                 team.unregister();
             }
-
             for (Objective objective : departingScoreboard.getObjectives()) {
                 objective.unregister();
             }
-
             playerScoreboards.remove(departingUUID);
-            DebugLogger.getInstance().log("[MysticRPG] Cleaned up scoreboard for departing player " + departingPlayer.getName());
         }
-
-        playerEntries.remove(departingUUID);
+        playerLineTeams.remove(departingUUID);
+        playerLineCache.remove(departingUUID);
     }
 
     public void createOrUpdateTeam(Player player) {
         UUID uuid = player.getUniqueId();
-        String teamName = "team_" + uuid.toString();
+        String teamName = "team_" + uuid;
+        String prefix = getPrefixFromLuckPerms(player);
+        String suffix = ChatColor.BLACK + " [LVL" + getPlayerLevel(uuid) + "]";
 
-        for (Map.Entry<UUID, Scoreboard> entry : playerScoreboards.entrySet()) {
-            UUID targetUUID = entry.getKey();
-            Scoreboard scoreboard = entry.getValue();
-            Player targetPlayer = Bukkit.getPlayer(targetUUID);
-
+        for (Scoreboard scoreboard : playerScoreboards.values()) {
             Team team = scoreboard.getTeam(teamName);
             if (team == null) {
                 team = scoreboard.registerNewTeam(teamName);
-                DebugLogger.getInstance().log("[MysticRPG] Created new team '" + teamName + "' in scoreboard.");
             }
-
-            String prefix = getPrefixFromLuckPerms(player);
-            String suffix = ChatColor.BLACK + " [" + ChatColor.GREEN + "LVL" + ChatColor.RED + getPlayerLevel(uuid) + ChatColor.BLACK + "]";
-
-            team.setPrefix(prefix + " ");
-            team.setSuffix(suffix);
-
+            if (!team.getPrefix().equals(prefix) || !team.getSuffix().equals(suffix)) {
+                team.setPrefix(prefix);
+                team.setSuffix(suffix);
+            }
             if (!team.hasEntry(player.getName())) {
                 team.addEntry(player.getName());
-                DebugLogger.getInstance().log("[MysticRPG] Added player " + player.getName() + " to team '" + teamName + "' in scoreboard.");
-            }
-
-            if (entry.getKey().equals(uuid)) {
-                player.setScoreboard(scoreboard);
             }
         }
     }

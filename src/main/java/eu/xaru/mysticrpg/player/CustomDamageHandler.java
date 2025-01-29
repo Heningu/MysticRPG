@@ -50,6 +50,9 @@ public class CustomDamageHandler implements IBaseModule {
     private final Set<UUID> phoenixUsed = new HashSet<>();
     private final Map<UUID, Long> phoenixImmortalUntil = new HashMap<>();
 
+    // New: Attack cooldown tracking
+    private final Map<UUID, Long> lastAttackTime = new HashMap<>();
+
     @Override
     public void initialize() {
         SaveModule saveModule = ModuleManager.getInstance().getModuleInstance(SaveModule.class);
@@ -75,7 +78,7 @@ public class CustomDamageHandler implements IBaseModule {
 
         this.statsManager = statsModule.getStatsManager();
 
-       // DebugLogger.getInstance().log(Level.INFO, "CustomDamageHandler initialized", 0);
+        // DebugLogger.getInstance().log(Level.INFO, "CustomDamageHandler initialized", 0);
     }
 
     @Override
@@ -83,35 +86,55 @@ public class CustomDamageHandler implements IBaseModule {
 
         // 1) Handle direct attacks
         eventManager.registerEvent(EntityDamageByEntityEvent.class, event -> {
-            if (!(event.getEntity() instanceof Player victim)) return;
             if (event.isCancelled()) return;
 
-            // Check PVP flag (e.g. if pvp is allowed in this region)
+            Entity victim = event.getEntity();
             Entity damager = event.getDamager();
+
+            // If the damager is a Player, enforce custom cooldown
             if (damager instanceof Player attacker) {
-                WorldModule wm = ModuleManager.getInstance().getModuleInstance(WorldModule.class);
-                if (wm != null && !wm.getWorldManager().isAllowed("pvp", victim.getLocation())) {
+                // If the victim is a Player, optionally check region for PvP
+                if (victim instanceof Player victimPlayer) {
+                    WorldModule wm = ModuleManager.getInstance().getModuleInstance(WorldModule.class);
+                    if (wm != null && !wm.getWorldManager().isAllowed("pvp", victim.getLocation())) {
+                        event.setCancelled(true);
+                        return;
+                    }
+                }
+
+                long now = System.currentTimeMillis();
+                long lastTime = lastAttackTime.getOrDefault(attacker.getUniqueId(), 0L);
+                // 500ms cooldown (adjust as needed)
+                if (now - lastTime < 500) {
+                    // Cancel event if attacking too quickly
                     event.setCancelled(true);
                     return;
                 }
+                // Update attacker’s last hit time
+                lastAttackTime.put(attacker.getUniqueId(), now);
             }
 
-            // If victim is currently immortal from PhoenixWill => skip damage entirely
-            if (isPhoenixImmortal(victim)) {
+            // If the victim is a Player, use our custom HP system; if not, let vanilla handle
+            if (victim instanceof Player victimPlayer) {
+                // If PhoenixWill is active => skip damage
+                if (isPhoenixImmortal(victimPlayer)) {
+                    event.setCancelled(true);
+                    return;
+                }
+
+                double rawDamage = event.getFinalDamage();
+                double finalDamage = calculateDamage(damager, victimPlayer, rawDamage);
+
+                // Apply the damage to our custom HP system, cancel normal damage
+                applyDamageAndEffects(victimPlayer, finalDamage, damager);
                 event.setCancelled(true);
-                return;
             }
-
-            double rawDamage = event.getFinalDamage();
-            double finalDamage = calculateDamage(damager, victim, rawDamage);
-
-            // Apply the damage to our custom HP system (below), then cancel the normal event
-            applyDamageAndEffects(victim, finalDamage, damager);
-            event.setCancelled(true);
+            // else do nothing: non-player mobs take normal MC damage
         });
 
         // 2) Handle environment damage (fall, lava, etc.)
         eventManager.registerEvent(EntityDamageEvent.class, event -> {
+            // Skip if it's already handled by EntityDamageByEntityEvent
             if (event instanceof EntityDamageByEntityEvent) return;
             if (!(event.getEntity() instanceof Player victim)) return;
             if (event.isCancelled()) return;
