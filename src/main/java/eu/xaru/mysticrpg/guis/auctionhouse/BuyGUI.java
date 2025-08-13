@@ -1,6 +1,7 @@
 package eu.xaru.mysticrpg.guis.auctionhouse;
 
 import eu.xaru.mysticrpg.auctionhouse.Auction;
+import eu.xaru.mysticrpg.auctionhouse.AuctionDuration;
 import eu.xaru.mysticrpg.auctionhouse.AuctionHouseModule;
 import eu.xaru.mysticrpg.customs.items.Category;
 import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
@@ -195,7 +196,7 @@ public class BuyGUI {
         
         // Add time remaining
         long timeLeft = auction.getEndTime() - System.currentTimeMillis();
-        String timeLeftStr = formatTimeRemaining(timeLeft);
+        String timeLeftStr = AuctionDuration.formatTimeRemaining(timeLeft);
         lore.add(ChatColor.GRAY + "Time left: " + ChatColor.WHITE + timeLeftStr);
         
         lore.add("");
@@ -304,34 +305,6 @@ public class BuyGUI {
                 .setGui(bidGui)
                 .build();
         window.open();
-    }
-
-    /**
-     * Helper method to format time remaining
-     */
-    private String formatTimeRemaining(long millis) {
-        if (millis <= 0) {
-            return ChatColor.RED + "Expired";
-        }
-        
-        long seconds = millis / 1000;
-        long minutes = seconds / 60;
-        long hours = minutes / 60;
-        long days = hours / 24;
-        
-        seconds %= 60;
-        minutes %= 60;
-        hours %= 24;
-        
-        if (days > 0) {
-            return String.format("%dd %02dh %02dm", days, hours, minutes);
-        } else if (hours > 0) {
-            return String.format("%dh %02dm", hours, minutes);
-        } else if (minutes > 0) {
-            return String.format("%dm %02ds", minutes, seconds);
-        } else {
-            return String.format("%ds", seconds);
-        }
     }
 
     /**

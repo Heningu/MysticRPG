@@ -73,6 +73,9 @@ public class AuctionHouseModule implements IBaseModule {
     @Override
     public void start() {
         registerEvents();
+        
+        // Register auction house command
+        eu.xaru.mysticrpg.auctionhouse.commands.AuctionHouseCommand.register();
     }
 
     @Override

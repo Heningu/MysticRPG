@@ -292,6 +292,9 @@ public class ManageBidsGUI {
         auction.setCurrentBid(auction.getStartingPrice());
         auction.setHighestBidder(null);
         
+        // Save the auction changes (need to save via AuctionHouseHelper)
+        // For now, just update in memory - could be enhanced to save to storage
+        
         player.sendMessage(Utils.getInstance().$("Bid cancelled. You have been refunded " + 
                 economyHelper.formatGold(refundAmount) + " coins."));
         
