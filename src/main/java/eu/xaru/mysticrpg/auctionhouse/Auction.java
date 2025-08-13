@@ -37,6 +37,9 @@ public class Auction {
     @Persist(key = "isBidItem")
     private boolean isBidItem;
 
+    @Persist(key = "sellerName")
+    private String sellerName;
+
     @BsonIgnore
     private ItemStack item;
 
@@ -55,6 +58,9 @@ public class Auction {
         this.endTime = endTime;
         this.itemData = serializeItemStack(item);
         this.isBidItem = false;
+        // Set seller name
+        Player seller = Bukkit.getPlayer(sellerUUID);
+        this.sellerName = seller != null ? seller.getName() : "Unknown";
     }
 
     public Auction(UUID auctionId, UUID sellerUUID, ItemStack item, int startingPrice, long endTime, boolean isBidItem) {
@@ -66,6 +72,9 @@ public class Auction {
         this.endTime = endTime;
         this.itemData = serializeItemStack(item);
         this.isBidItem = isBidItem;
+        // Set seller name
+        Player seller = Bukkit.getPlayer(sellerUUID);
+        this.sellerName = seller != null ? seller.getName() : "Unknown";
     }
 
     public Auction(UUID auctionId, UUID sellerUUID, CustomItem customItem, int price, long endTime) {
@@ -78,6 +87,9 @@ public class Auction {
         this.isBidItem = false;
         this.item = customItem.toItemStack();
         this.itemData = serializeItemStack(this.item);
+        // Set seller name
+        Player seller = Bukkit.getPlayer(sellerUUID);
+        this.sellerName = seller != null ? seller.getName() : "Unknown";
     }
 
     public UUID getAuctionId() {
@@ -93,8 +105,15 @@ public class Auction {
     }
 
     public String getSellerName() {
+        if (sellerName != null) {
+            return sellerName;
+        }
         Player seller = Bukkit.getPlayer(sellerUUID);
         return seller != null ? seller.getName() : "Unknown";
+    }
+
+    public void setSellerName(String sellerName) {
+        this.sellerName = sellerName;
     }
 
     public void setSellerUUID(UUID sellerUUID) {

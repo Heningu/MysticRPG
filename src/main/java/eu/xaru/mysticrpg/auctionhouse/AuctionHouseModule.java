@@ -37,6 +37,7 @@ public class AuctionHouseModule implements IBaseModule {
     private EventManager eventManager;
     private EconomyHelper economyHelper;
     private SaveModule saveModule;
+    private AuctionHouseHelper auctionHouseHelper;
 
     private MysticCore plugin;
     private CustomItemModule customItemModule;
@@ -60,6 +61,11 @@ public class AuctionHouseModule implements IBaseModule {
 
         this.customItemModule = ModuleManager.getInstance()
                 .getModuleInstance(CustomItemModule.class);
+        
+        // Initialize AuctionHouseHelper for shutdown saving
+        if (economyHelper != null) {
+            this.auctionHouseHelper = new AuctionHouseHelper(economyHelper);
+        }
     }
 
     @Override
@@ -69,6 +75,10 @@ public class AuctionHouseModule implements IBaseModule {
 
     @Override
     public void stop() {
+        // Save all auctions to file before shutdown
+        if (auctionHouseHelper != null) {
+            auctionHouseHelper.saveAllAuctions();
+        }
     }
 
     @Override

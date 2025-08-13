@@ -21,7 +21,7 @@ public class AuctionHouseHelper {
 
     private final Map<UUID, Auction> activeAuctions;
     private final EconomyHelper economyHelper;
-    private final SaveModule saveModule;
+    private final AuctionStorage auctionStorage;
     private final PlayerDataCache playerDataCache;
 
     private boolean auctionsLoaded = false;
@@ -31,26 +31,24 @@ public class AuctionHouseHelper {
         this.economyHelper = economyHelper;
         this.activeAuctions = new HashMap<>();
 
-        this.saveModule = ModuleManager.getInstance()
-                .getModuleInstance(SaveModule.class);
         this.playerDataCache = PlayerDataCache.getInstance();
-
         this.plugin = JavaPlugin.getPlugin(MysticCore.class);
+        
+        // Initialize local file storage instead of database
+        this.auctionStorage = new AuctionStorage(plugin);
 
-        loadAuctionsFromDatabase();
+        loadAuctionsFromStorage();
     }
 
     public boolean areAuctionsLoaded() {
         return auctionsLoaded;
     }
 
-    private void loadAuctionsFromDatabase() {
-        saveModule.loadAuctions(new Callback<List<Auction>>() {
+    private void loadAuctionsFromStorage() {
+        auctionStorage.loadAuctions(new Callback<List<Auction>>() {
             @Override
             public void onSuccess(List<Auction> auctions) {
                 for (Auction auction : auctions) {
-                    ItemStack item = SaveHelper.itemStackFromBase64(auction.getItemData());
-                    auction.setItem(item);
                     activeAuctions.put(auction.getAuctionId(), auction);
                     DebugLogger.getInstance().log(Level.INFO, "Loaded auction with ID: " + auction.getAuctionId(), 0);
                 }
@@ -61,7 +59,7 @@ public class AuctionHouseHelper {
             @Override
             public void onFailure(Throwable throwable) {
                 auctionsLoaded = true;
-                DebugLogger.getInstance().log(Level.SEVERE, "Failed to load auctions from the database: ", throwable, throwable);
+                DebugLogger.getInstance().log(Level.SEVERE, "Failed to load auctions from storage: ", throwable, throwable);
             }
         });
     }
@@ -73,11 +71,11 @@ public class AuctionHouseHelper {
         activeAuctions.put(auctionId, auction);
         DebugLogger.getInstance().log(Level.INFO, "Auction added to activeAuctions with ID: " + auctionId, 0);
 
-        saveModule.saveAuction(auction, new Callback<Void>() {
+        auctionStorage.saveAuction(auction, new Callback<Void>() {
             @Override
             public void onSuccess(Void result) {
                 DebugLogger.getInstance().log(Level.INFO, "Auction " + auctionId +
-                        " saved to database.", 0);
+                        " saved to storage.", 0);
 
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     String itemName = auction.getItem().getType().toString();
@@ -105,10 +103,10 @@ public class AuctionHouseHelper {
         activeAuctions.put(auctionId, auction);
         DebugLogger.getInstance().log(Level.INFO, "Bid auction added to activeAuctions with ID: " + auctionId, 0);
 
-        saveModule.saveAuction(auction, new Callback<Void>() {
+        auctionStorage.saveAuction(auction, new Callback<Void>() {
             @Override
             public void onSuccess(Void result) {
-                DebugLogger.getInstance().log(Level.INFO, "Bid auction " + auctionId + " saved to database.", 0);
+                DebugLogger.getInstance().log(Level.INFO, "Bid auction " + auctionId + " saved to storage.", 0);
 
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     String itemName = auction.getItem().getType().toString();
@@ -132,11 +130,11 @@ public class AuctionHouseHelper {
     public void removeAuction(UUID auctionId) {
         activeAuctions.remove(auctionId);
 
-        saveModule.deleteAuction(auctionId, new Callback<Void>() {
+        auctionStorage.deleteAuction(auctionId, new Callback<Void>() {
             @Override
             public void onSuccess(Void result) {
                 DebugLogger.getInstance().log(Level.INFO, "Auction " + auctionId +
-                        " deleted from database.", 0);
+                        " deleted from storage.", 0);
             }
 
             @Override
@@ -176,7 +174,7 @@ public class AuctionHouseHelper {
         if (auction != null && auction.getSellerUUID().equals(player.getUniqueId())) {
             activeAuctions.remove(auctionId);
 
-            saveModule.deleteAuction(auctionId, new Callback<Void>() {
+            auctionStorage.deleteAuction(auctionId, new Callback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
                     player.sendMessage(Utils.getInstance().$("Auction canceled. The item has been returned to your inventory."));
@@ -252,7 +250,7 @@ public class AuctionHouseHelper {
                         seller.sendMessage(Utils.getInstance().$(bidder.getName() + " has placed a bid of $" + economyHelper.formatGold(bidAmount) + " on your auction."));
                     }
 
-                    saveModule.saveAuction(auction, new Callback<Void>() {
+                    auctionStorage.saveAuction(auction, new Callback<Void>() {
                         @Override
                         public void onSuccess(Void result) {
                             DebugLogger.getInstance().log(Level.INFO, "Auction ID: {0} updated with new highest bid of ${1} by {2}",
@@ -300,18 +298,23 @@ public class AuctionHouseHelper {
             economyHelper.setBankGold(buyer, buyerBank - price);
 
             UUID sellerId = auction.getSellerUUID();
+            int sellerCut = getSellerCut(sellerId, price);
             Player seller = Bukkit.getPlayer(sellerId);
             if (seller != null && seller.isOnline()) {
                 int sellerBank = economyHelper.getBankGold(seller);
-                economyHelper.setBankGold(seller, sellerBank + price);
+                economyHelper.setBankGold(seller, sellerBank + sellerCut);
                 seller.sendMessage(Utils.getInstance().$("Your item has been sold to " + buyer.getName() + " for $" + economyHelper.formatGold(price)));
+                if (sellerCut < price) {
+                    int fee = price - sellerCut;
+                    seller.sendMessage(Utils.getInstance().$("Auction house fee: $" + economyHelper.formatGold(fee)));
+                }
             } else {
                 PlayerData sellerData = playerDataCache.getCachedPlayerData(sellerId);
                 if (sellerData != null) {
                     int pendingBalance = sellerData.getPendingBalance();
-                    sellerData.setPendingBalance(pendingBalance + price);
+                    sellerData.setPendingBalance(pendingBalance + sellerCut);
                     DebugLogger.getInstance().log(Level.INFO, "Seller {0} is offline. Added ${1} to pending balance.",
-                            new Object[]{sellerId, price});
+                            new Object[]{sellerId, sellerCut});
 
                     playerDataCache.savePlayerData(sellerId, new Callback<Void>() {
                         @Override
@@ -334,10 +337,10 @@ public class AuctionHouseHelper {
             activeAuctions.remove(auctionId);
             DebugLogger.getInstance().log(Level.INFO, "Auction ID {0} removed from active auctions.", auctionId);
 
-            saveModule.deleteAuction(auctionId, new Callback<Void>() {
+            auctionStorage.deleteAuction(auctionId, new Callback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
-                    DebugLogger.getInstance().log(Level.INFO, "Auction ID {0} deleted from database.", auctionId);
+                    DebugLogger.getInstance().log(Level.INFO, "Auction ID {0} deleted from storage.", auctionId);
                 }
 
                 @Override
@@ -362,15 +365,20 @@ public class AuctionHouseHelper {
             economyHelper.setBankGold(buyer, buyerBank - price);
 
             UUID sellerId = auction.getSellerUUID();
+            int sellerCut = getSellerCut(sellerId, price);
             Player seller = Bukkit.getPlayer(sellerId);
             if (seller != null && seller.isOnline()) {
                 int sellerBank = economyHelper.getBankGold(seller);
-                economyHelper.setBankGold(seller, sellerBank + price);
+                economyHelper.setBankGold(seller, sellerBank + sellerCut);
+                if (sellerCut < price) {
+                    int fee = price - sellerCut;
+                    seller.sendMessage(Utils.getInstance().$("Item sold! Auction house fee: $" + economyHelper.formatGold(fee)));
+                }
             } else {
                 PlayerData sellerData = playerDataCache.getCachedPlayerData(sellerId);
                 if (sellerData != null) {
                     int pendingBalance = sellerData.getPendingBalance();
-                    sellerData.setPendingBalance(pendingBalance + price);
+                    sellerData.setPendingBalance(pendingBalance + sellerCut);
                     playerDataCache.savePlayerData(sellerId, new Callback<Void>() {
                         @Override
                         public void onSuccess(Void result) {
@@ -394,7 +402,7 @@ public class AuctionHouseHelper {
             buyer.sendMessage(Utils.getInstance().$("You have purchased " + auction.getItem().getType() + " for $" + economyHelper.formatGold(price)));
 
             activeAuctions.remove(auctionId);
-            saveModule.deleteAuction(auctionId, new Callback<Void>() {
+            auctionStorage.deleteAuction(auctionId, new Callback<Void>() {
                 @Override
                 public void onSuccess(Void result) {
                 }
@@ -406,5 +414,64 @@ public class AuctionHouseHelper {
         } else {
             buyer.sendMessage(Utils.getInstance().$("This auction is not available for purchase."));
         }
+    }
+    
+    /**
+     * Calculate the fee for listing an auction (10% unless player has bypass permission)
+     */
+    private int calculateListingFee(Player player, int price) {
+        if (player.hasPermission("mysticrpg.auction.nofee")) {
+            return 0;
+        }
+        return (int) Math.ceil(price * 0.10); // 10% fee, rounded up
+    }
+    
+    /**
+     * Get the seller's cut after fees (90% unless they have bypass permission)
+     */
+    private int getSellerCut(UUID sellerUUID, int salePrice) {
+        Player seller = Bukkit.getPlayer(sellerUUID);
+        if (seller != null && seller.hasPermission("mysticrpg.auction.nofee")) {
+            return salePrice; // No fee, full amount
+        }
+        return (int) Math.floor(salePrice * 0.90); // 90% of sale price
+    }
+    
+    /**
+     * Save all auctions to file (called on shutdown)
+     */
+    public void saveAllAuctions() {
+        if (auctionStorage != null) {
+            auctionStorage.saveAll(activeAuctions);
+        }
+    }
+    
+    /**
+     * Check if player can afford to list an auction with the given price
+     */
+    public boolean canAffordListingFee(Player player, int price) {
+        int fee = calculateListingFee(player, price);
+        if (fee == 0) return true;
+        
+        int playerBalance = economyHelper.getBankGold(player);
+        return playerBalance >= fee;
+    }
+    
+    /**
+     * Deduct listing fee from player
+     */
+    public boolean deductListingFee(Player player, int price) {
+        int fee = calculateListingFee(player, price);
+        if (fee == 0) return true;
+        
+        int playerBalance = economyHelper.getBankGold(player);
+        if (playerBalance >= fee) {
+            economyHelper.setBankGold(player, playerBalance - fee);
+            if (fee > 0) {
+                player.sendMessage(Utils.getInstance().$("Listing fee of $" + economyHelper.formatGold(fee) + " has been deducted."));
+            }
+            return true;
+        }
+        return false;
     }
 }

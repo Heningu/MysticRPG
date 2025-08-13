@@ -1,11 +1,13 @@
 package eu.xaru.mysticrpg.guis.auctionhouse;
 
+import eu.xaru.mysticrpg.auctionhouse.AuctionDuration;
 import eu.xaru.mysticrpg.auctionhouse.AuctionHouseHelper;
 import eu.xaru.mysticrpg.customs.items.CustomItem;
 import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.utils.Utils;
 
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
@@ -24,39 +26,43 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import xyz.xenondevs.invui.item.ItemWrapper;
-
+/**
+ * Enhanced Sell GUI that matches the exact requirements:
+ * - Item selection slot in middle of second top row
+ * - Auction type toggle (Auction vs Sell Offer)
+ * - Price entry with chat input
+ * - Duration selector with predefined options
+ * - Confirm & Cancel buttons
+ */
 public class SellGUI {
 
     private final AuctionHouseHelper auctionHouseHelper;
     private final EconomyHelper economyHelper;
-    private final Map<UUID, Integer> priceMap;
-    private final Map<UUID, Long> durationMap;
-    private final Map<UUID, Boolean> bidMap;
-    private final Map<UUID, ItemStack> sellingItems;
+    
+    // Player data storage
+    private final Map<UUID, ItemStack> selectedItems = new HashMap<>();
+    private final Map<UUID, Integer> priceMap = new HashMap<>();
+    private final Map<UUID, Integer> durationIndexMap = new HashMap<>(); // Index in AuctionDuration arrays
+    private final Map<UUID, Boolean> isAuctionMap = new HashMap<>(); // true = auction, false = sell offer
+    
+    // Chat input tracking
+    private static final Map<UUID, SellGUI> pendingPriceInput = new HashMap<>();
 
     public SellGUI(AuctionHouseHelper auctionHouseHelper, EconomyHelper economyHelper) {
         this.auctionHouseHelper = auctionHouseHelper;
         this.economyHelper = economyHelper;
-        this.priceMap = new HashMap<>();
-        this.durationMap = new HashMap<>();
-        this.bidMap = new HashMap<>();
-        this.sellingItems = new HashMap<>();
     }
 
     public void openSellGUI(Player player) {
-        // Set default values if not present
-        priceMap.putIfAbsent(player.getUniqueId(), 100); // Default price
-        durationMap.putIfAbsent(player.getUniqueId(), 86400000L); // Default duration (24h)
-        bidMap.putIfAbsent(player.getUniqueId(), false); // Default to fixed price
+        // Initialize defaults if not present
+        priceMap.putIfAbsent(player.getUniqueId(), 100);
+        durationIndexMap.putIfAbsent(player.getUniqueId(), 3); // Default to 24 hours
+        isAuctionMap.putIfAbsent(player.getUniqueId(), false); // Default to sell offer
 
-        // Build the GUI
         Gui gui = buildGui(player);
-
-        // Open the GUI
         Window window = Window.single()
                 .setViewer(player)
-                .setTitle(Utils.getInstance().$("Auction House - Sell"))
+                .setTitle(ChatColor.GREEN + "Create Auction")
                 .setGui(gui)
                 .build();
 
@@ -64,133 +70,206 @@ public class SellGUI {
     }
 
     private Gui buildGui(Player player) {
+        // Black glass pane filler
         Item filler = new SimpleItem(new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE).setDisplayName(" "));
-
-        Item decreasePrice = new DecreasePriceItem(player);
-        Item increasePrice = new IncreasePriceItem(player);
-        Item priceDisplay = new PriceDisplayItem(player);
-        Item toggleAuctionType = new ToggleAuctionTypeItem(player);
-        Item confirmItem = new ConfirmItem(player);
-        Item changeDuration = new ChangeDurationItem(player);
-        Item itemSlot = new ItemSlotItem(player);
+        
+        // Main items
+        Item itemSelectionSlot = new ItemSelectionSlot(player);
+        Item auctionTypeToggle = new AuctionTypeToggleItem(player);
+        Item priceEntryItem = new PriceEntryItem(player);
+        Item durationSelector = new DurationSelectorItem(player);
+        Item confirmButton = new ConfirmItem(player);
+        Item cancelButton = new CancelItem(player);
 
         return Gui.normal()
                 .setStructure(
                         "# # # # # # # # #",
-                        "# . . d p i . . #",
-                        "# . . t c n . . #",
-                        "# # # # # # # # #")
+                        "# # # # x # # # #", // x = item selection slot (middle of second row)
+                        "# # t # p # d # #", // t = auction type, p = price, d = duration
+                        "# # # c # n # # #"  // c = confirm, n = cancel
+                )
                 .addIngredient('#', filler)
-                .addIngredient('.', itemSlot)
-                // ...existing code...
-                .addIngredient('d', decreasePrice)
-                .addIngredient('i', increasePrice)
-                .addIngredient('p', priceDisplay)
-                .addIngredient('t', toggleAuctionType)
-                .addIngredient('c', confirmItem)
-                .addIngredient('n', changeDuration)
-                // ...existing code...
+                .addIngredient('x', itemSelectionSlot)
+                .addIngredient('t', auctionTypeToggle)
+                .addIngredient('p', priceEntryItem)
+                .addIngredient('d', durationSelector)
+                .addIngredient('c', confirmButton)
+                .addIngredient('n', cancelButton)
                 .build();
     }
 
-    // Define the custom items used in the GUI
-
-    private class DecreasePriceItem extends AbstractItem {
+    /**
+     * Item Selection Slot - middle of second top row
+     */
+    private class ItemSelectionSlot extends AbstractItem {
         private final Player player;
 
-        public DecreasePriceItem(Player player) {
+        public ItemSelectionSlot(Player player) {
             this.player = player;
         }
 
         @Override
         public ItemProvider getItemProvider() {
-            return new ItemBuilder(Material.REDSTONE_BLOCK)
-                    .setDisplayName(Utils.getInstance().$("Decrease Price"));
-        }
-
-        @Override
-        public void handleClick(ClickType clickType, Player player, InventoryClickEvent event) {
-            int price = priceMap.getOrDefault(player.getUniqueId(), 100);
-            price = Math.max(0, price - 10);
-            priceMap.put(player.getUniqueId(), price);
-            notifyWindows();
-            event.setCancelled(true);
-        }
-    }
-
-    private class IncreasePriceItem extends AbstractItem {
-        private final Player player;
-
-        public IncreasePriceItem(Player player) {
-            this.player = player;
-        }
-
-        @Override
-        public ItemProvider getItemProvider() {
-            return new ItemBuilder(Material.EMERALD_BLOCK)
-                    .setDisplayName(Utils.getInstance().$("Increase Price"));
-        }
-
-        @Override
-        public void handleClick(ClickType clickType, Player player, InventoryClickEvent event) {
-            int price = priceMap.getOrDefault(player.getUniqueId(), 100);
-            price += 10;
-            priceMap.put(player.getUniqueId(), price);
-            notifyWindows();
-            event.setCancelled(true);
-        }
-    }
-
-    private class PriceDisplayItem extends AbstractItem {
-        private final Player player;
-
-        public PriceDisplayItem(Player player) {
-            this.player = player;
-        }
-
-        @Override
-        public ItemProvider getItemProvider() {
-            int price = priceMap.getOrDefault(player.getUniqueId(), 100);
-            return new ItemBuilder(Material.PAPER)
-                    .setDisplayName(Utils.getInstance().$("Current Price: $" + economyHelper.formatGold(price)))
-                    .addLoreLines(Utils.getInstance().$("Right-click to set custom price"));
-        }
-
-        @Override
-        public void handleClick(ClickType clickType, Player player, InventoryClickEvent event) {
-            if (clickType.isRightClick()) {
-                promptCustomPrice(player);
-                player.closeInventory();
+            ItemStack selectedItem = selectedItems.get(player.getUniqueId());
+            
+            if (selectedItem != null) {
+                return new ItemBuilder(selectedItem.clone())
+                        .addLoreLines("", ChatColor.YELLOW + "Click to deselect and return to inventory");
+            } else {
+                return new ItemBuilder(Material.BARRIER)
+                        .setDisplayName(ChatColor.RED + "No item selected")
+                        .addLoreLines("", ChatColor.GRAY + "Click an item in your inventory to select");
             }
+        }
+
+        @Override
+        public void handleClick(ClickType clickType, Player player, InventoryClickEvent event) {
+            ItemStack selectedItem = selectedItems.get(player.getUniqueId());
+            
+            // If item is selected, return it to inventory
+            if (selectedItem != null) {
+                player.getInventory().addItem(selectedItem);
+                selectedItems.remove(player.getUniqueId());
+                player.sendMessage(Utils.getInstance().$("Item returned to your inventory."));
+                notifyWindows();
+            }
+            
             event.setCancelled(true);
         }
     }
 
-    private class ToggleAuctionTypeItem extends AbstractItem {
+    /**
+     * Auction Type Toggle Button
+     */
+    private class AuctionTypeToggleItem extends AbstractItem {
         private final Player player;
 
-        public ToggleAuctionTypeItem(Player player) {
+        public AuctionTypeToggleItem(Player player) {
             this.player = player;
         }
 
         @Override
         public ItemProvider getItemProvider() {
-            boolean isBidItem = bidMap.getOrDefault(player.getUniqueId(), false);
-            String type = isBidItem ? "Bidding" : "Fixed Price";
-            return new ItemBuilder(Material.GOLDEN_HOE)
-                    .setDisplayName(Utils.getInstance().$("Auction Type: " + type))
-                    .addLoreLines(Utils.getInstance().$("Click to switch auction type"));
+            boolean isAuction = isAuctionMap.getOrDefault(player.getUniqueId(), false);
+            
+            if (isAuction) {
+                return new ItemBuilder(Material.ENCHANTED_BOOK)
+                        .setDisplayName(ChatColor.GOLD + "Auction Mode")
+                        .addLoreLines(
+                                "",
+                                ChatColor.GRAY + "Players can bid on your item",
+                                ChatColor.GRAY + "Highest bidder wins",
+                                "",
+                                ChatColor.YELLOW + "Click to switch to Sell Offer"
+                        );
+            } else {
+                return new ItemBuilder(Material.EMERALD)
+                        .setDisplayName(ChatColor.GREEN + "Sell Offer Mode")
+                        .addLoreLines(
+                                "",
+                                ChatColor.GRAY + "Set a fixed price",
+                                ChatColor.GRAY + "First buyer gets the item",
+                                "",
+                                ChatColor.YELLOW + "Click to switch to Auction"
+                        );
+            }
         }
 
         @Override
         public void handleClick(ClickType clickType, Player player, InventoryClickEvent event) {
-            boolean isBidItem = !bidMap.getOrDefault(player.getUniqueId(), false);
-            bidMap.put(player.getUniqueId(), isBidItem);
+            boolean currentMode = isAuctionMap.getOrDefault(player.getUniqueId(), false);
+            isAuctionMap.put(player.getUniqueId(), !currentMode);
             notifyWindows();
             event.setCancelled(true);
         }
     }
 
+    /**
+     * Price Entry Item - opens chat input
+     */
+    private class PriceEntryItem extends AbstractItem {
+        private final Player player;
+
+        public PriceEntryItem(Player player) {
+            this.player = player;
+        }
+
+        @Override
+        public ItemProvider getItemProvider() {
+            boolean isAuction = isAuctionMap.getOrDefault(player.getUniqueId(), false);
+            int price = priceMap.getOrDefault(player.getUniqueId(), 100);
+            
+            String title = isAuction ? "Starting Bid" : "Sell Price";
+            Material material = isAuction ? Material.GOLD_INGOT : Material.DIAMOND;
+            
+            return new ItemBuilder(material)
+                    .setDisplayName(ChatColor.YELLOW + title)
+                    .addLoreLines(
+                            "",
+                            ChatColor.GRAY + "Current: " + ChatColor.WHITE + economyHelper.formatGold(price) + " coins",
+                            "",
+                            ChatColor.GREEN + "Click to enter new price",
+                            ChatColor.GRAY + "(Type in chat)"
+                    );
+        }
+
+        @Override
+        public void handleClick(ClickType clickType, Player player, InventoryClickEvent event) {
+            // Close GUI and request chat input
+            player.closeInventory();
+            pendingPriceInput.put(player.getUniqueId(), SellGUI.this);
+            
+            boolean isAuction = isAuctionMap.getOrDefault(player.getUniqueId(), false);
+            String priceType = isAuction ? "starting bid" : "sell price";
+            
+            player.sendMessage(Utils.getInstance().$("Enter the " + priceType + " in coins (numbers only):"));
+            event.setCancelled(true);
+        }
+    }
+
+    /**
+     * Duration Selector - cycles through predefined durations
+     */
+    private class DurationSelectorItem extends AbstractItem {
+        private final Player player;
+
+        public DurationSelectorItem(Player player) {
+            this.player = player;
+        }
+
+        @Override
+        public ItemProvider getItemProvider() {
+            int durationIndex = durationIndexMap.getOrDefault(player.getUniqueId(), 3);
+            String durationName = AuctionDuration.getDurationName(durationIndex);
+            
+            return new ItemBuilder(Material.CLOCK)
+                    .setDisplayName(ChatColor.AQUA + "Duration")
+                    .addLoreLines(
+                            "",
+                            ChatColor.GRAY + "Selected: " + ChatColor.WHITE + durationName,
+                            ChatColor.GRAY + "The auction will run for this duration",
+                            "",
+                            ChatColor.GREEN + "Click to cycle through options"
+                    );
+        }
+
+        @Override
+        public void handleClick(ClickType clickType, Player player, InventoryClickEvent event) {
+            int currentIndex = durationIndexMap.getOrDefault(player.getUniqueId(), 3);
+            int nextIndex = AuctionDuration.getNextDurationIndex(currentIndex);
+            durationIndexMap.put(player.getUniqueId(), nextIndex);
+            
+            String newDurationName = AuctionDuration.getDurationName(nextIndex);
+            player.sendMessage(Utils.getInstance().$("Duration changed to: " + newDurationName));
+            
+            notifyWindows();
+            event.setCancelled(true);
+        }
+    }
+
+    /**
+     * Confirm Button - creates the auction
+     */
     private class ConfirmItem extends AbstractItem {
         private final Player player;
 
@@ -200,126 +279,160 @@ public class SellGUI {
 
         @Override
         public ItemProvider getItemProvider() {
-            boolean isBidItem = bidMap.getOrDefault(player.getUniqueId(), false);
-            String action = isBidItem ? "Confirm Auction" : "Confirm Sale";
-            return new ItemBuilder(Material.GREEN_WOOL)
-                    .setDisplayName(Utils.getInstance().$(action));
+            return new ItemBuilder(Material.LIME_CONCRETE)
+                    .setDisplayName(ChatColor.GREEN + "Confirm")
+                    .addLoreLines(
+                            "",
+                            ChatColor.GRAY + "Create the auction with",
+                            ChatColor.GRAY + "the current settings",
+                            "",
+                            ChatColor.GREEN + "Click to confirm"
+                    );
         }
 
         @Override
         public void handleClick(ClickType clickType, Player player, InventoryClickEvent event) {
-            ItemStack itemToSell = sellingItems.get(player.getUniqueId());
-            if (itemToSell == null || itemToSell.getType() == Material.AIR) {
-                player.sendMessage(Utils.getInstance().$("You must place an item to sell."));
+            ItemStack selectedItem = selectedItems.get(player.getUniqueId());
+            
+            if (selectedItem == null) {
+                player.sendMessage(Utils.getInstance().$("You must select an item first!"));
+                event.setCancelled(true);
+                return;
+            }
+            
+            int price = priceMap.getOrDefault(player.getUniqueId(), 100);
+            int durationIndex = durationIndexMap.getOrDefault(player.getUniqueId(), 3);
+            boolean isAuction = isAuctionMap.getOrDefault(player.getUniqueId(), false);
+            
+            long duration = AuctionDuration.getDuration(durationIndex);
+            
+            // Check if player can afford listing fee
+            if (!auctionHouseHelper.canAffordListingFee(player, price)) {
+                player.sendMessage(Utils.getInstance().$("You cannot afford the listing fee for this price!"));
+                event.setCancelled(true);
+                return;
+            }
+            
+            // Deduct listing fee
+            if (!auctionHouseHelper.deductListingFee(player, price)) {
+                player.sendMessage(Utils.getInstance().$("Failed to deduct listing fee."));
+                event.setCancelled(true);
                 return;
             }
 
-            int price = priceMap.getOrDefault(player.getUniqueId(), 100);
-            long duration = durationMap.getOrDefault(player.getUniqueId(), 86400000L); // Default 24h
-            boolean isBidItem = bidMap.getOrDefault(player.getUniqueId(), false);
-
-            CustomItem customItem = CustomItemUtils.fromItemStack(itemToSell);
-
-            if (customItem != null) {
-                if (isBidItem) {
-                    auctionHouseHelper.addBidAuction(player.getUniqueId(), itemToSell, price, duration);
-                } else {
-                    auctionHouseHelper.addAuction(player.getUniqueId(), customItem, price, duration);
-                }
-
-                player.sendMessage(Utils.getInstance().$("Your item has been listed for " + (isBidItem ? "auction!" : "sale!")));
-
-                sellingItems.remove(player.getUniqueId());
-                player.closeInventory();
+            // Create the auction
+            UUID auctionId;
+            if (isAuction) {
+                // Create bid auction
+                auctionId = auctionHouseHelper.addBidAuction(player.getUniqueId(), selectedItem, price, duration);
             } else {
-                player.sendMessage(Utils.getInstance().$("Invalid item."));
+                // Create sell offer
+                CustomItem customItem = CustomItemUtils.fromItemStack(selectedItem);
+                if (customItem == null) {
+                    // Handle regular items - you may need to modify addAuction to accept ItemStack
+                    player.sendMessage(Utils.getInstance().$("This item cannot be auctioned."));
+                    event.setCancelled(true);
+                    return;
+                }
+                auctionId = auctionHouseHelper.addAuction(player.getUniqueId(), customItem, price, duration);
             }
 
+            String actionType = isAuction ? "auction" : "sale";
+            player.sendMessage(Utils.getInstance().$("Your item has been listed for " + actionType + "!"));
+
+            // Clear player data
+            selectedItems.remove(player.getUniqueId());
+            player.closeInventory();
+            
             event.setCancelled(true);
         }
     }
 
-    private class ChangeDurationItem extends AbstractItem {
+    /**
+     * Cancel Button - returns item and closes GUI
+     */
+    private class CancelItem extends AbstractItem {
         private final Player player;
 
-        public ChangeDurationItem(Player player) {
+        public CancelItem(Player player) {
             this.player = player;
         }
 
         @Override
         public ItemProvider getItemProvider() {
-            long duration = durationMap.getOrDefault(player.getUniqueId(), 86400000L);
-            return new ItemBuilder(Material.CLOCK)
-                    .setDisplayName(Utils.getInstance().$("Change Duration"))
-                    .addLoreLines(Utils.getInstance().$("Current Duration: " + formatDuration(duration)));
+            return new ItemBuilder(Material.RED_CONCRETE)
+                    .setDisplayName(ChatColor.RED + "Cancel")
+                    .addLoreLines(
+                            "",
+                            ChatColor.GRAY + "Close this menu and return",
+                            ChatColor.GRAY + "any selected item",
+                            "",
+                            ChatColor.RED + "Click to cancel"
+                    );
         }
 
         @Override
         public void handleClick(ClickType clickType, Player player, InventoryClickEvent event) {
-            long currentDuration = durationMap.getOrDefault(player.getUniqueId(), 86400000L);
-            // Cycle through durations: 1h, 6h, 12h, 24h
-            if (currentDuration == 3600000L) {
-                currentDuration = 21600000L; // 6h
-            } else if (currentDuration == 21600000L) {
-                currentDuration = 43200000L; // 12h
-            } else if (currentDuration == 43200000L) {
-                currentDuration = 86400000L; // 24h
-            } else {
-                currentDuration = 3600000L; // 1h
+            // Return selected item if any
+            ItemStack selectedItem = selectedItems.get(player.getUniqueId());
+            if (selectedItem != null) {
+                player.getInventory().addItem(selectedItem);
+                selectedItems.remove(player.getUniqueId());
+                player.sendMessage(Utils.getInstance().$("Item returned to your inventory."));
             }
-            durationMap.put(player.getUniqueId(), currentDuration);
-            notifyWindows();
+            
+            player.closeInventory();
             event.setCancelled(true);
         }
     }
 
-    private class ItemSlotItem extends AbstractItem {
-        private final Player player;
-
-        public ItemSlotItem(Player player) {
-            this.player = player;
-        }
-
-        @Override
-        public ItemProvider getItemProvider() {
-            ItemStack item = sellingItems.get(player.getUniqueId());
-            if (item == null) {
-                return new ItemBuilder(Material.GRAY_STAINED_GLASS_PANE)
-                        .setDisplayName(Utils.getInstance().$("Place Item Here"));
-            } else {
-                return new ItemWrapper(item);
-            }
-        }
-
-        @Override
-        public void handleClick(ClickType clickType, Player player, InventoryClickEvent event) {
-            ItemStack cursor = event.getCursor();
-            if (cursor != null && cursor.getType() != Material.AIR) {
-                ItemStack itemToSell = cursor.clone();
-                itemToSell.setAmount(1);
-                sellingItems.put(player.getUniqueId(), itemToSell);
-                cursor.setAmount(cursor.getAmount() - 1);
-                event.setCursor(cursor.getAmount() > 0 ? cursor : null);
-                notifyWindows();
-            } else {
-                ItemStack item = sellingItems.get(player.getUniqueId());
-                if (item != null) {
-                    player.getInventory().addItem(item);
-                    sellingItems.remove(player.getUniqueId());
-                    notifyWindows();
-                }
-            }
-            event.setCancelled(true);
-        }
+    // Static methods for handling chat input
+    public static boolean isPendingPriceInput(Player player) {
+        return pendingPriceInput.containsKey(player.getUniqueId());
     }
 
-    private void promptCustomPrice(Player player) {
-        player.sendMessage(Utils.getInstance().$("Enter your custom price in chat:"));
-        // Handle chat input elsewhere
+    public static void handlePriceInput(Player player, String input) {
+        SellGUI gui = pendingPriceInput.remove(player.getUniqueId());
+        if (gui == null) return;
+
+        try {
+            int price = Integer.parseInt(input);
+            if (price < 0) {
+                player.sendMessage(Utils.getInstance().$("Price cannot be negative."));
+            } else {
+                gui.priceMap.put(player.getUniqueId(), price);
+                player.sendMessage(Utils.getInstance().$("Price set to " + gui.economyHelper.formatGold(price) + " coins."));
+            }
+        } catch (NumberFormatException e) {
+            player.sendMessage(Utils.getInstance().$("Invalid price. Please enter a number."));
+        }
+
+        // Reopen the GUI
+        gui.openSellGUI(player);
     }
 
-    private String formatDuration(long millis) {
-        long hours = millis / 3600000L;
-        return hours + "h";
+    // Inventory click handler for item selection
+    public void handleInventoryClick(Player player, ItemStack clickedItem) {
+        if (clickedItem == null || clickedItem.getType() == Material.AIR) return;
+        
+        // Move item to selection slot
+        ItemStack itemToSelect = clickedItem.clone();
+        itemToSelect.setAmount(1); // Only take one item
+        
+        // Return previous item if any
+        ItemStack previousItem = selectedItems.get(player.getUniqueId());
+        if (previousItem != null) {
+            player.getInventory().addItem(previousItem);
+        }
+        
+        // Remove one of the clicked item from inventory
+        if (clickedItem.getAmount() > 1) {
+            clickedItem.setAmount(clickedItem.getAmount() - 1);
+        } else {
+            player.getInventory().remove(clickedItem);
+        }
+        
+        selectedItems.put(player.getUniqueId(), itemToSelect);
+        player.sendMessage(Utils.getInstance().$("Item selected: " + itemToSelect.getType().toString().replace("_", " ")));
     }
 }
