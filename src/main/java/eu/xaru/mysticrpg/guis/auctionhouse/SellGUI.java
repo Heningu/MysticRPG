@@ -326,15 +326,8 @@ public class SellGUI {
                 // Create bid auction
                 auctionId = auctionHouseHelper.addBidAuction(player.getUniqueId(), selectedItem, price, duration);
             } else {
-                // Create sell offer
-                CustomItem customItem = CustomItemUtils.fromItemStack(selectedItem);
-                if (customItem == null) {
-                    // Handle regular items - you may need to modify addAuction to accept ItemStack
-                    player.sendMessage(Utils.getInstance().$("This item cannot be auctioned."));
-                    event.setCancelled(true);
-                    return;
-                }
-                auctionId = auctionHouseHelper.addAuction(player.getUniqueId(), customItem, price, duration);
+                // Create sell offer - now works with regular ItemStacks
+                auctionId = auctionHouseHelper.addSellOffer(player.getUniqueId(), selectedItem, price, duration);
             }
 
             String actionType = isAuction ? "auction" : "sale";

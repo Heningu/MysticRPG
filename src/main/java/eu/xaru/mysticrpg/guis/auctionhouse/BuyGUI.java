@@ -154,10 +154,9 @@ public class BuyGUI {
         for (Auction auction : allAuctions) {
             ItemStack auctionItem = auction.getItem();
             
-            // Skip if not a custom item
-            if (!CustomItemUtils.isCustomItem(auctionItem)) continue;
-            
-            Category itemCategory = CustomItemUtils.getCategory(auctionItem);
+            // Include all items, not just custom items
+            Category itemCategory = CustomItemUtils.isCustomItem(auctionItem) ? 
+                CustomItemUtils.getCategory(auctionItem) : getCategoryFromMaterial(auctionItem.getType());
             
             // If category is EVERYTHING or matches the current category
             if (category == Category.EVERYTHING || category == itemCategory) {
@@ -185,9 +184,26 @@ public class BuyGUI {
         // Add auction information to lore
         lore.add("");
         lore.add(ChatColor.GRAY + "Seller: " + ChatColor.YELLOW + auction.getSellerName());
-        lore.add(ChatColor.GRAY + "Price: " + ChatColor.GOLD + auction.getCurrentBid() + " coins");
+        
+        if (auction.isBidItem()) {
+            lore.add(ChatColor.GRAY + "Current bid: " + ChatColor.GOLD + auction.getCurrentBid() + " coins");
+            lore.add(ChatColor.BLUE + "Type: Auction");
+        } else {
+            lore.add(ChatColor.GRAY + "Price: " + ChatColor.GOLD + auction.getCurrentBid() + " coins");
+            lore.add(ChatColor.GREEN + "Type: Buy Now");
+        }
+        
+        // Add time remaining
+        long timeLeft = auction.getEndTime() - System.currentTimeMillis();
+        String timeLeftStr = formatTimeRemaining(timeLeft);
+        lore.add(ChatColor.GRAY + "Time left: " + ChatColor.WHITE + timeLeftStr);
+        
         lore.add("");
-        lore.add(ChatColor.YELLOW + "Click to purchase!");
+        if (auction.isBidItem()) {
+            lore.add(ChatColor.YELLOW + "Click to place bid!");
+        } else {
+            lore.add(ChatColor.YELLOW + "Click to purchase!");
+        }
 
         meta.setLore(lore);
         originalItem.setItemMeta(meta);
@@ -195,17 +211,162 @@ public class BuyGUI {
         return new SimpleItem(new ItemBuilder(originalItem)) {
             @Override
             public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
-                // Handle purchase
-                mainGUI.getAuctionHouseHelper().purchaseAuction(player, auction.getAuctionId());
-                
-                // Refresh the GUI to show updated auctions
-                Window window = event.getView().getTopInventory().getHolder() instanceof Window ?
-                        (Window) event.getView().getTopInventory().getHolder() : null;
-                if (window != null) {
-                    window.close();
+                if (auction.isBidItem()) {
+                    // Open bid interface for auctions
+                    openBidInterface(player, auction);
+                } else {
+                    // Direct purchase for sell offers
+                    mainGUI.getAuctionHouseHelper().purchaseAuction(player, auction.getAuctionId());
+                    
+                    // Refresh the GUI to show updated auctions
+                    Window window = event.getView().getTopInventory().getHolder() instanceof Window ?
+                            (Window) event.getView().getTopInventory().getHolder() : null;
+                    if (window != null) {
+                        window.close();
+                    }
+                    openAuctionHouseBuyGUI(player);
                 }
-                openAuctionHouseBuyGUI(player);
             }
         };
+    }
+
+    /**
+     * Opens a simple bid interface for auction items
+     */
+    private void openBidInterface(Player player, Auction auction) {
+        // Simple bid interface with preset amounts
+        int currentBid = auction.getCurrentBid();
+        int bid10Percent = currentBid + (int) Math.ceil(currentBid * 0.1); // 10% increase
+        int bid50Percent = currentBid + (int) Math.ceil(currentBid * 0.5); // 50% increase
+        
+        Item filler = new SimpleItem(new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE).setDisplayName(" "));
+        
+        Item bid10 = new SimpleItem(new ItemBuilder(Material.GOLD_NUGGET)
+                .setDisplayName(ChatColor.YELLOW + "Bid +10%")
+                .addLoreLines(
+                        "",
+                        ChatColor.GRAY + "New bid: " + ChatColor.WHITE + bid10Percent + " coins",
+                        "",
+                        ChatColor.GREEN + "Click to place this bid"
+                ))
+        {
+            @Override
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player p, @NotNull InventoryClickEvent event) {
+                mainGUI.getAuctionHouseHelper().placeBid(p, auction.getAuctionId(), bid10Percent);
+                p.closeInventory();
+                openAuctionHouseBuyGUI(p);
+            }
+        };
+
+        Item bid50 = new SimpleItem(new ItemBuilder(Material.GOLD_INGOT)
+                .setDisplayName(ChatColor.YELLOW + "Bid +50%")
+                .addLoreLines(
+                        "",
+                        ChatColor.GRAY + "New bid: " + ChatColor.WHITE + bid50Percent + " coins",
+                        "",
+                        ChatColor.GREEN + "Click to place this bid"
+                ))
+        {
+            @Override
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player p, @NotNull InventoryClickEvent event) {
+                mainGUI.getAuctionHouseHelper().placeBid(p, auction.getAuctionId(), bid50Percent);
+                p.closeInventory();
+                openAuctionHouseBuyGUI(p);
+            }
+        };
+
+        Item back = new SimpleItem(new ItemBuilder(Material.ARROW)
+                .setDisplayName(ChatColor.RED + "Back")
+                .addLoreLines("", "Return to auction browser", ""))
+        {
+            @Override
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player p, @NotNull InventoryClickEvent event) {
+                p.closeInventory();
+                openAuctionHouseBuyGUI(p);
+            }
+        };
+
+        Gui bidGui = Gui.normal()
+                .setStructure(
+                        "# # # # # # # # #",
+                        "# # a # b # # # #",
+                        "# # # # c # # # #"
+                )
+                .addIngredient('#', filler)
+                .addIngredient('a', bid10)
+                .addIngredient('b', bid50)
+                .addIngredient('c', back)
+                .build();
+
+        Window window = Window.single()
+                .setViewer(player)
+                .setTitle(ChatColor.YELLOW + "Place Bid")
+                .setGui(bidGui)
+                .build();
+        window.open();
+    }
+
+    /**
+     * Helper method to format time remaining
+     */
+    private String formatTimeRemaining(long millis) {
+        if (millis <= 0) {
+            return ChatColor.RED + "Expired";
+        }
+        
+        long seconds = millis / 1000;
+        long minutes = seconds / 60;
+        long hours = minutes / 60;
+        long days = hours / 24;
+        
+        seconds %= 60;
+        minutes %= 60;
+        hours %= 24;
+        
+        if (days > 0) {
+            return String.format("%dd %02dh %02dm", days, hours, minutes);
+        } else if (hours > 0) {
+            return String.format("%dh %02dm", hours, minutes);
+        } else if (minutes > 0) {
+            return String.format("%dm %02ds", minutes, seconds);
+        } else {
+            return String.format("%ds", seconds);
+        }
+    }
+
+    /**
+     * Helper method to determine category for non-custom items
+     */
+    private Category getCategoryFromMaterial(Material material) {
+        String name = material.name();
+        
+        // Weapons
+        if (name.contains("SWORD") || name.contains("AXE") || name.contains("BOW") || name.contains("TRIDENT")) {
+            return Category.WEAPONS;
+        }
+        
+        // Armor  
+        if (name.contains("HELMET") || name.contains("CHESTPLATE") || 
+            name.contains("LEGGINGS") || name.contains("BOOTS")) {
+            return Category.ARMOR;
+        }
+        
+        // Tools
+        if (name.contains("PICKAXE") || name.contains("SHOVEL") || name.contains("HOE")) {
+            return Category.TOOLS;
+        }
+        
+        // Consumables
+        if (material.isEdible() || name.contains("POTION") || name.contains("APPLE")) {
+            return Category.CONSUMABLES;
+        }
+        
+        // Blocks
+        if (material.isBlock()) {
+            return Category.BLOCKS;
+        }
+        
+        // Default to miscellaneous/tools
+        return Category.TOOLS;
     }
 }

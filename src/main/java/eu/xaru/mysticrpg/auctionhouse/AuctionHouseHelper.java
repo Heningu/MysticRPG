@@ -96,6 +96,37 @@ public class AuctionHouseHelper {
         return auctionId;
     }
 
+    public UUID addSellOffer(UUID seller, ItemStack item, int price, long duration) {
+        long endTime = System.currentTimeMillis() + duration;
+        UUID auctionId = UUID.randomUUID();
+        Auction auction = new Auction(auctionId, seller, item, price, endTime, false); // false = sell offer, not auction
+        activeAuctions.put(auctionId, auction);
+        DebugLogger.getInstance().log(Level.INFO, "Sell offer added to activeAuctions with ID: " + auctionId, 0);
+
+        auctionStorage.saveAuction(auction, new Callback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                DebugLogger.getInstance().log(Level.INFO, "Sell offer " + auctionId + " saved to storage.", 0);
+
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    String itemName = auction.getItem().getType().toString().replace("_", " ");
+                    Player sellerPlayer = Bukkit.getPlayer(seller);
+                    String sellerName = sellerPlayer != null ? sellerPlayer.getName() : "A player";
+                    Bukkit.broadcastMessage(Utils.getInstance().$("&a[Auction House] &e" +
+                            sellerName + " has listed " + itemName + " for $" +
+                            economyHelper.formatGold(price) + "!"));
+                });
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                DebugLogger.getInstance().log(Level.SEVERE, "Failed to save sell offer to storage: ", throwable, throwable);
+            }
+        });
+
+        return auctionId;
+    }
+
     public UUID addBidAuction(UUID seller, ItemStack item, int startingPrice, long duration) {
         long endTime = System.currentTimeMillis() + duration;
         UUID auctionId = UUID.randomUUID();
