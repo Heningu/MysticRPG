@@ -7,6 +7,8 @@ import eu.xaru.mysticrpg.customs.items.CustomItemUtils;
 import eu.xaru.mysticrpg.economy.EconomyHelper;
 import eu.xaru.mysticrpg.economy.EconomyModule;
 import eu.xaru.mysticrpg.enums.EModulePriority;
+import eu.xaru.mysticrpg.guis.auctionhouse.SellGUI;
+import eu.xaru.mysticrpg.guis.auctionhouse.ManageBidsGUI;
 import eu.xaru.mysticrpg.interfaces.IBaseModule;
 import eu.xaru.mysticrpg.managers.EventManager;
 import eu.xaru.mysticrpg.managers.ModuleManager;
@@ -125,6 +127,33 @@ public class AuctionHouseModule implements IBaseModule {
         });
 
         eventManager.registerEvent(AsyncPlayerChatEvent.class, event -> {
+            Player player = event.getPlayer();
+            
+            // Check if player is entering price for auction
+            if (SellGUI.isPendingPriceInput(player)) {
+                event.setCancelled(true);
+                String message = event.getMessage();
+                
+                // Handle price input on main thread
+                org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+                    SellGUI.handlePriceInput(player, message);
+                });
+                return;
+            }
+            
+            // Check if player is entering bid amount
+            if (ManageBidsGUI.isPendingBidInput(player)) {
+                event.setCancelled(true);
+                String message = event.getMessage();
+                
+                // Handle bid input on main thread
+                org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+                    ManageBidsGUI.handleBidInput(player, message);
+                });
+                return;
+            }
+            
+            // Apply color formatting to normal messages
             event.setMessage(Utils.getInstance().$(event.getMessage()));
         });
     }

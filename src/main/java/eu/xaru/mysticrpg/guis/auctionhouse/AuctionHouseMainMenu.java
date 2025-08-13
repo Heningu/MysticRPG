@@ -70,18 +70,18 @@ public final class AuctionHouseMainMenu {
 
         Item filler = new SimpleItem(new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE));
 
-        Item buy = new SimpleItem(new ItemBuilder(Material.CHEST)
-                .setDisplayName(ChatColor.GREEN + "Browse Auctions")
+        Item auctionBrowser = new SimpleItem(new ItemBuilder(Material.CHEST)
+                .setDisplayName(ChatColor.GREEN + "Auction Browser")
                 .addLoreLines(
                         "",
-                        "Look for items you may be interested in.",
+                        "Browse all active auctions",
+                        "and sell offers.",
                         ""
                 )
                 .addAllItemFlags()
         ) {
             @Override
             public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
-                // Close the current GUI before opening the Equipment GUI
                 Window window = event.getView().getTopInventory().getHolder() instanceof Window
                         ? (Window) event.getView().getTopInventory().getHolder() : null;
                 if (window != null) {
@@ -90,20 +90,42 @@ public final class AuctionHouseMainMenu {
                 BuyGUI buyGUI = new BuyGUI(auctionHouseMainMenu);
                 buyGUI.openAuctionHouseBuyGUI(player);
             }
-        }; 
+        };
 
-        Item sell = new SimpleItem(new ItemBuilder(Material.NAME_TAG)
-                .setDisplayName(ChatColor.GREEN + "Sell your Item")
+        Item manageBids = new SimpleItem(new ItemBuilder(Material.GOLDEN_SWORD)
+                .setDisplayName(ChatColor.BLUE + "Manage Bids")
                 .addLoreLines(
                         "",
-                        "Start selling your item here.",
+                        "View and manage your current",
+                        "bids and claim won items.",
                         ""
                 )
                 .addAllItemFlags()
         ) {
             @Override
             public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
-                // Close the current GUI before opening the Equipment GUI
+                Window window = event.getView().getTopInventory().getHolder() instanceof Window
+                        ? (Window) event.getView().getTopInventory().getHolder() : null;
+                if (window != null) {
+                    window.close();
+                }
+                ManageBidsGUI manageBidsGUI = new ManageBidsGUI(auctionHouseMainMenu);
+                manageBidsGUI.openManageBidsGUI(player);
+            }
+        };
+
+        Item createAuction = new SimpleItem(new ItemBuilder(Material.NAME_TAG)
+                .setDisplayName(ChatColor.GREEN + "Create New Auction")
+                .addLoreLines(
+                        "",
+                        "List an item for auction",
+                        "or as a sell offer.",
+                        ""
+                )
+                .addAllItemFlags()
+        ) {
+            @Override
+            public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
                 Window window = event.getView().getTopInventory().getHolder() instanceof Window
                         ? (Window) event.getView().getTopInventory().getHolder() : null;
                 if (window != null) {
@@ -111,27 +133,6 @@ public final class AuctionHouseMainMenu {
                 }
                 SellGUI sellGUI = new SellGUI(auctionHouseHelper, economyHelper);
                 sellGUI.openSellGUI(player);
-            }
-        }; 
-
-        Item currentoffers = new SimpleItem(new ItemBuilder(Material.BOOKSHELF)
-                .setDisplayName(ChatColor.GREEN + "Your current offers")
-                .addLoreLines(
-                        "",
-                        "Check what items you currently sell.",
-                        ""
-                )
-                .addAllItemFlags()) {
-            @Override
-            public void handleClick(@NotNull ClickType clickType, @NotNull Player player, @NotNull InventoryClickEvent event) {
-
-                Window window = event.getView().getTopInventory().getHolder() instanceof Window
-                        ? (Window) event.getView().getTopInventory().getHolder() : null;
-                if (window != null) {
-                    window.close();
-                }
-                YourAuctionsGUI yourAuctionsgui = new YourAuctionsGUI(auctionHouseMainMenu);
-                yourAuctionsgui.openAuctionHouseYourAuctionsGUI(player);
             }
         };
 
@@ -167,9 +168,9 @@ public final class AuctionHouseMainMenu {
                 "# # # # B # # # #"
         )
                 .addIngredient('#', filler)
-                .addIngredient('1', buy)
-                .addIngredient('2', sell)
-                .addIngredient('3', currentoffers)
+                .addIngredient('1', auctionBrowser)
+                .addIngredient('2', manageBids)
+                .addIngredient('3', createAuction)
                 .addIngredient('B', back)
                 .build();
 
